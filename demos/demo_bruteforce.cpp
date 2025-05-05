@@ -4,7 +4,7 @@
 #include "../lib/algos/BruteforceSearch.hpp"
 
 int main(){
-    // 1. Load dummy data
+    // 1. Load dummy data and queries
     diNoLib::idx_t n_database = 200000;
     diNoLib::idx_t dim = 96;
     const char *dataset_name = "/home/mchatzakis/diNoSimilaritySearch/data/data.randwalk.len96.size200000.znorm.bin";
