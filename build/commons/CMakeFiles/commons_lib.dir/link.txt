@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcommons_lib.a CMakeFiles/commons_lib.dir/dataloaders.cpp.o
+/usr/bin/ranlib libcommons_lib.a

@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/demo_bruteforce.dir/demo_bruteforce.cpp.o -o demo_bruteforce  ../lib/libdino_lib.a ../commons/libcommons_lib.a

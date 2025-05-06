@@ -1,0 +1,2 @@
+/usr/bin/ar qc libdino_lib.a CMakeFiles/dino_lib.dir/distance_computers/DistanceComputers.cpp.o
+/usr/bin/ranlib libdino_lib.a

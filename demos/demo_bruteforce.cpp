@@ -7,11 +7,11 @@ int main(){
     // 1. Load dummy data and queries
     diNoLib::idx_t n_database = 200000;
     diNoLib::idx_t dim = 96;
-    const char *dataset_name = "/home/mchatzakis/diNoSimilaritySearch/data/data.randwalk.len96.size200000.znorm.bin";
+    const char *dataset_name = "./data/data.randwalk.len96.size200000.znorm.bin";
     float *database = loadBinData(dataset_name, n_database, dim);
 
     diNoLib::idx_t n_query = 5;
-    const char *query_name = "/home/mchatzakis/diNoSimilaritySearch/data/query.randwalk.len96.size1000.bin";
+    const char *query_name = "./data/query.randwalk.len96.size1000.bin";
     float *query = loadBinData(query_name, n_query, dim);
 
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
