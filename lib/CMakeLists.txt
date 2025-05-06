@@ -1,6 +1,6 @@
 # Create a library target from source files
 add_library(dino_lib
-    distance_computers/DistanceComputers.cpp
+    distance_computers/DistanceComputer.cpp
 )
 
 # Include all headers (including subfolders)
