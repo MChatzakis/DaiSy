@@ -53,7 +53,7 @@ float *z_normalize(const float *data, unsigned long long n, unsigned long long d
     return normalized_data;
 }
 
-float *loadRandomData(unsigned long long n, unsigned long long dim, bool z_norm = false, int seed = 0)
+float *loadRandomData(unsigned long long n, unsigned long long dim, bool z_norm, int seed) 
 {
     if (seed != 0)
     {
