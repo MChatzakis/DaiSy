@@ -1,7 +1,37 @@
-#include <stdio.h>
-
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/BruteforceSearch.hpp"
+
+#include <chrono>
+#include <sys/stat.h>
+#include <cstdio>
+#include <cstdlib>
+
+void checkThreadBruteForceSearch(const diNoLib::idx_t *I, diNoLib::idx_t *I2, float *D, float *D2, diNoLib::idx_t n_query, diNoLib::idx_t k) 
+{
+    bool ok = true;
+    for (diNoLib::idx_t i = 0; i < n_query * k; ++i) {
+        if (I[i] != I2[i] || std::abs(D[i] - D2[i]) > 1e-4f) {
+            printf("Mismatch at index %llu: I = %llu, I2 = %llu --- D = %.5f, D2 = %.5f\n",
+                   i, I[i], I2[i], D[i], D2[i]);
+            ok = false;
+        }
+    }
+}
+
+void printResults(diNoLib::idx_t n_query, diNoLib::idx_t k, const diNoLib::idx_t *I, const char* label = "") 
+{
+    for (diNoLib::idx_t i = 0; i < n_query; ++i) 
+    {
+        if (label) printf("%s", label);
+        printf("Query %llu: ", i);
+        for (diNoLib::idx_t j = 0; j < k; ++j) 
+        {
+            printf("%llu ", I[i * k + j]);
+        }
+        printf("\n");
+    }
+}
+
 
 int main(){
     // 1. Load dummy data and queries
@@ -10,7 +40,7 @@ int main(){
     const char *dataset_name = "../data/data.randwalk.len96.size200000.znorm.bin"; 
     float *database = loadBinData(dataset_name, n_database, dim);
 
-    diNoLib::idx_t n_query = 5;
+    diNoLib::idx_t n_query = 4;
     const char *query_name = "../data/query.randwalk.len96.size1000.bin";
     float *query = loadBinData(query_name, n_query, dim);
 
@@ -26,24 +56,44 @@ int main(){
     diNoLib::idx_t k = 10;
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
     float *D = new float[n_query * k];
+
+    auto start = std::chrono::high_resolution_clock::now();
     bf_search.searchIndex(query, n_query, k, I, D);
+    auto end = std::chrono::high_resolution_clock::now();
+    double duration = std::chrono::duration<double>(end - start).count();
 
     // 5. Print the results
-    for (diNoLib::idx_t i = 0; i < n_query; i++)
-    {
-        printf("Query %llu: ", i);
-        for (diNoLib::idx_t j = 0; j < k; j++)
-        {
-            printf("%llu ", I[i * k + j]);
-        }
-        printf("\n");
-    }
+    printResults(n_query, k, I);
+
+    /*threaded*/
+    diNoLib::idx_t *I2 = new diNoLib::idx_t[n_query * k];
+    float *D2 = new float[n_query * k];
+    diNoLib::BruteForceSearch bf_multi(diNoLib::DistanceType::L2_SQUARED);
+    bf_multi.buildIndex(database, n_database, dim);
+    bf_multi.setNumThreads(4);
+
+    auto start2 = std::chrono::high_resolution_clock::now();
+    bf_multi.searchIndex(query, n_query, k, I2, D2);
+    auto end2 = std::chrono::high_resolution_clock::now();
+    double duration2 = std::chrono::duration<double>(end2 - start2).count();
+
+    printResults(n_query, k, I2, "[Threaded] ");
+    /*threaded end*/
+
+    /*CHECKS*/
+    printf("Search took %.4f s with %d threads\n", duration, 1);    
+
+    printf("Search took %.4f s with %d threads\n", duration2, bf_multi.getNumThreads());    
+
+    checkThreadBruteForceSearch(I, I2, D, D2, n_query, k);
 
     // 6. Clean up
     delete[] database;
     delete[] query;
     delete[] I;
-    delete[] D;
+    delete[] D;    
+    delete[] I2;
+    delete[] D2;
    
     return 0;
 }
