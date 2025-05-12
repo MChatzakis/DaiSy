@@ -8,6 +8,32 @@ namespace diNoLib
     {
     }
 
+    void BruteForceSearch::setNumThreads(int num_threads)
+    {
+        int max_threads = omp_get_max_threads();
+
+        if (num_threads > max_threads) 
+        {
+            std::cerr << "[Warning] " << num_threads 
+                    << " threads exceeds max available " << max_threads << " Using the max threads available.\n";
+            this->num_threads = max_threads;
+        } 
+        else if (num_threads < 1) 
+        {
+            std::cerr << "[Warning] Thread count must be >= 1. Using 1.\n";
+            this->num_threads = 1;
+        } 
+        else 
+        {
+            this->num_threads = num_threads;
+        }
+    } 
+
+    int BruteForceSearch::getNumThreads() const
+    {
+        return this->num_threads;
+    } 
+
     void BruteForceSearch::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
     {
         this->database = new float[n_database * dim];
@@ -18,8 +44,9 @@ namespace diNoLib
 
     void BruteForceSearch::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        #pragma omp parallel for num_threads(num_threads)
         for (idx_t qi = 0; qi < n_query; qi++)
-        {
+        {   
             std::priority_queue<std::pair<float, idx_t>> pq;
             const float *q_vec = query + qi * dim;
 
@@ -47,6 +74,7 @@ namespace diNoLib
             }
         }
     }
+
     BruteForceSearch::~BruteForceSearch()
     {
         delete[] database;
