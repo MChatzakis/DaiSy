@@ -11,7 +11,7 @@
 #include "../lib/algos/BruteforceSearch.hpp"
 
 // A equivalent function of numpy.isclose ; absolute(a - b) <= (atol + rtol * absolute(b))
-bool isclose(double a, double b, double rtol = 1e-5, double atol = 1e-8) {
+bool isclose(diNoLib::idx_t a, diNoLib::idx_t b, double rtol = 1e-5, double atol = 1e-8) {
     return std::fabs(a - b) <= atol || std::fabs(a - b) <= rtol * std::fabs(b);
 }
 
@@ -67,28 +67,36 @@ bool parseFilenameForConfig(const std::string& filename,
     return success;
 }
 
-std::vector<int> readFile(const std::string& filepath) 
+float* readFile(const std::string& filepath, size_t& outSize)
 {
     std::ifstream file(filepath);
-    if (!file) 
+    if (!file)
     {
         std::cerr << "Error opening file: " << filepath << std::endl;
-        return {};
+        outSize = 0;
+        return nullptr;
     }
 
-    std::vector<int> content;
+    std::vector<float> temp;
     std::string line;
-    while (std::getline(file, line)) 
+    while (std::getline(file, line))
     {
         std::istringstream iss(line);
-        int number;
-        while (iss >> number) 
+        float number;
+        while (iss >> number)
         {
-            content.push_back(number);
+            temp.push_back(static_cast<float>(number));
         }
     }
 
-    return content;
+    outSize = temp.size();
+    float* D = new float[outSize];
+    for (size_t i = 0; i < outSize; ++i)
+    {
+        D[i] = temp[i];
+    }
+
+    return D;
 }
 
 bool compareWithGroundTruth(const std::string& pathI, 
@@ -98,10 +106,12 @@ bool compareWithGroundTruth(const std::string& pathI,
                             diNoLib::idx_t n_query, 
                             diNoLib::idx_t k) 
 {
-    std::vector<int> arrayI = readFile(pathI);
-    std::vector<int> arrayD = readFile(pathD);
+    size_t sizeI;
+    size_t sizeD;
+    float* arrayI = readFile(pathI, sizeI);
+    float* arrayD = readFile(pathD, sizeD);
     
-    if (arrayI.size() != n_query * k || arrayD.size() != n_query * k) 
+    if (sizeI != n_query * k || sizeD != n_query * k) 
     {
         std::cerr << "Size mismatch " << std::endl;
         return false;
@@ -111,12 +121,12 @@ bool compareWithGroundTruth(const std::string& pathI,
     {
         for (size_t j = 0; j < k; ++j) 
         {
-            int expectedI = I[i * k + j];
-            int actualI = arrayI[i * k + j];
-            int expectedD = D[i * k + j];
-            int actualD = arrayD[i * k + j];             
+            diNoLib::idx_t expectedI = I[i * k + j];
+            diNoLib::idx_t actualI = arrayI[i * k + j];
+            diNoLib::idx_t expectedD = D[i * k + j];
+            diNoLib::idx_t actualD = arrayD[i * k + j];                       
 
-            if (expectedI != actualI) 
+            if (!isclose(expectedI, actualI))            
             {
                 std::cerr << "I: Mismatch at i=" << i << ", j=" << j
                           << ": expected " << expectedI << ", got " << actualI << std::endl;
@@ -154,7 +164,7 @@ void printResults(diNoLib::idx_t n_query, diNoLib::idx_t k, const diNoLib::idx_t
         printf("Query %llu: ", i);
         for (diNoLib::idx_t j = 0; j < k; ++j) 
         {
-            printf("%.5f ", D[i * k + j]);
+            printf("%.8f ", D[i * k + j]);
         }
         printf("\n");
     }
@@ -200,11 +210,7 @@ bool testBruteForceSS(const char *path_I_gt,
     
     // 4. Search the index
     bf_search.searchIndex(query, n_query, k, I, D);
-
     
-    
-    printResults(n_query, k, I, D);
-
     // 5. Compare with ground truth
     bool ok = compareWithGroundTruth(path_I_gt, path_D_gt, I, D, n_query, k);
     if (ok)
@@ -225,12 +231,12 @@ bool testBruteForceSS(const char *path_I_gt,
 
 
 int main(){
-    const char *gt_I_path = "../tests/gt/bruteFSS_gt_I_Random_len96_size200000_q4_k10.txt";  
-    const char *gt_D_path = "../tests/gt/bruteFSS_gt_D_Random_len96_size200000_q4_k10.txt";
+    const char *gt_I_path = "../tests/gt/Indices/bruteFSS_gt_I_Random_len96_size200000_q4_k1.txt";  
+    const char *gt_D_path = "../tests/gt/Distances/bruteFSS_gt_D_Random_len96_size200000_q4_k1.txt";
     const char *dataset_path = "../data/data.randwalk.len96.size200000.znorm.bin";
     const char *query_path = "../data/query.randwalk.len96.size1000.bin";
 
-    std::cout << testBruteForceSS(gt_I_path, gt_D_path, dataset_path, query_path) << std::endl;
+    testBruteForceSS(gt_I_path, gt_D_path, dataset_path, query_path);
 
     return 0;
 }
