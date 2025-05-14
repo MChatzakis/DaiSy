@@ -53,7 +53,7 @@ int main(){
     bf_search.buildIndex(database, n_database, dim);
 
     // 4. Search the index
-    diNoLib::idx_t k = 10;
+    diNoLib::idx_t k = 1;
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
     float *D = new float[n_query * k];
 

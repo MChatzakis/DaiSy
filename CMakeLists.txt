@@ -13,3 +13,7 @@ add_subdirectory(lib)
 
 # Add demos
 add_subdirectory(demos)
+
+# Add tests
+add_subdirectory(tests)
+
