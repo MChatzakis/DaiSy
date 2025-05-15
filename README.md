@@ -1,3 +1,7 @@
+## Requirements
+
+- GoogleTest requires at least C++14
+
 ## Pip
 
 ```bash
@@ -19,4 +23,12 @@ mkdir build
 cd build
 cmake ..
 cmake --build .
+```
+
+## CTEST
+
+```bash
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
