@@ -51,13 +51,15 @@ namespace diNoLib
                 std::priority_queue<std::pair<float, idx_t>> pq;
                 const float *q_vec = query + qi * dim;
 
+                float bound = FLT_MAX;  // initialize bound to max float
+
                 for (idx_t dbi = 0; dbi < n_database; ++dbi)
                 {
                     const float *db_vec = database + dbi * dim;
                     float dist = this->distance_computer->compute_dist(const_cast<float *>(q_vec), 
                                                                         const_cast<float *>(db_vec), 
                                                                         dim, 
-                                                                        FLT_MAX);
+                                                                        bound);
                     if ((idx_t)pq.size() < k) // maintain max-heap
                     {
                         pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
@@ -66,7 +68,9 @@ namespace diNoLib
                     {
                         pq.pop();
                         pq.emplace(dist, dbi);                         
+                        bound = pq.top().first; // update the `bound` variable
                     }
+
                 }
                 
                 // store top-k results in reverse order
