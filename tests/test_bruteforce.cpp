@@ -229,12 +229,12 @@ bool testBruteForceSS(const char *path_I_gt,
     return true;
 }
 
-
+// TODO: make it like run_all like the one .py
 int main(){
-    const char *gt_I_path = "../tests/gt/Indices/bruteFSS_gt_I_Random_len96_size200000_q4_k1.txt";  
-    const char *gt_D_path = "../tests/gt/Distances/bruteFSS_gt_D_Random_len96_size200000_q4_k1.txt";
-    const char *dataset_path = "../data/data.randwalk.len96.size200000.znorm.bin";
-    const char *query_path = "../data/query.randwalk.len96.size1000.bin";
+    const char *gt_I_path = "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q4_k1.txt";  
+    const char *gt_D_path = "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q4_k1.txt";
+    const char *dataset_path = "../data/random.data.randwalk.len96.size200000.znorm.bin";
+    const char *query_path = "../data/random.query.randwalk.len96.size1000.bin";
 
     testBruteForceSS(gt_I_path, gt_D_path, dataset_path, query_path);
 

@@ -37,11 +37,11 @@ int main(){
     // 1. Load dummy data and queries
     diNoLib::idx_t n_database = 200000;
     diNoLib::idx_t dim = 96;
-    const char *dataset_name = "../data/data.randwalk.len96.size200000.znorm.bin"; 
+    const char *dataset_name = "../data/random.data.randwalk.len96.size200000.znorm.bin"; 
     float *database = loadBinData(dataset_name, n_database, dim);
 
-    diNoLib::idx_t n_query = 4;
-    const char *query_name = "../data/query.randwalk.len96.size1000.bin";
+    diNoLib::idx_t n_query = 1000;
+    const char *query_name = "../data/random.data.randwalk.len96.size200000.znorm.bin";
     float *query = loadBinData(query_name, n_query, dim);
 
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
@@ -53,7 +53,7 @@ int main(){
     bf_search.buildIndex(database, n_database, dim);
 
     // 4. Search the index
-    diNoLib::idx_t k = 1;
+    diNoLib::idx_t k = 100;
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
     float *D = new float[n_query * k];
 
@@ -63,7 +63,7 @@ int main(){
     double duration = std::chrono::duration<double>(end - start).count();
 
     // 5. Print the results
-    printResults(n_query, k, I);
+    // printResults(n_query, k, I);
 
     /*threaded*/
     diNoLib::idx_t *I2 = new diNoLib::idx_t[n_query * k];
@@ -77,7 +77,7 @@ int main(){
     auto end2 = std::chrono::high_resolution_clock::now();
     double duration2 = std::chrono::duration<double>(end2 - start2).count();
 
-    printResults(n_query, k, I2, "[Threaded] ");
+    // printResults(n_query, k, I2, "[Threaded] ");
     /*threaded end*/
 
     /*CHECKS*/

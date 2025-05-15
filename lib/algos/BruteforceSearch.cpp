@@ -41,7 +41,6 @@ namespace diNoLib
         this->n_database = n_database;
         this->dim = dim;
     }
-
     void BruteForceSearch::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         #pragma omp parallel num_threads(num_threads)
@@ -55,25 +54,28 @@ namespace diNoLib
                 for (idx_t dbi = 0; dbi < n_database; ++dbi)
                 {
                     const float *db_vec = database + dbi * dim;
-                    float dist = this->distance_computer->compute_dist(const_cast<float *>(q_vec), const_cast<float *>(db_vec), dim, FLT_MAX);
-
-                    if ((idx_t)pq.size() < k)
+                    float dist = this->distance_computer->compute_dist(const_cast<float *>(q_vec), 
+                                                                        const_cast<float *>(db_vec), 
+                                                                        dim, 
+                                                                        FLT_MAX);
+                    if ((idx_t)pq.size() < k) // maintain max-heap
                     {
                         pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
                     }
                     else if (dist < pq.top().first) 
                     {
                         pq.pop();
-                        pq.emplace(dist, dbi);
+                        pq.emplace(dist, dbi);                         
                     }
                 }
-
+                
+                // store top-k results in reverse order
                 for (idx_t j = k; j > 0; --j)
                 {
                     D[qi * k + (j - 1)] = pq.top().first;
                     I[qi * k + (j - 1)] = pq.top().second;
                     pq.pop();
-                }
+                }               
             }
         }
     }

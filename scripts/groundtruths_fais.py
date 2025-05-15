@@ -49,13 +49,16 @@ def saveOutput(filename_prefix: str,
     
     if is_distance:
         folder = os.path.join(folder, "Distances")
+        os.makedirs(folder, exist_ok=True)
+        output_filename = os.path.join(folder, f"{filename_prefix}.txt")    
+        np.savetxt(output_filename, indices, fmt='%.15f')
+        print(f"Saved output to {output_filename}")        
     else:
         folder = os.path.join(folder, "Indices")
-
-    os.makedirs(folder, exist_ok=True)
-    output_filename = os.path.join(folder, f"{filename_prefix}.txt")    
-    np.savetxt(output_filename, indices, fmt='%d')
-    print(f"Saved output to {output_filename}")
+        os.makedirs(folder, exist_ok=True)
+        output_filename = os.path.join(folder, f"{filename_prefix}.txt")    
+        np.savetxt(output_filename, indices, fmt='%.f')
+        print(f"Saved output to {output_filename}")
 
 def bruteForceSS_gt(dim: int, 
                     db_file: str, 
