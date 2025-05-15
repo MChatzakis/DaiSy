@@ -1,12 +1,23 @@
 find_package(OpenMP REQUIRED) 
 
-target_sources(dino_lib PRIVATE
+target_sources(dino_lib 
+    PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/BruteforceSearch.cpp
 )
 
 if(OpenMP_CXX_FOUND)
-    target_compile_options(dino_lib PRIVATE ${OpenMP_CXX_FLAGS})
-    target_link_libraries(dino_lib PRIVATE OpenMP::OpenMP_CXX)
+    target_compile_options(
+        dino_lib 
+        PRIVATE 
+        ${OpenMP_CXX_FLAGS}
+    )
+
+    target_link_libraries(
+        dino_lib 
+        PRIVATE 
+        OpenMP::OpenMP_CXX
+    )
+    
 else()
     message(WARNING "OpenMP not found. Proceeding without OpenMP support.")
 endif()

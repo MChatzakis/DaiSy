@@ -1,12 +1,14 @@
 # Create a library target from source files
-add_library(dino_lib
+add_library(
+    dino_lib
     distance_computers/DistanceComputer.cpp
 )
 
 add_subdirectory(algos)
 
 # Include all headers (including subfolders)
-target_include_directories(dino_lib PUBLIC
+target_include_directories(
+    dino_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

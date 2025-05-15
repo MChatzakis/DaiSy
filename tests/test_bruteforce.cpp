@@ -6,6 +6,11 @@
 #include <regex>
 #include <cassert>
 #include <cmath>
+#include <filesystem>
+#include <unordered_map>
+
+// header of the GoogleTest
+#include <gtest/gtest.h>
 
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/BruteforceSearch.hpp"
@@ -229,14 +234,138 @@ bool testBruteForceSS(const char *path_I_gt,
     return true;
 }
 
-// TODO: make it like run_all like the one .py
-int main(){
-    const char *gt_I_path = "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q4_k1.txt";  
-    const char *gt_D_path = "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q4_k1.txt";
-    const char *dataset_path = "../data/random.data.randwalk.len96.size200000.znorm.bin";
-    const char *query_path = "../data/random.query.randwalk.len96.size1000.bin";
+struct DatasetPairing {
+    std::string data_path;
+    std::string query_path;
+    std::vector<std::string> gt_I_paths;
+    std::vector<std::string> gt_D_paths;
+};
 
-    testBruteForceSS(gt_I_path, gt_D_path, dataset_path, query_path);
 
-    return 0;
+void compareWithGroundTruthTEST(const std::string& pathI, 
+                            const std::string& pathD, 
+                            const diNoLib::idx_t *I, 
+                            float *D,
+                            diNoLib::idx_t n_query, 
+                            diNoLib::idx_t k) 
+{
+    size_t sizeI;
+    size_t sizeD;
+    float* arrayI = readFile(pathI, sizeI);
+    float* arrayD = readFile(pathD, sizeD);
+
+    ASSERT_EQ(sizeI, n_query * k) << "Mismatch in Index file size.";
+    ASSERT_EQ(sizeD, n_query * k) << "Mismatch in Distance file size.";
+
+    for (size_t i = 0; i < n_query; ++i) {
+        for (size_t j = 0; j < k; ++j) {
+            auto idx = i * k + j;
+
+            EXPECT_TRUE(isclose(I[idx], static_cast<diNoLib::idx_t>(arrayI[idx])))
+                << "Index mismatch at (" << i << "," << j << "): expected " << arrayI[idx] << ", got " << I[idx];
+
+            EXPECT_TRUE(isclose(D[idx], arrayD[idx]))
+                << "Distance mismatch at (" << i << "," << j << "): expected " << arrayD[idx] << ", got " << D[idx];
+        }
+    }
+
+    delete[] arrayI;
+    delete[] arrayD;
+}
+
+class BruteForceSSTest : public ::testing::Test {
+protected:
+    void runBruteForceTest(const std::string& gt_I, 
+                           const std::string& gt_D, 
+                           const std::string& dataset_path, 
+                           const std::string& query_path) 
+    {
+        std::string filename_gt = pathToFilename(gt_I);
+        std::string dataset_name = pathToFilename(dataset_path);
+
+        diNoLib::idx_t dim_gt, n_database_gt, n_query, k;
+        ASSERT_TRUE(parseFilenameForConfig(filename_gt, dim_gt, n_database_gt, n_query, k));
+
+        diNoLib::idx_t dim, n_database, _, __;
+        ASSERT_TRUE(parseFilenameForConfig(dataset_name, dim, n_database, _, __));
+
+        ASSERT_EQ(dim_gt, dim);
+        ASSERT_EQ(n_database_gt, n_database);
+
+        float* database = loadBinData(dataset_path.c_str(), n_database, dim);
+        float* query = loadBinData(query_path.c_str(), n_query, dim);
+
+        diNoLib::BruteForceSearch bf_search(diNoLib::DistanceType::L2_SQUARED);
+        bf_search.buildIndex(database, n_database, dim);
+
+        diNoLib::idx_t* I = new diNoLib::idx_t[n_query * k];
+        float* D = new float[n_query * k];
+        bf_search.searchIndex(query, n_query, k, I, D);
+
+        compareWithGroundTruthTEST(gt_I, gt_D, I, D, n_query, k);
+
+        delete[] database;
+        delete[] query;
+        delete[] I;
+        delete[] D;
+    }
+};
+
+TEST_F(BruteForceSSTest, RandomWalkData_k1) {
+    runBruteForceTest(
+        "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q4_k1.txt",
+        "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q4_k1.txt",
+        "../data/random.data.randwalk.len96.size200000.znorm.bin",
+        "../data/random.query.randwalk.len96.size1000.bin"
+    );
+}
+
+TEST_F(BruteForceSSTest, RandomWalkData_k10) {
+    runBruteForceTest(
+        "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q4_k10.txt",
+        "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q4_k10.txt",
+        "../data/random.data.randwalk.len96.size200000.znorm.bin",
+        "../data/random.query.randwalk.len96.size1000.bin"
+    );
+}
+
+TEST_F(BruteForceSSTest, RandomWalkData_k100) {
+    runBruteForceTest(
+        "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q4_k100.txt",
+        "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q4_k100.txt",
+        "../data/random.data.randwalk.len96.size200000.znorm.bin",
+        "../data/random.query.randwalk.len96.size1000.bin"
+    );
+}
+
+TEST_F(BruteForceSSTest, AstronomyData_k1) {
+    runBruteForceTest(
+        "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q4_k1.txt",
+        "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q4_k1.txt",
+        "../data/astronomy.data.len256.size50000.znorm.bin",
+        "../data/astronomy.query.len256.size50000.znorm.bin"
+    );
+}
+
+TEST_F(BruteForceSSTest, AstronomyData_k10) {
+    runBruteForceTest(
+        "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q4_k10.txt",
+        "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q4_k10.txt",
+        "../data/astronomy.data.len256.size50000.znorm.bin",
+        "../data/astronomy.query.len256.size50000.znorm.bin"
+    );
+}
+
+TEST_F(BruteForceSSTest, AstronomyData_k100) {
+    runBruteForceTest(
+        "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q4_k100.txt",
+        "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q4_k100.txt",
+        "../data/astronomy.data.len256.size50000.znorm.bin",
+        "../data/astronomy.query.len256.size50000.znorm.bin"
+    );
+}
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
