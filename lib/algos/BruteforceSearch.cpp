@@ -68,7 +68,7 @@ namespace diNoLib
                     {
                         pq.pop();
                         pq.emplace(dist, dbi);                         
-                        bound = pq.top().first; // update the `bound` variable
+                        // bound = pq.top().first; // update the `bound` variable
                     }
 
                 }

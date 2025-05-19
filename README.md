@@ -1,5 +1,6 @@
 ## Requirements
 
+- Python 3.8.16 or Python 3.9.17 or Python 3.10.13 ← recommended
 - GoogleTest requires at least C++14
 
 ## Pip

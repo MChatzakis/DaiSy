@@ -7,7 +7,7 @@ def formatFile_db(filename: str,
                   num_points: int, 
                   dim: int) -> np.ndarray:
     """
-    Load the database and reshape it into a 2D NumPy array.
+    @brief Load the database and reshape it into a 2D NumPy array.
 
     @param filename: Path to the binary file
     @param num_points: Number of vectors
@@ -21,7 +21,7 @@ def formatFile_query(filename: str,
                      dim: int, 
                      nq: int) -> np.ndarray:
     """
-    Load the query dataset and reshape it into a 2D NumPy array.
+    @brief Load the query dataset and reshape it into a 2D NumPy array.
 
     @param filename: Path to the data
     @param dim: Dimensionality of each query vector
@@ -38,7 +38,7 @@ def saveOutput(filename_prefix: str,
                indices: np.ndarray,
                is_distance: bool = False) -> None:
     """
-    Save the output array to a .txt file.
+    @brief Save the output array to a .txt file.
 
     @param filename_prefix: Filename stem
     @param indices: NumPy Array of indices or distances
@@ -68,7 +68,7 @@ def bruteForceSS_gt(dim: int,
                     db_name: str, 
                     k_tab: list[int] | None = None) -> None:
     """
-    Run brute-force nearest neighbor search using FAISS and save distances and indices.
+    @brief Run brute-force nearest neighbor search using FAISS and save distances and indices.
 
     @param dim: Dimensionality of vectors
     @param db_file: Path to the database file
@@ -94,7 +94,7 @@ def bruteForceSS_gt(dim: int,
 
 def path_to_filename(path: str) -> str:
     """
-    Extract the filename from a full file path.
+    @brief Extract the filename from a full file path.
 
     @param path: Full path to a file
     @return: Just the filename
@@ -103,7 +103,7 @@ def path_to_filename(path: str) -> str:
 
 def parse_filename_for_config(path: str) -> tuple[str | None, int | None, int | None]:
     """
-    Extract dimensionality and database size from filename using regex.
+    @brief Extract dimensionality and database size from filename using regex.
 
     @param path: File path containing 'len<dim>' and 'size<points>'
     @return: 
@@ -134,7 +134,7 @@ def parse_filename_for_config(path: str) -> tuple[str | None, int | None, int | 
 
 def find_dataset_pairs(data_folder: str) -> list[tuple[str, str]]:
     """
-    Scan a folder and match database and query file pairs based on filename prefix.
+    @brief Scan a folder and match database and query file pairs based on filename prefix.
 
     @param data_folder: Path to the folder containing dataset files
     @return: List of (database_file_path, query_file_path) tuples
@@ -157,7 +157,7 @@ def find_dataset_pairs(data_folder: str) -> list[tuple[str, str]]:
 def run_all_datasets(override_num_queries: int | None = None, 
                      override_k_tab: list[int] | None = None) -> None:
     """
-    Run brute-force search on all dataset pairs found in './data'.
+    @brief Run brute-force search on all dataset pairs found in './data'.
 
     @param override_num_queries: Optional override for number of queries per dataset
     @param override_k_tab: Optional override for list of 'k' values in top-k search
@@ -182,4 +182,4 @@ def run_all_datasets(override_num_queries: int | None = None,
 
 
 if __name__ == '__main__':
-    run_all_datasets(override_num_queries=4)
+    run_all_datasets()
