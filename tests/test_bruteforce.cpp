@@ -19,7 +19,8 @@
 * @param b Second index
 * @return True if equal, false otherwise
 */  
-bool isclose(diNoLib::idx_t a, diNoLib::idx_t b) {  
+bool isclose(diNoLib::idx_t a, diNoLib::idx_t b) 
+{  
     return a == b;
 }
 
@@ -32,7 +33,8 @@ bool isclose(diNoLib::idx_t a, diNoLib::idx_t b) {
  * @param atol Absolute tolerance
  * @return True if values are close, false otherwise
  */
-bool isclose(double a, double b, double rtol = 1e-5, double atol = 1e-8) {
+bool isclose(double a, double b, double rtol=1e-5, double atol=1e-8) 
+{
     return std::fabs(a - b) <= (atol + rtol * std::fabs(b));
 }
 
@@ -72,31 +74,45 @@ bool parseFilenameForConfig(const std::string& filename,
 
     bool success = true;
 
-    if (std::regex_search(filename, match, len_rx)) {
+    if (std::regex_search(filename, match, len_rx)) 
+    {
         dim = std::stoi(match[1]);
-    } else {
+    } 
+    else 
+    {
         success = false;
     }
 
-    if (std::regex_search(filename, match, size_rx)) {
+    if (std::regex_search(filename, match, size_rx)) 
+    {
         n_database = std::stoi(match[1]);
-    } else {
+    } else 
+    {
         success = false;
     }
 
-    if (std::regex_search(filename, prefix_rx)) {
-        if (std::regex_search(filename, match, q_rx)) {
+    if (std::regex_search(filename, prefix_rx)) 
+    {
+        if (std::regex_search(filename, match, q_rx)) 
+        {
             n_query = std::stoi(match[1]);
-        } else {
+        } 
+        else 
+        {
             success = false;
         }
 
-        if (std::regex_search(filename, match, k_rx)) {
+        if (std::regex_search(filename, match, k_rx)) 
+        {
             k = std::stoi(match[1]);
-        } else {
+        } 
+        else 
+        {
             success = false;
         }
-    } else {
+    } 
+    else 
+    {
         n_query = 0;
         k = 0;
     }
@@ -168,31 +184,37 @@ void compareWithGroundTruthTEST(const std::string& pathI,
     ASSERT_EQ(sizeI, n_query * k) << "Mismatch in Index file size.";
     ASSERT_EQ(sizeD, n_query * k) << "Mismatch in Distance file size.";
 
-    for (size_t i = 0; i < n_query; ++i) {
-        for (size_t j = 0; j < k; ++j) {
+    for (size_t i = 0; i < n_query; ++i) 
+    {
+        for (size_t j = 0; j < k; ++j) 
+        {
             auto idx = i * k + j;
             bool I_equal = isclose(I[idx], static_cast<diNoLib::idx_t>(arrayI_gt[idx]));
             bool D_close = isclose(D[idx], arrayD_gt[idx], 1e-2, 1e-8);
 
-        if (!I_equal && !D_close) {
+        if (!I_equal && !D_close) 
+        {
             // Error case 1
             ADD_FAILURE() << "ERROR 1: Indices mismatch AND distance mismatch at (" << i << "," << j << "): "
                           << "expected label " << arrayI_gt[idx] << ", got " << I[idx] << "; "
                           << "expected distance " << arrayD_gt[idx] << ", got " << D[idx];
         }
-        else if (I_equal && !D_close) {
+        else if (I_equal && !D_close) 
+        {
             // Error case 2
             ADD_FAILURE() << "ERROR 2: Indices match BUT distance mismatch at (" << i << "," << j << "): "
                           << "label " << I[idx] << "; "
                           << "expected distance " << arrayD_gt[idx] << ", got " << D[idx];
         }
-        else if (!I_equal && D_close) {
+        else if (!I_equal && D_close) 
+        {
             // Warning case
             std::cerr << "WARNING: Indices mismatch but distances are close at (" << i << "," << j << "): "
                       << "expected label " << arrayI_gt[idx] << ", got " << I[idx] << "; "
                       << "distance close to " << D[idx] << std::endl;
         }
-        else {
+        else 
+        {
             SUCCEED(); // Everything matches or labels and distances both close: test passes
         }
         }
@@ -205,7 +227,8 @@ void compareWithGroundTruthTEST(const std::string& pathI,
 /**
  * Test fixture class for brute-force search tests using GoogleTest.
  */
-class BruteForceSSTest : public ::testing::Test {
+class BruteForceSSTest : public ::testing::Test 
+{
 protected:
     /**
      * @brief Run a brute-force search test using the provided dataset and compare results to ground truth.
@@ -261,7 +284,8 @@ const char *astro_data = "../data/astronomy.data.len256.size50000.znorm.bin";
 const char *astro_query = "../data/astronomy.query.len256.size100.znorm.bin";
 
 /************************ THREAD 1 ************************/
-TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread1) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread1) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k1.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k1.txt",
@@ -270,7 +294,8 @@ TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread1) {
     );
 }
 
-TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread1) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread1) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k10.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k10.txt",
@@ -279,7 +304,8 @@ TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread1) {
     );
 }
 
-TEST_F(BruteForceSSTest, AstronomyData_q100_k100_thread1) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k100_thread1) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k100.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k100.txt",
@@ -289,7 +315,8 @@ TEST_F(BruteForceSSTest, AstronomyData_q100_k100_thread1) {
 }
 
 /************************ THREAD 4 ************************/
-TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread4) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread4) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k1.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k1.txt",
@@ -299,7 +326,8 @@ TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread4) {
     );
 }
 
-TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread4) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread4) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k10.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k10.txt",
@@ -309,7 +337,8 @@ TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread4) {
     );
 }
 
-TEST_F(BruteForceSSTest, AstronomyData_q100_k100_thread4) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k100_thread4) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k100.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k100.txt",
@@ -320,7 +349,8 @@ TEST_F(BruteForceSSTest, AstronomyData_q100_k100_thread4) {
 }
 
 /************************ THREAD 8  ************************/
-TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread8) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread8) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k1.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k1.txt",
@@ -330,7 +360,8 @@ TEST_F(BruteForceSSTest, AstronomyData_q100_k1_thread8) {
     );
 }
 
-TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread8) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread8) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k10.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k10.txt",
@@ -340,7 +371,8 @@ TEST_F(BruteForceSSTest, AstronomyData_q100_k10_thread8) {
     );
 }
 
-TEST_F(BruteForceSSTest, AstronomyData_q100_k100_thread8) {
+TEST_F(BruteForceSSTest, AstronomyData_q100_k100_thread8) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k100.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k100.txt",
@@ -357,7 +389,8 @@ const char *random_data = "../data/random.data.randwalk.len96.size200000.znorm.b
 const char *random_query = "../data/random.query.randwalk.len96.size1000.bin";
 
 /************************ THREAD 1 ************************/
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread1) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread1) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k1.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k1.txt",
@@ -366,7 +399,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread1) {
     );
 }
 
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread1) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread1) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k10.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k10.txt",
@@ -375,7 +409,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread1) {
     );
 }
 
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread1) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread1) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k100.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k100.txt",
@@ -385,7 +420,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread1) {
 }
 
 /************************ THREAD 4 ************************/
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread4) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread4) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k1.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k1.txt",
@@ -395,7 +431,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread4) {
     );
 }
 
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread4) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread4) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k10.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k10.txt",
@@ -405,7 +442,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread4) {
     );
 }
 
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread4) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread4) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k100.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k100.txt",
@@ -416,7 +454,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread4) {
 }
 
 /************************ THREAD 8 ************************/
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread8) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread8) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k1.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k1.txt",
@@ -426,7 +465,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k1_thread8) {
     );
 }
 
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread8) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread8) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k10.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k10.txt",
@@ -436,7 +476,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k10_thread8) {
     );
 }
 
-TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread8) {
+TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread8) 
+{
     runBruteForceTest(
         "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k100.txt",
         "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k100.txt",
@@ -446,7 +487,8 @@ TEST_F(BruteForceSSTest, RandomWalkData_q1000_k100_thread8) {
     );
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) 
+{
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
