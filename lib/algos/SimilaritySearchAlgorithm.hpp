@@ -34,6 +34,15 @@ namespace diNoLib
 
         virtual void buildIndex(const float *database, const idx_t n_database, const idx_t dim) = 0;
         virtual void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) = 0;
+        /**
+         * @param query a pointor to an array of float
+         * @param n_query number of query vectors
+         * @param k number of nearest neighbors
+         * @param I output indices of nearest neighbors
+         * @param D output distances of nearest neighbors
+        */ 
+        
+        virtual void setNumThreads(int num_threads) {}
 
         virtual ~SimilaritySearchAlgorithm()
         {

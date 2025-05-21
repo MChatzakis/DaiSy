@@ -4,6 +4,9 @@ add_library(
     distance_computers/DistanceComputer.cpp
 )
 
+# Make it position-independent for use in a shared object
+set_target_properties(dino_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 add_subdirectory(algos)
 
 # Include all headers (including subfolders)
