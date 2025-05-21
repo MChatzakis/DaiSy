@@ -1,5 +1,5 @@
-#ifndef BRUTEFORCESEARCH_HPP
-#define BRUTEFORCESEARCH_HPP
+#ifndef ODYSSEY_HPP
+#define ODYSSEY_HPP
 
 #include "SimilaritySearchAlgorithm.hpp"
 
@@ -9,7 +9,7 @@
 
 namespace diNoLib
 {
-    class BruteForceSearch : public SimilaritySearchAlgorithm
+    class Odyssey : public SimilaritySearchAlgorithm
     {
     private:
         float* database = nullptr;
@@ -18,16 +18,16 @@ namespace diNoLib
         int num_threads = 1;
                 
     public:
-        BruteForceSearch(DistanceType distance_type);
+        Odyssey(DistanceType distance_type);
         void setNumThreads(int num_threads);
         int getNumThreads() const;        
         void buildIndex(const float *database, const idx_t n_database, const idx_t dim) override;
-        void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;  
+        void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;     
 
-        ~BruteForceSearch();
+        ~Odyssey();
 
     };
 
 } // namespace diNoLib
 
-#endif // BRUTEFORCESEARCH_HPP
+#endif // ODYSSEY_HPP

@@ -5,6 +5,31 @@ target_sources(dino_lib
     ${CMAKE_CURRENT_SOURCE_DIR}/BruteforceSearch.cpp
 )
 
+target_sources(dino_lib 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Paris.cpp
+)
+
+target_sources(dino_lib 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Messi.cpp
+)
+
+target_sources(dino_lib 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Sing.cpp
+)
+
+target_sources(dino_lib 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Odyssey.cpp
+)
+
+target_sources(dino_lib 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforce.cpp
+)
+
 if(OpenMP_CXX_FOUND)
     target_compile_options(
         dino_lib 

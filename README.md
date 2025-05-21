@@ -1,6 +1,6 @@
 ## Requirements
 
-- Python 3.8.16 or Python 3.9.17 or Python 3.10.13 ← recommended
+- Python 3.8.16 or Python 3.9.17 or Python 3.10.13 ← recommended (FAISS library requires)
 - GoogleTest requires at least C++14
 
 ## Pip
