@@ -7,8 +7,8 @@
 
 using namespace diNoLib;
 
-PYBIND11_MODULE(BruteForceSearch, m) {
-    m.doc() = "diNo::BruteForceSearch Python bindings";
+PYBIND11_MODULE(BruteForceSearch_lib, m) {
+    m.doc() = "diNo::BruteForceSearch_lib Python bindings";
 
     pybind11::enum_<DistanceType>(m, "DistanceType")
         .value("L2_SQUARED", DistanceType::L2_SQUARED)
