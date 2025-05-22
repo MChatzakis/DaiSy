@@ -7,6 +7,11 @@
 #include <gtest/gtest.h>
 
 #include "../lib/algos/BruteforceSearch.hpp" 
+#include "../lib/algos/LbBruteforce.hpp"
+#include "../lib/algos/Messi.hpp" 
+#include "../lib/algos/Odyssey.hpp" 
+#include "../lib/algos/Paris.hpp" 
+#include "../lib/algos/Sing.hpp" 
 
 /**
 * @brief Integer equality.
@@ -56,6 +61,7 @@ std::string pathToFilename(std::string path);
  * @return True if all required parameters were successfully parsed, false otherwise
  */
 bool parseFilenameForConfig(const std::string& filename,
+                            const std::string& prefix,
                             diNoLib::idx_t &dim,
                             diNoLib::idx_t &n_database,
                             diNoLib::idx_t &n_query,
@@ -77,9 +83,10 @@ void compareWithGroundTruth(const std::string& pathI,
                                 float* D,
                                 diNoLib::idx_t n_query,
                                 diNoLib::idx_t k);
+
 /**
- * Test fixture class for brute-force search tests using GoogleTest.
-*/
+ * @brief Parameterized test fixture for similarity search
+ */
 class SimilaritySearchTest : public ::testing::Test
 {
 protected:
@@ -93,11 +100,99 @@ protected:
      * @param num_thread Number of threads to use during search
      */
     void runSST(diNoLib::SimilaritySearchAlgorithm* search,  
+                const std::string& prefix_name,
                 const std::string& gt_I, 
                 const std::string& gt_D, 
                 const std::string& dataset_path, 
                 const std::string& query_path,
-                int num_thread = 1);
-};                                
+                int num_thread = 1
+                );
+};     
+
+/**
+ * @brief Configuration structure for similarity search tests
+ */
+struct SSTestConfig {
+    std::string name;
+    std::string dataset_path;
+    std::string query_path;
+    std::string gt_I_prefix;
+    std::string gt_D_prefix;
+    int thread_count;
+    int k_value;
+};
+
+/**
+ * @brief BruteforceParameterizedTest
+ */
+class BruteforceParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<SSTestConfig> {
+protected:
+    using SimilaritySearchTest::runSST;
+    
+    // Required Google Test setup/teardown methods
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+}; 
+
+/**
+ * @brief LbBruteforceParameterizedTest
+ */
+class LbBruteforceParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<SSTestConfig> {
+protected:
+    using SimilaritySearchTest::runSST;
+    
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+/**
+ * @brief MessiParameterizedTest
+ */
+class MessiParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<SSTestConfig> {
+protected:
+    using SimilaritySearchTest::runSST;
+    
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+/**
+ * @brief OdysseyParameterizedTest
+ */
+class OdysseyParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<SSTestConfig> {
+protected:
+    using SimilaritySearchTest::runSST;
+    
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+/**
+ * @brief ParisParameterizedTest
+ */
+class ParisParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<SSTestConfig> {
+protected:
+    using SimilaritySearchTest::runSST;
+    
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+/**
+ * @brief SingParameterizedTest
+ */
+class SingParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<SSTestConfig> {
+protected:
+    using SimilaritySearchTest::runSST;
+    
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
 
 #endif // TEST_UTILS_HPP

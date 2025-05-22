@@ -12,14 +12,17 @@ enable_testing()
 
 FetchContent_MakeAvailable(googletest)
 
+include(GoogleTest)
+
+# Test: BruteForce L2Square
 add_executable(
-    test_bruteforce 
-    test_bruteforce.cpp
+    test_bruteforce_L2Square 
+    test_bruteforce_L2Square.cpp
     test_utils.cpp
 )
 
 target_link_libraries(
-    test_bruteforce
+    test_bruteforce_L2Square
     PRIVATE
     GTest::gtest_main
     dino_lib
@@ -27,16 +30,139 @@ target_link_libraries(
     stdc++fs  
 )
 
-target_include_directories(test_bruteforce 
+target_include_directories(test_bruteforce_L2Square 
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
 
-include(GoogleTest)
+# Test: LbBruteforce L2Square
+add_executable(
+    test_LbBruteforce_L2Square 
+    test_LbBruteforce_L2Square.cpp
+    test_utils.cpp
+)
 
-# to discover and register all tests in the executable
+target_link_libraries(
+    test_LbBruteforce_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs  
+)
+
+target_include_directories(test_LbBruteforce_L2Square 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# Test: Messi L2Square
+add_executable(
+    test_Messi_L2Square 
+    test_Messi_L2Square.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Messi_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs  
+)
+
+target_include_directories(test_Messi_L2Square 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# Test: Odyssey L2Square 
+add_executable(
+    test_Odyssey_L2Square
+    test_Odyssey_L2Square.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Odyssey_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Odyssey_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# Test: Paris L2Square 
+add_executable(
+    test_Paris_L2Square
+    test_Paris_L2Square.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Paris_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Paris_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# Test: Sing L2Square 
+add_executable(
+    test_Sing_L2Square
+    test_Sing_L2Square.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Sing_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Sing_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# Discover and register all tests
 gtest_discover_tests(
-    test_bruteforce
+    test_bruteforce_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+gtest_discover_tests(
+    test_Odyssey_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+gtest_discover_tests(
+    test_Paris_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+gtest_discover_tests(
+    test_Sing_L2Square
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )

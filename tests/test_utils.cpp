@@ -25,59 +25,47 @@ std::string pathToFilename(std::string path)
 }
 
 bool parseFilenameForConfig(const std::string& filename,
+                            const std::string& prefix,
                             diNoLib::idx_t &dim,
                             diNoLib::idx_t &n_database,
                             diNoLib::idx_t &n_query,
                             diNoLib::idx_t &k)
 {
     std::smatch match;
-    std::regex prefix_rx("^bruteFSS");
     std::regex len_rx("len(\\d+)");
     std::regex size_rx("size(\\d+)");
     std::regex q_rx("q(\\d+)");
     std::regex k_rx("k(\\d+)");
+    std::regex prefix_rx("^" + prefix); 
 
     bool success = true;
 
-    if (std::regex_search(filename, match, len_rx)) 
-    {
+    if (std::regex_search(filename, match, len_rx)) {
         dim = std::stoi(match[1]);
-    } 
-    else 
-    {
+    } else {
         success = false;
     }
 
-    if (std::regex_search(filename, match, size_rx)) 
-    {
+    if (std::regex_search(filename, match, size_rx)) {
         n_database = std::stoi(match[1]);
-    } else 
-    {
+    } else {
         success = false;
     }
 
-    if (std::regex_search(filename, prefix_rx)) 
-    {
-        if (std::regex_search(filename, match, q_rx)) 
-        {
-            n_query = std::stoi(match[1]);
-        } 
-        else 
-        {
+    if (std::regex_search(filename, prefix_rx)) {
+        std::smatch match_q, match_k;
+        if (std::regex_search(filename, match_q, q_rx)) {
+            n_query = std::stoi(match_q[1]);
+        } else {
             success = false;
         }
 
-        if (std::regex_search(filename, match, k_rx)) 
-        {
-            k = std::stoi(match[1]);
-        } 
-        else 
-        {
+        if (std::regex_search(filename, match_k, k_rx)) {
+            k = std::stoi(match_k[1]);
+        } else {
             success = false;
         }
-    } 
-    else 
-    {
+    } else {
         n_query = 0;
         k = 0;
     }
@@ -173,20 +161,22 @@ void compareWithGroundTruth(const std::string& pathI,
 }
 
 void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm* search,
+                                const std::string& prefix_name,
                                 const std::string& gt_I, 
                                 const std::string& gt_D, 
                                 const std::string& dataset_path, 
                                 const std::string& query_path,
-                                int num_thread) 
+                                int num_thread
+                                ) 
 {
     std::string filename_gt = pathToFilename(gt_I);
     std::string dataset_name = pathToFilename(dataset_path);
 
     diNoLib::idx_t dim_gt, n_database_gt, n_query, k;
-    ASSERT_TRUE(parseFilenameForConfig(filename_gt, dim_gt, n_database_gt, n_query, k));
+    ASSERT_TRUE(parseFilenameForConfig(filename_gt, prefix_name, dim_gt, n_database_gt, n_query, k));
 
     diNoLib::idx_t dim, n_database, _, __;
-    ASSERT_TRUE(parseFilenameForConfig(dataset_name, dim, n_database, _, __));
+    ASSERT_TRUE(parseFilenameForConfig(dataset_name, prefix_name, dim, n_database, _, __));
 
     ASSERT_EQ(dim_gt, dim);
     ASSERT_EQ(n_database_gt, n_database);
