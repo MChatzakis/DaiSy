@@ -2,6 +2,9 @@
 add_library(
     dino_lib
     distance_computers/DistanceComputer.cpp
+    isax/SAX.cpp
+    isax/iSAXIndex.cpp
+    isax/SAXBreakpoints.hpp
 )
 
 # Make it position-independent for use in a shared object

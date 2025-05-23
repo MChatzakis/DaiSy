@@ -1,0 +1,42 @@
+#ifndef ISAXTYPES_HPP
+#define ISAXTYPES_HPP
+
+namespace diNoLib
+{
+
+#define DISK_BUFFER_SIZE 8192
+#define PROGRESS_CALCULATE_THREAD_NUMBER 12
+#define min(x, y) (x < y ? x : y)
+#define CREATE_MASK(mask, index, sax_array)                                                            \
+    int mask__i;                                                                                       \
+    for (mask__i = 0; mask__i < index->settings->paa_segments; mask__i++)                              \
+        if (index->settings->bit_masks[index->settings->sax_bit_cardinality - 1] & sax_array[mask__i]) \
+            mask |= index->settings->bit_masks[index->settings->paa_segments - mask__i - 1];
+#define BUFFER_REALLOCATION_RATE 2
+#define PAGE_SIZE 4096
+
+
+    enum response
+    {
+        OUT_OF_MEMORY_FAILURE,
+        FAILURE,
+        SUCCESS
+    };
+
+    enum insertion_mode
+    {
+        PARTIAL = 1,
+        TMP = 2,
+        FULL = 4,
+        NO_TMP = 8
+    };
+
+    typedef unsigned char sax_type;
+    typedef unsigned long long root_mask_type;
+    typedef unsigned long long file_position_type;
+    typedef unsigned long long file_position_type;
+    typedef float ts_type;
+
+}
+
+#endif

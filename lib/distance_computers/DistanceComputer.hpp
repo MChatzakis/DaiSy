@@ -12,6 +12,7 @@ namespace diNoLib
     {
         L2_SQUARED = 0,
         // More to be implemented
+        DTW = 1
     };
 }
 

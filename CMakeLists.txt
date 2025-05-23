@@ -12,7 +12,7 @@ add_compile_options(-march=native
     -g 
     -fopenmp 
     -Wuninitialized 
-    -Wunused-variable 
+#    -Wunused-variable 
     -Wparentheses
 )
 
