@@ -5,6 +5,7 @@ add_library(
     isax/SAX.cpp
     isax/iSAXIndex.cpp
     isax/SAXBreakpoints.hpp
+    isax/iSAXPqueue.cpp
 )
 
 # Make it position-independent for use in a shared object

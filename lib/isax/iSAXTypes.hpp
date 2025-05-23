@@ -15,6 +15,9 @@ namespace diNoLib
 #define BUFFER_REALLOCATION_RATE 2
 #define PAGE_SIZE 4096
 
+#define MINVAL -2000000
+#define MAXVAL 2000000
+
 
     enum response
     {

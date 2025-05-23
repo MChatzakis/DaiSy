@@ -1,5 +1,6 @@
 #include "iSAXIndex.hpp"
 
+#include <float.h>
 namespace diNoLib
 {
 
@@ -1197,6 +1198,115 @@ namespace diNoLib
         }
 
         return SUCCESS;
+    }
+
+    int cmp_pri(double next, double curr)
+    {
+        return (next > curr);
+    }
+
+    double get_pri(void *a)
+    {
+        return (double)((query_result *)a)->distance;
+    }
+
+    void set_pri(void *a, double pri)
+    {
+        ((query_result *)a)->distance = (float)pri;
+    }
+
+    size_t get_pos(void *a)
+    {
+        return ((query_result *)a)->pqueue_position;
+    }
+
+    void set_pos(void *a, size_t pos)
+    {
+        ((query_result *)a)->pqueue_position = pos;
+    }
+
+    float calculate_minimum_distance_inmemory(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query)
+    {
+        // printf("Calculating minimum distance...\n");
+        float bsfLeaf = minidist_paa_to_isax(query, node->isax_values,
+                                             node->isax_cardinalities,
+                                             index->settings->sax_bit_cardinality,
+                                             index->settings->sax_alphabet_cardinality,
+                                             index->settings->paa_segments,
+                                             MINVAL, MAXVAL,
+                                             index->settings->mindist_sqrt);
+        float bsfRecord = FLT_MAX;
+        // printf("---> Distance: %lf\n", bsfLeaf);
+        // sax_print(node->isax_values, 1,  index->settings->sax_bit_cardinality);
+
+        if (!index->has_wedges)
+        {
+            //      printf("--------------\n");
+            int i = 0;
+
+            if (node->buffer != NULL)
+            {
+                for (i = 0; i < node->buffer->partial_buffer_size; i++)
+                {
+                    float mindist = minidist_paa_to_isax_raw_SIMD(query, node->buffer->partial_sax_buffer[i], index->settings->max_sax_cardinalities,
+                                                                  index->settings->sax_bit_cardinality,
+                                                                  index->settings->sax_alphabet_cardinality,
+                                                                  index->settings->paa_segments, MINVAL, MAXVAL,
+                                                                  index->settings->mindist_sqrt);
+                    //              printf("+[PARTIAL] %lf\n", mindist);
+                    if (mindist < bsfRecord)
+                    {
+                        bsfRecord = mindist;
+                    }
+                }
+
+                for (i = 0; i < node->buffer->tmp_partial_buffer_size; i++)
+                {
+                    float mindist = minidist_paa_to_isax_raw_SIMD(query, node->buffer->tmp_partial_sax_buffer[i], index->settings->max_sax_cardinalities,
+                                                                  index->settings->sax_bit_cardinality,
+                                                                  index->settings->sax_alphabet_cardinality,
+                                                                  index->settings->paa_segments, MINVAL, MAXVAL,
+                                                                  index->settings->mindist_sqrt);
+                    //              printf("+[TMP_PARTIAL] %lf\n", mindist);
+                    if (mindist < bsfRecord)
+                    {
+                        bsfRecord = mindist;
+                    }
+                }
+            }
+        }
+        else
+        {
+            int i = 0;
+            if (node->wedges[0] == FLT_MIN)
+            {
+                bsfRecord = FLT_MAX;
+            }
+            else
+            {
+                bsfRecord = 0;
+                ts_type *min_wedge = &node->wedges[0];
+                ts_type *max_wedge = &node->wedges[index->settings->timeseries_size];
+                if (raw_query[i] > max_wedge[i])
+                {
+                    bsfRecord += (raw_query[i] - max_wedge[i]) * (raw_query[i] - max_wedge[i]);
+                }
+                else if (raw_query[i] < max_wedge[i] && raw_query[i] > min_wedge[i])
+                {
+                    // bound += 0;
+                }
+                else
+                {
+                    bsfRecord += (min_wedge[i] - raw_query[i]) * (min_wedge[i] - raw_query[i]);
+                }
+                // bsfRecord = sqrtf(bsfRecord);
+            }
+        }
+        float bsf = (bsfRecord == FLT_MAX) ? bsfLeaf : bsfRecord;
+        //  printf("\t%.2lf - %d [%d] : %s.%s\n",bsfRecord, node->leaf_size, node->is_leaf, node->filename, node->has_full_data_file ? ".full" : ".part");
+
+        // printf("---> Final: %lf\n", bsf);
+        return bsf;
     }
 
 }

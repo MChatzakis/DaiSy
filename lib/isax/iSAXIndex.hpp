@@ -242,6 +242,19 @@ namespace diNoLib
         void *destination;
     } isax_node_record;
 
+    typedef struct node_list
+    {
+        isax_node **nlist;
+        int node_amount;
+    } node_list;
+
+    typedef struct query_result
+    {
+        float distance;
+        isax_node *node;
+        size_t pqueue_position;
+    } query_result;
+
     isax_index_settings *isax_index_settings_init(const char *root_directory, int timeseries_size,
                                                   int paa_segments, int sax_bit_cardinality,
                                                   int max_leaf_size, int min_leaf_size,
@@ -250,32 +263,40 @@ namespace diNoLib
                                                   int total_loaded_leaves, int tight_bound, int aggressive_check, int new_index, char inmemory_flag);
 
     first_buffer_layer *initialize_fbl(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index);
-    
+
     parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index);
-    
+
     isax_index *isax_index_init_inmemory(isax_index_settings *settings);
     isax_node_buffer *init_node_buffer(int initial_buffer_size);
-    
+
     isax_node *isax_leaf_node_init(int initial_buffer_size);
     isax_node *isax_root_node_init(root_mask_type mask, int initial_buffer_size);
     isax_node *insert_to_pRecBuf(parallel_first_buffer_layer *fbl, sax_type *sax, file_position_type *pos, root_mask_type mask, isax_index *index, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber);
     isax_node *add_record_to_node(isax_index *index, isax_node *tree_node, isax_node_record *record, const char leaf_size_check);
-    
+
     root_mask_type isax_pRecBuf_index_insert_inmemory(isax_index *index, sax_type *sax, file_position_type *pos, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber);
-    
+
     void destroy_fbl(first_buffer_layer *fbl);
     void destroy_node_buffer(isax_node_buffer *node_buffer);
     void split_node(isax_index *index, isax_node *node);
     void split_node(isax_index *index, isax_node *node);
-    
+
     float sax2paa_word(sax_type sax_word, int cardinality);
     int informed_split_decision(isax_node_split_data *split_data, isax_index_settings *settings, isax_node_record *records_buffer, int records_buffer_size);
-    
+
     enum response create_node_filename(isax_index *index, isax_node *node, isax_node_record *record);
     enum response create_node_filename(isax_index *index, isax_node *node, isax_node_record *record);
     enum response add_to_node_buffer(isax_node_buffer *node_buffer, isax_node_record *record, int sax_segments, int ts_segments);
     enum response add_to_node_buffer(isax_node_buffer *node_buffer, isax_node_record *record, int sax_segments, int ts_segments);
     enum response flush_subtree_leaf_buffers_inmemory(isax_index *index, isax_node *node);
+
+    int cmp_pri(double next, double curr);
+    size_t get_pos(void *a);
+    double get_pri(void *a);
+    void set_pri(void *a, double pri);
+    void set_pos(void *a, size_t pos);
+
+    float calculate_minimum_distance_inmemory(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
 
 }
 

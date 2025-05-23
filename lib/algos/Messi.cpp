@@ -2,6 +2,10 @@
 
 #include <cmath>
 
+#include "../isax/iSAXPqueue.hpp"
+#include "../isax/iSAXIndex.hpp"
+#include "../isax/iSAXSearch.hpp"
+
 namespace diNoLib
 {
 
@@ -10,7 +14,7 @@ namespace diNoLib
     {
     }
 
-    void* indexCreationWorker(void *transferdata)
+    void *indexCreationWorker(void *transferdata)
     {
         sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * ((buffer_data_inmemory *)transferdata)->index->settings->paa_segments);
 
@@ -19,10 +23,10 @@ namespace diNoLib
         unsigned long roundfinishednumber = stop_number;
         file_position_type *pos = (file_position_type *)malloc(sizeof(file_position_type));
         isax_index *index = ((buffer_data_inmemory *)transferdata)->index;
-        ts_type *ts = (ts_type *) malloc(sizeof(ts_type) * index->settings->timeseries_size);
+        ts_type *ts = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
         int paa_segments = ((buffer_data_inmemory *)transferdata)->index->settings->paa_segments;
 
-        int read_block_length = ((buffer_data_inmemory *)transferdata)->read_block_length;//this->read_block_length;
+        int read_block_length = ((buffer_data_inmemory *)transferdata)->read_block_length; // this->read_block_length;
 
         unsigned long i = 0;
         float *raw_file = ((buffer_data_inmemory *)transferdata)->ts;
@@ -64,14 +68,13 @@ namespace diNoLib
         free(pos);
         free(sax);
         free(ts);
-    
 
         pthread_barrier_wait(((buffer_data_inmemory *)transferdata)->lock_barrier1);
         pthread_barrier_wait(((buffer_data_inmemory *)transferdata)->lock_barrier2);
         bool have_record = false;
         int j;
-        isax_node_record *r = (isax_node_record *) malloc(sizeof(isax_node_record));
-        
+        isax_node_record *r = (isax_node_record *)malloc(sizeof(isax_node_record));
+
         while (1)
         {
 
@@ -97,8 +100,8 @@ namespace diNoLib
                 {
                     r->sax = (sax_type *)&(((current_fbl_node->sax_records[k]))[i * index->settings->paa_segments]);
                     r->position = (file_position_type *)&((file_position_type *)(current_fbl_node->pos_records[k]))[i];
-                    r->insertion_mode = (insertion_mode) (NO_TMP | PARTIAL);
-                    
+                    r->insertion_mode = (insertion_mode)(NO_TMP | PARTIAL);
+
                     add_record_to_node(index, current_fbl_node->node, r, 1);
                 }
             }
@@ -200,12 +203,133 @@ namespace diNoLib
 
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+
+        node_list nodelist;
+        nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * pow(2, index->settings->paa_segments));
+        nodelist.node_amount = 0;
+        isax_node *current_root_node = index->first_node;
+        while (1)
+        {
+            if (current_root_node != NULL)
+            {
+                nodelist.nlist[nodelist.node_amount] = current_root_node;
+                current_root_node = current_root_node->next;
+                nodelist.node_amount++;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
+        {
+            const float *ts = query + q_loaded * this->dim;
+
+            //  Parse ts and make PAA representation
+            paa_from_ts((float *)ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment); // check this catastrophic cast and maybe fix?
+
+            pqueue_bsf result = MESSI_search_topk((float *)ts, paa, &nodelist, k); // check cast again..
+            for (idx_t ik = 0; ik < k; ik++)                                       // check again if this is correct!
+            {
+                I[q_loaded * k + ik] = result.position[ik];
+                D[q_loaded * k + ik] = result.knn[ik];
+            }
+        }
+
+        free(paa);
+        fprintf(stderr, ">>> Finished querying.\n");
+    }
+
+    pqueue_bsf Messi::MESSI_search_topk(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
+    {
+        pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
+
+        approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database);
+
+        int tight_bound = index->settings->tight_bound;
+        int aggressive_check = index->settings->aggressive_check;
+        int node_counter = 0;
+
+        if (pq_bsf->knn[k - 1] == FLT_MAX || min_checked_leaves > 1)
+        {
+            refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database);
+        }
+        pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
+
+        pthread_mutex_t ququelock[this->n_pqueue];
+        int queuelabel[this->n_pqueue];
+        // Insert all root nodes in heap.
+        isax_node *current_root_node = index->first_node;
+
+        pthread_t threadid[this->search_workers];
+        MESSI_workerdata workerdata[this->search_workers];
+        pthread_mutex_t lock_queue = PTHREAD_MUTEX_INITIALIZER, lock_current_root_node = PTHREAD_MUTEX_INITIALIZER;
+        pthread_rwlock_t lock_bsf = PTHREAD_RWLOCK_INITIALIZER;
+        pthread_barrier_t lock_barrier;
+        pthread_barrier_init(&lock_barrier, NULL, this->search_workers);
+
+        for (int i = 0; i < this->n_pqueue; i++)
+        {
+            allpq[i] = pqueue_init(index->settings->root_nodes_size / this->n_pqueue, cmp_pri, get_pri, set_pri, get_pos, set_pos);
+            pthread_mutex_init(&ququelock[i], NULL);
+            queuelabel[i] = 1;
+        }
+
+        for (int i = 0; i < this->search_workers; i++)
+        {
+            workerdata[i].paa = paa;
+            workerdata[i].ts = ts;
+            workerdata[i].lock_queue = &lock_queue;
+            workerdata[i].lock_current_root_node = &lock_current_root_node;
+            workerdata[i].lock_bsf = &lock_bsf;
+            workerdata[i].nodelist = nodelist->nlist;
+            workerdata[i].amountnode = nodelist->node_amount;
+            workerdata[i].index = index;
+            workerdata[i].minimum_distance = minimum_distance;
+            workerdata[i].node_counter = &node_counter;
+            workerdata[i].pq = allpq[i];
+            workerdata[i].lock_barrier = &lock_barrier;
+            workerdata[i].alllock = ququelock;
+            workerdata[i].allqueuelabel = queuelabel;
+            workerdata[i].allpq = allpq;
+            workerdata[i].startqueuenumber = i % this->n_pqueue;
+            workerdata[i].pq_bsf = pq_bsf;
+        }
+
+        query_result *n;
+
+        for (int i = 0; i < this->search_workers; i++)
+        {
+            pthread_create(&(threadid[i]), NULL, /*exact_topk_worker_inmemory_hybridpqueue*/NULL, (void *)&(workerdata[i])); // Continue here tomorrow!
+        }
+        for (int i = 0; i < this->search_workers; i++)
+        {
+            pthread_join(threadid[i], NULL);
+        }
+
+        // Free the nodes that where not popped.
+        // Free the priority queue.
+        pthread_barrier_destroy(&lock_barrier);
+
+        // pqueue_free(pq);
+        for (int i = 0; i < this->n_pqueue; i++)
+        {
+            pqueue_free(allpq[i]);
+        }
+        free(allpq);
+
+        // free(rfdata);
+        return *pq_bsf;
+
+        // Free the nodes that where not popped.
     }
 
     Messi::~Messi()
     {
         delete[] database;
 
-        //todo add free funcs here:
+        // todo add free funcs here:
     }
 }
