@@ -1,6 +1,6 @@
 # diNo Library
 
-diNo is a library for approximate nearest neighbor search with support for modern C++ and Python bindings. It includes benchmarking tools, GoogleTest integration, and support for comparison with FAISS.
+diNoSimilaritySearch is a library for approximate nearest neighbor search with support for modern C++ and Python bindings. It includes benchmarking tools, GoogleTest integration, and support for comparison with FAISS.
 
 ## Requirements
 
