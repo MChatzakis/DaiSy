@@ -32,9 +32,10 @@ add_subdirectory(tests)
 add_subdirectory(extern/pybind11)
 
 # Build the Python module
-pybind11_add_module(BruteForceSearch pybinds/BruteforceSearch_setup.cpp)
-target_link_libraries(BruteForceSearch PRIVATE dino_lib)
+pybind11_add_module(diNo_lib pybinds/setup.cpp)
+target_link_libraries(diNo_lib PRIVATE dino_lib)
+
 # Set output directory for the .so file
-set_target_properties(BruteForceSearch PROPERTIES
+set_target_properties(diNo_lib PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/scripts"
 )

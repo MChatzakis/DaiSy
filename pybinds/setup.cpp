@@ -7,36 +7,43 @@
 
 using namespace diNoLib;
 
-PYBIND11_MODULE(BruteForceSearch_lib, m) {
+PYBIND11_MODULE(diNo_lib, m) {
     m.doc() = "diNo::BruteForceSearch_lib Python bindings";
 
     pybind11::enum_<DistanceType>(m, "DistanceType")
         .value("L2_SQUARED", DistanceType::L2_SQUARED)
         .export_values();
-    
 
     pybind11::class_<BruteForceSearch>(m, "BruteForceSearch")
         .def(pybind11::init<DistanceType>())
         .def("setNumThreads", &BruteForceSearch::setNumThreads)
         .def("getNumThreads", &BruteForceSearch::getNumThreads)
-        .def("buildIndex", [](BruteForceSearch &self, pybind11::array_t<float> db, idx_t n, idx_t d) {
+        .def("buildIndex", [](BruteForceSearch &self, pybind11::array_t<float> db) {
             pybind11::buffer_info buf = db.request();
-            if (buf.ndim != 2 || buf.shape[0] != n || buf.shape[1] != d)
-                throw std::runtime_error("Shape mismatch in buildIndex");
+            if (buf.ndim != 2)
+                throw std::runtime_error("Database array must be 2D");
+
+            idx_t n = buf.shape[0];
+            idx_t d = buf.shape[1];
+
             self.buildIndex(static_cast<float *>(buf.ptr), n, d);
         })
         .def("searchIndex", [](BruteForceSearch &self,
                                pybind11::array_t<float> query,
-                               idx_t n_query, idx_t k) {
+                               idx_t k) {
             pybind11::buffer_info query_buf = query.request();
-            if (query_buf.ndim != 2 || query_buf.shape[0] != n_query)
-                throw std::runtime_error("Shape mismatch in searchIndex input");
 
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+
+            idx_t n_query = query_buf.shape[0];
             idx_t dim = query_buf.shape[1];
+
             std::vector<idx_t> indices(n_query * k);
             std::vector<float> distances(n_query * k);
 
-            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k, indices.data(), distances.data());
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k,
+                             indices.data(), distances.data());
 
             return pybind11::make_tuple(
                 pybind11::array_t<idx_t>({n_query, k}, indices.data()),

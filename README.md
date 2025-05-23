@@ -1,6 +1,7 @@
 ## Requirements
 
-- Python 3.8.16 or Python 3.9.17 or Python 3.10.13 ← recommended (FAISS library requires)
+- To use the FAISS library: Python 3.8.16 or Python 3.9.17 or Python 3.10.13 ← recommended
+- To use the diNo library: Python 3.12
 - GoogleTest requires at least C++14
 
 ## Pip

@@ -7,11 +7,11 @@
 #include <gtest/gtest.h>
 
 #include "../lib/algos/BruteforceSearch.hpp" 
-#include "../lib/algos/LbBruteforce.hpp"
-#include "../lib/algos/Messi.hpp" 
-#include "../lib/algos/Odyssey.hpp" 
-#include "../lib/algos/Paris.hpp" 
-#include "../lib/algos/Sing.hpp" 
+// #include "../lib/algos/LbBruteforce.hpp"
+// #include "../lib/algos/Messi.hpp" 
+// #include "../lib/algos/Odyssey.hpp" 
+// #include "../lib/algos/Paris.hpp" 
+// #include "../lib/algos/Sing.hpp" 
 
 /**
 * @brief Integer equality.
@@ -67,7 +67,7 @@ bool parseFilenameForConfig(const std::string& filename,
                             diNoLib::idx_t &n_query,
                             diNoLib::idx_t &k); 
 
-                            /**
+/**
  * @brief Compare brute-force search results with ground truth and report mismatches or close results.
  *
  * @param pathI Path to ground-truth index file
@@ -94,6 +94,7 @@ protected:
      * @brief Run a brute-force search test using the provided dataset and compare results to ground truth.
      *
      * @param gt_I Path to ground-truth index file
+     * @param prefix_name name of the search type
      * @param gt_D Path to ground-truth distance file
      * @param dataset_path Path to the database binary file
      * @param query_path Path to the query binary file
