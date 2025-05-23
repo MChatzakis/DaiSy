@@ -244,6 +244,53 @@ namespace diNoLib
         return index;
     }
 
+    isax_index *isax_index_init(isax_index_settings *settings)
+    {
+        isax_index *index = (isax_index *)malloc(sizeof(isax_index));
+        if (index == NULL)
+        {
+            fprintf(stderr, "error: could not allocate memory for index structure.\n");
+            return NULL;
+        }
+        index->memory_info.mem_tree_structure = 0;
+        index->memory_info.mem_data = 0;
+        index->memory_info.mem_summaries = 0;
+        index->memory_info.disk_data_full = 0;
+        index->memory_info.disk_data_partial = 0;
+
+        index->settings = settings;
+        index->first_node = NULL;
+        index->fbl = initialize_fbl(settings->initial_fbl_buffer_size,
+                                    pow(2, settings->paa_segments),
+                                    settings->max_total_buffer_size + DISK_BUFFER_SIZE * (PROGRESS_CALCULATE_THREAD_NUMBER - 1), index);
+        char *sax_filename = (char *)malloc((strlen(settings->root_directory) + 15) * sizeof(char));
+        sax_filename = strcpy(sax_filename, settings->root_directory);
+        sax_filename = strcat(sax_filename, "isax_file.sax");
+
+        if (access(sax_filename, F_OK) != -1)
+        {
+            index->sax_file = fopen(sax_filename, "rb");
+        }
+        else
+        {
+            index->sax_file = fopen(sax_filename, "w+b");
+        }
+
+        free(sax_filename);
+        index->sax_cache = NULL;
+
+        index->total_records = 0;
+        index->loaded_records = 0;
+
+        index->root_nodes = 0;
+        index->allocated_memory = 0;
+        index->has_wedges = 0;
+        // index->locations = malloc(sizeof(int) * settings->timeseries_size);
+
+        index->answer = (float *)malloc(sizeof(ts_type) * settings->timeseries_size);
+        return index;
+    }
+
     isax_node_buffer *init_node_buffer(int initial_buffer_size)
     {
         isax_node_buffer *node_buffer = (isax_node_buffer *)malloc(sizeof(isax_node_buffer));
@@ -1308,5 +1355,500 @@ namespace diNoLib
         // printf("---> Final: %lf\n", bsf);
         return bsf;
     }
+
+    enum response flush_node_buffer(isax_node_buffer *node_buffer, int sax_segments, int ts_segments, const char *filename)
+    {
+        // WRITE TWO DIFFERENT FILES!
+        // 1. .FULL (full records)
+        // 2. .PART (partial records)
+        int i;
+        if (node_buffer->full_buffer_size > 0 || node_buffer->tmp_full_buffer_size > 0)
+        {
+            FILE *full_file;
+            char *full_filename = (char *)malloc(strlen(filename) + 6);
+            sprintf(full_filename, "%s.full", filename);
+            // COUNT_OUTPUT_TIME_START
+            full_file = fopen(full_filename, "a+");
+            // Flushing full records
+            for (i = 0; i < node_buffer->full_buffer_size; i++)
+            {
+                ;
+                fwrite(node_buffer->full_position_buffer[i],
+                       sizeof(file_position_type), 1, full_file);
+                fwrite(node_buffer->full_sax_buffer[i],
+                       sizeof(sax_type), sax_segments, full_file);
+                fwrite(node_buffer->full_ts_buffer[i],
+                       sizeof(ts_type), ts_segments, full_file);
+            }
+            for (i = 0; i < node_buffer->tmp_full_buffer_size; i++)
+            {
+                fwrite(node_buffer->tmp_full_position_buffer[i],
+                       sizeof(file_position_type), 1, full_file);
+                fwrite(node_buffer->tmp_full_sax_buffer[i],
+                       sizeof(sax_type), sax_segments, full_file);
+                fwrite(node_buffer->tmp_full_ts_buffer[i],
+                       sizeof(ts_type), ts_segments, full_file);
+            }
+            fclose(full_file);
+            // COUNT_OUTPUT_TIME_END
+            free(full_filename);
+        }
+
+        if (node_buffer->partial_buffer_size > 0 || node_buffer->tmp_partial_buffer_size > 0)
+        {
+            FILE *partial_file;
+            char *partial_filename = (char *)malloc(strlen(filename) + 6);
+            // sax_type *midium_ptr=malloc(sizeof(sax_type)*(sax_segments+8));
+            sprintf(partial_filename, "%s.part", filename);
+            // COUNT_OUTPUT_TIME_START
+            partial_file = fopen(partial_filename, "a+");
+            // Flushing partial records
+            // printf("the large is %d\n",node_buffer->partial_buffer_size);
+            for (i = 0; i < node_buffer->partial_buffer_size; i++)
+            {
+                // memcpy(midium_ptr, (sax_type*)(node_buffer->partial_position_buffer[i]),8);
+                // memcpy(&(midium_ptr[8]), (sax_type*)(node_buffer->partial_sax_buffer[i]),sax_segments);
+                // fwrite(midium_ptr, sizeof(sax_type), sax_segments+8, partial_file);
+                // memset(midium_ptr,0,sizeof(sax_type)+8);
+
+                fwrite(node_buffer->partial_position_buffer[i],
+                       sizeof(file_position_type), 1, partial_file);
+                fwrite(node_buffer->partial_sax_buffer[i],
+                       sizeof(sax_type), sax_segments, partial_file);
+            }
+            // printf("hello word\n");
+            for (i = 0; i < node_buffer->tmp_partial_buffer_size; i++)
+            {
+                // memcpy(midium_ptr, (sax_type*)(node_buffer->tmp_partial_position_buffer[i]),8);
+                // memcpy(&(midium_ptr[8]), (sax_type*)(node_buffer->tmp_partial_sax_buffer[i]),sax_segments);
+                // fwrite(midium_ptr, sizeof(sax_type), sax_segments+8, partial_file);
+                // memset(midium_ptr,0,sizeof(sax_type)+8);
+
+                fwrite(node_buffer->tmp_partial_position_buffer[i],
+                       sizeof(file_position_type), 1, partial_file);
+                fwrite(node_buffer->tmp_partial_sax_buffer[i],
+                       sizeof(sax_type), sax_segments, partial_file);
+            }
+
+            // free(midium_ptr);
+            fclose(partial_file);
+            // COUNT_OUTPUT_TIME_END
+
+            free(partial_filename);
+        }
+        return SUCCESS;
+    }
+
+    enum response flush_subtree_leaf_buffers(isax_index *index, isax_node *node)
+    {
+        if (node->is_leaf && node->filename != NULL)
+        {
+            // Set that unloaded data exist in disk
+            if (node->buffer->partial_buffer_size > 0 || node->buffer->tmp_partial_buffer_size > 0)
+            {
+                node->has_partial_data_file = 1;
+            }
+            // Set that the node has flushed full data in the disk
+            if (node->buffer->full_buffer_size > 0 || node->buffer->tmp_full_buffer_size > 0)
+            {
+                node->has_full_data_file = 1;
+            }
+
+            if (node->has_full_data_file)
+            {
+                int prev_rec_count = node->leaf_size - (node->buffer->full_buffer_size + node->buffer->tmp_full_buffer_size);
+
+                int previous_page_size = ceil((float)(prev_rec_count * index->settings->full_record_size) / (float)PAGE_SIZE);
+                int current_page_size = ceil((float)(node->leaf_size * index->settings->full_record_size) / (float)PAGE_SIZE);
+
+                index->memory_info.disk_data_full += (current_page_size - previous_page_size);
+            }
+            if (node->has_partial_data_file)
+            {
+                int prev_rec_count = node->leaf_size - (node->buffer->partial_buffer_size + node->buffer->tmp_partial_buffer_size);
+
+                int previous_page_size = ceil((float)(prev_rec_count * index->settings->partial_record_size) / (float)PAGE_SIZE);
+                int current_page_size = ceil((float)(node->leaf_size * index->settings->partial_record_size) / (float)PAGE_SIZE);
+
+                index->memory_info.disk_data_partial += (current_page_size - previous_page_size);
+            }
+            if (node->has_full_data_file && node->has_partial_data_file)
+            {
+                printf("WARNING: (Mem size counting) this leaf has both partial and full data.\n");
+            }
+            index->memory_info.disk_data_full += (node->buffer->full_buffer_size +
+                                                  node->buffer->tmp_full_buffer_size);
+
+            index->memory_info.disk_data_partial += (node->buffer->partial_buffer_size +
+                                                     node->buffer->tmp_partial_buffer_size);
+
+            flush_node_buffer(node->buffer, index->settings->paa_segments,
+                              index->settings->timeseries_size,
+                              node->filename);
+        }
+        else if (!node->is_leaf)
+        {
+            flush_subtree_leaf_buffers(index, node->left_child);
+            flush_subtree_leaf_buffers(index, node->right_child);
+        }
+
+        return SUCCESS;
+    }
+
+    enum response clear_node_buffer(isax_node_buffer *node_buffer, enum buffer_cleaning_mode clean_mode)
+    {
+        // ONLY SELECTIVELY CLEAR STUFF THAT COME FROM THE INSERT
+        // TO INDEX FUNCTION BECAUSE THEY MAY COME FROM REUSABLE
+        // MEMORY SEGMENTS SUCH AS THE FBL BUFFERS WHICH ARE USED
+        // AGAIN FOR THE NEXT EPOC OF DATA LOADING WITHOUT BEING
+        // FREED.
+        int i;
+        if (clean_mode == FULL_CLEAN || clean_mode == TMP_AND_TS_CLEAN)
+            for (i = 0; i < node_buffer->full_buffer_size; i++)
+            {
+                if (clean_mode == FULL_CLEAN || clean_mode == TMP_AND_TS_CLEAN)
+                {
+                    // IMPORTANT: THIS MEANS THAT NOBODY SHOULD INSERT A FULL TS FROM SHARED MEMORY
+                    // THE TS_BUFFER WILL *ALWAYS* BE CLEARED! AND AN INVALID FREE WILL BE RAISED!
+                    free(node_buffer->full_ts_buffer[i]);
+                }
+
+                if (clean_mode == FULL_CLEAN)
+                {
+                    free(node_buffer->full_sax_buffer[i]);
+                    free(node_buffer->full_position_buffer[i]);
+                }
+            }
+
+        if (clean_mode == FULL_CLEAN)
+            for (i = 0; i < node_buffer->partial_buffer_size; i++)
+            {
+                if (clean_mode == FULL_CLEAN)
+                {
+                    free(node_buffer->partial_sax_buffer[i]);
+                    free(node_buffer->partial_position_buffer[i]);
+                }
+            }
+
+        // FULL CLEAN TEMPORARY STUFF
+        for (i = 0; i < node_buffer->tmp_full_buffer_size; i++)
+        {
+            free(node_buffer->tmp_full_ts_buffer[i]);
+            free(node_buffer->tmp_full_sax_buffer[i]);
+            free(node_buffer->tmp_full_position_buffer[i]);
+        }
+        for (i = 0; i < node_buffer->tmp_partial_buffer_size; i++)
+        {
+            free(node_buffer->tmp_partial_sax_buffer[i]);
+            free(node_buffer->tmp_partial_position_buffer[i]);
+        }
+
+        // Set to 0 so that the LBLs will be refilled.
+
+        node_buffer->tmp_full_buffer_size = 0;
+        node_buffer->full_buffer_size = 0;
+        node_buffer->tmp_partial_buffer_size = 0;
+        node_buffer->partial_buffer_size = 0;
+
+        return SUCCESS;
+    }
+
+    void isax_index_clear_node_buffers(isax_index *index, isax_node *node, enum node_cleaning_mode node_cleaning_mode, enum buffer_cleaning_mode buffer_clean_mode)
+    {
+        if (node == NULL)
+        {
+            // TODO: OPTIMIZE TO FLUSH WITHOUT TRAVERSAL!
+            isax_node *subtree_root = index->first_node;
+
+            while (subtree_root != NULL)
+            {
+
+                isax_index_clear_node_buffers(index, subtree_root, node_cleaning_mode, buffer_clean_mode);
+                subtree_root = subtree_root->next;
+            }
+        }
+        else
+        {
+            // Traverse tree
+            // printf("this is the time 2\n");
+
+            if (!node->is_leaf && node_cleaning_mode == INCLUDE_CHILDREN)
+            {
+                isax_index_clear_node_buffers(index, node->right_child, node_cleaning_mode, buffer_clean_mode);
+                isax_index_clear_node_buffers(index, node->left_child, node_cleaning_mode, buffer_clean_mode);
+            }
+            else if (node->is_leaf && node->buffer != NULL)
+            {
+                clear_node_buffer(node->buffer, buffer_clean_mode);
+            }
+        }
+    }
+
+    enum response flush_fbl(first_buffer_layer *fbl, isax_index *index)
+    {
+        int c = 1;
+        int j;
+        isax_node_record *r = (isax_node_record *)malloc(sizeof(isax_node_record));
+        for (j = 0; j < fbl->number_of_buffers; j++)
+        {
+
+            fbl_soft_buffer *current_fbl_node = &index->fbl->soft_buffers[j];
+            if (!current_fbl_node->initialized)
+            {
+                continue;
+            }
+
+            int i;
+            if (current_fbl_node->buffer_size > 0)
+            {
+                // For all records in this buffer
+                // COUNT_CAL_TIME_START
+                for (i = 0; i < current_fbl_node->buffer_size; i++)
+                {
+                    r->sax = (sax_type *)current_fbl_node->sax_records[i];
+                    r->position = (file_position_type *)current_fbl_node->pos_records[i];
+                    r->insertion_mode = (insertion_mode)(NO_TMP | PARTIAL);
+                    // Add record to index
+
+                    add_record_to_node(index, current_fbl_node->node, r, 1);
+                }
+
+                // flush index node
+                // COUNT_CAL_TIME_START
+                flush_subtree_leaf_buffers(index, current_fbl_node->node);
+                // COUNT_CAL_TIME_END
+                //  clear FBL records moved in LBL buffers
+                free(current_fbl_node->sax_records);
+                free(current_fbl_node->pos_records);
+                // clear records read from files (free only prev sax buffers)
+
+                isax_index_clear_node_buffers(index, current_fbl_node->node, INCLUDE_CHILDREN, TMP_AND_TS_CLEAN);
+
+                index->allocated_memory = 0;
+                // Set to 0 in order to re-allocate original space for buffers.
+                current_fbl_node->buffer_size = 0;
+                current_fbl_node->max_buffer_size = 0;
+            }
+        }
+
+        free(r);
+        fbl->current_record_index = 0;
+        fbl->current_record = fbl->hard_buffer;
+
+        return SUCCESS;
+    }
+
+    isax_node *insert_to_fbl(first_buffer_layer *fbl, sax_type *sax, file_position_type *pos, root_mask_type mask, isax_index *index)
+    {
+
+        fbl_soft_buffer *current_buffer = &fbl->soft_buffers[(int)mask];
+
+        // Check if this buffer is initialized
+        if (!current_buffer->initialized)
+        {
+
+            current_buffer->initialized = 1;
+            current_buffer->max_buffer_size = 0;
+            current_buffer->buffer_size = 0;
+
+            current_buffer->node = isax_root_node_init(mask, index->settings->initial_leaf_buffer_size);
+            index->root_nodes++;
+            current_buffer->node->is_leaf = 1;
+
+            if (index->first_node == NULL)
+            {
+                index->first_node = current_buffer->node;
+                current_buffer->node->next = NULL;
+                current_buffer->node->previous = NULL;
+            }
+            else
+            {
+                isax_node *prev_first = index->first_node;
+                index->first_node = current_buffer->node;
+                index->first_node->next = prev_first;
+                prev_first->previous = current_buffer->node;
+            }
+        }
+        // Check if this buffer is not full!
+        if (current_buffer->buffer_size >= current_buffer->max_buffer_size)
+        {
+
+            if (current_buffer->max_buffer_size == 0)
+            {
+                current_buffer->max_buffer_size = fbl->initial_buffer_size;
+                current_buffer->max_buffer_size = fbl->initial_buffer_size;
+                current_buffer->sax_records = (sax_type **)malloc(sizeof(sax_type *) * current_buffer->max_buffer_size);
+                current_buffer->pos_records = (file_position_type **)malloc(sizeof(file_position_type *) * current_buffer->max_buffer_size);
+            }
+            else
+            {
+                current_buffer->max_buffer_size *= BUFFER_REALLOCATION_RATE;
+                current_buffer->sax_records = (sax_type **)realloc(current_buffer->sax_records, sizeof(sax_type *) * current_buffer->max_buffer_size);
+                current_buffer->pos_records = (file_position_type **)realloc(current_buffer->pos_records, sizeof(file_position_type *) * current_buffer->max_buffer_size);
+            }
+        }
+        if (current_buffer->sax_records == NULL || current_buffer->pos_records == NULL)
+        {
+            fprintf(stderr, "error: Could not allocate memory in FBL.");
+            exit(1);
+            // return OUT_OF_MEMORY_FAILURE;
+        }
+
+        // Copy data to hard buffer and make current buffer point to the hard one
+        current_buffer->sax_records[current_buffer->buffer_size] = (sax_type *)fbl->current_record;
+        memcpy((void *)fbl->current_record, (void *)sax, index->settings->sax_byte_size);
+        fbl->current_record += index->settings->sax_byte_size;
+
+        current_buffer->pos_records[current_buffer->buffer_size] = (file_position_type *)fbl->current_record;
+        memcpy((void *)fbl->current_record, (void *)pos, index->settings->position_byte_size);
+        fbl->current_record += index->settings->position_byte_size;
+
+        current_buffer->buffer_size++;
+        fbl->current_record_index++;
+
+        return current_buffer->node;
+    }
+
+    root_mask_type isax_fbl_index_insert(isax_index *index, sax_type *sax, file_position_type *pos)
+    {
+        // COUNT_OUTPUT_TIME_START
+        fwrite(sax, index->settings->sax_byte_size, 1, index->sax_file);
+        // COUNT_OUTPUT_TIME_END
+        //  Create mask for the first bit of the sax representation
+
+        // Step 1: Check if there is a root node that represents the
+        //         current node's sax representation
+
+        // TODO: Create INSERTION SHORT AND BINARY SEARCH METHODS.
+        root_mask_type first_bit_mask = 0x00;
+        CREATE_MASK(first_bit_mask, index, sax);
+        // printf("sax is %d\n",first_bit_mask );
+        insert_to_fbl(index->fbl, sax, pos, first_bit_mask, index);
+        index->total_records++;
+
+        if ((index->total_records % index->settings->max_total_buffer_size) == 0)
+        {
+            // FLUSHES++;
+            flush_fbl(index->fbl, index);
+        }
+
+        return first_bit_mask;
+    }
+
+    void init(deque *d, int capacity)
+    {
+        d->capacity = capacity;
+        d->size = 0;
+        d->dq = (int *)malloc(sizeof(int) * d->capacity);
+        d->f = 0;
+        d->r = d->capacity - 1;
+    }
+
+    /// Insert to the queue at the back
+    void push_back(struct deque *d, int v)
+    {
+        d->dq[d->r] = v;
+        d->r--;
+        if (d->r < 0)
+            d->r = d->capacity - 1;
+        d->size++;
+    }
+
+    /// Delete the current (front) element from queue
+    void pop_front(struct deque *d)
+    {
+        d->f--;
+        if (d->f < 0)
+            d->f = d->capacity - 1;
+        d->size--;
+    }
+
+    /// Delete the last element from queue
+    void pop_back(struct deque *d)
+    {
+        d->r = (d->r + 1) % d->capacity;
+        d->size--;
+    }
+
+    /// Get the value at the current position of the circular queue
+    int front(struct deque *d)
+    {
+        int aux = d->f - 1;
+
+        if (aux < 0)
+            aux = d->capacity - 1;
+        return d->dq[aux];
+    }
+
+    /// Get the value at the last position of the circular queueint back(struct deque *d)
+    int back(struct deque *d)
+    {
+        int aux = (d->r + 1) % d->capacity;
+        return d->dq[aux];
+    }
+
+    /// Check whether or not the queue is empty
+    int empty(struct deque *d)
+    {
+        return d->size == 0;
+    }
+
+    /// Destroy the queue
+    void destroy(deque *d)
+    {
+        free(d->dq);
+    }
+
+    void lower_upper_lemire(float *t, int len, int r, float *l, float *u)
+    {
+        struct deque du, dl;
+
+        init(&du, 2 * r + 2);
+        init(&dl, 2 * r + 2);
+
+        push_back(&du, 0);
+        push_back(&dl, 0);
+        int i;
+
+        for (i = 1; i < len; i++)
+        {
+            if (i > r)
+            {
+                u[i - r - 1] = t[front(&du)];
+                l[i - r - 1] = t[front(&dl)];
+            }
+            if (t[i] > t[i - 1])
+            {
+                pop_back(&du);
+                while (!empty(&du) && t[i] > t[back(&du)])
+                    pop_back(&du);
+            }
+            else
+            {
+                pop_back(&dl);
+                while (!empty(&dl) && t[i] < t[back(&dl)])
+                    pop_back(&dl);
+            }
+            push_back(&du, i);
+            push_back(&dl, i);
+            if (i == 2 * r + 1 + front(&du))
+                pop_front(&du);
+            else if (i == 2 * r + 1 + front(&dl))
+                pop_front(&dl);
+        }
+        for (i = len; i < len + r + 1; i++)
+        {
+            u[i - r - 1] = t[front(&du)];
+            l[i - r - 1] = t[front(&dl)];
+            if (i - front(&du) >= 2 * r + 1)
+                pop_front(&du);
+            if (i - front(&dl) >= 2 * r + 1)
+                pop_front(&dl);
+        }
+        destroy(&du);
+        destroy(&dl);
+    }
+
+   
 
 }

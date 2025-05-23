@@ -255,6 +255,13 @@ namespace diNoLib
         size_t pqueue_position;
     } query_result;
 
+    typedef struct deque
+    {
+        int *dq;
+        int size, capacity;
+        int f, r;
+    } deque;
+
     isax_index_settings *isax_index_settings_init(const char *root_directory, int timeseries_size,
                                                   int paa_segments, int sax_bit_cardinality,
                                                   int max_leaf_size, int min_leaf_size,
@@ -267,6 +274,8 @@ namespace diNoLib
     parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index);
 
     isax_index *isax_index_init_inmemory(isax_index_settings *settings);
+    isax_index *isax_index_init(isax_index_settings *settings);
+
     isax_node_buffer *init_node_buffer(int initial_buffer_size);
 
     isax_node *isax_leaf_node_init(int initial_buffer_size);
@@ -297,6 +306,17 @@ namespace diNoLib
     void set_pos(void *a, size_t pos);
 
     float calculate_minimum_distance_inmemory(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
+
+    enum response flush_node_buffer(isax_node_buffer *node_buffer, int sax_segments, int ts_segments, const char *filename);
+    enum response flush_subtree_leaf_buffers(isax_index *index, isax_node *node);
+    enum response clear_node_buffer(isax_node_buffer *node_buffer, enum buffer_cleaning_mode clean_mode);
+    void isax_index_clear_node_buffers(isax_index *index, isax_node *node, enum node_cleaning_mode node_cleaning_mode, enum buffer_cleaning_mode buffer_clean_mode);
+    enum response flush_fbl(first_buffer_layer *fbl, isax_index *index);
+
+    isax_node *insert_to_fbl(first_buffer_layer *fbl, sax_type *sax, file_position_type *pos, root_mask_type mask, isax_index *index);
+    root_mask_type isax_fbl_index_insert(isax_index *index, sax_type *sax, file_position_type *pos);
+
+    void lower_upper_lemire(float *t, int len, int r, float *l, float *u);
 
 }
 

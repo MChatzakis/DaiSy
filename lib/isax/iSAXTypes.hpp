@@ -6,7 +6,6 @@ namespace diNoLib
 
 #define DISK_BUFFER_SIZE 8192
 #define PROGRESS_CALCULATE_THREAD_NUMBER 12
-#define min(x, y) (x < y ? x : y)
 #define CREATE_MASK(mask, index, sax_array)                                                            \
     int mask__i;                                                                                       \
     for (mask__i = 0; mask__i < index->settings->paa_segments; mask__i++)                              \
@@ -39,6 +38,14 @@ namespace diNoLib
     typedef unsigned long long file_position_type;
     typedef unsigned long long file_position_type;
     typedef float ts_type;
+
+    enum node_cleaning_mode {DO_NOT_INCLUDE_CHILDREN = 0, INCLUDE_CHILDREN = 1};
+    enum buffer_cleaning_mode {FULL_CLEAN, TMP_ONLY_CLEAN, TMP_AND_TS_CLEAN};
+
+    #define dist(x,y) ((x-y)*(x-y))
+    #define max(x,y) ((x)>(y)?(x):(y))
+    #define min(x, y) (x < y ? x : y)
+
 
 }
 

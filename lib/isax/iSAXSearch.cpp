@@ -4,12 +4,13 @@
 
 #include <float.h>
 
+
 namespace diNoLib
 {
     void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile)
     {
-        //COUNT_CHECKED_NODE()
-        // If node has buffered data
+        // COUNT_CHECKED_NODE()
+        //  If node has buffered data
         if (node->buffer != NULL)
         {
             int i;
@@ -111,7 +112,7 @@ namespace diNoLib
 
         while (current_root_node != NULL)
         {
-            query_result *mindist_result = (query_result*) malloc(sizeof(query_result));
+            query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
 
             mindist_result->distance = minidist_paa_to_isax(paa, current_root_node->isax_values,
                                                             current_root_node->isax_cardinalities,
@@ -127,7 +128,7 @@ namespace diNoLib
         }
         query_result *n;
         int checks = 0;
-        while ((n = (query_result *) pqueue_pop(pq)))
+        while ((n = (query_result *)pqueue_pop(pq)))
         {
             // The best node has a worse mindist, so search is finished!
             if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
@@ -183,7 +184,7 @@ namespace diNoLib
                         }
                         else
                         {
-                            query_result *mindist_result = (query_result *) malloc(sizeof(query_result));
+                            query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
                             mindist_result->distance = minidist_paa_to_isax(paa, n->node->left_child->isax_values,
                                                                             n->node->left_child->isax_cardinalities,
                                                                             index->settings->sax_bit_cardinality,
@@ -203,7 +204,7 @@ namespace diNoLib
                         }
                         else
                         {
-                            query_result *mindist_result = (query_result *) malloc(sizeof(query_result));
+                            query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
                             mindist_result->distance = minidist_paa_to_isax(paa, n->node->right_child->isax_values,
                                                                             n->node->right_child->isax_cardinalities,
                                                                             index->settings->sax_bit_cardinality,
@@ -222,7 +223,7 @@ namespace diNoLib
             }
         }
         // Free the nodes that where not popped.
-        while ((n = (query_result *) pqueue_pop(pq)))
+        while ((n = (query_result *)pqueue_pop(pq)))
         {
             free(n);
         }
@@ -235,4 +236,153 @@ namespace diNoLib
         pqueue_free(pq);
     }
 
+    // new
+    float dtw(float *A, float *B, float *cb, int m, int r, float bsf)
+    {
+
+        float *cost;
+        float *cost_prev;
+        float *cost_tmp;
+        int i, j, k;
+        float x, y, z, min_cost;
+
+        /// Instead of using matrix of size O(m^2) or O(mr), we will reuse two array of size O(r).
+        cost = (float *)malloc(sizeof(float) * (2 * r + 1));
+        for (k = 0; k < 2 * r + 1; k++)
+            cost[k] = FLT_MAX;
+
+        cost_prev = (float *)malloc(sizeof(float) * (2 * r + 1));
+        for (k = 0; k < 2 * r + 1; k++)
+            cost_prev[k] = FLT_MAX;
+
+        for (i = 0; i < m; i++)
+        {
+            k = max(0, r - i);
+            min_cost = FLT_MAX;
+
+            for (j = max(0, i - r); j <= min(m - 1, i + r); j++, k++)
+            {
+                /// Initialize all row and column
+                if ((i == 0) && (j == 0))
+                {
+                    cost[k] = dist(A[0], B[0]);
+                    min_cost = cost[k];
+                    continue;
+                }
+
+                if ((j - 1 < 0) || (k - 1 < 0))
+                    y = FLT_MAX;
+                else
+                    y = cost[k - 1];
+                if ((i - 1 < 0) || (k + 1 > 2 * r))
+                    x = FLT_MAX;
+                else
+                    x = cost_prev[k + 1];
+                if ((i - 1 < 0) || (j - 1 < 0))
+                    z = FLT_MAX;
+                else
+                    z = cost_prev[k];
+
+                /// Classic DTW calculation
+                cost[k] = min(min(x, y), z) + dist(A[i], B[j]);
+
+                /// Find minimum cost in row for early abandoning (possibly to use column instead of row).
+                if (cost[k] < min_cost)
+                {
+                    min_cost = cost[k];
+                }
+            }
+
+            /// We can abandon early if the current cummulative distace with lower bound together are larger than bsf
+            if (i + r < m - 1 && min_cost + cb[i + r + 1] >= bsf)
+            {
+                free(cost);
+                free(cost_prev);
+                return min_cost + cb[i + r + 1];
+            }
+            /// Move current array to previous array.
+            cost_tmp = cost;
+            cost = cost_prev;
+            cost_prev = cost_tmp;
+        }
+        k--;
+
+        /// the DTW distance is in the last cell in the matrix of size O(m^2) or at the middle of our array.
+        float final_dtw = cost_prev[k];
+        free(cost);
+        free(cost_prev);
+        return final_dtw;
+    }
+
+    void calculate_node_DTWknn_inmemory(isax_index *index, isax_node *node, ts_type *query, int warpWind, pqueue_bsf *pq_bsf, float *rawfile)
+    {
+        // COUNT_CHECKED_NODE()
+        //  If node has buffered data
+
+        if (node->buffer != NULL)
+        {
+            float *cb = (float *)calloc(index->settings->timeseries_size, sizeof(float));
+            int i;
+            // RDcalculationnumber=RDcalculationnumber+node->buffer->partial_buffer_size;
+            for (i = 0; i < node->buffer->partial_buffer_size; i++)
+            {
+
+                float dist = dtw(query, &(rawfile[*node->buffer->partial_position_buffer[i]]), cb, index->settings->timeseries_size, warpWind, FLT_MAX);
+
+                // ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
+                //                                   index->settings->timeseries_size, bsf);
+
+                pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+            }
+            free(cb);
+        }
+    }
+
+    void approximate_DTWtopk_inmemory(ts_type *ts, ts_type *paa, isax_index *index, int warpWind, pqueue_bsf *pq_bsf, float *rawfile)
+    {
+
+        sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments);
+        sax_from_paa(paa, sax, index->settings->paa_segments,
+                     index->settings->sax_alphabet_cardinality,
+                     index->settings->sax_bit_cardinality);
+
+        root_mask_type root_mask = 0;
+        CREATE_MASK(root_mask, index, sax);
+
+        if ((&((parallel_first_buffer_layer *)(index->fbl))->soft_buffers[(int)root_mask])->initialized)
+        {
+            isax_node *node = (&((parallel_first_buffer_layer *)(index->fbl))->soft_buffers[(int)root_mask])->node;
+            // Traverse tree
+
+            // Adaptive splitting
+
+            while (!node->is_leaf)
+            {
+                int location = index->settings->sax_bit_cardinality - 1 -
+                               node->split_data->split_mask[node->split_data->splitpoint];
+                root_mask_type mask = index->settings->bit_masks[location];
+
+                if (sax[node->split_data->splitpoint] & mask)
+                {
+                    node = node->right_child;
+                }
+                else
+                {
+                    node = node->left_child;
+                }
+
+                // Adaptive splitting
+            }
+
+            calculate_node_DTWknn_inmemory(index, node, ts, warpWind, pq_bsf, rawfile);
+        }
+        else
+        {
+        }
+        for (int i = 0; i < pq_bsf->k - 1; ++i)
+        {
+            pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
+        }
+        free(sax);
+    }
 } // namespace diNoLib
