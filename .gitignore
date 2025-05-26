@@ -35,3 +35,9 @@ build/
 
 # Env
 *env/
+
+# python
+scripts/__pycache__/
+
+# Ignore compiled Python files
+*.pyc

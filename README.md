@@ -12,10 +12,12 @@ diNoSimilaritySearch is a library for approximate nearest neighbor search with s
 
 ## Building with CMake
 
+Note: To build only the C++ version of the library, use `-DBUILD_PYTHON=OFF`. Otherwise, you can omit the flag.
+
 ```bash
 mkdir build
 cd build
-cmake ..
+cmake .. -DBUILD_PYTHON=OFF  # ON by default
 cmake --build .
 ```
 
