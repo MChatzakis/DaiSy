@@ -44,6 +44,7 @@ def saveOutput(filename_prefix: str,
     @param indices: NumPy Array of indices or distances
     @param is_distance: Boolean flag to check if it is distance data (for folder routing)
     @return: None
+    @side_effects: Creates output directories and writes text files.
     """    
     folder = "./tests/gt/" 
     
