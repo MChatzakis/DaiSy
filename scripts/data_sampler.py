@@ -19,13 +19,14 @@ QUERIES_SAMPLE_OUTPUT_PATH = f"../data/{DATASET_NAME}.query.len{DIMS}.size{DATAS
 np.random.seed(42)
 random.seed(42)
 
-def read_data_series_of_file(file_path, num_series, series_length):
+def read_data_series_of_file(file_path: str, num_series: int, series_length: int) -> np.ndarray:
     """
-    Read a series of data from a binary file.
-    :param file_path: Path to the binary file.
-    :param num_series: Number of series to read.
-    :param series_length: Length of each series.
-    :return: A numpy array of shape (num_series, series_length).
+    @brief Read a series of data from a binary file.
+
+    @param file_path: Path to the binary file
+    @param num_series: Number of series to read
+    @param series_length: Length of each series
+    @return: A numpy array of shape (num_series, series_length)
     """
     with open(file_path, "rb") as f:
         data = np.fromfile(f, dtype=np.float32, count=num_series * series_length)
@@ -35,16 +36,23 @@ def read_data_series_of_file(file_path, num_series, series_length):
     
     return data.reshape(num_series, series_length)
 
-def save_data_series_to_file(data, file_path):
+def save_data_series_to_file(data: np.ndarray, file_path: str) -> None:
+    """
+    Save a 2D NumPy array to a binary file in float32 format.
+
+    @param data: The NumPy array to save
+    @param file_path: Path to the binary output file
+    """
     with open(file_path, "wb") as f:
         data.astype(np.float32).tofile(f)
 
-def sample_data(dataset, sample_size):
+def sample_data(dataset: np.ndarray, sample_size: int) -> np.ndarray:
     """
     Sample a subset of the dataset.
-    :param dataset: The dataset to sample from.
-    :param sample_size: The number of samples to take.
-    :return: A sampled subset of the dataset.
+
+    @param dataset: The dataset to sample from
+    @param sample_size: The number of samples to take
+    @return: A sampled subset of the dataset
     """
     if sample_size > len(dataset):
         raise ValueError("Sample size cannot be larger than the dataset size.")
@@ -52,7 +60,14 @@ def sample_data(dataset, sample_size):
     indices = random.sample(range(len(dataset)), sample_size)
     return dataset[indices]
 
-def check_data_equality(original, loaded, name):
+def check_data_equality(original: np.ndarray, loaded: np.ndarray, name: str) -> None:
+    """
+    Compare two datasets and print differences if any are found.
+
+    @param original: The original dataset
+    @param loaded: The dataset loaded back from file
+    @param name: A name label for printing/logging purposes
+    """
     if not np.allclose(original, loaded):
         diff_indices = np.where(~np.isclose(original, loaded))
         num_mismatches = len(diff_indices[0])

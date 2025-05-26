@@ -25,20 +25,35 @@ search_options = [
 thread_options = [1, 4, 8]
 
 def lowercaseFirstLetter(s: str) -> str:
+    """
+    @brief Convert the first character of the string to lowercase.
+    
+    @param s : Input string
+    @return str: String with the first character lowercased
+    """    
     if not s:
         return s  # Return empty string 
     return s[0].lower() + s[1:]
 
-# Tooltip Helper
 class CreateToolTip:
-    def __init__(self, widget, text):
+    """
+    @brief Helper class to create a tooltip for a tkinter widget.
+
+    @param widget: The tkinter widget to attach the tooltip to
+    @param text: The tooltip text to display
+    """
+
+    def __init__(self, widget: tk.Widget, text: str) -> None:
         self.widget = widget
         self.text = text
         self.tooltip = None
         widget.bind("<Enter>", self.enter)
         widget.bind("<Leave>", self.leave)
 
-    def enter(self, event=None):
+    def enter(self, event: tk.Event | None = None) -> None:
+        """
+        @brief Display the tooltip near the widget when mouse enters.
+        """        
         if self.tooltip:
             return
         x, y, _, _ = self.widget.bbox("insert")
@@ -54,13 +69,20 @@ class CreateToolTip:
         )
         label.pack(ipadx=1)
 
-    def leave(self, event=None):
+    def leave(self, event: tk.Event | None = None) -> None:
+        """
+        @brief Hide and destroy the tooltip when mouse leaves the widget.
+        """        
         if self.tooltip:
             self.tooltip.destroy()
             self.tooltip = None
 
-# Store Input Logic 
-def store_input():
+def store_input() -> None:
+    """
+    @brief Validate and store user input from the GUI form.
+
+    @return: None (closes the GUI window after saving inputs)
+    """    
     global user_inputs
     try:
         query_number = int(query_entry.get())
@@ -93,7 +115,59 @@ def store_input():
     print("Stored inputs:", user_inputs)
     window.quit()  
 
-# Main Window
+
+def validate_int_range(new_value: str, min_val: int, max_val: int) -> bool:
+    """
+    @brief Validate that a string represents an integer within a specified range.
+
+    @param new_value: The new string value from entry widget
+    @param min_val: Minimum allowed integer value
+    @param max_val: Maximum allowed integer value
+    @return bool: True if new_value is empty or an integer within [min_val, max_val], 
+                    False otherwise
+    """    
+    if new_value == "":
+        return True 
+    try:
+        val = int(new_value)
+        return min_val <= val <= max_val
+    except ValueError:
+        return False
+
+def update_limits(*args) -> None:
+    """
+    @brief Update input validation and tooltips based on the currently selected dataset.
+
+    @return: None
+    """    
+    dataset = dataset_var.get()
+    q_min, q_max = dataset_limits[dataset]["queries"]
+    k_min, k_max = dataset_limits[dataset]["k"]
+ 
+    CreateToolTip(query_entry, f"Specify queries between {q_min} and {q_max}.")
+    CreateToolTip(k_entry, f"Specify k between {k_min} and {k_max}.")
+ 
+    query_vcmd = (window.register(lambda val: validate_int_range(val, q_min, q_max)), "%P")
+    k_vcmd = (window.register(lambda val: validate_int_range(val, k_min, k_max)), "%P")
+
+    query_entry.config(validate="key", validatecommand=query_vcmd)
+    k_entry.config(validate="key", validatecommand=k_vcmd)
+
+def get_config() -> dict:
+    """
+    @brief Launch the GUI window and return user-selected similarity search configuration.
+
+    @return dict: User input parameters collected from the GUI
+    """    
+    global user_inputs
+    user_inputs = {}
+
+    window.mainloop()
+
+    return user_inputs
+
+
+# ====== GUI Setup ======
 window = tk.Tk()
 window.title("Similarity Search Configuration")
 window.configure(bg="#f0f0f5")
@@ -153,31 +227,6 @@ k_entry = ttk.Entry(input_frame, width=3)
 k_entry.pack(side="left")
 CreateToolTip(k_entry, "Enter the number of closest neighbors to retrieve.")
 
-# Validation function for entries
-def validate_int_range(new_value, min_val, max_val):
-    if new_value == "":
-        return True 
-    try:
-        val = int(new_value)
-        return min_val <= val <= max_val
-    except ValueError:
-        return False
-
-# Function to update validation and tooltips based on selected dataset
-def update_limits(*args):
-    dataset = dataset_var.get()
-    q_min, q_max = dataset_limits[dataset]["queries"]
-    k_min, k_max = dataset_limits[dataset]["k"]
- 
-    CreateToolTip(query_entry, f"Specify queries between {q_min} and {q_max}.")
-    CreateToolTip(k_entry, f"Specify k between {k_min} and {k_max}.")
- 
-    query_vcmd = (window.register(lambda val: validate_int_range(val, q_min, q_max)), "%P")
-    k_vcmd = (window.register(lambda val: validate_int_range(val, k_min, k_max)), "%P")
-
-    query_entry.config(validate="key", validatecommand=query_vcmd)
-    k_entry.config(validate="key", validatecommand=k_vcmd)
-
 dataset_var.trace_add("write", update_limits)
 update_limits()
 
@@ -220,13 +269,3 @@ quit_button = tk.Button(
     btn_frame, text="Cancel", bg="#d3312b", fg="white", activebackground="#c62828", command=window.quit
 )
 quit_button.pack(side=tk.LEFT, padx=10)
-
-# window.mainloop()
-
-def get_config():
-    global user_inputs
-    user_inputs = {}
-
-    window.mainloop()
-
-    return user_inputs

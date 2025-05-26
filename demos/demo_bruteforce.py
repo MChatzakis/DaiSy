@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 from scripts.config_param import get_config
 from diNoSimilaritySearch import BruteForceSearch, DistanceType
 
+# Mapping of search method names to their classes
 search_classes = {
     "BruteForceSearch": BruteForceSearch,
     # "LbBruteForceSearch": LbBruteForceSearch,
@@ -18,7 +19,14 @@ search_classes = {
     # "Sing": Sing
 }
 
-def printResults(I, D, nq):
+def printResults(I: np.ndarray, D: np.ndarray, nq: int) -> None:
+    """
+    @brief Print search results for each query.
+
+    @param I: 2D array of indices returned from the search
+    @param D: 2D array of distances corresponding to the indices
+    @param nq: Number of queries
+    """    
     for query_num in range(nq):
         print(f"Query {query_num}:")
         print("Distances:", D[query_num])
@@ -26,6 +34,13 @@ def printResults(I, D, nq):
         print() 
 
 def param_gui() -> Optional[Tuple[str, int, int, str, str, int]]:
+    """
+    @brief Launch GUI and collect user-defined parameters for search.
+
+    @return: Tuple containing (Dataset name, Query Number, kNN, Distance Metric, Search Method, Threads),
+             or None if no configuration is provided
+    @throws KeyError: If a required configuration key is missing
+    """    
     config = get_config()  # This will open the GUI
     
     if config:
@@ -45,7 +60,19 @@ def param_gui() -> Optional[Tuple[str, int, int, str, str, int]]:
     
     return None
 
-def find_data_files(db_name: str, data_folder: str = '../data'):
+def find_data_files(db_name: str, data_folder: str = '../data') -> Tuple[str, str, int, int]:
+    """
+    @brief Locate the dataset and query files for the given database name.
+
+    @param db_name: Base name of the dataset
+    @param data_folder: Directory where data files are stored
+    @return: Tuple (dataset_path, query_path, dim, nb) where:
+             - dataset_path: path to the dataset file
+             - query_path: path to the query file
+             - dim: vector dimensionality
+             - nb: number of database vectors
+    @throws FileNotFoundError: If matching dataset or query files are not found
+    """    
     pattern_db = re.compile(
         rf"{re.escape(db_name)}\.data(?:\.[^.]+)?\.len(\d+)\.size(\d+)\.znorm\.bin"
     )
@@ -77,7 +104,12 @@ def find_data_files(db_name: str, data_folder: str = '../data'):
 
     return dataset_path, query_path, dim, nb
 
-def loadDataCHECK():
+def loadDataCHECK() -> None:
+    """
+    @brief Hardcoded example to test loading data and running BruteForceSearch without GUI.
+
+    @return: None
+    """
     d = 96
     nb = 200000
     nq = 10    
@@ -99,7 +131,14 @@ def loadDataCHECK():
 
     printResults(I, D, nq)
 
-def loadDataGUI_CHECK():
+def loadDataGUI_CHECK() -> None:
+    """
+    @brief GUI-based example to load data and run a search using user-specified parameters.
+
+    @return: None
+    @throws KeyError: If any required parameter is missing from the configuration
+    @throws FileNotFoundError: If the dataset or query file is not found
+    """    
     params = get_config()
 
     if not params:

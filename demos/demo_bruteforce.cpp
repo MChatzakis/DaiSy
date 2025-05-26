@@ -6,6 +6,14 @@
 #include <cstdio>
 #include <cstdlib>
 
+/**
+ * @brief Print the top-k nearest neighbor indices for each query.
+ * 
+ * @param n_query Number of queries
+ * @param k Number of nearest neighbors
+ * @param I Pointer to the index array of results
+ * @param label Optional label prefix for printed output
+ */
 void printResults(diNoLib::idx_t n_query, diNoLib::idx_t k, const diNoLib::idx_t *I, const char* label = "") 
 {
     for (diNoLib::idx_t i = 0; i < n_query; ++i) 
@@ -20,6 +28,9 @@ void printResults(diNoLib::idx_t n_query, diNoLib::idx_t k, const diNoLib::idx_t
     }
 }
 
+/**
+ * @brief Load data from binary files and perform brute-force similarity search.
+ */
 void loadDataCHECK()
 {
     // 0. Configuration of the variables
@@ -59,6 +70,9 @@ void loadDataCHECK()
     delete[] D;    
 }
 
+/**
+ * @brief Generate synthetic random data and perform brute-force similarity search.
+ */
 void genarateRandomDataCHECK()
 {
     // 0. Configuration of the variables
@@ -94,6 +108,16 @@ void genarateRandomDataCHECK()
     delete[] D;       
 }
 
+/**
+ * @brief Compare the outputs of single-threaded and multi-threaded brute-force search.
+ * 
+ * @param I Result indices from single-threaded search
+ * @param I2 Result indices from multi-threaded search
+ * @param D Distances from single-threaded search
+ * @param D2 Distances from multi-threaded search
+ * @param n_query Number of queries
+ * @param k Number of nearest neighbors
+ */
 void checkThreadBruteForceSearch(const diNoLib::idx_t *I, diNoLib::idx_t *I2, float *D, float *D2, diNoLib::idx_t n_query, diNoLib::idx_t k) 
 {
     bool ok = true;
@@ -106,6 +130,10 @@ void checkThreadBruteForceSearch(const diNoLib::idx_t *I, diNoLib::idx_t *I2, fl
     }
 }
 
+
+/**
+ * @brief Benchmark and compare performance of single-threaded vs multi-threaded brute-force search.
+ */
 void threadingCHECK()
 {
     // 0. Configuration of the variables
