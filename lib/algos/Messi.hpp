@@ -69,11 +69,12 @@ namespace diNoLib
         int initial_fbl_size = 100;
         int total_loaded_leaves = 1;
         int tight_bound = 0;
-        int search_workers = 64;
-        int index_workers = 32;
-        int read_block_length = 100000;
         float minimum_distance = FLT_MAX;
         int min_checked_leaves = -1;
+        
+        int read_block_length = 100000;
+        int search_workers = 64;
+        int index_workers = 32;
         int n_pqueue = 42;
         int warping_window = 5;
 
@@ -104,6 +105,7 @@ namespace diNoLib
         int getInitialFblSize() const { return initial_fbl_size; }
         int getTotalLoadedLeaves() const { return total_loaded_leaves; }
         int getTightBound() const { return tight_bound; }
+        
         int getSearchWorkers() const { return search_workers; }
         int getIndexWorkers() const { return index_workers; }
         int getReadBlockLength() const { return read_block_length; }
@@ -118,6 +120,7 @@ namespace diNoLib
         void setInitialFblSize(int initial_fbl_size) { this->initial_fbl_size = initial_fbl_size; }
         void setTotalLoadedLeaves(int total_loaded_leaves) { this->total_loaded_leaves = total_loaded_leaves; }
         void setTightBound(int tight_bound) { this->tight_bound = tight_bound; }
+        
         void setSearchWorkers(int search_workers) { this->search_workers = search_workers; }
         void setIndexWorkers(int index_workers) { this->index_workers = index_workers; }
         void setReadBlockLength(int read_block_length) { this->read_block_length = read_block_length; }
