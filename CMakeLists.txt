@@ -55,6 +55,9 @@ add_subdirectory(demos)
 # Add tests
 add_subdirectory(tests)
 
+# Add benchmark
+add_subdirectory(benchmark)
+
 # Conditionally add Python bindings
 if(BUILD_PYTHON)
     # Add pybind11

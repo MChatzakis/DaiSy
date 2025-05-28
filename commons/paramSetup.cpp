@@ -1,27 +1,18 @@
-// Astronomy dataset
+#include "paramSetup.hpp"
+
+// Define global constants
 const char *astro_data = "../data/astronomy.data.len256.size50000.znorm.bin";
 const char *astro_query = "../data/astronomy.query.len256.size100.znorm.bin";
 const char* astro_name = "AstronomyData_q100";
 const char* astro_gt_data = "../tests/gt/Indices/bruteFSS_gt_I_astronomy_len256_size50000_q100_k";
 const char* astro_gt_query = "../tests/gt/Distances/bruteFSS_gt_D_astronomy_len256_size50000_q100_k";
 
-// Random dataset
 const char *random_data = "../data/random.data.randwalk.len96.size200000.znorm.bin";
 const char *random_query = "../data/random.query.randwalk.len96.size1000.bin";
 const char *random_name = "RandomWalkData_q1000";
 const char *random_gt_data = "../tests/gt/Indices/bruteFSS_gt_I_random_len96_size200000_q1000_k";
 const char *random_gt_query = "../tests/gt/Distances/bruteFSS_gt_D_random_len96_size200000_q1000_k";
 
-/**
- * @brief Generate test configurations for a dataset, varying thread counts and top-k values.
- * 
- * @param name Label for the dataset
- * @param data Path to the dataset file
- * @param query Path to the query file
- * @param gt_data Path to the ground truth index file
- * @param gt_query Path to the ground truth distance file
- * @return std::vector<SSTestConfig> All generated test configurations
- */
 std::vector<SSTestConfig> generate_configs(
     const char* name,
     const char* data,
@@ -38,19 +29,12 @@ std::vector<SSTestConfig> generate_configs(
     return configs;
 }
 
-/**
- * @brief Generate all test configurations for both astronomy and random datasets.
- */
 const std::vector<SSTestConfig> test_configs = [] {
     std::vector<SSTestConfig> configs;
 
-    // Generate configs for the astronomy dataset
     auto astro_configs = generate_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
-
-    // Generate configs for the random walk dataset
     auto random_configs = generate_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
 
-    // Combine all configs into one list
     configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
     configs.insert(configs.end(), random_configs.begin(), random_configs.end());
 
