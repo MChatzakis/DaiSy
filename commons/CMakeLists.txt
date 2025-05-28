@@ -1,6 +1,8 @@
 # Create a commons library
 add_library(commons_lib
     dataloaders.cpp
+    test_bm_utils.cpp
+    paramSetup.cpp
 )
 
 # Make its headers visible to whoever links it
