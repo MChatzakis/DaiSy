@@ -12,36 +12,15 @@ add_compile_options(-march=native
     -g 
     -fopenmp 
     -Wuninitialized 
-#    -Wunused-variable 
+   -Wunused-variable 
     -Wparentheses
 )
 
-# # Add common code
-# add_subdirectory(commons)
-
-# # Add library
-# add_subdirectory(lib)
-
-# # Add demos
-# add_subdirectory(demos)
-
-# # Add tests
-# add_subdirectory(tests)
-
-# # Add pybind11 as submodule
-# add_subdirectory(extern/pybind11)
-
-# # Build the Python module
-# pybind11_add_module(diNoSimilaritySearch pybinds/setup.cpp)
-# target_link_libraries(diNoSimilaritySearch PRIVATE dino_lib)
-
-# # Set output directory for the .so file
-# set_target_properties(diNoSimilaritySearch PROPERTIES
-#     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/demos"
-# )
-
 # Add option to build Python bindings 
 option(BUILD_PYTHON "Build Python bindings using pybind11" ON)
+
+# Add option to build benchmarks
+option(BUILD_BENCHMARK "Build benchmark executables" ON)
 
 # Add common code
 add_subdirectory(commons)
@@ -54,9 +33,6 @@ add_subdirectory(demos)
 
 # Add tests
 add_subdirectory(tests)
-
-# Add benchmark
-add_subdirectory(benchmark)
 
 # Conditionally add Python bindings
 if(BUILD_PYTHON)
@@ -71,4 +47,9 @@ if(BUILD_PYTHON)
     set_target_properties(diNoSimilaritySearch PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/demos"
     )
+endif()
+
+# Conditionally add benchmark
+if(BUILD_BENCHMARK)
+    add_subdirectory(benchmark)
 endif()

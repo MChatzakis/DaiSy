@@ -1,3 +1,7 @@
+if(NOT BUILD_BENCHMARK)
+    return()
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(
