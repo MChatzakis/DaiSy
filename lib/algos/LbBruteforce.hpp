@@ -7,33 +7,31 @@
 
 #include <queue>
 #include <cfloat>
-#include <omp.h> 
+#include <omp.h>
 
 namespace diNoLib
 {
     class LbBruteforce : public SimilaritySearchAlgorithm
     {
     private:
-        
-    
-    // todo: move those in the parent class!
-    int paa_segments = 16;
-    int sax_cardinality = 8;
-    int leaf_size = 2000;
-    int min_leaf_size = 10;
-    int initial_lbl_size = 2000;
-    int flush_limit = 200000;
-    int initial_fbl_size = 100;
-    int total_loaded_leaves = 1;
-    int tight_bound = 0;
-    float minimum_distance = FLT_MAX;
-    int min_checked_leaves = -1;
-    
-    int num_threads = 1;
-    isax_index_settings *index_settings = nullptr;
-    isax_index *index = nullptr;
-    sax_type **db_sax_representations = nullptr;
-    
+        // todo: move those in the parent class!
+        int paa_segments = 16;
+        int sax_cardinality = 8;
+        int leaf_size = 2000;
+        int min_leaf_size = 10;
+        int initial_lbl_size = 2000;
+        int flush_limit = 200000;
+        int initial_fbl_size = 100;
+        int total_loaded_leaves = 1;
+        int tight_bound = 0;
+        float minimum_distance = FLT_MAX;
+        int min_checked_leaves = -1;
+
+        int num_threads = 1;
+        isax_index_settings *index_settings = nullptr;
+        isax_index *index = nullptr;
+        sax_type **db_sax_representations = nullptr;
+
     public:
         LbBruteforce(DistanceType distance_type);
         void setNumThreads(int num_threads);
@@ -60,10 +58,9 @@ namespace diNoLib
         void setTightBound(int tight_bound) { this->tight_bound = tight_bound; }
 
         void buildIndex(const float *database, const idx_t n_database, const idx_t dim) override;
-        void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;     
+        void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
         ~LbBruteforce();
-
     };
 
 } // namespace diNoLib
