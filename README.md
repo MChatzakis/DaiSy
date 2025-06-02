@@ -10,6 +10,11 @@
 - **CMake**: Version 3.15 or higher recommended
 - **GoogleTest**: Integrated for unit testing (included via CMake)
 - **GoogleBenchmark**:
+- **Note**: This project uses `tkinter`, which is part of the Python standard library but may require separate installation on Linux:
+  - Ubuntu/Debian:
+  ```bash
+  sudo apt install python3.10-tk
+  ```
 
 ## Install
 
@@ -24,15 +29,15 @@ To build only the core C++ library (without Python bindings or benchmarks):
 ```bash
 mkdir build
 cd build
-cmake .. -DBUILD_PYTHON=OFF -DBUILD_BENCHMARK=OFF
+cmake .. -DBUILD_PYTHON=OFF -DBUILD_BENCHMARK=OFF -DBUILD_DEMO=OFF
 cmake --build .
 ```
 
-Note: `BUILD_PYTHON` and `BUILD_BENCHMARK` are both optional flags:
+Note: `BUILD_PYTHON`, `BUILD_BENCHMARK`, and `BUILD_DEMO` are optional flags:
 
 - `BUILD_PYTHON=ON` (default): Enables building Python bindings.
-
 - `BUILD_BENCHMARK=ON` (default): Enables building benchmarks.
+- `BUILD_DEMO=ON` (defaul): Enables building demonstration files.
 
 ### Disables Python Bindings
 
@@ -48,6 +53,13 @@ cmake .. -DBUILD_BENCHMARK=OFF
 cmake --build .
 ```
 
+### Disables Demos
+
+```bash
+cmake .. -DBUILD_DEMO=OFF
+cmake --build .
+```
+
 ## Running Tests with CTest
 
 ```bash
@@ -58,14 +70,80 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+## Installation for diNo library
+
+### Option 1: Using pip
+
+#### 1. Create a virtual environment (optional but recommended):
+
+```bash
+python3.12 -m venv diNo_env
+```
+
+#### 2. Activate the virtual environment:
+
+- macOS/Linux:
+
+```bash
+source diNo_env/bin/activate
+```
+
+- Windows:
+
+```bash
+.\diNo_env\Scripts\activate
+```
+
+#### 3. Install dependencies:
+
+From your `diNo_env/`:
+
+```bash
+pip install -r requirements_diNo.txt
+```
+
+#### 4. Deactivate the environment (when you're done):
+
+```bash
+deactivate
+```
+
 ## Installation for FAISS
 
 ### Option 1: Using pip
 
-From your `env/`:
+#### 1. Create a virtual environment (optional but recommended):
 
 ```bash
-pip install -r requirements.txt
+python3.10 -m venv faiss_env # or python3 -m venv faiss_env
+```
+
+#### 2. Activate the virtual environment:
+
+- macOS/Linux:
+
+```bash
+source faiss_env/bin/activate
+```
+
+- Windows:
+
+```bash
+.\faiss_env\Scripts\activate
+```
+
+#### 3. Install dependencies:
+
+From your `faiss_env/`:
+
+```bash
+pip install -r requirements_faiss.txt
+```
+
+#### 4. Deactivate the environment (when you're done):
+
+```bash
+deactivate
 ```
 
 ### Option 2: Using Conda
@@ -73,5 +151,5 @@ pip install -r requirements.txt
 Note: change the `my_custom_env` in .yml to your env name.
 
 ```bash
-conda env create -f environment.yml
+conda env create -f environment_faiss.yml
 ```

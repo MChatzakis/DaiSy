@@ -12,7 +12,7 @@ add_compile_options(-march=native
     -g 
     -fopenmp 
     -Wuninitialized 
-   -Wunused-variable 
+#    -Wunused-variable 
     -Wparentheses
 )
 
@@ -22,14 +22,14 @@ option(BUILD_PYTHON "Build Python bindings using pybind11" ON)
 # Add option to build benchmarks
 option(BUILD_BENCHMARK "Build benchmark executables" ON)
 
+# Add option to build Demos files
+option(BUILD_DEMO "Build the demo folder" ON)
+
 # Add common code
 add_subdirectory(commons)
 
 # Add library
 add_subdirectory(lib)
-
-# Add demos
-add_subdirectory(demos)
 
 # Add tests
 add_subdirectory(tests)
@@ -52,4 +52,9 @@ endif()
 # Conditionally add benchmark
 if(BUILD_BENCHMARK)
     add_subdirectory(benchmark)
+endif()
+
+# Conditionally add demos
+if(BUILD_DEMO)
+    add_subdirectory(demos)
 endif()
