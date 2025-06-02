@@ -1,5 +1,11 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from typing import Optional, Tuple
+import sys
+import os
+import re
+
+from diNoSimilaritySearch import BruteForceSearch, DistanceType #, LbBruteForceSearch, Messi, Odyssey, Paris, Sing
 
 # Global variables
 user_inputs = {}
@@ -13,14 +19,16 @@ dataset_limits = {
 
 dist_options = [("Squared Euclidean (L2²)", "L2_SQUARED")]
 
-search_options = [
-    "BruteForceSearch",
-    "LbBruteForceSearch",
-    "Messi",
-    "Odyssey",
-    "Paris",
-    "Sing",
-]
+search_classes = {
+    "Brute Force": BruteForceSearch,
+    # "Lower Bound Brute Force": LbBruteForceSearch,
+    # "Messi": Messi,
+    # "Odyssey": Odyssey,
+    # "Paris": Paris,
+    # "Sing": Sing,
+}
+
+search_options = list(search_classes.keys())
 
 thread_options = [1, 4, 8]
 
@@ -166,6 +174,76 @@ def get_config() -> dict:
 
     return user_inputs
 
+def param_gui() -> Optional[Tuple[str, int, int, str, str, int]]:
+    """
+    @brief Launch GUI and collect user-defined parameters for search.
+
+    @return: Tuple containing (Dataset name, Query Number, kNN, Distance Metric, Search Method, Threads),
+             or None if no configuration is provided
+    @throws KeyError: If a required configuration key is missing
+    """    
+    config = get_config()  # This will open the GUI
+    
+    if config:
+        try:
+            return (
+                config["Dataset"],
+                config["Query Number"],
+                config["k-Nearest Neighbors"],
+                config["Distance Metric"],
+                config["Search Method"],
+                config["Threads"]
+            )
+        except KeyError as e:
+            print(f"Configuration key missing: {e}")
+    else:
+        print("No configuration was provided.")
+    
+    return None
+
+def find_data_files(db_name: str, data_folder: str = '../data') -> Tuple[str, str, int, int]:
+    """
+    @brief Locate the dataset and query files for the given database name.
+
+    @param db_name: Base name of the dataset
+    @param data_folder: Directory where data files are stored
+    @return: Tuple (dataset_path, query_path, dim, nb) where:
+             - dataset_path: path to the dataset file
+             - query_path: path to the query file
+             - dim: vector dimensionality
+             - nb: number of database vectors
+    @throws FileNotFoundError: If matching dataset or query files are not found
+    """    
+    pattern_db = re.compile(
+        rf"{re.escape(db_name)}\.data(?:\.[^.]+)?\.len(\d+)\.size(\d+)\.znorm\.bin"
+    )
+
+    pattern_query = re.compile(
+        rf"{re.escape(db_name)}\.query(?:\.[^.]+)?\.len(\d+)\.size(\d+)(?:\.znorm)?\.bin"
+    )
+
+    dataset_path = None
+    query_path = None
+    dim = None
+    nb = None
+
+    for fname in os.listdir(data_folder):
+        # Search for dataset file
+        m_db = pattern_db.match(fname)
+        if m_db:
+            dataset_path = os.path.join(data_folder, fname)
+            dim = int(m_db.group(1))
+            nb = int(m_db.group(2))
+
+        # Search for query file
+        m_query = pattern_query.match(fname)
+        if m_query:
+            query_path = os.path.join(data_folder, fname)
+
+    if dataset_path is None or query_path is None:
+        raise FileNotFoundError(f"Could not find dataset or query files for '{db_name}' in '{data_folder}'")
+
+    return dataset_path, query_path, dim, nb
 
 # ====== GUI Setup ======
 window = tk.Tk()
