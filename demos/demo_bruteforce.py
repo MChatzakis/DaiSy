@@ -4,13 +4,12 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from typing import Optional, Tuple
-from scripts.config_param import get_config, search_options, param_gui, find_data_files
+from scripts.config_param import get_config, search_classes
 
-from diNoSimilaritySearch import BruteForceSearch, DistanceType
+from diNoSimilaritySearch import DistanceType
 
 def main():
-    # Without the GUI
+# Without the GUI
     # 0. Configuration of the variables
     n_database = 200000
     dim = 96
@@ -42,46 +41,56 @@ def main():
         print()
 
 # With the GUI
-    # 0. Configuration of the variables
+    # 0. Get parameters from the GUI
     params = get_config()
-
     if not params:
-        return 
+        print("No parameters provided. Exiting.")
+        return
 
-    db_name       = params["Dataset"]
+    filename_db   = params["Dataset Path"]
+    filename_query= params["Query Path"]
+    n_database    = params["Number of Database Vectors"]
+    dim           = params["Vector Dimensionality"]    
     nq            = params["Query Number"]
     knn           = params["k-Nearest Neighbors"]
     dist_metric   = params["Distance Metric"]
     search_method = params["Search Method"]
     num_thread    = params["Threads"]
 
-    filename_db, filename_query, d, nb = find_data_files(db_name)
+    # 1. Loading
+        # database vectors from file and reshape based on input dims
+    db = np.fromfile(filename_db, dtype='float32')
+    try:
+        db = db.reshape((n_database, dim))
+    except ValueError:
+        raise ValueError(f"Could not reshape database vectors to ({n_database}, {dim})")
 
-    # 1. Loading data and queries
-    filename_db, filename_query, d, nb = find_data_files(db_name)
+        # queries
+    query_all = np.fromfile(filename_query, dtype='float32')
+    try:
+        query_all = query_all.reshape((-1, dim))
+    except ValueError:
+        raise ValueError(f"Could not reshape query vectors with dimension {dim}")
 
-    db = np.fromfile(filename_db, dtype='float32').reshape((nb, d))
-
-    query_all = np.fromfile(filename_query, dtype='float32').reshape((-1, d))
     query = query_all[:nq]
 
-    # 2. Create a brute-force search object
+    # 2. Initialize the search object
     index_class = search_classes[search_method]
     index = index_class(getattr(DistanceType, dist_metric))
 
-    # 3. Build the index
+    # 3. Build index and set threads
     index.setNumThreads(num_thread)
     index.buildIndex(db)
 
-    # 4. Search the index
+    # 4. Perform the search
     I, D = index.searchIndex(query, knn)
-    
-    # 5. Print the results
-    for query_num in range(n_query):
+
+    # 5. Output results
+    for query_num in range(nq):
         print(f"Query {query_num}:")
         print("Distances:", D[query_num])
         print("Indices:", I[query_num])
-        print() 
+        print()
 
 if __name__ == "__main__":
     main()
