@@ -1,21 +1,11 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Tuple
-import sys
-import os
-import re
 
-from diNoSimilaritySearch import BruteForceSearch, DistanceType #, LbBruteForceSearch, Messi, Odyssey, Paris, Sing
+from diNoSimilaritySearch import BruteForceSearch #, LbBruteForceSearch, Messi, Odyssey, Paris, Sing
 
 # Global variables
 user_inputs = {}
-
-dataset_options = ["Random", "Astronomy"]
-
-dataset_limits = {
-    "Random": {"queries": (1, 1000), "k": (1, 1000)},
-    "Astronomy": {"queries": (1, 50000), "k": (1, 50000)},
-}
 
 dist_options = [("Squared Euclidean (L2²)", "L2_SQUARED")]
 
@@ -31,17 +21,6 @@ search_classes = {
 search_options = list(search_classes.keys())
 
 thread_options = [1, 4, 8]
-
-def lowercaseFirstLetter(s: str) -> str:
-    """
-    @brief Convert the first character of the string to lowercase.
-    
-    @param s : Input string
-    @return str: String with the first character lowercased
-    """    
-    if not s:
-        return s  # Return empty string 
-    return s[0].lower() + s[1:]
 
 class CreateToolTip:
     """
@@ -88,78 +67,39 @@ class CreateToolTip:
 def store_input() -> None:
     """
     @brief Validate and store user input from the GUI form.
-
     @return: None (closes the GUI window after saving inputs)
     """    
     global user_inputs
+
+    if not user_dataset_path.get() or not user_query_path.get():
+        messagebox.showerror("Input Error", "Please select both dataset and query files.")
+        return
+
     try:
-        query_number = int(query_entry.get())
-        k_neighbors = int(k_entry.get())
+        ndb_val = int(ndb_entry.get())
+        dim_val = int(dim_entry.get())
+        query_val = int(query_entry.get())
+        k_val = int(k_entry.get())
+        threads_val = int(threads_var.get())
     except ValueError:
-        messagebox.showerror("Input Error", "Please enter valid integers for the query count and number of neighbors.")
-        return
-
-    dataset = dataset_var.get()
-    q_min, q_max = dataset_limits[dataset]["queries"]
-    k_min, k_max = dataset_limits[dataset]["k"]
-
-    if not (q_min <= query_number <= q_max):
-        messagebox.showerror("Input Error", f"Number of Queries must be between {q_min} and {q_max}.")
-        return
-    if not (k_min <= k_neighbors <= k_max):
-        messagebox.showerror("Input Error", f"Number of Nearest Neighbors (k) must be between {k_min} and {k_max}.")
+        messagebox.showerror("Input Error", "Please enter valid integers for all numeric fields.")
         return
 
     user_inputs = {
-        "Dataset": lowercaseFirstLetter(dataset),
-        "Query Number": query_number,
-        "k-Nearest Neighbors": k_neighbors,
+        "Dataset Path": user_dataset_path.get(),
+        "Query Path": user_query_path.get(),
+        "Number of Database Vectors": ndb_val,
+        "Vector Dimensionality": dim_val,
+        "Query Number": query_val,
+        "k-Nearest Neighbors": k_val,
         "Distance Metric": distance_var.get(),
         "Search Method": search_var.get(),
-        "Threads": threads_var.get()
+        "Threads": threads_val,
     }
 
     messagebox.showinfo("Configuration Saved", f"The following parameters have been saved:\n{user_inputs}")
     print("Stored inputs:", user_inputs)
-    window.quit()  
-
-
-def validate_int_range(new_value: str, min_val: int, max_val: int) -> bool:
-    """
-    @brief Validate that a string represents an integer within a specified range.
-
-    @param new_value: The new string value from entry widget
-    @param min_val: Minimum allowed integer value
-    @param max_val: Maximum allowed integer value
-    @return bool: True if new_value is empty or an integer within [min_val, max_val], 
-                    False otherwise
-    """    
-    if new_value == "":
-        return True 
-    try:
-        val = int(new_value)
-        return min_val <= val <= max_val
-    except ValueError:
-        return False
-
-def update_limits(*args) -> None:
-    """
-    @brief Update input validation and tooltips based on the currently selected dataset.
-
-    @return: None
-    """    
-    dataset = dataset_var.get()
-    q_min, q_max = dataset_limits[dataset]["queries"]
-    k_min, k_max = dataset_limits[dataset]["k"]
- 
-    CreateToolTip(query_entry, f"Specify queries between {q_min} and {q_max}.")
-    CreateToolTip(k_entry, f"Specify k between {k_min} and {k_max}.")
- 
-    query_vcmd = (window.register(lambda val: validate_int_range(val, q_min, q_max)), "%P")
-    k_vcmd = (window.register(lambda val: validate_int_range(val, k_min, k_max)), "%P")
-
-    query_entry.config(validate="key", validatecommand=query_vcmd)
-    k_entry.config(validate="key", validatecommand=k_vcmd)
+    window.quit() 
 
 def get_config() -> dict:
     """
@@ -169,27 +109,26 @@ def get_config() -> dict:
     """    
     global user_inputs
     user_inputs = {}
-
     window.mainloop()
-
     return user_inputs
 
-def param_gui() -> Optional[Tuple[str, int, int, str, str, int]]:
+def param_gui() -> Optional[Tuple[str, int, int, int, int, str, str, int]]:
     """
     @brief Launch GUI and collect user-defined parameters for search.
 
-    @return: Tuple containing (Dataset name, Query Number, kNN, Distance Metric, Search Method, Threads),
+    @return: Tuple,
              or None if no configuration is provided
     @throws KeyError: If a required configuration key is missing
     """    
-    config = get_config()  # This will open the GUI
-    
+    config = get_config()
     if config:
         try:
             return (
                 config["Dataset"],
                 config["Query Number"],
                 config["k-Nearest Neighbors"],
+                config["Number of Database Vectors"],   
+                config["Vector Dimensionality"],        
                 config["Distance Metric"],
                 config["Search Method"],
                 config["Threads"]
@@ -198,52 +137,8 @@ def param_gui() -> Optional[Tuple[str, int, int, str, str, int]]:
             print(f"Configuration key missing: {e}")
     else:
         print("No configuration was provided.")
-    
     return None
 
-def find_data_files(db_name: str, data_folder: str = '../data') -> Tuple[str, str, int, int]:
-    """
-    @brief Locate the dataset and query files for the given database name.
-
-    @param db_name: Base name of the dataset
-    @param data_folder: Directory where data files are stored
-    @return: Tuple (dataset_path, query_path, dim, nb) where:
-             - dataset_path: path to the dataset file
-             - query_path: path to the query file
-             - dim: vector dimensionality
-             - nb: number of database vectors
-    @throws FileNotFoundError: If matching dataset or query files are not found
-    """    
-    pattern_db = re.compile(
-        rf"{re.escape(db_name)}\.data(?:\.[^.]+)?\.len(\d+)\.size(\d+)\.znorm\.bin"
-    )
-
-    pattern_query = re.compile(
-        rf"{re.escape(db_name)}\.query(?:\.[^.]+)?\.len(\d+)\.size(\d+)(?:\.znorm)?\.bin"
-    )
-
-    dataset_path = None
-    query_path = None
-    dim = None
-    nb = None
-
-    for fname in os.listdir(data_folder):
-        # Search for dataset file
-        m_db = pattern_db.match(fname)
-        if m_db:
-            dataset_path = os.path.join(data_folder, fname)
-            dim = int(m_db.group(1))
-            nb = int(m_db.group(2))
-
-        # Search for query file
-        m_query = pattern_query.match(fname)
-        if m_query:
-            query_path = os.path.join(data_folder, fname)
-
-    if dataset_path is None or query_path is None:
-        raise FileNotFoundError(f"Could not find dataset or query files for '{db_name}' in '{data_folder}'")
-
-    return dataset_path, query_path, dim, nb
 
 # ====== GUI Setup ======
 window = tk.Tk()
@@ -251,10 +146,9 @@ window.title("Similarity Search Configuration")
 window.configure(bg="#f0f0f5")
 
 window_width = 700
-window_height = 850
+window_height = 900
 screen_width = window.winfo_screenwidth()
 screen_height = window.winfo_screenheight()
-
 x = (screen_width // 2) - (window_width // 2)
 y = (screen_height // 2) - (window_height // 2)
 window.geometry(f"{window_width}x{window_height}+{x}+{y}")
@@ -271,79 +165,117 @@ title = ttk.Label(window, text="Configure Similarity Search Parameters",
                   font=("Helvetica", 16, "bold"), background="#f0f0f5")
 title.pack(pady=20)
 
-# Main Frame
-main_frame = ttk.Frame(window, padding=20)
-main_frame.pack(fill="both", expand=True, padx=30, pady=10)
+# ===== Scrollable Main Frame Setup =====
+container = ttk.Frame(window)
+container.pack(fill="both", expand=True, padx=20, pady=10)
 
-# Dataset Frame with Queries and k inside
-dataset_var = tk.StringVar(value="Random")
-dataset_frame = ttk.LabelFrame(main_frame, text="Dataset", padding=10)
+canvas = tk.Canvas(container, borderwidth=0, background="#f0f0f5", highlightthickness=0)
+scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+scrollable_frame = ttk.Frame(canvas)
+
+scrollable_frame.bind(
+    "<Configure>",
+    lambda e: canvas.configure(
+        scrollregion=canvas.bbox("all")
+    )
+)
+
+canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+canvas.configure(yscrollcommand=scrollbar.set)
+
+canvas.pack(side="left", fill="both", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+def _on_mousewheel(event):
+    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+# Use scrollable_frame as your main container now:
+main_frame = scrollable_frame
+
+# Dataset File Selection Frame
+dataset_frame = ttk.LabelFrame(main_frame, text="Data Files", padding=10)
 dataset_frame.pack(fill="x", pady=10)
 
-# Dataset Radio Buttons
-for option in dataset_options:
-    ttk.Radiobutton(dataset_frame, text=option, variable=dataset_var, value=option).pack(anchor="w", pady=2)
+user_dataset_path = tk.StringVar()
+user_query_path = tk.StringVar()
 
-# Frame inside Dataset Frame for queries and k (side by side)
-input_frame = ttk.Frame(dataset_frame)
-input_frame.pack(fill="x", pady=(10, 0))
+def select_user_dataset():
+    path = filedialog.askopenfilename(title="Select Dataset File", filetypes=[("Binary files", "*.bin"), ("All files", "*.*")])
+    if path:
+        user_dataset_path.set(path)
+
+def select_user_queries():
+    path = filedialog.askopenfilename(title="Select Query File", filetypes=[("Binary files", "*.bin"), ("All files", "*.*")])
+    if path:
+        user_query_path.set(path)
+
+ttk.Button(dataset_frame, text="Load Dataset File", command=select_user_dataset).pack(anchor="w", pady=2)
+ttk.Entry(dataset_frame, textvariable=user_dataset_path, state="readonly", width=80).pack(anchor="w", pady=(0, 5))
+
+ttk.Button(dataset_frame, text="Load Query File", command=select_user_queries).pack(anchor="w", pady=2)
+ttk.Entry(dataset_frame, textvariable=user_query_path, state="readonly", width=80).pack(anchor="w", pady=(0, 5))
+
+# Parameters Frame
+input_frame = ttk.LabelFrame(main_frame, text="Parameters", padding=10)
+input_frame.pack(fill="x", pady=10)
+
+# Number of Database Vectors (n_database)
+ndb_label = ttk.Label(input_frame, text="Number of Database Vectors (n_database):")
+ndb_label.pack(anchor="w", pady=(10, 0))
+ndb_entry = ttk.Entry(input_frame, width=10)
+ndb_entry.pack(anchor="w")
+CreateToolTip(ndb_entry, "Specify the number of database vectors.")
+
+# Vector Dimensionality (dim)
+dim_label = ttk.Label(input_frame, text="Vector Dimensionality (dim):")
+dim_label.pack(anchor="w", pady=(10, 0))
+dim_entry = ttk.Entry(input_frame, width=10)
+dim_entry.pack(anchor="w")
+CreateToolTip(dim_entry, "Specify the dimensionality of vectors.")
 
 # Number of Queries
-query_label = ttk.Label(input_frame, text="Number of Queries:", width=0)
-query_label.pack(side="left", padx=(0, 5))
-query_entry = ttk.Entry(input_frame, width=3)
-query_entry.pack(side="left")
+query_label = ttk.Label(input_frame, text="Number of Queries (n_query):")
+query_label.pack(anchor="w")
+query_entry = ttk.Entry(input_frame, width=10)
+query_entry.pack(anchor="w")
 CreateToolTip(query_entry, "Specify how many queries should be processed.")
 
-# Spacer
-ttk.Label(input_frame, text="       ").pack(side="left")  
-
-# k Nearest Neighbors
-k_label = ttk.Label(input_frame, text="Number of Nearest Neighbors (k):", width=0)
-k_label.pack(side="left", padx=(10, 5))
-k_entry = ttk.Entry(input_frame, width=3)
-k_entry.pack(side="left")
+# K-Nearest Neighbors 
+k_label = ttk.Label(input_frame, text="Number of Nearest Neighbors (k):")
+k_label.pack(anchor="w", pady=(10, 0))
+k_entry = ttk.Entry(input_frame, width=10)
+k_entry.pack(anchor="w")
 CreateToolTip(k_entry, "Enter the number of closest neighbors to retrieve.")
 
-dataset_var.trace_add("write", update_limits)
-update_limits()
-
 # Distance Metric
-distance_var = tk.StringVar(value="L2")
+distance_var = tk.StringVar(value="L2_SQUARED")
 distance_frame = ttk.LabelFrame(main_frame, text="Distance Metric", padding=10)
 distance_frame.pack(fill="x", pady=10)
 for text, val in dist_options:
     ttk.Radiobutton(distance_frame, text=text, variable=distance_var, value=val).pack(anchor="w", pady=2)
 
 # Search Method
-search_var = tk.StringVar(value="Brute Force Search")
+search_var = tk.StringVar(value=search_options[0])
 search_frame = ttk.LabelFrame(main_frame, text="Search Method", padding=10)
 search_frame.pack(fill="x", pady=10)
 for option in search_options:
     ttk.Radiobutton(search_frame, text=option, variable=search_var, value=option).pack(anchor="w", pady=2)
 
-# Number of Threads
+# Threads
 threads_var = tk.IntVar(value=1)
 threads_frame = ttk.LabelFrame(main_frame, text="Number of Threads", padding=10)
 threads_frame.pack(fill="x", pady=10)
-
-threads_label = ttk.Label(threads_frame, text="Select number of threads to use:")
-threads_label.pack(side="left", padx=(0, 10))
-
+ttk.Label(threads_frame, text="Select number of threads to use:").pack(side="left", padx=(0, 10))
 threads_combo = ttk.Combobox(threads_frame, textvariable=threads_var, values=thread_options, state="readonly", width=5)
 threads_combo.pack(side="left")
 CreateToolTip(threads_combo, "Choose how many threads the search should utilize.")
 
-# Action Buttons (with custom background preserved)
+# Buttons
 btn_frame = tk.Frame(window, bg="#f0f0f5", pady=20)
 btn_frame.pack()
 
-store_button = tk.Button(
-    btn_frame, text="Confirm Configuration", bg="#4CAF50", fg="white", activebackground="#45a049", command=store_input
-)
-store_button.pack(side=tk.LEFT, padx=10)
-
-quit_button = tk.Button(
-    btn_frame, text="Cancel", bg="#d3312b", fg="white", activebackground="#c62828", command=window.quit
-)
-quit_button.pack(side=tk.LEFT, padx=10)
+tk.Button(btn_frame, text="Confirm Configuration", bg="#4CAF50", fg="white",
+          activebackground="#45a049", command=store_input).pack(side=tk.LEFT, padx=10)
+tk.Button(btn_frame, text="Cancel", bg="#d3312b", fg="white",
+          activebackground="#c62828", command=window.quit).pack(side=tk.LEFT, padx=10)
