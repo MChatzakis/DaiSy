@@ -1,14 +1,14 @@
-#include "Sing.hpp"
+#include "SingSearch.hpp"
 
 namespace diNoLib
 {
 
-    Sing::Sing(DistanceType distance_type)
+    SingSearch::SingSearch(DistanceType distance_type)
         : SimilaritySearchAlgorithm(distance_type)
     {
     }
 
-    void Sing::setNumThreads(int num_threads)
+    void SingSearch::setNumThreads(int num_threads)
     {
         int max_threads = omp_get_max_threads();
 
@@ -29,12 +29,12 @@ namespace diNoLib
         }
     } 
 
-    int Sing::getNumThreads() const
+    int SingSearch::getNumThreads() const
     {
         return this->num_threads;
     } 
 
-    void Sing::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
+    void SingSearch::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
     {
         this->database = new float[n_database * dim];
         std::copy(database, database + n_database * dim, this->database);
@@ -42,7 +42,7 @@ namespace diNoLib
         this->dim = dim;
     }
     
-    void Sing::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
+    void SingSearch::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         #pragma omp parallel num_threads(num_threads)
         {
@@ -85,7 +85,7 @@ namespace diNoLib
         }
     }
 
-    Sing::~Sing()
+    SingSearch::~SingSearch()
     {
         delete[] database;
     }

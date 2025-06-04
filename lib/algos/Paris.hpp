@@ -1,5 +1,5 @@
-#ifndef PARIS_HPP
-#define PARIS_HPP
+#ifndef PARISSEARCH_HPP
+#define PARISSEARCH_HPP
 
 #include "SimilaritySearchAlgorithm.hpp"
 
@@ -12,7 +12,7 @@
 
 namespace diNoLib
 {
-    class Paris : public SimilaritySearchAlgorithm
+    class ParisSearch : public SimilaritySearchAlgorithm
     {
     private:
         int num_threads = 1;
@@ -36,16 +36,16 @@ namespace diNoLib
         isax_index *index = nullptr;
                 
     public:
-        Paris(DistanceType distance_type);
+        ParisSearch(DistanceType distance_type);
         void setNumThreads(int num_threads);
         int getNumThreads() const;        
         void buildIndex(const float *database, const idx_t n_database, const idx_t dim) override;
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;     
 
-        ~Paris();
+        ~ParisSearch();
 
     };
 
 } // namespace diNoLib
 
-#endif // PARIS_HPP
+#endif // PARISSEARCH_HPP

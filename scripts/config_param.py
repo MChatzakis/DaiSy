@@ -1,8 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import platform
 from typing import Optional, Tuple
 
-from diNoSimilaritySearch import BruteForceSearch #, LbBruteForceSearch, Messi, Odyssey, Paris, Sing
+from diNoSimilaritySearch import BruteForceSearch, LbBruteforceSearch #, MessiSearch, OdysseySearch, ParisSearch, SingSearch
 
 # Global variables
 user_inputs = {}
@@ -11,11 +12,11 @@ dist_options = [("Squared Euclidean (L2²)", "L2_SQUARED")]
 
 search_classes = {
     "Brute Force": BruteForceSearch,
-    # "Lower Bound Brute Force": LbBruteForceSearch,
-    # "Messi": Messi,
-    # "Odyssey": Odyssey,
-    # "Paris": Paris,
-    # "Sing": Sing,
+    "Lower Bound Brute Force": LbBruteforceSearch,
+    # "Messi": MessiSearch,
+    # "Odyssey": OdysseySearch,
+    # "Paris": ParisSearch,
+    # "Sing": SingSearch,
 }
 
 search_options = list(search_classes.keys())
@@ -187,8 +188,32 @@ canvas.pack(side="left", fill="both", expand=True)
 scrollbar.pack(side="right", fill="y")
 
 def _on_mousewheel(event):
-    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    if platform.system() == 'Windows':
+        canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+    elif platform.system() == 'Darwin':  # macOS
+        canvas.yview_scroll(int(-1 * (event.delta)), "units")
+    else:  # Linux
+        if event.num == 4:
+            canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            canvas.yview_scroll(1, "units")
+
+def _bind_mousewheel(event):
+    if platform.system() in ('Windows', 'Darwin'):
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    else:
+        canvas.bind_all("<Button-4>", _on_mousewheel)
+        canvas.bind_all("<Button-5>", _on_mousewheel)
+
+def _unbind_mousewheel(event):
+    if platform.system() in ('Windows', 'Darwin'):
+        canvas.unbind_all("<MouseWheel>")
+    else:
+        canvas.unbind_all("<Button-4>")
+        canvas.unbind_all("<Button-5>")
+        
+scrollable_frame.bind("<Enter>", _bind_mousewheel)
+scrollable_frame.bind("<Leave>", _unbind_mousewheel)
 
 # Use scrollable_frame as your main container now:
 main_frame = scrollable_frame

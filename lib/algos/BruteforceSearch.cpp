@@ -27,12 +27,7 @@ namespace diNoLib
         {
             this->num_threads = num_threads;
         }
-    } 
-
-    int BruteForceSearch::getNumThreads() const
-    {
-        return this->num_threads;
-    } 
+    }  
 
     void BruteForceSearch::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
     {

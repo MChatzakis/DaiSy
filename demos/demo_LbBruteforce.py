@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from scripts.config_param import get_config, search_classes
 
-from diNoSimilaritySearch import DistanceType, BruteForceSearch
+from diNoSimilaritySearch import DistanceType, LbBruteforceSearch
 
 def main():
 # Without the GUI
@@ -24,7 +24,7 @@ def main():
     query = np.random.randn(n_query, dim).astype(np.float32)
 
     # 2. Create a brute-force search object
-    index = BruteForceSearch(DistanceType.L2_SQUARED)
+    index = LbBruteforceSearch(DistanceType.L2_SQUARED)
 
     # 3. Build the index
     index.setNumThreads(1)

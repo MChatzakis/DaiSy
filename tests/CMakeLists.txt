@@ -36,27 +36,27 @@ target_include_directories(test_bruteforce_L2Square
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
 
-# # Test: LbBruteforce L2Square
-# add_executable(
-#     test_LbBruteforce_L2Square 
-#     test_LbBruteforce_L2Square.cpp
-#     test_utils.cpp
-# )
+# Test: LbBruteforce L2Square
+add_executable(
+    test_LbBruteforce_L2Square 
+    test_LbBruteforce_L2Square.cpp
+    test_utils.cpp
+)
 
-# target_link_libraries(
-#     test_LbBruteforce_L2Square
-#     PRIVATE
-#     GTest::gtest_main
-#     dino_lib
-#     commons_lib
-#     stdc++fs  
-# )
+target_link_libraries(
+    test_LbBruteforce_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs  
+)
 
-# target_include_directories(test_LbBruteforce_L2Square 
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-# )
+target_include_directories(test_LbBruteforce_L2Square 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
 
 # # Test: Messi L2Square
 # add_executable(
@@ -152,10 +152,10 @@ gtest_discover_tests(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
-# gtest_discover_tests(
-#     test_LbBruteforce_L2Square
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-# )
+gtest_discover_tests(
+    test_LbBruteforce_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
 
 # gtest_discover_tests(
 #     test_Messi_L2Square

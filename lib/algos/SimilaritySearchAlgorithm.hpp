@@ -3,8 +3,10 @@
 #include <iostream>
 #include <variant>
 #include <unordered_map>
+#include <cfloat>
 
 #include "../distance_computers/DistanceComputer.hpp"
+#include "../isax/iSAXSearch.hpp"
 
 namespace diNoLib
 {
@@ -20,6 +22,23 @@ namespace diNoLib
 
         DistanceType distance_type;
         DistanceComputer *distance_computer = nullptr;
+        
+        int num_threads = 1;
+        int paa_segments = 16;
+        int sax_cardinality = 8;
+        int leaf_size = 2000;
+        int min_leaf_size = 10;
+        int initial_lbl_size = 2000;
+        int flush_limit = 200000;
+        int initial_fbl_size = 100;
+        int total_loaded_leaves = 1;
+        int tight_bound = 0;
+        float minimum_distance = FLT_MAX;
+        int min_checked_leaves = -1;    
+        
+        isax_index_settings *index_settings = nullptr;
+        isax_index *index = nullptr;
+        sax_type **db_sax_representations = nullptr;        
 
     public:
         SimilaritySearchAlgorithm(DistanceType distance_type)
