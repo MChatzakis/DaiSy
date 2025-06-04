@@ -1,5 +1,5 @@
-#ifndef LBBRUTEFORCE_HPP
-#define LBBRUTEFORCE_HPP
+#ifndef LBBRUTEFORCESEARCH_HPP
+#define LBBRUTEFORCESEARCH_HPP
 
 #include "SimilaritySearchAlgorithm.hpp"
 
@@ -11,10 +11,10 @@
 
 namespace diNoLib
 {
-    class LbBruteforce : public SimilaritySearchAlgorithm
+    class LbBruteforceSearch : public SimilaritySearchAlgorithm
     {
     public:
-        LbBruteforce(DistanceType distance_type);
+        LbBruteforceSearch(DistanceType distance_type);
         void setNumThreads(int num_threads);
         int getNumThreads() const;
 
@@ -41,9 +41,9 @@ namespace diNoLib
         void buildIndex(const float *database, const idx_t n_database, const idx_t dim) override;
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
-        ~LbBruteforce();
+        ~LbBruteforceSearch();
     };
 
 } // namespace diNoLib
 
-#endif // LBBRUTEFORCE_HPP
+#endif // LBBRUTEFORCESEARCH_HPP

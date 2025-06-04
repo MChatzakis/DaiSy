@@ -1,5 +1,5 @@
-#ifndef SING_HPP
-#define SING_HPP
+#ifndef ODYSSEYSEARCH_HPP
+#define ODYSSEYSEARCH_HPP
 
 #include "SimilaritySearchAlgorithm.hpp"
 
@@ -9,7 +9,7 @@
 
 namespace diNoLib
 {
-    class Sing : public SimilaritySearchAlgorithm
+    class OdysseySearch : public SimilaritySearchAlgorithm
     {
     private:
         float* database = nullptr;
@@ -18,16 +18,16 @@ namespace diNoLib
         int num_threads = 1;
                 
     public:
-        Sing(DistanceType distance_type);
+        OdysseySearch(DistanceType distance_type);
         void setNumThreads(int num_threads);
         int getNumThreads() const;        
         void buildIndex(const float *database, const idx_t n_database, const idx_t dim) override;
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;     
 
-        ~Sing();
+        ~OdysseySearch();
 
     };
 
 } // namespace diNoLib
 
-#endif // SING_HPP
+#endif // ODYSSEY_HPP

@@ -7,7 +7,7 @@ std::string prefix = "bruteFSS";
 TEST_P(LbBruteforceParameterizedTest, AllConfigurations) {
     const SSTestConfig& config = GetParam();
     diNoLib::DistanceType dist_L2Squared = diNoLib::DistanceType::L2_SQUARED;
-    diNoLib::LbBruteforce search(dist_L2Squared);
+    diNoLib::LbBruteforceSearch search(dist_L2Squared);
     
     std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
     std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";

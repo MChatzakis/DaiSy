@@ -12,6 +12,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(benchmark)
 
+# BruteForce
 add_executable(bm_bruteforce_L2Square 
     bm_bruteforce_L2Square.cpp
     bm_utils.cpp
@@ -28,6 +29,28 @@ target_link_libraries(bm_bruteforce_L2Square
 )
 
 target_include_directories(bm_bruteforce_L2Square 
+    PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+#LbBruteforce
+add_executable(bm_LbBruteforce_L2Square 
+    bm_LbBruteforce_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+
+target_link_libraries(bm_LbBruteforce_L2Square 
+    PRIVATE 
+    benchmark::benchmark 
+    benchmark::benchmark_main 
+    dino_lib
+)
+
+target_include_directories(bm_LbBruteforce_L2Square 
     PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons

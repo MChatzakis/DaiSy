@@ -1,5 +1,5 @@
-#ifndef MESSI_HPP
-#define MESSI_HPP
+#ifndef MESSISEARCH_HPP
+#define MESSISEARCH_HPP
 
 #include "SimilaritySearchAlgorithm.hpp"
 
@@ -57,7 +57,7 @@ namespace diNoLib
     void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
     void calculate_node_DTW2knn_inmemory(isax_index *index, isax_node *node, ts_type *query, float *uo, float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf, int warpWind, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
 
-    class Messi : public SimilaritySearchAlgorithm
+    class MessiSearch : public SimilaritySearchAlgorithm
     {
     private:
         int paa_segments = 16;
@@ -82,13 +82,13 @@ namespace diNoLib
         isax_index *index = nullptr;
 
         pqueue_bsf MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
-        pqueue_bsf Messi::MESSI_search_topk_DTW(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, node_list *nodelist, idx_t k);
+        pqueue_bsf MessiSearch::MESSI_search_topk_DTW(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, node_list *nodelist, idx_t k);
 
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
 
     public:
-        Messi(DistanceType distance_type);
+        MessiSearch(DistanceType distance_type);
         void setNumThreads(int num_threads)
         {
             this->search_workers = num_threads;
@@ -129,9 +129,9 @@ namespace diNoLib
         void buildIndex(const float *database, const idx_t n_database, const idx_t dim) override;
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
-        ~Messi();
+        ~MessiSearch();
     };
 
 } // namespace diNoLib
 
-#endif // MESSI_HPP
+#endif // MESSISEARCH_HPP

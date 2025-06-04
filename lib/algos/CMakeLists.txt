@@ -7,27 +7,27 @@ target_sources(dino_lib
 
 target_sources(dino_lib 
     PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforce.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforceSearch.cpp
 )
 
 # target_sources(dino_lib 
 #     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Messi.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/MessiSearch.cpp
 # )
 
 # target_sources(dino_lib 
 #     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Odyssey.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/OdysseySearch.cpp
 # )
 
 # target_sources(dino_lib 
 #     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Paris.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/ParisSearch.cpp
 # )
 
 # target_sources(dino_lib 
 #     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Sing.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/SingSearch.cpp
 # )
 
 if(OpenMP_CXX_FOUND)

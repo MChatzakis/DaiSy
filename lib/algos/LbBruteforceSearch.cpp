@@ -1,14 +1,14 @@
-#include "LbBruteforce.hpp"
+#include "LbBruteforceSearch.hpp"
 
 namespace diNoLib
 {
 
-    LbBruteforce::LbBruteforce(DistanceType distance_type)
+    LbBruteforceSearch::LbBruteforceSearch(DistanceType distance_type)
         : SimilaritySearchAlgorithm(distance_type)
     {
     }
 
-    void LbBruteforce::setNumThreads(int num_threads)
+    void LbBruteforceSearch::setNumThreads(int num_threads)
     {
         int max_threads = omp_get_max_threads();
 
@@ -29,12 +29,12 @@ namespace diNoLib
         }
     }
 
-    int LbBruteforce::getNumThreads() const
+    int LbBruteforceSearch::getNumThreads() const
     {
         return this->num_threads;
     }
 
-    void LbBruteforce::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
+    void LbBruteforceSearch::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
     {
         this->database = new float[n_database * dim];
         std::copy(database, database + n_database * dim, this->database);
@@ -92,7 +92,7 @@ namespace diNoLib
             }
         }
 
-    void LbBruteforce::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
+    void LbBruteforceSearch::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
     #pragma omp parallel num_threads(num_threads)
         {
@@ -172,7 +172,7 @@ namespace diNoLib
         }
     }
 
-    LbBruteforce::~LbBruteforce()
+    LbBruteforceSearch::~LbBruteforceSearch()
     {
         delete[] database;
 
