@@ -6,7 +6,7 @@
 #include "../commons/test_bm_utils.hpp"
 #include "../lib/algos/SimilaritySearchAlgorithm.hpp" 
 #include "../lib/algos/BruteforceSearch.hpp" 
-// #include "../lib/algos/LbBruteforce.hpp"
+#include "../lib/algos/LbBruteforce.hpp"
 // #include "../lib/algos/Messi.hpp" 
 // #include "../lib/algos/Odyssey.hpp" 
 // #include "../lib/algos/Paris.hpp" 
