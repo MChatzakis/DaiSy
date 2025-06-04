@@ -78,10 +78,22 @@ def store_input() -> None:
 
     try:
         ndb_val = int(ndb_entry.get())
+        n_query_val = int(n_query_entry.get())
         dim_val = int(dim_entry.get())
         query_val = int(query_entry.get())
         k_val = int(k_entry.get())
         threads_val = int(threads_var.get())
+        
+        # Validate non-negative integers
+        if any(val < 0 for val in [ndb_val, n_query_val, dim_val, query_val, k_val, threads_val]):
+            messagebox.showerror("Input Error", "All numeric values must be non-negative.")
+            return
+
+        # query_val > n_query_val 
+        if query_val > n_query_val:
+            messagebox.showerror("Input Error", "Query Number cannot exceed Number of Query Vectors.")
+            return
+
     except ValueError:
         messagebox.showerror("Input Error", "Please enter valid integers for all numeric fields.")
         return
@@ -90,6 +102,7 @@ def store_input() -> None:
         "Dataset Path": user_dataset_path.get(),
         "Query Path": user_query_path.get(),
         "Number of Database Vectors": ndb_val,
+        "Number of Query Vectors": n_query_val, 
         "Vector Dimensionality": dim_val,
         "Query Number": query_val,
         "k-Nearest Neighbors": k_val,
@@ -113,7 +126,7 @@ def get_config() -> dict:
     window.mainloop()
     return user_inputs
 
-def param_gui() -> Optional[Tuple[str, int, int, int, int, str, str, int]]:
+def param_gui() -> Optional[Tuple[str, str, int, int, int, int, int, str, str, int]]:
     """
     @brief Launch GUI and collect user-defined parameters for search.
 
@@ -125,11 +138,13 @@ def param_gui() -> Optional[Tuple[str, int, int, int, int, str, str, int]]:
     if config:
         try:
             return (
-                config["Dataset"],
+                config["Dataset Path"],
+                config["Query Path"],
+                config["Number of Database Vectors"],   
+                config["Number of Query Vectors"],   
+                config["Vector Dimensionality"],        
                 config["Query Number"],
                 config["k-Nearest Neighbors"],
-                config["Number of Database Vectors"],   
-                config["Vector Dimensionality"],        
                 config["Distance Metric"],
                 config["Search Method"],
                 config["Threads"]
@@ -248,28 +263,35 @@ input_frame.pack(fill="x", pady=10)
 # Number of Database Vectors (n_database)
 ndb_label = ttk.Label(input_frame, text="Number of Database Vectors (n_database):")
 ndb_label.pack(anchor="w", pady=(10, 0))
-ndb_entry = ttk.Entry(input_frame, width=10)
+ndb_entry = ttk.Entry(input_frame, width=13)
 ndb_entry.pack(anchor="w")
 CreateToolTip(ndb_entry, "Specify the number of database vectors.")
+
+# Number of Query Vectors (n_database)
+nquery_label = ttk.Label(input_frame, text="Number of Query Vectors (n_query):")
+nquery_label.pack(anchor="w", pady=(10, 0))
+n_query_entry = ttk.Entry(input_frame, width=13)
+n_query_entry.pack(anchor="w")
+CreateToolTip(n_query_entry, "Specify the number of query vectors.")
 
 # Vector Dimensionality (dim)
 dim_label = ttk.Label(input_frame, text="Vector Dimensionality (dim):")
 dim_label.pack(anchor="w", pady=(10, 0))
-dim_entry = ttk.Entry(input_frame, width=10)
+dim_entry = ttk.Entry(input_frame, width=13)
 dim_entry.pack(anchor="w")
 CreateToolTip(dim_entry, "Specify the dimensionality of vectors.")
 
 # Number of Queries
 query_label = ttk.Label(input_frame, text="Number of Queries (n_query):")
 query_label.pack(anchor="w")
-query_entry = ttk.Entry(input_frame, width=10)
+query_entry = ttk.Entry(input_frame, width=13)
 query_entry.pack(anchor="w")
 CreateToolTip(query_entry, "Specify how many queries should be processed.")
 
 # K-Nearest Neighbors 
 k_label = ttk.Label(input_frame, text="Number of Nearest Neighbors (k):")
 k_label.pack(anchor="w", pady=(10, 0))
-k_entry = ttk.Entry(input_frame, width=10)
+k_entry = ttk.Entry(input_frame, width=13)
 k_entry.pack(anchor="w")
 CreateToolTip(k_entry, "Enter the number of closest neighbors to retrieve.")
 
