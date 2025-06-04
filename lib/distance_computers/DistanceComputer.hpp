@@ -6,6 +6,9 @@
 #include <unordered_map>
 #include <iostream>
 
+#include "../lib/isax/iSAXTypes.hpp"
+#include "../lib/isax/SAX.hpp"
+
 namespace diNoLib
 {
     enum class DistanceType
@@ -59,7 +62,37 @@ namespace diNoLib
             // Destructor
         }
 
-        float compute_dist(float *t, float *s, int dim, float bound);
+        float compute_dist(float *t, 
+                            float *s, 
+                            int dim, 
+                            float bound);
+        
+        float compute_minidist_SIMD(const ts_type *q_paa,
+                            const sax_type *db_sax,
+                            const int *max_sax_cardinalities,
+                            int sax_bit_cardinality,
+                            int sax_alphabet_cardinality,
+                            int paa_segments,
+                            float minval,
+                            float maxval,
+                            bool mindist_sqrt);
+
+        void compute_paa_from_ts(const float *ts,
+                                ts_type *paa,
+                                int paa_segments,
+                                int ts_values_per_segment);
+
+        bool compute_sax_from_ts(const float *ts,
+                                sax_type *sax,
+                                int ts_values_per_paa_segment,
+                                int paa_segments,
+                                int sax_alphabet_cardinality,
+                                int sax_bit_cardinality);     
+                                
+        float compute_dist_SIMD(float *t, 
+                                float *s, 
+                                int dim, 
+                                float bound);                                
     };
 
 } // namespace diNoLib

@@ -1,6 +1,8 @@
 #ifndef ISAXTYPES_HPP
 #define ISAXTYPES_HPP
 
+#include <algorithm>
+
 namespace diNoLib
 {
 
@@ -42,10 +44,21 @@ namespace diNoLib
     enum node_cleaning_mode {DO_NOT_INCLUDE_CHILDREN = 0, INCLUDE_CHILDREN = 1};
     enum buffer_cleaning_mode {FULL_CLEAN, TMP_ONLY_CLEAN, TMP_AND_TS_CLEAN};
 
-    #define dist(x,y) ((x-y)*(x-y))
-    #define max(x,y) ((x)>(y)?(x):(y))
-    #define min(x, y) (x < y ? x : y)
+    // #define dist(x,y) ((x-y)*(x-y))
+    // #define max(x,y) ((x)>(y)?(x):(y))
+    // #define min(x, y) (x < y ? x : y)
 
+    template <typename T>
+    inline T max(T a, T b) {
+        return std::max(a, b);
+    }
+
+    template <typename T>
+    inline T min(T a, T b) {
+        return std::min(a, b);
+    }
+    
+    inline float dist(float x, float y) { return (x - y) * (x - y); }
 
 }
 

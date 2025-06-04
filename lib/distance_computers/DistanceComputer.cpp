@@ -1,4 +1,5 @@
 #include "DistanceComputer.hpp"
+#include "../lib/isax/SAX.hpp"
 
 namespace diNoLib
 {
@@ -71,4 +72,61 @@ namespace diNoLib
         return (this->*distance_map[distance_type])(t, s, dim, bound);
     }
 
+    float DistanceComputer::compute_minidist_SIMD(const ts_type *q_paa,
+                                                const sax_type *db_sax,
+                                                const int *max_sax_cardinalities,
+                                                int sax_bit_cardinality,
+                                                int sax_alphabet_cardinality,
+                                                int paa_segments,
+                                                float minval,
+                                                float maxval,
+                                                bool mindist_sqrt)
+    {
+        return minidist_paa_to_isax_rawa_SIMD(
+            const_cast<float*>(q_paa),
+            const_cast<unsigned char*>(db_sax),
+            const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(max_sax_cardinalities)),
+            sax_bit_cardinality,
+            sax_alphabet_cardinality,
+            paa_segments,
+            minval,
+            maxval,
+            mindist_sqrt
+        );
+    }
+
+    void DistanceComputer::compute_paa_from_ts(const float *ts,
+                                            ts_type *paa,
+                                            int paa_segments,
+                                            int ts_values_per_segment)
+    {
+        paa_from_ts(
+            const_cast<float*>(ts),
+            paa,
+            paa_segments,
+            ts_values_per_segment
+        );
+    }
+
+    bool DistanceComputer::compute_sax_from_ts(const float *ts,
+                                            sax_type *sax,
+                                            int ts_values_per_paa_segment,
+                                            int paa_segments,
+                                            int sax_alphabet_cardinality,
+                                            int sax_bit_cardinality)
+    {
+        return sax_from_ts(
+            const_cast<float*>(ts),
+            sax,
+            ts_values_per_paa_segment,
+            paa_segments,
+            sax_alphabet_cardinality,
+            sax_bit_cardinality
+        ) == SUCCESS;
+    }    
+
+    float DistanceComputer::compute_dist_SIMD(float *t, float *s, int dim, float bound)
+    {
+        return l2_dist_SIMD(t, s, dim, bound);
+    }
 }

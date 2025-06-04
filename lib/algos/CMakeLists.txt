@@ -5,10 +5,10 @@ target_sources(dino_lib
     ${CMAKE_CURRENT_SOURCE_DIR}/BruteforceSearch.cpp
 )
 
-# target_sources(dino_lib 
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforce.cpp
-# )
+target_sources(dino_lib 
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforce.cpp
+)
 
 # target_sources(dino_lib 
 #     PRIVATE
