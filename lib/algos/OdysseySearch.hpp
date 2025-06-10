@@ -6,6 +6,7 @@
 #include <queue>
 #include <cfloat>
 #include <omp.h> 
+#include <mpi.h>
 
 namespace diNoLib
 {

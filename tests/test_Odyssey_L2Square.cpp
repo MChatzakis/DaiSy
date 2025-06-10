@@ -1,6 +1,7 @@
 #include "test_utils.hpp"
 #include "../commons/test_bm_utils.hpp"
 #include "../commons/paramSetup.hpp"
+#include <mpi.h> 
 
 std::string prefix = "bruteFSS";
 

@@ -10,6 +10,9 @@
 - **CMake**: Version 3.15 or higher recommended
 - **GoogleTest**: Integrated for unit testing (included via CMake)
 - **GoogleBenchmark**:
+- sudo apt install libopenmpi-dev openmpi-bin # For Open MPI
+- sudo apt-get install mpich
+- pip install mpi4py
 - **Note**: This project uses `tkinter`, which is part of the Python standard library but may require separate installation.
 
 ## Install

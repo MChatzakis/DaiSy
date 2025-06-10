@@ -8,7 +8,7 @@
 #include "../lib/algos/BruteforceSearch.hpp" 
 #include "../lib/algos/LbBruteforceSearch.hpp"
 // #include "../lib/algos/MessiSearch.hpp" 
-// #include "../lib/algos/OdysseySearch.hpp" 
+#include "../lib/algos/OdysseySearch.hpp" 
 // #include "../lib/algos/ParISSearch.hpp" 
 // #include "../lib/algos/SingSearch.hpp" 
 

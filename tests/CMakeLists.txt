@@ -80,12 +80,37 @@ target_include_directories(test_LbBruteforce_L2Square
 #     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 # )
 
-# # Test: Odyssey L2Square 
-# add_executable(
-#     test_Odyssey_L2Square
-#     test_Odyssey_L2Square.cpp
-#     test_utils.cpp
-# )
+# Test: Odyssey L2Square (conditional on MPI)
+if (ODYSSEY_MPI_AVAILABLE)
+    add_executable(
+        test_Odyssey_L2Square
+        test_Odyssey_L2Square.cpp
+        test_utils.cpp
+    )
+
+    target_link_libraries(
+        test_Odyssey_L2Square
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+        MPI::MPI_CXX # Link with MPI for this test
+    )
+
+    target_include_directories(test_Odyssey_L2Square
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
+    gtest_discover_tests(
+        test_Odyssey_L2Square
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+else()
+    message(STATUS "test_Odyssey_L2Square (MPI-dependent) will NOT be built.")
+endif()
 
 # target_link_libraries(
 #     test_Odyssey_L2Square
