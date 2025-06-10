@@ -22,7 +22,7 @@ target_sources(dino_lib
 
 # target_sources(dino_lib 
 #     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/ParisSearch.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/ParISSearch.cpp
 # )
 
 # target_sources(dino_lib 
