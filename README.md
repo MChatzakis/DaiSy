@@ -10,15 +10,41 @@
 - **CMake**: Version 3.15 or higher recommended
 - **GoogleTest**: Integrated for unit testing (included via CMake)
 - **GoogleBenchmark**:
-- **Note**: This project uses `tkinter`, which is part of the Python standard library but may require separate installation on Linux:
-  - Ubuntu/Debian:
-  ```bash
-  sudo apt install python3.10-tk
-  ```
+- **Note**: This project uses `tkinter`, which is part of the Python standard library but may require separate installation.
 
 ## Install
 
+First, all submodules should be updated:
+
 - `git submodule update --init --recursive`
+
+Then, the instructions for the operating system should be followed:
+
+### Installing `tkinter`
+
+`tkinter` is part of the Python standard library, but its Tcl/Tk backend might need to be installed separately, especially on Linux.
+
+- Linux (Ubuntu/Debian)
+
+```bash
+sudo apt install python3.12-tk
+```
+
+(Adjust python3.12-tk to match your Python version if it's different, e.g., python3.14-tk).
+
+- macOS
+
+If Python was installed via _Homebrew_, `tkinter` can be ensured to be correctly linked by running:
+
+```bash
+brew install python-tk
+```
+
+If the official Python installer from python.org was used, `tkinter` is usually included by default. One should just make sure the "Tcl/Tk and IDLE" option was selected during installation.
+
+- Windows
+
+When installing Python from the official python.org website, tkinter is typically included by default. Confirm that the "Tcl/Tk and IDLE" option is selected during the installation process.
 
 ## Building with CMake
 
@@ -115,7 +141,7 @@ deactivate
 #### 1. Create a virtual environment (optional but recommended):
 
 ```bash
-python3.10 -m venv faiss_env # or python3 -m venv faiss_env
+python3.10 -m venv faiss_env
 ```
 
 #### 2. Activate the virtual environment:

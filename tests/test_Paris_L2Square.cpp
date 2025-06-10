@@ -4,10 +4,10 @@
 
 std::string prefix = "bruteFSS";
 
-TEST_P(ParisParameterizedTest, AllConfigurations) {
+TEST_P(ParISParameterizedTest, AllConfigurations) {
     const SSTestConfig& config = GetParam();
     diNoLib::DistanceType dist_L2Squared = diNoLib::DistanceType::L2_SQUARED;
-    diNoLib::ParisSearch search(dist_L2Squared);
+    diNoLib::ParISSearch search(dist_L2Squared);
     
     std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
     std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
@@ -24,8 +24,8 @@ TEST_P(ParisParameterizedTest, AllConfigurations) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ParisTests,
-    ParisParameterizedTest,
+    ParISTests,
+    ParISParameterizedTest,
     ::testing::ValuesIn(test_configs),
     [](const ::testing::TestParamInfo<SSTestConfig>& info) {
         return info.param.name + "_k" + std::to_string(info.param.k_value) + 

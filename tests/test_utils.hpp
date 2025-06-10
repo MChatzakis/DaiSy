@@ -9,7 +9,7 @@
 #include "../lib/algos/LbBruteforceSearch.hpp"
 // #include "../lib/algos/MessiSearch.hpp" 
 // #include "../lib/algos/OdysseySearch.hpp" 
-// #include "../lib/algos/ParisSearch.hpp" 
+// #include "../lib/algos/ParISSearch.hpp" 
 // #include "../lib/algos/SingSearch.hpp" 
 
 /**
@@ -89,9 +89,9 @@ protected:
 };
 
 /**
- * @brief ParisParameterizedTest
+ * @brief ParISParameterizedTest
  */
-class ParisParameterizedTest : public SimilaritySearchTest,
+class ParISParameterizedTest : public SimilaritySearchTest,
                                    public ::testing::WithParamInterface<SSTestConfig> {
 protected:
     using SimilaritySearchTest::runSST;

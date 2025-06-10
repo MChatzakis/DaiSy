@@ -1,14 +1,14 @@
-#include "ParisSearch.hpp"
+#include "ParISSearch.hpp"
 
 namespace diNoLib
 {
 
-    ParisSearch::ParisSearch(DistanceType distance_type)
+    ParISSearch::ParISSearch(DistanceType distance_type)
         : SimilaritySearchAlgorithm(distance_type)
     {
     }
 
-    void ParisSearch::setNumThreads(int num_threads)
+    void ParISSearch::setNumThreads(int num_threads)
     {
         int max_threads = omp_get_max_threads();
 
@@ -29,12 +29,12 @@ namespace diNoLib
         }
     }
 
-    int ParisSearch::getNumThreads() const
+    int ParISSearch::getNumThreads() const
     {
         return this->num_threads;
     }
 
-    void ParisSearch::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
+    void ParISSearch::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
     {
         this->database = new float[n_database * dim];
         std::copy(database, database + n_database * dim, this->database);
@@ -86,12 +86,12 @@ namespace diNoLib
         fprintf(stderr, ">>> Finished indexing\n");
     }
 
-    void ParisSearch::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
+    void ParISSearch::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         //todo
     }
 
-    ParisSearch::~ParisSearch()
+    ParISSearch::~ParISSearch()
     {
         delete[] database;
     }
