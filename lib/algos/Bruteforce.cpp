@@ -1,4 +1,4 @@
-#include "BruteforceSearch.hpp"
+#include "Bruteforce.hpp"
 
 namespace diNoLib
 {

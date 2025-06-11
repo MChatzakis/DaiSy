@@ -3,10 +3,10 @@
 #include <pybind11/stl.h>
 
 #include "../lib/distance_computers/DistanceComputer.hpp" 
-#include "../lib/algos/BruteforceSearch.hpp"
-#include "../lib/algos/LbBruteforceSearch.hpp"
-// #include "../lib/algos/MessiSearch.hpp"
-#include "../lib/algos/OdysseySearch.hpp"
+#include "../lib/algos/Bruteforce.hpp"
+#include "../lib/algos/LbBruteforce.hpp"
+// #include "../lib/algos/Messi.hpp"
+#include "../lib/algos/Odyssey.hpp"
 
 // Define a Python module named 'diNoSimilaritySearch'
 PYBIND11_MODULE(diNoSimilaritySearch, m) {
@@ -71,38 +71,38 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             );
         }, "Search the index with queries and return (indices, distances)");
 
-    // Bind the LbBruteforceSearch class to Python
-    pybind11::class_<diNoLib::LbBruteforceSearch>(m, "LbBruteforceSearch", "Lower Bound brute-force similarity search")
+    // Bind the LbBruteforce class to Python
+    pybind11::class_<diNoLib::LbBruteforce>(m, "LbBruteforce", "Lower Bound brute-force similarity search")
         // Constructor: create with specified distance metric
-        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new LbBruteforceSearch with the given distance metric")
+        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new LbBruteforce with the given distance metric")
 
         // Set the number of threads for parallel processing
-        .def("setNumThreads", &diNoLib::LbBruteforceSearch::setNumThreads, "Set the number of threads to use")
+        .def("setNumThreads", &diNoLib::LbBruteforce::setNumThreads, "Set the number of threads to use")
 
         // Accessor methods for internal parameters
-        .def("getPaaSegments", &diNoLib::LbBruteforceSearch::getPaaSegments, "Get the number of PAA segments")
-        .def("getSaxCardinality", &diNoLib::LbBruteforceSearch::getSaxCardinality, "Get the SAX cardinality used for dimensionality reduction")
-        .def("getLeafSize", &diNoLib::LbBruteforceSearch::getLeafSize, "Get the configured leaf size")
-        .def("getMinLeafSize", &diNoLib::LbBruteforceSearch::getMinLeafSize, "Get the minimum leaf size for search optimization")
-        .def("getInitialLblSize", &diNoLib::LbBruteforceSearch::getInitialLblSize, "Get the initial size of the lower-bound leaf buffer (LBL)")
-        .def("getFlushLimit", &diNoLib::LbBruteforceSearch::getFlushLimit, "Get the flush limit for internal buffers")
-        .def("getInitialFblSize", &diNoLib::LbBruteforceSearch::getInitialFblSize, "Get the initial size of the full buffer list (FBL)")
-        .def("getTotalLoadedLeaves", &diNoLib::LbBruteforceSearch::getTotalLoadedLeaves, "Get the number of total loaded leaves")
-        .def("getTightBound", &diNoLib::LbBruteforceSearch::getTightBound, "Get whether tight lower bounds are used")
+        .def("getPaaSegments", &diNoLib::LbBruteforce::getPaaSegments, "Get the number of PAA segments")
+        .def("getSaxCardinality", &diNoLib::LbBruteforce::getSaxCardinality, "Get the SAX cardinality used for dimensionality reduction")
+        .def("getLeafSize", &diNoLib::LbBruteforce::getLeafSize, "Get the configured leaf size")
+        .def("getMinLeafSize", &diNoLib::LbBruteforce::getMinLeafSize, "Get the minimum leaf size for search optimization")
+        .def("getInitialLblSize", &diNoLib::LbBruteforce::getInitialLblSize, "Get the initial size of the lower-bound leaf buffer (LBL)")
+        .def("getFlushLimit", &diNoLib::LbBruteforce::getFlushLimit, "Get the flush limit for internal buffers")
+        .def("getInitialFblSize", &diNoLib::LbBruteforce::getInitialFblSize, "Get the initial size of the full buffer list (FBL)")
+        .def("getTotalLoadedLeaves", &diNoLib::LbBruteforce::getTotalLoadedLeaves, "Get the number of total loaded leaves")
+        .def("getTightBound", &diNoLib::LbBruteforce::getTightBound, "Get whether tight lower bounds are used")
 
         // Mutator methods for internal parameters
-        .def("setPaaSegments", &diNoLib::LbBruteforceSearch::setPaaSegments, "Set the number of PAA segments")
-        .def("setSaxCardinality", &diNoLib::LbBruteforceSearch::setSaxCardinality, "Set the SAX cardinality")
-        .def("setLeafSize", &diNoLib::LbBruteforceSearch::setLeafSize, "Set the leaf size")
-        .def("setMinLeafSize", &diNoLib::LbBruteforceSearch::setMinLeafSize, "Set the minimum leaf size")
-        .def("setInitialLblSize", &diNoLib::LbBruteforceSearch::setInitialLblSize, "Set the initial size of the lower-bound leaf buffer (LBL)")
-        .def("setFlushLimit", &diNoLib::LbBruteforceSearch::setFlushLimit, "Set the flush limit for internal buffers")
-        .def("setInitialFblSize", &diNoLib::LbBruteforceSearch::setInitialFblSize, "Set the initial size of the full buffer list (FBL)")
-        .def("setTotalLoadedLeaves", &diNoLib::LbBruteforceSearch::setTotalLoadedLeaves, "Set the number of total loaded leaves")
-        .def("setTightBound", &diNoLib::LbBruteforceSearch::setTightBound, "Enable or disable tight lower bounds")
+        .def("setPaaSegments", &diNoLib::LbBruteforce::setPaaSegments, "Set the number of PAA segments")
+        .def("setSaxCardinality", &diNoLib::LbBruteforce::setSaxCardinality, "Set the SAX cardinality")
+        .def("setLeafSize", &diNoLib::LbBruteforce::setLeafSize, "Set the leaf size")
+        .def("setMinLeafSize", &diNoLib::LbBruteforce::setMinLeafSize, "Set the minimum leaf size")
+        .def("setInitialLblSize", &diNoLib::LbBruteforce::setInitialLblSize, "Set the initial size of the lower-bound leaf buffer (LBL)")
+        .def("setFlushLimit", &diNoLib::LbBruteforce::setFlushLimit, "Set the flush limit for internal buffers")
+        .def("setInitialFblSize", &diNoLib::LbBruteforce::setInitialFblSize, "Set the initial size of the full buffer list (FBL)")
+        .def("setTotalLoadedLeaves", &diNoLib::LbBruteforce::setTotalLoadedLeaves, "Set the number of total loaded leaves")
+        .def("setTightBound", &diNoLib::LbBruteforce::setTightBound, "Enable or disable tight lower bounds")
 
         // Build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::LbBruteforceSearch &self, pybind11::array_t<float> db) {
+        .def("buildIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> db) {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Database array must be 2D");
@@ -110,7 +110,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
         }, "Build the index from a 2D float32 numpy array")
 
         // Search the index using a query array and return (indices, distances)
-        .def("searchIndex", [](diNoLib::LbBruteforceSearch &self, pybind11::array_t<float> query, diNoLib::idx_t k) {
+        .def("searchIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k) {
             pybind11::buffer_info buf = query.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Query array must be 2D");
@@ -146,19 +146,19 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             );
         }, "Search the index with queries and return (indices, distances)");    
 
-    // Bind the OdysseySearch class to Python <--- NEW SECTION
-    pybind11::class_<diNoLib::OdysseySearch>(m, "OdysseySearch", "Odyssey similarity search with MPI")
+    // Bind the Odyssey class to Python <--- NEW SECTION
+    pybind11::class_<diNoLib::Odyssey>(m, "Odyssey", "Odyssey similarity search with MPI")
         // Constructor: create with specified distance metric
-        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new OdysseySearch with the given distance metric")
+        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new Odyssey with the given distance metric")
 
-        // Set the number of threads for parallel processing (if OdysseySearch uses OMP)
-        .def("setNumThreads", &diNoLib::OdysseySearch::setNumThreads, "Set the number of threads to use (for OpenMP parts)")
+        // Set the number of threads for parallel processing (if Odyssey uses OMP)
+        .def("setNumThreads", &diNoLib::Odyssey::setNumThreads, "Set the number of threads to use (for OpenMP parts)")
 
         // Get the number of threads
-        .def("getNumThreads", &diNoLib::OdysseySearch::getNumThreads, "Get the number of threads (for OpenMP parts)")
+        .def("getNumThreads", &diNoLib::Odyssey::getNumThreads, "Get the number of threads (for OpenMP parts)")
 
         // Bind method to build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::OdysseySearch &self, pybind11::array_t<float> db) {
+        .def("buildIndex", [](diNoLib::Odyssey &self, pybind11::array_t<float> db) {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
@@ -170,7 +170,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
         }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
-        .def("searchIndex", [](diNoLib::OdysseySearch &self,
+        .def("searchIndex", [](diNoLib::Odyssey &self,
                                pybind11::array_t<float> query,
                                diNoLib::idx_t k) {
             pybind11::buffer_info query_buf = query.request(); // Get query buffer info

@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from scripts.gui_config_param import get_config, search_classes
 
-from diNoSimilaritySearch import DistanceType, BruteForceSearch, LbBruteforceSearch #, MessiSearch, OdysseySearch, ParISSearch, SingSearch
+from diNoSimilaritySearch import DistanceType, BruteForceSearch, LbBruteforce #, Messi, Odyssey, ParIS, Sing
 
 def main():
 # With the GUI

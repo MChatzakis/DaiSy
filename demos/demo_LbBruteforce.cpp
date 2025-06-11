@@ -1,5 +1,5 @@
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/LbBruteforceSearch.hpp"
+#include "../lib/algos/LbBruteforce.hpp"
 
 int main(){
     // 0. Configuration of the variables
@@ -15,7 +15,7 @@ int main(){
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
     // 2. Create a brute-force search object
-    diNoLib::LbBruteforceSearch bf_search(diNoLib::DistanceType::L2_SQUARED);
+    diNoLib::LbBruteforce bf_search(diNoLib::DistanceType::L2_SQUARED);
 
     // 3. Build the index
     bf_search.buildIndex(database, n_database, dim);

@@ -1,14 +1,14 @@
-#include "OdysseySearch.hpp"
+#include "Odyssey.hpp"
 
 namespace diNoLib
 {
 
-    OdysseySearch::OdysseySearch(DistanceType distance_type)
+    Odyssey::Odyssey(DistanceType distance_type)
         : SimilaritySearchAlgorithm(distance_type)
     {
     }
 
-    void OdysseySearch::setNumThreads(int num_threads)
+    void Odyssey::setNumThreads(int num_threads)
     {
         int max_threads = omp_get_max_threads();
 
@@ -29,12 +29,12 @@ namespace diNoLib
         }
     } 
 
-    int OdysseySearch::getNumThreads() const
+    int Odyssey::getNumThreads() const
     {
         return this->num_threads;
     } 
 
-    void OdysseySearch::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
+    void Odyssey::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
     {
         this->database = new float[n_database * dim];
         std::copy(database, database + n_database * dim, this->database);
@@ -42,7 +42,7 @@ namespace diNoLib
         this->dim = dim;
     }
     
-    void OdysseySearch::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
+    void Odyssey::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         #pragma omp parallel num_threads(num_threads)
         {
@@ -85,7 +85,7 @@ namespace diNoLib
         }
     }
 
-    OdysseySearch::~OdysseySearch()
+    Odyssey::~Odyssey()
     {
         delete[] database;
     }

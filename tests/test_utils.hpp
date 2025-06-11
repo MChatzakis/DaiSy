@@ -5,12 +5,12 @@
 
 #include "../commons/test_bm_utils.hpp"
 #include "../lib/algos/SimilaritySearchAlgorithm.hpp" 
-#include "../lib/algos/BruteforceSearch.hpp" 
-#include "../lib/algos/LbBruteforceSearch.hpp"
-// #include "../lib/algos/MessiSearch.hpp" 
-#include "../lib/algos/OdysseySearch.hpp" 
-// #include "../lib/algos/ParISSearch.hpp" 
-// #include "../lib/algos/SingSearch.hpp" 
+#include "../lib/algos/Bruteforce.hpp" 
+#include "../lib/algos/LbBruteforce.hpp"
+// #include "../lib/algos/Messi.hpp" 
+#include "../lib/algos/Odyssey.hpp" 
+// #include "../lib/algos/ParIS.hpp" 
+// #include "../lib/algos/Sing.hpp" 
 
 /**
  * @brief Parameterized test fixture for similarity search

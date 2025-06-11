@@ -1,7 +1,7 @@
 #ifndef DINOLIB_HPP
 #define DINOLIB_HPP
 
-#include "algos/BruteforceSearch.hpp"
+#include "algos/Bruteforce.hpp"
 
 
 #endif // DINOLIB_HPP

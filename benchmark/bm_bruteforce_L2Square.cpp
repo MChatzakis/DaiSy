@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 #include "bm_utils.hpp"
-#include "../lib/algos/BruteforceSearch.hpp" 
+#include "../lib/algos/Bruteforce.hpp" 
 
 static void BM_BruteForceSearch(benchmark::State& state) {
     int config_idx = static_cast<int>(state.range(0));

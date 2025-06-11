@@ -9,7 +9,7 @@
 
 namespace diNoLib
 {
-    class SingSearch : public SimilaritySearchAlgorithm
+    class Sing : public SimilaritySearchAlgorithm
     {
     private:
         float* database = nullptr;
@@ -18,13 +18,13 @@ namespace diNoLib
         int num_threads = 1;
                 
     public:
-        SingSearch(DistanceType distance_type);
+        Sing(DistanceType distance_type);
         void setNumThreads(int num_threads);
         int getNumThreads() const;        
         void buildIndex(const float *database, const idx_t n_database, const idx_t dim) override;
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;     
 
-        ~SingSearch();
+        ~Sing();
 
     };
 

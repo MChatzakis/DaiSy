@@ -1,4 +1,4 @@
-#include "MessiSearch.hpp"
+#include "Messi.hpp"
 
 #include <cmath>
 
@@ -488,7 +488,7 @@ namespace diNoLib
         }
     }
 
-    MessiSearch::MessiSearch(DistanceType distance_type)
+    Messi::Messi(DistanceType distance_type)
         : SimilaritySearchAlgorithm(distance_type)
     {
     }
@@ -594,7 +594,7 @@ namespace diNoLib
         return NULL;
     }
 
-    void MessiSearch::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
+    void Messi::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
     {
         this->database = new float[n_database * dim];
         std::copy(database, database + n_database * dim, this->database);
@@ -679,7 +679,7 @@ namespace diNoLib
         free(input_data);
     }
 
-    void MessiSearch::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
+    void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
 
@@ -720,7 +720,7 @@ namespace diNoLib
         fprintf(stderr, ">>> Finished querying.\n");
     }
 
-    void MessiSearch::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
+    void Messi::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         isax_index *index = this->index;
 
@@ -777,7 +777,7 @@ namespace diNoLib
         fprintf(stderr, ">>> Finished querying.\n");
     }
 
-    void MessiSearch::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
+    void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         if (this->distance_type == DistanceType::L2_SQUARED)
         {
@@ -789,12 +789,12 @@ namespace diNoLib
         }
         else
         {
-            fprintf(stderr, "Error: Unsupported distance type for MessiSearch index.\n");
+            fprintf(stderr, "Error: Unsupported distance type for Messi index.\n");
             exit(1);
         }
     }
 
-    pqueue_bsf MessiSearch::MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
+    pqueue_bsf Messi::MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
     {
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
 
@@ -881,7 +881,7 @@ namespace diNoLib
         // Free the nodes that where not popped.
     }
 
-    pqueue_bsf MessiSearch::MESSI_search_topk_DTW(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, node_list *nodelist, idx_t k)
+    pqueue_bsf Messi::MESSI_search_topk_DTW(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, node_list *nodelist, idx_t k)
     {
         isax_index *index = this->index;
         int warpWind = this->warping_window;
@@ -978,7 +978,7 @@ namespace diNoLib
         // Free the nodes that where not popped.
     }
 
-    MessiSearch::~MessiSearch()
+    Messi::~Messi()
     {
         delete[] database;
 

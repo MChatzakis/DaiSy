@@ -1,5 +1,5 @@
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/OdysseySearch.hpp"
+#include "../lib/algos/Odyssey.hpp"
 #include <mpi.h> 
 
 int main(int argc, char *argv[]){ // main function needs argc and argv for MPI_Init
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){ // main function needs argc and argv for MPI_I
     }
 
     // 2. Create a brute-force search object
-    diNoLib::OdysseySearch bf_search(diNoLib::DistanceType::L2_SQUARED);
+    diNoLib::Odyssey bf_search(diNoLib::DistanceType::L2_SQUARED);
 
     // 3. Build the index
     bf_search.buildIndex(database, n_database, dim);

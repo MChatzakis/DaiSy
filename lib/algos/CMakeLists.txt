@@ -2,17 +2,17 @@ find_package(OpenMP REQUIRED)
 
 target_sources(dino_lib 
     PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/BruteforceSearch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Bruteforce.cpp
 )
 
 target_sources(dino_lib 
     PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforceSearch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforce.cpp
 )
 
 # target_sources(dino_lib 
 #     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/MessiSearch.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/Messi.cpp
 # )
 
 # ONLY add MPI includes and link MPI if ODYSSEY_MPI_AVAILABLE is true
@@ -32,12 +32,12 @@ endif()
 
 # target_sources(dino_lib 
 #     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/ParISSearch.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/ParIS.cpp
 # )
 
 # target_sources(dino_lib 
 #     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/SingSearch.cpp
+#     ${CMAKE_CURRENT_SOURCE_DIR}/Sing.cpp
 # )
 
 if(OpenMP_CXX_FOUND)
