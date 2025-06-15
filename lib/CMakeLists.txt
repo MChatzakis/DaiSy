@@ -8,7 +8,7 @@ add_library(
     isax/iSAXIndex.cpp
     # Removed SAXBreakpoints.hpp as it's a header, not a source file for compilation
     isax/iSAXPqueue.cpp
-    algos/OdysseySearch.cpp # ADDED: Include the source file for OdysseySearch
+    algos/Odyssey.cpp # ADDED: Include the source file for Odyssey
 )
 
 # Make it position-independent for use in a shared object

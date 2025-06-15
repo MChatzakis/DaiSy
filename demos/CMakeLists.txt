@@ -19,6 +19,16 @@ if(BUILD_DEMO)
         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
     )    
 
+    # demo_Messi
+    # add_executable(demo_Messi demo_Messi.cpp)
+
+    # target_link_libraries(demo_Messi PRIVATE dino_lib commons_lib)
+
+    # target_include_directories(demo_Messi PRIVATE
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    # )    
+
     # demo_Odyssey (conditional on MPI)
     if (ODYSSEY_MPI_AVAILABLE)
         add_executable(demo_Odyssey demo_Odyssey.cpp)

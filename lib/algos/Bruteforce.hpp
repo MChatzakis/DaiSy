@@ -1,5 +1,5 @@
-#ifndef BRUTEFORCESEARCH_HPP
-#define BRUTEFORCESEARCH_HPP
+#ifndef BRUTEFORCE_HPP
+#define BRUTEFORCE_HPP
 
 #include "SimilaritySearchAlgorithm.hpp"
 
@@ -24,4 +24,4 @@ namespace diNoLib
 
 } // namespace diNoLib
 
-#endif // BRUTEFORCESEARCH_HPP
+#endif // BRUTEFORCE_HPP

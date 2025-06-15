@@ -36,6 +36,11 @@ target_include_directories(test_bruteforce_L2Square
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
 
+gtest_discover_tests(
+    test_bruteforce_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 # Test: LbBruteforce L2Square
 add_executable(
     test_LbBruteforce_L2Square 
@@ -58,6 +63,11 @@ target_include_directories(test_LbBruteforce_L2Square
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
 
+gtest_discover_tests(
+    test_LbBruteforce_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 # # Test: Messi L2Square
 # add_executable(
 #     test_Messi_L2Square 
@@ -78,6 +88,11 @@ target_include_directories(test_LbBruteforce_L2Square
 #     PRIVATE
 #     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
 #     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+# )
+
+# gtest_discover_tests(
+#     test_Messi_L2Square
+#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 # )
 
 # Test: Odyssey L2Square (conditional on MPI)
@@ -112,21 +127,6 @@ else()
     message(STATUS "test_Odyssey_L2Square (MPI-dependent) will NOT be built.")
 endif()
 
-# target_link_libraries(
-#     test_Odyssey_L2Square
-#     PRIVATE
-#     GTest::gtest_main
-#     dino_lib
-#     commons_lib
-#     stdc++fs
-# )
-
-# target_include_directories(test_Odyssey_L2Square
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-# )
-
 # # Test: ParIS L2Square 
 # add_executable(
 #     test_ParIS_L2Square
@@ -149,6 +149,11 @@ endif()
 #     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 # )
 
+# gtest_discover_tests(
+#     test_ParIS_L2Square
+#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+# )
+
 # # Test: Sing L2Square 
 # add_executable(
 #     test_Sing_L2Square
@@ -169,32 +174,6 @@ endif()
 #     PRIVATE
 #     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
 #     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-# )
-
-# Discover and register all tests
-gtest_discover_tests(
-    test_bruteforce_L2Square
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
-
-gtest_discover_tests(
-    test_LbBruteforce_L2Square
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
-
-# gtest_discover_tests(
-#     test_Messi_L2Square
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-# )
-
-# gtest_discover_tests(
-#     test_Odyssey_L2Square
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-# )
-
-# gtest_discover_tests(
-#     test_ParIS_L2Square
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 # )
 
 # gtest_discover_tests(

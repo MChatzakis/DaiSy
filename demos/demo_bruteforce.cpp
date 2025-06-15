@@ -1,5 +1,5 @@
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/BruteforceSearch.hpp"
+#include "../lib/algos/Bruteforce.hpp"
 
 int main(){
     // 0. Configuration of the variables

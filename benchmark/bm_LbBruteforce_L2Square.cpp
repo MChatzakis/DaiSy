@@ -1,12 +1,12 @@
 #include <benchmark/benchmark.h>
 #include "bm_utils.hpp"
-#include "../lib/algos/LbBruteforceSearch.hpp" 
+#include "../lib/algos/LbBruteforce.hpp" 
 
-static void BM_LbBruteforceSearch(benchmark::State& state) {
+static void BM_LbBruteforce(benchmark::State& state) {
     int config_idx = static_cast<int>(state.range(0));
     const SSTestConfig& config = test_configs[config_idx];
 
-    diNoLib::LbBruteforceSearch search(diNoLib::DistanceType::L2_SQUARED);
+    diNoLib::LbBruteforce search(diNoLib::DistanceType::L2_SQUARED);
 
 
     for (auto _ : state) {
@@ -14,6 +14,6 @@ static void BM_LbBruteforceSearch(benchmark::State& state) {
     }
 }
 
-BENCHMARK(BM_LbBruteforceSearch)->Arg(0)->MinTime(2.0)->Unit(benchmark::kMillisecond); //TO BE CONFIRMED
+BENCHMARK(BM_LbBruteforce)->Arg(0)->MinTime(2.0)->Unit(benchmark::kMillisecond); //TO BE CONFIRMED
 
 BENCHMARK_MAIN();
