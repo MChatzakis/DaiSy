@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(DiNoLibProject)
 
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Compiler flags
 add_compile_options(-march=native
     -mavx
     -mavx2
@@ -16,24 +18,18 @@ add_compile_options(-march=native
     -Wparentheses
 )
 
-# Add option to build Python bindings
+# Set option
 option(BUILD_PYTHON "Build Python bindings using pybind11" ON)
-
-# Add option to build benchmarks
 option(BUILD_BENCHMARK "Build benchmark executables" ON)
-
-# Add option to build Demos files
 option(BUILD_DEMO "Build the demo folder" ON)
-
-# Add option to build Odyssey Algo with MPI support
-option(ODYSSEY_WITH_MPI "Build Odyssey components with MPI support" ON)
+option(ODYSSEY_MPI "Build Odyssey components with MPI support" ON)
 
 # Initialize ODYSSEY_MPI_AVAILABLE to FALSE by default.
 # It's kept as CACHE INTERNAL for user persistency, but its value will be updated.
 set(ODYSSEY_MPI_AVAILABLE FALSE CACHE INTERNAL "Internal flag indicating if MPI is available.")
 
-if (ODYSSEY_WITH_MPI)
-    message(STATUS "Attempting to build with MPI support (ODYSSEY_WITH_MPI is ON by default)...")
+if (ODYSSEY_MPI)
+    message(STATUS "Attempting to build with MPI support (ODYSSEY_MPI is ON by default)...")
     find_package(MPI QUIET) # Changed to QUIET, so it doesn't fail immediately if not found
 
     if (MPI_FOUND)
@@ -47,13 +43,13 @@ if (ODYSSEY_WITH_MPI)
         set(ODYSSEY_MPI_AVAILABLE TRUE CACHE INTERNAL "Internal flag indicating MPI is available.")
 
     else()
-        message(WARNING "MPI not found despite ODYSSEY_WITH_MPI being ON. Odyssey MPI components will NOT be built.")
-        message(WARNING "To resolve this, please install an MPI implementation (e.g., OpenMPI, MPICH) or set ODYSSEY_WITH_MPI=OFF.")
+        message(WARNING "MPI not found despite ODYSSEY_MPI being ON. Odyssey MPI components will NOT be built.")
+        message(WARNING "To resolve this, please install an MPI implementation (e.g., OpenMPI, MPICH) or set ODYSSEY_MPI=OFF.")
         # If MPI is not found, we explicitly set the flag back to FALSE to prevent issues.
         set(ODYSSEY_MPI_AVAILABLE FALSE CACHE INTERNAL "Internal flag indicating MPI is available.")
     endif()
 else()
-    message(STATUS "Building without MPI support (ODYSSEY_WITH_MPI is OFF).")
+    message(STATUS "Building without MPI support (ODYSSEY_MPI is OFF).")
     # Ensure this is set if the option is OFF, before subdirectories.
     set(ODYSSEY_MPI_AVAILABLE FALSE CACHE INTERNAL "Internal flag indicating MPI is available.")
 endif()
@@ -77,6 +73,12 @@ if(BUILD_PYTHON)
     # Build the Python module
     pybind11_add_module(diNoSimilaritySearch pybinds/setup.cpp)
     target_link_libraries(diNoSimilaritySearch PRIVATE dino_lib)
+
+    if (ODYSSEY_MPI_AVAILABLE)
+        message(STATUS "Linking Python module 'diNoSimilaritySearch' with MPI.")
+        target_link_libraries(diNoSimilaritySearch PRIVATE ${MPI_CXX_LIBRARIES})
+        target_include_directories(diNoSimilaritySearch PRIVATE ${MPI_C_INCLUDE_DIRS})
+    endif()    
 
     # Set output directory for the .so file
     set_target_properties(diNoSimilaritySearch PROPERTIES

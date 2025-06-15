@@ -1,40 +1,42 @@
 find_package(OpenMP REQUIRED) 
 
+# ////// BRUTEFORCE //////
 target_sources(dino_lib 
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Bruteforce.cpp
 )
 
+# ////// LBBRUTEFORCE //////
 target_sources(dino_lib 
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforce.cpp
 )
 
+# # ////// MESSI //////
 # target_sources(dino_lib 
 #     PRIVATE
 #     ${CMAKE_CURRENT_SOURCE_DIR}/Messi.cpp
 # )
 
+# ////// ODYSSEY //////
 # ONLY add MPI includes and link MPI if ODYSSEY_MPI_AVAILABLE is true
-if (ODYSSEY_MPI_AVAILABLE)
-    message(STATUS "Adding MPI includes and libraries to dino_lib.")
-    
-    # Add MPI include directories so the compiler can find <mpi.h>
+if (ODYSSEY_MPI_AVAILABLE)    
     target_include_directories(dino_lib PUBLIC
-        ${MPI_C_INCLUDE_DIRS} # Use C_INCLUDE_DIRS or CXX_INCLUDE_DIRS for C++ projects
+        ${MPI_C_INCLUDE_DIRS} 
     )
     
-    # Link dino_lib with MPI libraries if its components (like Odyssey) use MPI functions
     target_link_libraries(dino_lib PUBLIC
-        ${MPI_C_LIBRARIES} # Use C_LIBRARIES or CXX_LIBRARIES, or MPI::MPI_CXX for modern CMake
+        ${MPI_C_LIBRARIES} 
     )
 endif()
 
+# ////// PARIS //////
 # target_sources(dino_lib 
 #     PRIVATE
 #     ${CMAKE_CURRENT_SOURCE_DIR}/ParIS.cpp
 # )
 
+# ////// SING //////
 # target_sources(dino_lib 
 #     PRIVATE
 #     ${CMAKE_CURRENT_SOURCE_DIR}/Sing.cpp

@@ -1,31 +1,46 @@
 # diNo Library
 
-**diNoSimilaritySearch** is a library for approximate nearest neighbor search with support for modern C++ and Python bindings. It includes benchmarking tools, GoogleTest integration, and support for comparison with FAISS.
+**diNoSimilaritySearch** is a modern C++ and Python library for approximate nearest neighbor search. It includes:
+
+- C++ core library
+- Python bindings
+- Benchmarking tools
+- GoogleTest integration
+
+## Table of Contents
+
+1. [Requirements](#requirements)
+2. [Installation](#installation)
+   - 2.1. [Installing tkinter](#installing-tkinter)
+   - 2.2. [Installing MPI](#installing-mpi)
+3. [Building with CMake](#building-with-cmake)
+4. [Running Tests](#running-tests)
+5. [Environment Setup](#environment-setup)
+
+   - 5.1. [diNo Environment](#dino-environment)
+   - 5.2. [FAISS Environment](#faiss-environment)
+
+6. [Notes](#notes)
 
 ## Requirements
 
 - **FAISS compatibility**: Python 3.8.16 / 3.9.17 / 3.10.13 (recommended)
 - **diNo Python API**: Python 3.12
-- **C++ Build**: Requires a compiler with C++14 support (or higher)
-- **CMake**: Version 3.15 or higher recommended
-- **GoogleTest**: Integrated for unit testing (included via CMake)
-- **GoogleBenchmark**:
-- sudo apt install libopenmpi-dev openmpi-bin # For Open MPI
-- sudo apt-get install mpich
-- pip install mpi4py
-- **Note**: This project uses `tkinter`, which is part of the Python standard library but may require separate installation.
+- **C++ Build**: Requires C++14 or higher
+- **CMake**: Version 3.15+
+- **GoogleTest**: Included via CMake
+- **GoogleBenchmark**: Included via CMake
+- **MPI**: Required for Odyssey algorithm
 
-## Install
+## Installation
 
-First, all submodules should be updated:
+### Submodules
+
+Before building, initialize submodules:
 
 - `git submodule update --init --recursive`
 
-Then, the instructions for the operating system should be followed:
-
 ### Installing `tkinter`
-
-`tkinter` is part of the Python standard library, but its Tcl/Tk backend might need to be installed separately, especially on Linux.
 
 - Linux (Ubuntu/Debian)
 
@@ -33,27 +48,42 @@ Then, the instructions for the operating system should be followed:
 sudo apt install python3.12-tk
 ```
 
-(Adjust python3.12-tk to match your Python version if it's different, e.g., python3.14-tk).
+(Adjust version as needed.)
 
 - macOS
-
-If Python was installed via _Homebrew_, `tkinter` can be ensured to be correctly linked by running:
 
 ```bash
 brew install python-tk
 ```
 
-If the official Python installer from python.org was used, `tkinter` is usually included by default. One should just make sure the "Tcl/Tk and IDLE" option was selected during installation.
+- Windows
+
+`tkinter` is included in the standard Python installer. Ensure "Tcl/Tk and IDLE" is selected during installation.
+
+### Installing `MPI`
+
+- Linux (Ubuntu/Debian)
+
+```bash
+sudo apt update
+sudo apt install openmpi-bin openmpi-common libopenmpi-dev
+```
+
+- macOS
+
+```bash
+brew install open-mpi
+```
 
 - Windows
 
-When installing Python from the official python.org website, tkinter is typically included by default. Confirm that the "Tcl/Tk and IDLE" option is selected during the installation process.
+Use WSL and follow Linux steps, or install MPICH natively. Ensure consistency with your build tools.
 
 ## Building with CMake
 
-### Basic Build (C++ library only)
+### Basic Build (C++ only)
 
-To build only the core C++ library (without Python bindings or benchmarks):
+To build only the core C++ library (without Python bindings or anything):
 
 ```bash
 mkdir build
@@ -62,34 +92,25 @@ cmake .. -DBUILD_PYTHON=OFF -DBUILD_BENCHMARK=OFF -DBUILD_DEMO=OFF
 cmake --build .
 ```
 
-Note: `BUILD_PYTHON`, `BUILD_BENCHMARK`, and `BUILD_DEMO` are optional flags:
+### Optional Build Flags
 
-- `BUILD_PYTHON=ON` (default): Enables building Python bindings.
-- `BUILD_BENCHMARK=ON` (default): Enables building benchmarks.
-- `BUILD_DEMO=ON` (defaul): Enables building demonstration files.
+- `BUILD_PYTHON=ON` – Build Python bindings (default ON)
+- `BUILD_BENCHMARK=ON`– Build benchmarks (default ON)
+- `BUILD_DEMO=ON` – Build demo files (default ON)
+- `ODYSSEY_MPI=ON`– Enable Odyssey (default ON)
 
-### Disables Python Bindings
+### Disable Specific Components
+
+Disable Python Bindings for example
 
 ```bash
 cmake .. -DBUILD_PYTHON=OFF
 cmake --build .
 ```
 
-### Disables Benchmarks
+## Running Tests
 
-```bash
-cmake .. -DBUILD_BENCHMARK=OFF
-cmake --build .
-```
-
-### Disables Demos
-
-```bash
-cmake .. -DBUILD_DEMO=OFF
-cmake --build .
-```
-
-## Running Tests with CTest
+Use CTest for running unit tests:
 
 ```bash
 mkdir build
@@ -99,17 +120,19 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-## Installation for diNo library
+## Environment Setup
 
-### Option 1: Using pip
+### diNo Environment
 
-#### 1. Create a virtual environment (optional but recommended):
+#### Option 1: Using pip
+
+1. Create a virtual environment (optional but recommended):
 
 ```bash
 python3.12 -m venv diNo_env
 ```
 
-#### 2. Activate the virtual environment:
+2. Activate the virtual environment:
 
 - macOS/Linux:
 
@@ -123,7 +146,7 @@ source diNo_env/bin/activate
 .\diNo_env\Scripts\activate
 ```
 
-#### 3. Install dependencies:
+3. Install dependencies:
 
 From your `diNo_env/`:
 
@@ -131,23 +154,23 @@ From your `diNo_env/`:
 pip install -r requirements_diNo.txt
 ```
 
-#### 4. Deactivate the environment (when you're done):
+4. Deactivate the environment (when you're done):
 
 ```bash
 deactivate
 ```
 
-## Installation for FAISS
+### FAISS Environment
 
-### Option 1: Using pip
+#### Option 1: Using pip
 
-#### 1. Create a virtual environment (optional but recommended):
+1. Create a virtual environment (optional but recommended):
 
 ```bash
 python3.10 -m venv faiss_env
 ```
 
-#### 2. Activate the virtual environment:
+2. Activate the virtual environment:
 
 - macOS/Linux:
 
@@ -161,7 +184,7 @@ source faiss_env/bin/activate
 .\faiss_env\Scripts\activate
 ```
 
-#### 3. Install dependencies:
+3. Install dependencies:
 
 From your `faiss_env/`:
 
@@ -169,16 +192,21 @@ From your `faiss_env/`:
 pip install -r requirements_faiss.txt
 ```
 
-#### 4. Deactivate the environment (when you're done):
+4. Deactivate the environment (when you're done):
 
 ```bash
 deactivate
 ```
 
-### Option 2: Using Conda
-
-Note: change the `my_custom_env` in .yml to your env name.
+#### Option 2: Using Conda
 
 ```bash
 conda env create -f environment_faiss.yml
 ```
+
+_Replace `my_custom_env` with your preferred environment name._
+
+## Notes
+
+- The compiled `.so` (shared object) file from pybind is located in the /demo folder.
+- Run all Python scripts from within the `/demo` directory to ensure correct imports and paths.
