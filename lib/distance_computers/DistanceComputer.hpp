@@ -6,8 +6,9 @@
 #include <unordered_map>
 #include <iostream>
 
-#include "../lib/isax/iSAXTypes.hpp"
-#include "../lib/isax/SAX.hpp"
+#include "../isax/iSAXTypes.hpp" 
+#include "../isax/SAX.hpp"
+
 
 namespace diNoLib
 {

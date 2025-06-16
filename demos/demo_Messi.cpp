@@ -14,34 +14,33 @@ int main(){
 
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
-    // diNoLib::DistanceType dist_type = diNoLib::DistanceType::L2_SQUARED;
     // 2. Create a brute-force search object
-    // diNoLib::Messi bf_search(diNoLib::DistanceType::L2_SQUARED);
+    diNoLib::Messi bf_search(diNoLib::DistanceType::L2_SQUARED);
 
-    // // 3. Build the index
-    // bf_search.buildIndex(database, n_database, dim);
+    // 3. Build the index
+    bf_search.buildIndex(database, n_database, dim);
 
-    // // 4. Search the index
-    // diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
-    // float *D = new float[n_query * k];
-    // bf_search.searchIndex(query, n_query, k, I, D);
+    // 4. Search the index
+    diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
+    float *D = new float[n_query * k];
+    bf_search.searchIndex(query, n_query, k, I, D);
 
-    // // 5. Print the results
-    // for (diNoLib::idx_t i = 0; i < n_query; i++)
-    // {
-    //     printf("Query %llu: ", i);
-    //     for (diNoLib::idx_t j = 0; j < k; j++)
-    //     {
-    //         printf("%llu ", I[i * k + j]);
-    //     }
-    //     printf("\n");
-    // }
+    // 5. Print the results
+    for (diNoLib::idx_t i = 0; i < n_query; i++)
+    {
+        printf("Query %llu: ", i);
+        for (diNoLib::idx_t j = 0; j < k; j++)
+        {
+            printf("%llu ", I[i * k + j]);
+        }
+        printf("\n");
+    }
 
-    // // 6. Clean up
-    // delete[] database;
-    // delete[] query;
-    // delete[] I;
-    // delete[] D; 
+    // 6. Clean up
+    delete[] database;
+    delete[] query;
+    delete[] I;
+    delete[] D; 
 
     return 0;
 }

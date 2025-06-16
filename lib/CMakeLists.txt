@@ -1,20 +1,36 @@
-# lib/CMakeLists.txt
+if(DEBUG_MSG)
+    message(STATUS "--- Configuring dino_lib ---")
+endif()
 
 # Create a library target from source files
+if(DEBUG_MSG)
+    message(STATUS "Attempting to add library: dino_lib")
+endif()
 add_library(
     dino_lib
     distance_computers/DistanceComputer.cpp
     isax/SAX.cpp
     isax/iSAXIndex.cpp
-    # Removed SAXBreakpoints.hpp as it's a header, not a source file for compilation
     isax/iSAXPqueue.cpp
-    algos/Odyssey.cpp # ADDED: Include the source file for Odyssey
+    algos/Odyssey.cpp
 )
+if(DEBUG_MSG)
+    message(STATUS "Library dino_lib added.")
+endif()
 
 # Make it position-independent for use in a shared object
+if(DEBUG_MSG)
+    message(STATUS "Setting POSITION_INDEPENDENT_CODE property for dino_lib...")
+endif()
 set_target_properties(dino_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(DEBUG_MSG)
+    message(STATUS "POSITION_INDEPENDENT_CODE set for dino_lib.")
+endif()
 
 # Include all headers (including subfolders)
+if(DEBUG_MSG)
+    message(STATUS "Setting public include directories for dino_lib...")
+endif()
 target_include_directories(
     dino_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -22,23 +38,50 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/distance_computers
     ${CMAKE_CURRENT_SOURCE_DIR}/isax
 )
-
-# ADDED: Conditionally add MPI includes and link MPI if ODYSSEY_MPI_AVAILABLE is true
-if (ODYSSEY_MPI_AVAILABLE)
-    message(STATUS "Adding MPI includes and libraries to dino_lib.")
-    
-    # Add MPI include directories so the compiler can find <mpi.h>
-    target_include_directories(dino_lib PUBLIC
-        ${MPI_C_INCLUDE_DIRS} # Use C_INCLUDE_DIRS (or CXX_INCLUDE_DIRS) for C++ projects
-    )
-    
-    # Link dino_lib with MPI libraries if its components (like Odyssey) use MPI functions
-    target_link_libraries(dino_lib PUBLIC
-        ${MPI_C_LIBRARIES} # Use C_LIBRARIES (or CXX_LIBRARIES), or MPI::MPI_CXX for modern CMake
-    )
+if(DEBUG_MSG)
+    message(STATUS "Public include directories set for dino_lib.")
 endif()
 
-# The add_subdirectory(algos) might be redundant if all algos are explicitly listed above,
-# but if it adds other things like tests or separate libraries within 'algos', keep it.
-# If 'algos' only contains source files for 'dino_lib', you might consider removing it.
-add_subdirectory(algos) 
+if (ODYSSEY_MPI_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_MPI_AVAILABLE is TRUE. Adding MPI includes and libraries to dino_lib.")
+    endif()
+
+    # Add MPI include directories so the compiler can find <mpi.h>
+    if(DEBUG_MSG)
+        message(STATUS "Adding MPI include directories to dino_lib...")
+    endif()
+    target_include_directories(dino_lib PUBLIC
+        ${MPI_CXX_INCLUDE_DIRS} # Use C_INCLUDE_DIRS (or CXX_INCLUDE_DIRS) for C++ projects
+    )
+    if(DEBUG_MSG)
+        message(STATUS "MPI include directories added to dino_lib.")
+    endif()
+
+    # Link dino_lib with MPI libraries if its components (like Odyssey) use MPI functions
+    if(DEBUG_MSG)
+        message(STATUS "Linking dino_lib with MPI libraries...")
+    endif()
+    target_link_libraries(dino_lib PUBLIC
+        ${MPI_CXX_LIBRARIES} 
+    )
+    if(DEBUG_MSG)
+        message(STATUS "MPI libraries linked to dino_lib.")
+    endif()
+else()
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. MPI dependencies will NOT be added to dino_lib.")
+    endif()
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Adding subdirectory: algos")
+endif()
+add_subdirectory(algos)
+if(DEBUG_MSG)
+    message(STATUS "Subdirectory 'algos' added.")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "--- dino_lib Configuration Complete ---")
+endif()

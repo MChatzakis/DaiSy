@@ -98,6 +98,7 @@ cmake --build .
 - `BUILD_BENCHMARK=ON`– Build benchmarks (default ON)
 - `BUILD_DEMO=ON` – Build demo files (default ON)
 - `ODYSSEY_MPI=ON`– Enable Odyssey (default ON)
+- `DEBUG_MSG=OFF`– Disable debug messages (default OFF)
 
 ### Disable Specific Components
 
@@ -108,7 +109,35 @@ cmake .. -DBUILD_PYTHON=OFF
 cmake --build .
 ```
 
-## Running Tests
+## How to run
+
+### All C++ Files
+
+From the `build/` folder, run:
+
+```bash
+./demos/demo_Odyssey
+```
+
+### `demo_bruteforce` && `demo_LbBruteforce`
+
+From the `demos/` folder, run:
+
+```bash
+./demo_X.py
+```
+
+'X' is the name of the algo.
+
+### `demo_Odyssey`
+
+From `demos/` folder, run with MPI:
+
+```bash
+mpirun -np 4 python ../demos/demo_Odyssey.py
+```
+
+### Running Tests
 
 Use CTest for running unit tests:
 

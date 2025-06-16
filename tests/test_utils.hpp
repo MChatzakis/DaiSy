@@ -7,7 +7,7 @@
 #include "../lib/algos/SimilaritySearchAlgorithm.hpp" 
 #include "../lib/algos/Bruteforce.hpp" 
 #include "../lib/algos/LbBruteforce.hpp"
-// #include "../lib/algos/Messi.hpp" 
+#include "../lib/algos/Messi.hpp" 
 #include "../lib/algos/Odyssey.hpp" 
 // #include "../lib/algos/ParIS.hpp" 
 // #include "../lib/algos/Sing.hpp" 
