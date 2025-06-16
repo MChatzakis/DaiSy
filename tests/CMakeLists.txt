@@ -30,7 +30,7 @@ if(DEBUG_MSG)
     message(STATUS "GoogleTest module included.")
 endif()
 
-## Test: BruteForce L2Square
+# ////// BRUTEFORCE L2Square //////
 if(DEBUG_MSG)
     message(STATUS "---")
     message(STATUS "Attempting to add executable: test_bruteforce_L2Square")
@@ -82,7 +82,7 @@ if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_bruteforce_L2Square.")
 endif()
 
-## Test: LbBruteforce L2Square
+# ////// LBBRUTEFORCE L2Square //////
 if(DEBUG_MSG)
     message(STATUS "---")
     message(STATUS "Attempting to add executable: test_LbBruteforce_L2Square")
@@ -134,59 +134,59 @@ if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_LbBruteforce_L2Square.")
 endif()
 
-## Test: Messi L2Square
-# if(DEBUG_MSG)
-#     message(STATUS "---")
-#     message(STATUS "Attempting to add executable: test_Messi_L2Square")
-# endif()
-# add_executable(
-#     test_Messi_L2Square
-#     test_Messi_L2Square.cpp
-#     test_utils.cpp
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Executable test_Messi_L2Square added.")
-# endif()
+# ////// MESSI L2Square //////
+if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "Attempting to add executable: test_Messi_L2Square")
+endif()
+add_executable(
+    test_Messi_L2Square
+    test_Messi_L2Square.cpp
+    test_utils.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "Executable test_Messi_L2Square added.")
+endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Linking libraries for test_Messi_L2Square...")
-# endif()
-# target_link_libraries(
-#     test_Messi_L2Square
-#     PRIVATE
-#     GTest::gtest_main
-#     dino_lib
-#     commons_lib
-#     stdc++fs
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Libraries linked for test_Messi_L2Square.")
-# endif()
+if(DEBUG_MSG)
+    message(STATUS "Linking libraries for test_Messi_L2Square...")
+endif()
+target_link_libraries(
+    test_Messi_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+if(DEBUG_MSG)
+    message(STATUS "Libraries linked for test_Messi_L2Square.")
+endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Adding include directories for test_Messi_L2Square...")
-# endif()
-# target_include_directories(test_Messi_L2Square
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Include directories added for test_Messi_L2Square.")
-# endif()
+if(DEBUG_MSG)
+    message(STATUS "Adding include directories for test_Messi_L2Square...")
+endif()
+target_include_directories(test_Messi_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+if(DEBUG_MSG)
+    message(STATUS "Include directories added for test_Messi_L2Square.")
+endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Discovering tests for test_Messi_L2Square...")
-# endif()
-# gtest_discover_tests(
-#     test_Messi_L2Square
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Tests discovered for test_Messi_L2Square.")
-# endif()
+if(DEBUG_MSG)
+    message(STATUS "Discovering tests for test_Messi_L2Square...")
+endif()
+gtest_discover_tests(
+    test_Messi_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+if(DEBUG_MSG)
+    message(STATUS "Tests discovered for test_Messi_L2Square.")
+endif()
 
-## Test: Odyssey L2Square (conditional on MPI)
+# ////// ODYSSEY L2Square (conditional on MPI) //////
 if(DEBUG_MSG)
     message(STATUS "---")
 endif()
@@ -248,7 +248,7 @@ else()
     endif()
 endif()
 
-## Test: ParIS L2Square
+# ////// PARIS L2Square //////
 # if(DEBUG_MSG)
 #     message(STATUS "---")
 #     message(STATUS "Attempting to add executable: test_ParIS_L2Square")
@@ -300,7 +300,7 @@ endif()
 #     message(STATUS "Tests discovered for test_ParIS_L2Square.")
 # endif()
 
-## Test: Sing L2Square
+# ////// SING L2Square //////
 # if(DEBUG_MSG)
 #     message(STATUS "---")
 #     message(STATUS "Attempting to add executable: test_Sing_L2Square")

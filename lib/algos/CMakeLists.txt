@@ -39,17 +39,18 @@ if(DEBUG_MSG)
     message(STATUS "LbBruteforce.cpp added.")
 endif()
 
-# # ////// MESSI //////
-# if(DEBUG_MSG)
-#     message(STATUS "Adding Messi.cpp to dino_lib sources (commented out).")
-# endif()
-# target_sources(dino_lib
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Messi.cpp
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Messi.cpp added (commented out).")
-# endif()
+# ////// MESSI //////
+if(DEBUG_MSG)
+    message(STATUS "Adding Messi.cpp to dino_lib sources (commented out).")
+endif()
+target_sources(dino_lib
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Messi.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../isax/iSAXSearch.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "Messi.cpp added (commented out).")
+endif()
 
 # ////// ODYSSEY //////
 if (ODYSSEY_MPI_AVAILABLE)
@@ -79,7 +80,7 @@ else()
     endif()
 endif()
 
-# # ////// PARIS //////
+# ////// PARIS //////
 # if(DEBUG_MSG)
 #     message(STATUS "Adding ParIS.cpp to dino_lib sources (commented out).")
 # endif()
@@ -91,7 +92,7 @@ endif()
 #     message(STATUS "ParIS.cpp added (commented out).")
 # endif()
 
-# # ////// SING //////
+# ////// SING //////
 # if(DEBUG_MSG)
 #     message(STATUS "Adding Sing.cpp to dino_lib sources (commented out).")
 # endif()

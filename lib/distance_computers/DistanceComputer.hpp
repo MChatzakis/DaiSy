@@ -9,6 +9,7 @@
 #include "../isax/iSAXTypes.hpp" 
 #include "../isax/SAX.hpp"
 
+
 namespace diNoLib
 {
     enum class DistanceType

@@ -30,12 +30,12 @@ if(DEBUG_MSG)
     message(STATUS "FetchContent_MakeAvailable for 'benchmark' completed. Google Benchmark is now available.")
 endif()
 
+# ////// BRUTEFORCE //////
 if(DEBUG_MSG)
     message(STATUS "---")
     message(STATUS "## Benchmark: BruteForce")
 endif()
 
-# BruteForce
 if(DEBUG_MSG)
     message(STATUS "Attempting to add executable: bm_bruteforce_L2Square")
 endif()
@@ -75,12 +75,12 @@ if(DEBUG_MSG)
     message(STATUS "Include directories added for bm_bruteforce_L2Square.")
 endif()
 
+# ////// LBBRUTEFORCE //////
 if(DEBUG_MSG)
     message(STATUS "---")
     message(STATUS "## Benchmark: LbBruteforce")
 endif()
 
-#LbBruteforce
 if(DEBUG_MSG)
     message(STATUS "Attempting to add executable: bm_LbBruteforce_L2Square")
 endif()
@@ -120,12 +120,57 @@ if(DEBUG_MSG)
     message(STATUS "Include directories added for bm_LbBruteforce_L2Square.")
 endif()
 
+# ////// MESSI //////
+if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "## Benchmark: Messi")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Attempting to add executable: bm_Messi_L2Square")
+endif()
+add_executable(bm_Messi_L2Square
+    bm_Messi_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "Executable bm_Messi_L2Square added.")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Linking libraries for bm_Messi_L2Square...")
+endif()
+target_link_libraries(bm_Messi_L2Square
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+if(DEBUG_MSG)
+    message(STATUS "Libraries linked for bm_Messi_L2Square.")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Adding include directories for bm_Messi_L2Square...")
+endif()
+target_include_directories(bm_Messi_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+if(DEBUG_MSG)
+    message(STATUS "Include directories added for bm_Messi_L2Square.")
+endif()
+
+# ////// ODYSSEY (conditional on MPI) //////
 if(DEBUG_MSG)
     message(STATUS "---")
     message(STATUS "## Benchmark: Odyssey (conditional on MPI)")
 endif()
 
-# Odyssey Benchmark (conditional on MPI)
 # if (ODYSSEY_MPI_AVAILABLE)
 #     if(DEBUG_MSG)
 #         message(STATUS "ODYSSEY_MPI_AVAILABLE is TRUE. Building bm_Odyssey_L2Square.")
@@ -172,6 +217,10 @@ endif()
 #         message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. bm_Odyssey_L2Square (MPI-dependent) will NOT be built.")
 #     endif()
 # endif()
+
+# ////// PARIS //////
+
+# ////// SING //////
 
 if(DEBUG_MSG)
     message(STATUS "--- Benchmark Configuration Complete ---")

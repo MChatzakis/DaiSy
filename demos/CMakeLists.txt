@@ -4,6 +4,7 @@ if(BUILD_DEMO)
         message(STATUS "BUILD_DEMO is TRUE. Configuring demo executables...")
     endif()
 
+    # ////// BRUTEFORCE //////
     if(DEBUG_MSG)
         message(STATUS "---")
         message(STATUS "## Demo: BruteForce")
@@ -35,7 +36,8 @@ if(BUILD_DEMO)
     if(DEBUG_MSG)
         message(STATUS "Include directories added for demo_bruteforce.")
     endif()
-
+    
+    # ////// LBBRUTEFORCE //////
     if(DEBUG_MSG)
         message(STATUS "---")
         message(STATUS "## Demo: LbBruteforce")
@@ -68,38 +70,40 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_LbBruteforce.")
     endif()
 
+    # ////// MESSI //////
     if(DEBUG_MSG)
         message(STATUS "---")
         message(STATUS "## Demo: Messi")
     endif()
 
-    # if(DEBUG_MSG)
-    #     message(STATUS "Attempting to add executable: demo_Messi")
-    # endif()
-    # add_executable(demo_Messi demo_Messi.cpp)
-    # if(DEBUG_MSG)
-    #     message(STATUS "Executable demo_Messi added.")
-    # endif()
+    if(DEBUG_MSG)
+        message(STATUS "Attempting to add executable: demo_Messi")
+    endif()
+    add_executable(demo_Messi demo_Messi.cpp)
+    if(DEBUG_MSG)
+        message(STATUS "Executable demo_Messi added.")
+    endif()
 
-    # if(DEBUG_MSG)
-    #     message(STATUS "Linking libraries for demo_Messi...")
-    # endif()
-    # target_link_libraries(demo_Messi PRIVATE dino_lib commons_lib)
-    # if(DEBUG_MSG)
-    #     message(STATUS "Libraries linked for demo_Messi.")
-    # endif()
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for demo_Messi...")
+    endif()
+    target_link_libraries(demo_Messi PRIVATE dino_lib commons_lib)
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for demo_Messi.")
+    endif()
 
-    # if(DEBUG_MSG)
-    #     message(STATUS "Adding include directories for demo_Messi...")
-    # endif()
-    # target_include_directories(demo_Messi PRIVATE
-    #     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-    #     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-    # )
-    # if(DEBUG_MSG)
-    #     message(STATUS "Include directories added for demo_Messi.")
-    # endif()
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for demo_Messi...")
+    endif()
+    target_include_directories(demo_Messi PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for demo_Messi.")
+    endif()
 
+    # ////// ODYSSEY //////
     if(DEBUG_MSG)
         message(STATUS "---")
         message(STATUS "## Demo: Odyssey (conditional on MPI)")
@@ -138,6 +142,11 @@ if(BUILD_DEMO)
             message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. demo_Odyssey (MPI-dependent) will NOT be built.")
         endif()
     endif()
+
+    # ////// PARIS //////
+
+    # ////// SING //////
+
 else()
     if(DEBUG_MSG)
         message(STATUS "BUILD_DEMO is FALSE. Demo executables will NOT be built.")
