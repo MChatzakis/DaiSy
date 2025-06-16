@@ -1,60 +1,144 @@
-find_package(OpenMP REQUIRED) 
+if(DEBUG_MSG)
+    message(STATUS "--- Configuring Algorithms for dino_lib ---")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Attempting to find OpenMP package...")
+endif()
+find_package(OpenMP REQUIRED)
+if(DEBUG_MSG)
+    message(STATUS "OpenMP package search completed.")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "## Adding Algorithm Sources to dino_lib")
+endif()
 
 # ////// BRUTEFORCE //////
-target_sources(dino_lib 
+if(DEBUG_MSG)
+    message(STATUS "Adding Bruteforce.cpp to dino_lib sources.")
+endif()
+target_sources(dino_lib
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Bruteforce.cpp
 )
+if(DEBUG_MSG)
+    message(STATUS "Bruteforce.cpp added.")
+endif()
 
 # ////// LBBRUTEFORCE //////
-target_sources(dino_lib 
+if(DEBUG_MSG)
+    message(STATUS "Adding LbBruteforce.cpp to dino_lib sources.")
+endif()
+target_sources(dino_lib
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/LbBruteforce.cpp
 )
+if(DEBUG_MSG)
+    message(STATUS "LbBruteforce.cpp added.")
+endif()
 
 # # ////// MESSI //////
-# target_sources(dino_lib 
+# if(DEBUG_MSG)
+#     message(STATUS "Adding Messi.cpp to dino_lib sources (commented out).")
+# endif()
+# target_sources(dino_lib
 #     PRIVATE
 #     ${CMAKE_CURRENT_SOURCE_DIR}/Messi.cpp
 # )
+# if(DEBUG_MSG)
+#     message(STATUS "Messi.cpp added (commented out).")
+# endif()
 
 # ////// ODYSSEY //////
-# ONLY add MPI includes and link MPI if ODYSSEY_MPI_AVAILABLE is true
-if (ODYSSEY_MPI_AVAILABLE)    
+if (ODYSSEY_MPI_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_MPI_AVAILABLE is TRUE. Configuring MPI for Odyssey.")
+        message(STATUS "Adding MPI C include directories to dino_lib...")
+    endif()
     target_include_directories(dino_lib PUBLIC
-        ${MPI_C_INCLUDE_DIRS} 
+        ${MPI_C_INCLUDE_DIRS}
     )
-    
+    if(DEBUG_MSG)
+        message(STATUS "MPI C include directories added.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Linking MPI C libraries to dino_lib...")
+    endif()
     target_link_libraries(dino_lib PUBLIC
-        ${MPI_C_LIBRARIES} 
+        ${MPI_C_LIBRARIES}
     )
+    if(DEBUG_MSG)
+        message(STATUS "MPI C libraries linked.")
+    endif()
+else()
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. MPI configuration for Odyssey skipped.")
+    endif()
 endif()
 
-# ////// PARIS //////
-# target_sources(dino_lib 
+# # ////// PARIS //////
+# if(DEBUG_MSG)
+#     message(STATUS "Adding ParIS.cpp to dino_lib sources (commented out).")
+# endif()
+# target_sources(dino_lib
 #     PRIVATE
 #     ${CMAKE_CURRENT_SOURCE_DIR}/ParIS.cpp
 # )
+# if(DEBUG_MSG)
+#     message(STATUS "ParIS.cpp added (commented out).")
+# endif()
 
-# ////// SING //////
-# target_sources(dino_lib 
+# # ////// SING //////
+# if(DEBUG_MSG)
+#     message(STATUS "Adding Sing.cpp to dino_lib sources (commented out).")
+# endif()
+# target_sources(dino_lib
 #     PRIVATE
 #     ${CMAKE_CURRENT_SOURCE_DIR}/Sing.cpp
 # )
+# if(DEBUG_MSG)
+#     message(STATUS "Sing.cpp added (commented out).")
+# endif()
+
+if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "## OpenMP Configuration for dino_lib")
+endif()
 
 if(OpenMP_CXX_FOUND)
+    if(DEBUG_MSG)
+        message(STATUS "OpenMP CXX found. Applying compile options to dino_lib.")
+    endif()
     target_compile_options(
-        dino_lib 
-        PRIVATE 
+        dino_lib
+        PRIVATE
         ${OpenMP_CXX_FLAGS}
     )
+    if(DEBUG_MSG)
+        message(STATUS "OpenMP CXX compile options applied.")
+    endif()
 
+    if(DEBUG_MSG)
+        message(STATUS "Linking OpenMP CXX libraries to dino_lib.")
+    endif()
     target_link_libraries(
-        dino_lib 
-        PRIVATE 
+        dino_lib
+        PRIVATE
         OpenMP::OpenMP_CXX
     )
-    
+    if(DEBUG_MSG)
+        message(STATUS "OpenMP CXX libraries linked.")
+    endif()
+
 else()
-    message(WARNING "OpenMP not found. Proceeding without OpenMP support.")
+    if(DEBUG_MSG)
+        message(WARNING "OpenMP not found. Proceeding without OpenMP support for dino_lib.")
+    endif()
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "--- Algorithm Configuration for dino_lib Complete ---")
 endif()
