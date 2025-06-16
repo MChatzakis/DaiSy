@@ -79,6 +79,10 @@ brew install open-mpi
 
 Use WSL and follow Linux steps, or install MPICH natively. Ensure consistency with your build tools.
 
+### Installing `CUDA`
+
+Instructions for installation can be found at [cuda-downloads](https://developer.nvidia.com/cuda-downloads).
+
 ## Building with CMake
 
 ### Basic Build (C++ only)
@@ -94,11 +98,12 @@ cmake --build .
 
 ### Optional Build Flags
 
+- `DEBUG_MSG=OFF`– Disable debug messages (default OFF)
 - `BUILD_PYTHON=ON` – Build Python bindings (default ON)
 - `BUILD_BENCHMARK=ON`– Build benchmarks (default ON)
 - `BUILD_DEMO=ON` – Build demo files (default ON)
 - `ODYSSEY_MPI=ON`– Enable Odyssey (default ON)
-- `DEBUG_MSG=OFF`– Disable debug messages (default OFF)
+- `SING_CUDA=ON`– Enable Sing (default ON)
 
 ### Disable Specific Components
 
