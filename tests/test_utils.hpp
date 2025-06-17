@@ -10,7 +10,7 @@
 #include "../lib/algos/Messi.hpp" 
 #include "../lib/algos/Odyssey.hpp" 
 // #include "../lib/algos/ParIS.hpp" 
-// #include "../lib/algos/Sing.hpp" 
+#include "../lib/algos/Sing.hpp" 
 
 /**
  * @brief Parameterized test fixture for similarity search

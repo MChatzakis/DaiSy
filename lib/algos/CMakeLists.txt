@@ -74,10 +74,10 @@ if (ODYSSEY_MPI_AVAILABLE)
     if(DEBUG_MSG)
         message(STATUS "MPI C libraries linked.")
     endif()
-else()
-    if(DEBUG_MSG)
-        message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. MPI configuration for Odyssey skipped.")
-    endif()
+    else()
+        if(DEBUG_MSG)
+            message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. MPI configuration for Odyssey skipped.")
+        endif()
 endif()
 
 # ////// PARIS //////
@@ -93,22 +93,47 @@ endif()
 # endif()
 
 # ////// SING //////
-# if(DEBUG_MSG)
-#     message(STATUS "Adding Sing.cpp to dino_lib sources (commented out).")
-# endif()
-# target_sources(dino_lib
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/Sing.cpp
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Sing.cpp added (commented out).")
-# endif()
+if (SING_CUDA_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "SING_CUDA_AVAILABLE is TRUE. Configuring CUDA for SING components.")
+        message(STATUS "Adding CUDA Toolkit include directories to dino_lib...")
+    endif()
 
-if(DEBUG_MSG)
-    message(STATUS "---")
-    message(STATUS "## OpenMP Configuration for dino_lib")
+    target_include_directories(dino_lib PUBLIC
+        ${CUDAToolkit_INCLUDE_DIRS}
+    )
+
+    if(DEBUG_MSG)
+        message(STATUS "CUDA include directories added.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Adding Sing.cpp to dino_lib sources.")
+    endif()
+    target_sources(dino_lib
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Sing.cpp
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Sing.cu added to dino_lib sources.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Linking CUDA Toolkit libraries to dino_lib...")
+    endif()
+
+    target_link_libraries(dino_lib PRIVATE CUDA::cudart)
+
+    if(DEBUG_MSG)
+        message(STATUS "CUDA libraries linked.")
+    endif()
+else()
+    if(DEBUG_MSG)
+        message(STATUS "SING_CUDA_AVAILABLE is FALSE. CUDA configuration for SING skipped.")
+    endif()
 endif()
 
+# /// OpenMP ///
 if(OpenMP_CXX_FOUND)
     if(DEBUG_MSG)
         message(STATUS "OpenMP CXX found. Applying compile options to dino_lib.")

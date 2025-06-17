@@ -29,18 +29,20 @@ message(STATUS "Common compiler options added.")
 message(DEBUG "Compiler options: -march=native -mavx -mavx2 -msse3 -O2 -g -fopenmp -Wuninitialized -Wparentheses")
 
 # Set option
+option(DEBUG_MSG "Enable verbose debug messages" OFF)
 option(BUILD_PYTHON "Build Python bindings using pybind11" ON)
 option(BUILD_BENCHMARK "Build benchmark executables" ON)
 option(BUILD_DEMO "Build the demo folder" ON)
 option(ODYSSEY_MPI "Build Odyssey components with MPI support" ON)
-option(DEBUG_MSG "Enable verbose debug messages" OFF)
+option(SING_CUDA "Enable CUDA support" ON)
 
+message(STATUS "  DEBUG_MSG: ${DEBUG_MSG}")
 message(STATUS "Build options:")
 message(STATUS "  BUILD_PYTHON: ${BUILD_PYTHON}")
 message(STATUS "  BUILD_BENCHMARK: ${BUILD_BENCHMARK}")
 message(STATUS "  BUILD_DEMO: ${BUILD_DEMO}")
 message(STATUS "  ODYSSEY_MPI: ${ODYSSEY_MPI}")
-message(STATUS "  DEBUG_MSG: ${DEBUG_MSG}")
+message(STATUS "  SING_CUDA: ${SING_CUDA}")
 
 # Initialize ODYSSEY_MPI_AVAILABLE to FALSE by default.
 # It's kept as CACHE INTERNAL for user persistency, but its value will be updated.
@@ -95,25 +97,67 @@ else()
     endif()
 endif()
 
+# Initialize SING_CUDA_AVAILABLE to FALSE by default
+set(SING_CUDA_AVAILABLE FALSE CACHE INTERNAL "Internal flag indicating if CUDA is available.")
+
+if(DEBUG_MSG)
+    message(DEBUG "SING_CUDA_AVAILABLE initialized to: ${SING_CUDA_AVAILABLE}")
+endif()
+
+if (SING_CUDA)
+    if(DEBUG_MSG)
+        message(STATUS "Attempting to build with CUDA support (SING_CUDA is ON)...")
+    endif()
+
+    # Specify CUDA architectures to avoid errors
+    set(CMAKE_CUDA_ARCHITECTURES 75 CACHE STRING "CUDA architectures to build for")
+
+    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "")
+        set(CMAKE_CUDA_ARCHITECTURES 75 CACHE STRING "CUDA architectures to build for" FORCE)
+    endif()
+
+    enable_language(CUDA OPTIONAL)
+    find_package(CUDAToolkit QUIET)
+
+    if (CUDAToolkit_FOUND)
+        set(SING_CUDA_AVAILABLE TRUE CACHE INTERNAL "Internal flag indicating CUDA is available." FORCE)
+        if(DEBUG_MSG)
+            message(STATUS "CUDA found and will be used for SING components.")
+            message(DEBUG "CUDAToolkit_INCLUDE_DIRS: ${CUDAToolkit_INCLUDE_DIRS}")
+            message(DEBUG "CUDAToolkit_LIBRARIES: ${CUDAToolkit_LIBRARIES}")
+            message(DEBUG "SING_CUDA_AVAILABLE updated to: ${SING_CUDA_AVAILABLE} (CUDA_FOUND)")
+        endif()
+    else()
+        set(SING_CUDA_AVAILABLE FALSE CACHE INTERNAL "Internal flag indicating CUDA is available." FORCE)
+        if(DEBUG_MSG)
+            message(WARNING "CUDA not found despite SING_CUDA being ON. SING CUDA components will NOT be built.")
+            message(DEBUG "SING_CUDA_AVAILABLE updated to: ${SING_CUDA_AVAILABLE} (CUDA_NOT_FOUND)")
+        endif()
+    endif()
+else()
+    set(SING_CUDA_AVAILABLE FALSE CACHE INTERNAL "Internal flag indicating CUDA is available." FORCE)
+    if(DEBUG_MSG)
+        message(STATUS "Building without CUDA support (SING_CUDA is OFF).")
+        message(DEBUG "SING_CUDA_AVAILABLE confirmed as: ${SING_CUDA_AVAILABLE} (SING_CUDA OFF)")
+    endif()
+endif()
+
+# Add subdirectories
 if(DEBUG_MSG)
     message(STATUS "----------------------------------------------------")
     message(STATUS "Adding subdirectories...")
 endif()
 
-# Now add subdirectories which will correctly see the updated ODYSSEY_MPI_AVAILABLE variable.
-# Add common code
 add_subdirectory(commons)
 if(DEBUG_MSG)
     message(STATUS "Subdirectory 'commons' added.")
 endif()
 
-# Add library
 add_subdirectory(lib)
 if(DEBUG_MSG)
     message(STATUS "Subdirectory 'lib' added.")
 endif()
 
-# Add tests
 add_subdirectory(tests)
 if(DEBUG_MSG)
     message(STATUS "Subdirectory 'tests' added.")

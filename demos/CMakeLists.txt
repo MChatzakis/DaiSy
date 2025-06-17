@@ -146,6 +146,29 @@ if(BUILD_DEMO)
     # ////// PARIS //////
 
     # ////// SING //////
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "## Demo: Sing")
+    endif()
+
+    if(SING_CUDA_AVAILABLE)
+        if(DEBUG_MSG)
+            message(STATUS "SING_CUDA_AVAILABLE is TRUE. Building demo_Sing.")
+        endif()
+
+        add_executable(demo_Sing demo_Sing.cpp)
+
+        target_link_libraries(demo_Sing PRIVATE dino_lib commons_lib CUDA::cudart)
+
+        target_include_directories(demo_Sing PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
+    else()
+        if(DEBUG_MSG)
+            message(STATUS "SING_CUDA_AVAILABLE is FALSE. demo_Sing will NOT be built.")
+        endif()
+    endif()
 
 else()
     if(DEBUG_MSG)

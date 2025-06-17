@@ -7,6 +7,10 @@
 #include <cfloat>
 #include <omp.h> 
 
+#ifdef USE_CUDA
+#include <cuda_runtime.h>
+#endif
+
 namespace diNoLib
 {
     class Sing : public SimilaritySearchAlgorithm
@@ -16,6 +20,12 @@ namespace diNoLib
         idx_t n_database = 0;
         idx_t dim = 0;
         int num_threads = 1;
+
+        #ifdef USE_CUDA
+        float* d_database = nullptr; 
+        #endif
+
+        bool use_cuda = false;
                 
     public:
         Sing(DistanceType distance_type);

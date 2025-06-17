@@ -3,7 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import platform
 from typing import Optional, Tuple
 
-from diNoSimilaritySearch import BruteForceSearch, LbBruteforce, Messi, Odyssey #, ParIS, Sing
+from diNoSimilaritySearch import BruteForceSearch, LbBruteforce, Messi, Odyssey, Sing #, ParIS, Sing
 
 # Global variables
 user_inputs = {}
@@ -16,7 +16,7 @@ search_classes = {
     "Messi": Messi,
     "Odyssey": Odyssey,
     # "ParIS": ParIS,
-    # "Sing": Sing,
+    "Sing": Sing
 }
 
 search_options = list(search_classes.keys())
