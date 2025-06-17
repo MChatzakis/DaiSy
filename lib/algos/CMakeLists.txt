@@ -108,7 +108,7 @@ if (SING_CUDA_AVAILABLE)
     endif()
 
     if(DEBUG_MSG)
-        message(STATUS "Adding Sing.cu to dino_lib sources.")
+        message(STATUS "Adding Sing.cpp to dino_lib sources.")
     endif()
     target_sources(dino_lib
         PRIVATE
