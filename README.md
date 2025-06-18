@@ -362,13 +362,13 @@ The diNo library includes several Python-based demos. Ensure you run these scrip
 
 #### `demo_bruteforce` and `demo_LbBruteforce`
 
-For these demos, simply replace `X` with the algorithm's name (`bruteforce` or `LbBruteforce`):
+For these demos, run these commands:
 
 ```bash
 ./demo_X.py
 ```
 
-'X' is the name of the algo.
+_'X' is the name of the algo (e.g., `./demo_bruteforce`)._
 
 #### `demo_Odyssey`
 
@@ -380,17 +380,37 @@ mpirun -np 4 python ../demos/demo_Odyssey.py
 
 ## Running Tests
 
-Use CTest for running unit tests:
+### Running All Tests
+
+Use CTest for running all the unit tests:
 
 ```bash
-mkdir build
-cd build
+mkdir build # Note: If it already exists, this command will give an error unless you add '-p' to make it 'mkdir -p build'.
+cd build    # Note: This directory must exist for the command to succeed.
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+### Running Specific Tests
+
+After building your project with CMake, navigate to your `build/` directory, and then run it directly:
+
+```bash
+./tests/test_X_Y
+```
+
+_'X' is the name of the algo with 'Y' name of the distanceComputer (e.g., `./tests/test_bruteforce_L2Square`)._
+
 ## Running Benchmarks
+
+After building with CMake, navigate to the build directory and run your benchmark executable directly:
+
+```bash
+./benchmark/bm_X_Y
+```
+
+_'X' is the name of the algo with 'Y' name of the distanceComputer (e.g., `./benchmarks/bm_bruteforce_L2Square`)._
 
 ## Notes
 
