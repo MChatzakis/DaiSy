@@ -5,6 +5,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <iostream>
+#include <stdexcept>
 
 #include "../isax/iSAXTypes.hpp" 
 #include "../isax/SAX.hpp"
@@ -46,6 +47,7 @@ namespace diNoLib
         float l2_dist_naive(float *t, float *s, int dim, float bound);
 
     public:
+        // Constructor
         DistanceComputer(DistanceType distance_type)
         {
             init_distance_map();
@@ -58,9 +60,10 @@ namespace diNoLib
             }
         }
 
+        // Destructor
         ~DistanceComputer()
         {
-            // Destructor
+            // TODO
         }
 
         float compute_dist(float *t, 
@@ -94,6 +97,60 @@ namespace diNoLib
                                 float *s, 
                                 int dim, 
                                 float bound);                                
+
+        ////// Wrapper Methods's signatures for SAX.hpp functions //////
+        float wrap_minidist_paa_to_isax(float *paa, sax_type *sax,
+                                        sax_type *sax_cardinalities,
+                                        sax_type max_bit_cardinality,
+                                        int max_cardinality,
+                                        int number_of_segments,
+                                        int min_val,
+                                        int max_val,
+                                        float ratio_sqrt);
+
+        float wrap_minidist_paa_to_isax_raw_SIMD(float *paa, sax_type *sax,
+                                                 sax_type *sax_cardinalities,
+                                                 sax_type max_bit_cardinality,
+                                                 int max_cardinality,
+                                                 int number_of_segments,
+                                                 int min_val,
+                                                 int max_val,
+                                                 float ratio_sqrt);
+
+        float wrap_ts_euclidean_distance(ts_type *t, ts_type *s, int size, float bound);
+
+        float wrap_ts_euclidean_distance_SIMD(ts_type *t, ts_type *s, int size, float bound);
+
+        float wrap_minidist_paa_to_isax_rawa_SIMD(float *paa, sax_type *sax,
+                                                  sax_type *sax_cardinalities,
+                                                  sax_type max_bit_cardinality,
+                                                  int max_cardinality,
+                                                  int number_of_segments,
+                                                  int min_val,
+                                                  int max_val,
+                                                  float ratio_sqrt);
+
+        float wrap_minidist_paa_to_isax_raw_DTW_SIMD(float *paaU, float *paaL, sax_type *sax,
+                                                     sax_type *sax_cardinalities,
+                                                     sax_type max_bit_cardinality,
+                                                     int max_cardinality,
+                                                     int number_of_segments,
+                                                     int min_val,
+                                                     int max_val,
+                                                     float ratio_sqrt);
+
+        float wrap_lb_keogh_data_bound(float *qo, float *tu, float *tl, float *cb, int len, float bsf);
+
+        float wrap_dtwsimdPruned(float *A, float *B, float *cb, int m, int r, float bsf, float *tSum, float *pCost, float *rDist);
+
+        float wrap_minidist_paa_to_isax_DTW(float *paaU, float *paaL, sax_type *sax,
+                                           sax_type *sax_cardinalities,
+                                           sax_type max_bit_cardinality,
+                                           int max_cardinality,
+                                           int number_of_segments,
+                                           int min_val,
+                                           int max_val,
+                                           float ratio_sqrt);                                
     };
 
 } // namespace diNoLib
