@@ -6,6 +6,7 @@ namespace diNoLib
     void DistanceComputer::init_distance_map()
     {
         distance_map[DistanceType::L2_SQUARED] = &DistanceComputer::l2_dist;
+        // distance_map[DistanceType::DTW] = &DistanceComputer::dtw_dist_method;
     }
 
     float DistanceComputer::l2_dist(float *t, float *s, int dim, float bound)
@@ -129,4 +130,101 @@ namespace diNoLib
     {
         return l2_dist_SIMD(t, s, dim, bound);
     }
-}
+
+    ////// Wrapper Methods's definition for SAX.hpp functions //////
+    float DistanceComputer::wrap_minidist_paa_to_isax(float *paa, sax_type *sax,
+                                        sax_type *sax_cardinalities,
+                                        sax_type max_bit_cardinality,
+                                        int max_cardinality,
+                                        int number_of_segments,
+                                        int min_val,
+                                        int max_val,
+                                        float ratio_sqrt)
+    {
+        return minidist_paa_to_isax(paa, sax, sax_cardinalities,
+                                    max_bit_cardinality, max_cardinality,
+                                    number_of_segments, min_val, max_val,
+                                    ratio_sqrt);
+    }     
+
+    float DistanceComputer::wrap_minidist_paa_to_isax_raw_SIMD(float *paa, sax_type *sax,
+                                                sax_type *sax_cardinalities,
+                                                sax_type max_bit_cardinality,
+                                                int max_cardinality,
+                                                int number_of_segments,
+                                                int min_val,
+                                                int max_val,
+                                                float ratio_sqrt)
+    {
+        return minidist_paa_to_isax_raw_SIMD(paa, sax, sax_cardinalities,
+                                            max_bit_cardinality, max_cardinality,
+                                            number_of_segments, min_val, max_val,
+                                            ratio_sqrt);
+    }    
+
+    float DistanceComputer::wrap_ts_euclidean_distance(ts_type *t, ts_type *s, int size, float bound)
+    {
+        return ts_euclidean_distance(t, s, size, bound);
+    }
+
+    float DistanceComputer::wrap_ts_euclidean_distance_SIMD(ts_type *t, ts_type *s, int size, float bound)
+    {
+        return ts_euclidean_distance_SIMD(t, s, size, bound);
+    }
+
+    float DistanceComputer::wrap_minidist_paa_to_isax_rawa_SIMD(float *paa, sax_type *sax,
+                                                sax_type *sax_cardinalities,
+                                                sax_type max_bit_cardinality,
+                                                int max_cardinality,
+                                                int number_of_segments,
+                                                int min_val,
+                                                int max_val,
+                                                float ratio_sqrt)
+    {
+        return minidist_paa_to_isax_rawa_SIMD(paa, sax, sax_cardinalities,
+                                            max_bit_cardinality, max_cardinality,
+                                            number_of_segments, min_val, max_val,
+                                            ratio_sqrt);
+    }
+
+    float DistanceComputer::wrap_minidist_paa_to_isax_raw_DTW_SIMD(float *paaU, float *paaL, sax_type *sax,
+                                                    sax_type *sax_cardinalities,
+                                                    sax_type max_bit_cardinality,
+                                                    int max_cardinality,
+                                                    int number_of_segments,
+                                                    int min_val,
+                                                    int max_val,
+                                                    float ratio_sqrt)
+    {
+        return minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, sax, sax_cardinalities,
+                                                max_bit_cardinality, max_cardinality,
+                                                number_of_segments, min_val, max_val,
+                                                ratio_sqrt);
+    }
+
+    float DistanceComputer::wrap_lb_keogh_data_bound(float *qo, float *tu, float *tl, float *cb, int len, float bsf)
+    {
+        return lb_keogh_data_bound(qo, tu, tl, cb, len, bsf);
+    }
+
+    float DistanceComputer::wrap_dtwsimdPruned(float *A, float *B, float *cb, int m, int r, float bsf, float *tSum, float *pCost, float *rDist)
+    {
+        return dtwsimdPruned(A, B, cb, m, r, bsf, tSum, pCost, rDist);
+    }
+
+    float DistanceComputer::wrap_minidist_paa_to_isax_DTW(float *paaU, float *paaL, sax_type *sax,
+                                        sax_type *sax_cardinalities,
+                                        sax_type max_bit_cardinality,
+                                        int max_cardinality,
+                                        int number_of_segments,
+                                        int min_val,
+                                        int max_val,
+                                        float ratio_sqrt)
+    {
+        return minidist_paa_to_isax_DTW(paaU, paaL, sax, sax_cardinalities,
+                                        max_bit_cardinality, max_cardinality,
+                                        number_of_segments, min_val, max_val,
+                                        ratio_sqrt);
+    }    
+
+} // namespace diNoLib
