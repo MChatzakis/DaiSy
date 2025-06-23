@@ -6,7 +6,10 @@
 #include <queue>
 #include <cfloat>
 #include <omp.h> 
+
+#if ODYSSEY_MPI
 #include <mpi.h>
+#endif
 
 namespace diNoLib
 {

@@ -74,10 +74,27 @@ if (ODYSSEY_MPI_AVAILABLE)
     if(DEBUG_MSG)
         message(STATUS "MPI C libraries linked.")
     endif()
-    else()
-        if(DEBUG_MSG)
-            message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. MPI configuration for Odyssey skipped.")
-        endif()
+
+    target_compile_definitions(dino_lib PUBLIC ODYSSEY_MPI) 
+    if(DEBUG_MSG)
+        message(STATUS "Defined ODYSSEY_MPI for C++ preprocessor.")
+    endif()
+else()
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. MPI configuration for Odyssey skipped.")
+    endif()
+    target_compile_definitions(dino_lib PUBLIC ODYSSEY_MPI=0)
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Adding Odyssey.cpp to dino_lib sources.")
+endif()
+target_sources(dino_lib
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Odyssey.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "Odyssey.cpp added.")
 endif()
 
 # ////// PARIS //////
@@ -127,10 +144,16 @@ if (SING_CUDA_AVAILABLE)
     if(DEBUG_MSG)
         message(STATUS "CUDA libraries linked.")
     endif()
+    
+    target_compile_definitions(dino_lib PUBLIC SING_CUDA_ENABLED)
+    if(DEBUG_MSG)
+        message(STATUS "Defined SING_CUDA_ENABLED for C++ preprocessor.")
+    endif()
 else()
     if(DEBUG_MSG)
         message(STATUS "SING_CUDA_AVAILABLE is FALSE. CUDA configuration for SING skipped.")
     endif()
+    target_compile_definitions(dino_lib PUBLIC SING_CUDA_ENABLED=0)
 endif()
 
 # /// OpenMP ///

@@ -1,6 +1,9 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/Odyssey.hpp"
-#include <mpi.h> 
+
+#if ODYSSEY_MPI
+#include <mpi.h>
+#endif
 
 int main(int argc, char *argv[]){ // main function needs argc and argv for MPI_Init
     // Initialize MPI

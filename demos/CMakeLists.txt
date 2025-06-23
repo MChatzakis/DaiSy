@@ -103,7 +103,7 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_Messi.")
     endif()
 
-    # ////// ODYSSEY //////
+# ////// ODYSSEY //////
     if(DEBUG_MSG)
         message(STATUS "---")
         message(STATUS "## Demo: Odyssey (conditional on MPI)")
