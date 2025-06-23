@@ -7,7 +7,7 @@
 #include <cfloat>
 #include <omp.h> 
 
-#ifdef USE_CUDA
+#if SING_CUDA_ENABLED
 #include <cuda_runtime.h>
 #endif
 
@@ -21,8 +21,8 @@ namespace diNoLib
         idx_t dim = 0;
         int num_threads = 1;
 
-        #ifdef USE_CUDA
-        float* d_database = nullptr; 
+        #if SING_CUDA_ENABLED
+        float* d_database = nullptr;
         #endif
 
         bool use_cuda = false;

@@ -681,43 +681,108 @@ namespace diNoLib
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        /////////////////// BEDUG PRINT        
+        printf("@ searchIndexL2Squared constructor - point 1\n");
+        fflush(stdout);
+        //---
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
-
+        
+        /////////////////// BEDUG PRINT   
+        printf("@ searchIndexL2Squared constructor - point 2\n");
+        fflush(stdout);
+        //---
         node_list nodelist;
         nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * pow(2, index->settings->paa_segments));
+
+        /////////////////// BEDUG PRINT   
+        printf("@ searchIndexL2Squared constructor - point 3\n");
+        fflush(stdout);
+        //---
         nodelist.node_amount = 0;
         isax_node *current_root_node = index->first_node;
+        /////////////////// BEDUG PRINT   
+        printf("@ searchIndexL2Squared constructor - point 4\n");
+        fflush(stdout); 
+        //---       
         while (1)
         {
+            /////////////////// BEDUG PRINT   
+            printf("@ searchIndexL2Squared constructor - point 5\n");
+            fflush(stdout);  
+            //---          
             if (current_root_node != NULL)
             {
+                /////////////////// BEDUG PRINT   
+                printf("@ searchIndexL2Squared constructor - point 6\n");
+                fflush(stdout);
+                //---
                 nodelist.nlist[nodelist.node_amount] = current_root_node;
                 current_root_node = current_root_node->next;
                 nodelist.node_amount++;
             }
             else
             {
+                /////////////////// BEDUG PRINT   
+                printf("@ searchIndexL2Squared constructor - point 7\n");
+                fflush(stdout);
+                //---
                 break;
             }
         }
+        /////////////////// BEDUG PRINT   
+        printf("@ searchIndexL2Squared constructor - point 8\n");
+        fflush(stdout);
+        //---
 
         for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
         {
+            /////////////////// BEDUG PRINT   
+            printf("@ searchIndexL2Squared constructor - point 9\n");
+            fflush(stdout);
+            //---
             const float *ts = query + q_loaded * this->dim;
+            /////////////////// BEDUG PRINT   
+            printf("@ searchIndexL2Squared constructor - point 9.1\n");
+            fflush(stdout);
+            //---
 
             //  Parse ts and make PAA representation
             paa_from_ts((float *)ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment); // check this catastrophic cast and maybe fix?
+            /////////////////// BEDUG PRINT   
+            printf("@ searchIndexL2Squared constructor - point 9.2\n");
+            fflush(stdout);
+            //---
 
-            pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k); // check cast again..
+            pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k); // check cast again.. BUG
+            /////////////////// BEDUG PRINT   
+            printf("@ searchIndexL2Squared constructor - point 9.3\n");
+            fflush(stdout);
+            //---
             for (idx_t ik = 0; ik < k; ik++)                                                 // check again if this is correct!
             {
+                /////////////////// BEDUG PRINT   
+                printf("@ searchIndexL2Squared constructor - point 10\n");
+                fflush(stdout);
+                //---
                 I[q_loaded * k + ik] = result.position[ik];
                 D[q_loaded * k + ik] = result.knn[ik];
             }
+            /////////////////// BEDUG PRINT   
+            printf("@ searchIndexL2Squared constructor - point 11\n");
+            fflush(stdout);
+            //---
         }
+        /////////////////// BEDUG PRINT   
+        printf("@ searchIndexL2Squared constructor - point 12\n");
+        fflush(stdout);
+        //---        
 
         free(paa);
         fprintf(stderr, ">>> Finished querying.\n");
+        /////////////////// BEDUG PRINT   
+        printf("@ searchIndexL2Squared constructor - point 13\n");
+        fflush(stdout);
+        //---        
     }
 
     void Messi::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
@@ -762,6 +827,9 @@ namespace diNoLib
             paa_from_ts(lowerLemire, paaLowerLemQuery, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
             pqueue_bsf result; // = search_function(ts, paa, paaUpperLemQuery, paaLowerLemQuery, index, &nodelist, minimum_distance, min_checked_leaves, warpWind, k);
+            /////////////////// BEDUG PRINT
+            result.k = 0;
+            //---
 
             for (int i = 0; i < result.k; i++)
             {
@@ -779,8 +847,11 @@ namespace diNoLib
 
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        printf("@ searchIndex constructor\n");
+        printf("@ Distance type is: %d\n", static_cast<int>(this->distance_type));
         if (this->distance_type == DistanceType::L2_SQUARED)
         {
+            printf("@ searchIndex constructor case L2²\n");
             searchIndexL2Squared(query, n_query, k, I, D);
         }
         else if (this->distance_type == DistanceType::DTW)

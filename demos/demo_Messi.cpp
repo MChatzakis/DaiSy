@@ -30,25 +30,20 @@ int main(){
     
     // 2. Create a brute-force search object
     diNoLib::Messi messi_search(diNoLib::DistanceType::L2_SQUARED);
-    messi_search.setNumThreads(4);
+    // messi_search.setNumThreads(4);
 
     // 3. Build the index
-    auto start_index = std::chrono::high_resolution_clock::now();
     messi_search.buildIndex(database, n_database, dim);
-    auto end_index = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> index_duration = end_index - start_index;
-    printf(">>> Finished indexing in %.4f seconds\n", index_duration.count());
+    printf(">>> Finished indexing \n");
 
     // 4. Search the index
-    printf("Starting search\n");
+    printf("@ Starting search\n");
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
     float *D = new float[n_query * k];
-    printf("Starting search Variables are been set\n");
-    auto start_search = std::chrono::high_resolution_clock::now();
+    printf("@ Starting search Variables are been set\n");
+    printf("@ going searchIndex constructor\n");                
     messi_search.searchIndex(query, n_query, k, I, D);
-    auto end_search = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> search_duration = end_search - start_search;
-    printf(">>> Finished search in %.4f seconds\n", search_duration.count());
+    printf(">>> Finished search \n");
 
     // 5. Print the results
     for (diNoLib::idx_t i = 0; i < n_query; i++)
