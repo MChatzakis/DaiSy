@@ -324,7 +324,7 @@ namespace diNoLib
     }
 
     /* Function to create an empty priority queue */
-    pqueue_bsf *pqueue_bsf_init(int k)
+    pqueue_bsf* pqueue_bsf_init(int k)
     {
 
         pqueue_bsf *q;
@@ -345,6 +345,30 @@ namespace diNoLib
         q->k = k;
         q->nowk = 0;
         return q;
+    }
+
+    void pqueue_bsf_free(pqueue_bsf *q)
+    {
+        if (q == NULL) {
+            return; 
+        }
+
+        if (q->position != NULL) {
+            free(q->position);
+            q->position = NULL;
+        }
+
+        if (q->knn != NULL) {
+            free(q->knn);
+            q->knn = NULL;
+        }
+
+        if (q->node != NULL) {
+            free(q->node);
+            q->node = NULL;
+        }
+
+        free(q);
     }
 
     /* Function to insert value into priority queue */

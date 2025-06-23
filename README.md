@@ -329,6 +329,7 @@ cmake --build .
 - `BUILD_DEMO=ON` – Build demo files (default ON)
 - `ODYSSEY_MPI=ON`– Enable Odyssey (default ON)
 - `SING_CUDA=ON`– Enable Sing (default ON)
+- _Note: If you turn off a flag, you need to explicitly turn it back on if you want to enable that component later._
 
 ### Disable Specific Components
 

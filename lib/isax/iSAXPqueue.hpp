@@ -175,6 +175,7 @@ namespace diNoLib
     } pqueue_bsf;
 
     pqueue_bsf *pqueue_bsf_init(int k);
+    void pqueue_bsf_free(pqueue_bsf *q);
     void pqueue_bsf_insert(pqueue_bsf *q, float data, long int position, isax_node *node);
     void pqueue_bsfre_insert(pqueue_bsf *q, float data, long int position, isax_node *node);
 
