@@ -76,7 +76,7 @@ namespace diNoLib
         int search_workers = 2; //64;
         int index_workers = 2; //32;
         int n_pqueue = 42;
-        int warping_window = 5;
+        int warping_window = 0.1;
 
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
