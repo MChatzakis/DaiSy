@@ -682,38 +682,38 @@ namespace diNoLib
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         /////////////////// BEDUG PRINT        
-        printf("@ searchIndexL2Squared constructor - point 1\n");
+        // printf("@ searchIndexL2Squared constructor - point 1\n");
         fflush(stdout);
         //---
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         
         /////////////////// BEDUG PRINT   
-        printf("@ searchIndexL2Squared constructor - point 2\n");
+        // printf("@ searchIndexL2Squared constructor - point 2\n");
         fflush(stdout);
         //---
         node_list nodelist;
         nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * pow(2, index->settings->paa_segments));
 
         /////////////////// BEDUG PRINT   
-        printf("@ searchIndexL2Squared constructor - point 3\n");
+        // printf("@ searchIndexL2Squared constructor - point 3\n");
         fflush(stdout);
         //---
         nodelist.node_amount = 0;
         isax_node *current_root_node = index->first_node;
         /////////////////// BEDUG PRINT   
-        printf("@ searchIndexL2Squared constructor - point 4\n");
+        // printf("@ searchIndexL2Squared constructor - point 4\n");
         fflush(stdout); 
         //---       
         while (1)
         {
             /////////////////// BEDUG PRINT   
-            printf("@ searchIndexL2Squared constructor - point 5\n");
+            // printf("@ searchIndexL2Squared constructor - point 5\n");
             fflush(stdout);  
             //---          
             if (current_root_node != NULL)
             {
                 /////////////////// BEDUG PRINT   
-                printf("@ searchIndexL2Squared constructor - point 6\n");
+                // printf("@ searchIndexL2Squared constructor - point 6\n");
                 fflush(stdout);
                 //---
                 nodelist.nlist[nodelist.node_amount] = current_root_node;
@@ -723,31 +723,32 @@ namespace diNoLib
             else
             {
                 /////////////////// BEDUG PRINT   
-                printf("@ searchIndexL2Squared constructor - point 7\n");
+                // printf("@ searchIndexL2Squared constructor - point 7\n");
                 fflush(stdout);
                 //---
                 break;
             }
         }
         /////////////////// BEDUG PRINT   
-        printf("@ searchIndexL2Squared constructor - point 8\n");
+        // printf("@ searchIndexL2Squared constructor - point 8\n");
         fflush(stdout);
         //---
 
         for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
         {
             /////////////////// BEDUG PRINT   
-            printf("@ searchIndexL2Squared constructor - point 9\n");
+            // printf("@ searchIndexL2Squared constructor - point 9\n");
             fflush(stdout);
             //---
             const float *ts = query + q_loaded * this->dim;
             /////////////////// BEDUG PRINT   
-            printf("@ searchIndexL2Squared constructor - point 9.1\n");
+            // printf("@ searchIndexL2Squared constructor - point 9.1\n");
             fflush(stdout);
             //---
 
             //  Parse ts and make PAA representation
-            paa_from_ts((float *)ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment); // check this catastrophic cast and maybe fix?
+            // paa_from_ts((float *)ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment); // check this catastrophic cast and maybe fix?
+            paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
             /////////////////// BEDUG PRINT   
             printf("@ searchIndexL2Squared constructor - point 9.2\n");
             fflush(stdout);
@@ -847,11 +848,15 @@ namespace diNoLib
 
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        /////////////////// BEDUG PRINT 
         printf("@ searchIndex constructor\n");
         printf("@ Distance type is: %d\n", static_cast<int>(this->distance_type));
+        //---        
         if (this->distance_type == DistanceType::L2_SQUARED)
         {
+            /////////////////// BEDUG PRINT 
             printf("@ searchIndex constructor case L2²\n");
+            //---
             searchIndexL2Squared(query, n_query, k, I, D);
         }
         else if (this->distance_type == DistanceType::DTW)
@@ -867,9 +872,25 @@ namespace diNoLib
 
     pqueue_bsf Messi::MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
     {
+        /////////////////// BEDUG PRINT           
+        printf("@ MESSI_search_topk_L2Squared - start\n"); fflush(stdout);
+        //---
+
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
+        /////////////////// BEDUG PRINT
+        printf("@ MESSI_search_topk_L2Squared - after pqueue_bsf_init\n"); fflush(stdout);
+        //---
 
         approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database);
+        /////////////////// BEDUG PRINT
+        printf("@ MESSI_search_topk_L2Squared - after approximate_topk_inmemory\n"); fflush(stdout);
+        printf("@ MESSI_search_topk_L2Squared - search_workers: %d\n", this->search_workers); fflush(stdout);
+        printf("@ MESSI_search_topk_L2Squared - n_pqueue: %d\n", this->n_pqueue); fflush(stdout);        
+        printf("@ MESSI_search_topk_L2Squared - minimum_distance: %f\n", this->minimum_distance);
+        printf("@ MESSI_search_topk_L2Squared - min_checked_leaves: %d\n", this->min_checked_leaves);
+        printf("@ MESSI_search_topk_L2Squared - database: %p\n", this->database);
+        printf("@ MESSI_search_topk_L2Squared - index: %p\n", this->index);
+        //---
 
         int tight_bound = index->settings->tight_bound;
         int aggressive_check = index->settings->aggressive_check;
@@ -877,7 +898,17 @@ namespace diNoLib
 
         if (pq_bsf->knn[k - 1] == FLT_MAX || min_checked_leaves > 1)
         {
+            /////////////////// BEDUG PRINT
+            printf("@ MESSI_search_topk_L2Squared - BEFORE refine_topk_answer_inmemory\n"); fflush(stdout);
+            printf("@ MESSI_search_topk_L2Squared - pq_bsf->knn[k-1]: %f\n", pq_bsf->knn[k-1]); fflush(stdout);
+            printf("@ MESSI_search_topk_L2Squared - min_checked_leaves: %d\n", this->min_checked_leaves); fflush(stdout);
+            //---
+
             refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database);
+            
+            /////////////////// BEDUG PRINT
+            printf("@ MESSI_search_topk_L2Squared - AFTER refine_topk_answer_inmemory\n"); fflush(stdout);
+            //---
         }
         pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
 
@@ -925,15 +956,21 @@ namespace diNoLib
         }
 
         query_result *n;
+        
+        printf("@ MESSI_search_topk_L2Squared - BEFORE creating threads\n"); fflush(stdout);
 
         for (int i = 0; i < this->search_workers; i++)
         {
+            printf("@ MESSI_search_topk_L2Squared - Creating thread %d\n", i); fflush(stdout);
             pthread_create(&(threadid[i]), NULL, MESSI_topk_search_worker_L2Squared, (void *)&(workerdata[i]));
         }
+        printf("@ MESSI_search_topk_L2Squared - BEFORE joining threads\n"); fflush(stdout);
         for (int i = 0; i < this->search_workers; i++)
         {
+            printf("@ MESSI_search_topk_L2Squared - Joining thread %d\n", i); fflush(stdout);
             pthread_join(threadid[i], NULL);
         }
+        printf("@ MESSI_search_topk_L2Squared - AFTER joining threads\n"); fflush(stdout);
 
         // Free the nodes that where not popped.
         // Free the priority queue.

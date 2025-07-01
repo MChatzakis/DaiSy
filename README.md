@@ -1,6 +1,6 @@
 # diNo Library
 
-**diNoSimilaritySearch** is a modern C++ and Python library for approximate nearest neighbor search. It includes:
+**diNoSimilaritySearch** is a C++ and Python library for approximate nearest neighbor search. It includes:
 
 - C++ core library
 - Python bindings
@@ -225,6 +225,8 @@ Before building, initialize submodules:
    ```bash
    python3.12 -m venv diNo_env
    ```
+
+_Note: replace `python3.12` with your current version._
 
 2. Activate the virtual environment:
 

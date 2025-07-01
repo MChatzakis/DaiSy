@@ -73,7 +73,7 @@ namespace diNoLib
         int min_checked_leaves = -1;
         
         int read_block_length = 100000;
-        int search_workers = 2; //64;
+        int search_workers = 4; //64;
         int index_workers = 2; //32;
         int n_pqueue = 42;
         int warping_window = 0.1;

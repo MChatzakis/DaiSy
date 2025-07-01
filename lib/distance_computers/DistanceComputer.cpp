@@ -102,7 +102,8 @@ namespace diNoLib
                                             int ts_values_per_segment)
     {
         paa_from_ts(
-            const_cast<float*>(ts),
+            // const_cast<float*>(ts),
+            ts,
             paa,
             paa_segments,
             ts_values_per_segment
