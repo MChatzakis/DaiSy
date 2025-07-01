@@ -79,7 +79,22 @@ namespace diNoLib
         return SUCCESS;
     }
 
-    enum response paa_from_ts(ts_type *ts_in, ts_type *paa_out, int segments, int ts_values_per_segment)
+    // enum response paa_from_ts(ts_type *ts_in, ts_type *paa_out, int segments, int ts_values_per_segment)
+    // {
+    //     int s, i;
+    //     for (s = 0; s < segments; s++)
+    //     {
+    //         paa_out[s] = 0;
+    //         for (i = 0; i < ts_values_per_segment; i++)
+    //         {
+    //             paa_out[s] += ts_in[(s * ts_values_per_segment) + i];
+    //         }
+    //         paa_out[s] /= ts_values_per_segment;
+    //     }
+    //     return SUCCESS;
+    // }
+
+    enum response paa_from_ts(const ts_type *ts_in, ts_type *paa_out, int segments, int ts_values_per_segment)
     {
         int s, i;
         for (s = 0; s < segments; s++)
