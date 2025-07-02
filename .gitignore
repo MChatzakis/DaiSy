@@ -41,3 +41,11 @@ build/
 
 # Ignore compiled Python files
 *.pyc
+
+# vscode
+.vscode/
+
+# Allow specific VS Code files to be tracked
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
