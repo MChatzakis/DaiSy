@@ -7,25 +7,24 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "../isax/iSAXTypes.hpp" 
+#include "../isax/iSAXTypes.hpp"
 #include "../isax/SAX.hpp"
-
 
 namespace diNoLib
 {
     enum class DistanceType
     {
         L2_SQUARED = 0,
-        // More to be implemented
         DTW = 1
     };
 }
 
-namespace std {
-    template<>
+namespace std
+{
+    template <>
     struct hash<diNoLib::DistanceType>
     {
-        std::size_t operator()(const diNoLib::DistanceType& dt) const noexcept
+        std::size_t operator()(const diNoLib::DistanceType &dt) const noexcept
         {
             return std::hash<int>()(static_cast<int>(dt));
         }
@@ -40,7 +39,7 @@ namespace diNoLib
         DistanceType distance_type;
 
         std::unordered_map<DistanceType, float (DistanceComputer::*)(float *, float *, int, float)> distance_map;
-        
+
         void init_distance_map();
         float l2_dist(float *t, float *s, int dim, float bound);
         float l2_dist_SIMD(float *t, float *s, int dim, float bound);
@@ -66,37 +65,37 @@ namespace diNoLib
             // TODO
         }
 
-        float compute_dist(float *t, 
-                            float *s, 
-                            int dim, 
-                            float bound);
-        
+        float compute_dist(float *t,
+                           float *s,
+                           int dim,
+                           float bound);
+
         float compute_minidist_SIMD(const ts_type *q_paa,
-                            const sax_type *db_sax,
-                            const int *max_sax_cardinalities,
-                            int sax_bit_cardinality,
-                            int sax_alphabet_cardinality,
-                            int paa_segments,
-                            float minval,
-                            float maxval,
-                            bool mindist_sqrt);
+                                    const sax_type *db_sax,
+                                    const int *max_sax_cardinalities,
+                                    int sax_bit_cardinality,
+                                    int sax_alphabet_cardinality,
+                                    int paa_segments,
+                                    float minval,
+                                    float maxval,
+                                    bool mindist_sqrt);
 
         void compute_paa_from_ts(const float *ts,
-                                ts_type *paa,
-                                int paa_segments,
-                                int ts_values_per_segment);
+                                 ts_type *paa,
+                                 int paa_segments,
+                                 int ts_values_per_segment);
 
         bool compute_sax_from_ts(const float *ts,
-                                sax_type *sax,
-                                int ts_values_per_paa_segment,
-                                int paa_segments,
-                                int sax_alphabet_cardinality,
-                                int sax_bit_cardinality);     
-                                
-        float compute_dist_SIMD(float *t, 
-                                float *s, 
-                                int dim, 
-                                float bound);                                
+                                 sax_type *sax,
+                                 int ts_values_per_paa_segment,
+                                 int paa_segments,
+                                 int sax_alphabet_cardinality,
+                                 int sax_bit_cardinality);
+
+        float compute_dist_SIMD(float *t,
+                                float *s,
+                                int dim,
+                                float bound);
 
         ////// Wrapper Methods's signatures for SAX.hpp functions //////
         float wrap_minidist_paa_to_isax(float *paa, sax_type *sax,
@@ -144,16 +143,15 @@ namespace diNoLib
         float wrap_dtwsimdPruned(float *A, float *B, float *cb, int m, int r, float bsf, float *tSum, float *pCost, float *rDist);
 
         float wrap_minidist_paa_to_isax_DTW(float *paaU, float *paaL, sax_type *sax,
-                                           sax_type *sax_cardinalities,
-                                           sax_type max_bit_cardinality,
-                                           int max_cardinality,
-                                           int number_of_segments,
-                                           int min_val,
-                                           int max_val,
-                                           float ratio_sqrt);                                
+                                            sax_type *sax_cardinalities,
+                                            sax_type max_bit_cardinality,
+                                            int max_cardinality,
+                                            int number_of_segments,
+                                            int min_val,
+                                            int max_val,
+                                            float ratio_sqrt);
     };
 
 } // namespace diNoLib
-
 
 #endif // DISTANCECOMPUTER_HPP

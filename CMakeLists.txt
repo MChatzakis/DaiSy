@@ -169,6 +169,18 @@ if(BUILD_PYTHON)
         message(STATUS "----------------------------------------------------")
         message(STATUS "BUILD_PYTHON is ON. Adding Python bindings.")
     endif()
+
+    # --- ADD THIS SECTION ---
+    # Find Python development components *before* adding pybind11
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    if(NOT Python3_FOUND)
+        message(FATAL_ERROR "Python 3 development headers not found. Please install python3-dev (or similar) or set BUILD_PYTHON=OFF.")
+    endif()
+    message(STATUS "Python found: ${Python3_EXECUTABLE}")
+    message(STATUS "Python include dirs: ${Python3_INCLUDE_DIRS}")
+    message(STATUS "Python libraries: ${Python3_LIBRARIES}")
+    # --- END ADDITION ---
+
     # Add pybind11
     add_subdirectory(extern/pybind11)
     if(DEBUG_MSG)
