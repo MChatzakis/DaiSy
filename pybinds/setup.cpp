@@ -2,7 +2,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-#include "../lib/distance_computers/DistanceComputer.hpp" 
+#include "../lib/distance_computers/DistanceComputer.hpp"
 #include "../lib/algos/Bruteforce.hpp"
 #include "../lib/algos/LbBruteforce.hpp"
 #include "../lib/algos/Messi.hpp"
@@ -11,7 +11,8 @@
 #include "../lib/algos/Sing.hpp"
 
 // Define a Python module named 'diNoSimilaritySearch'
-PYBIND11_MODULE(diNoSimilaritySearch, m) {
+PYBIND11_MODULE(diNoSimilaritySearch, m)
+{
     m.doc() = "diNo::diNoSimilaritySearch Python bindings";
 
     ////// DISTANCETYPE //////
@@ -31,7 +32,8 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
         .def("getNumThreads", &diNoLib::BruteForceSearch::getNumThreads, "Get the number of threads")
 
         // Bind method to build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::BruteForceSearch &self, pybind11::array_t<float> db) {
+        .def("buildIndex", [](diNoLib::BruteForceSearch &self, pybind11::array_t<float> db)
+             {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
@@ -39,13 +41,11 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             diNoLib::idx_t n = buf.shape[0];
             diNoLib::idx_t d = buf.shape[1];
 
-            self.buildIndex(static_cast<float *>(buf.ptr), n, d);
-        }, "Build the index from a 2D float32 numpy array")
+            self.buildIndex(static_cast<float *>(buf.ptr), n, d); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
-        .def("searchIndex", [](diNoLib::BruteForceSearch &self,
-                               pybind11::array_t<float> query,
-                               diNoLib::idx_t k) {
+        .def("searchIndex", [](diNoLib::BruteForceSearch &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+             {
             pybind11::buffer_info query_buf = query.request(); // Get query buffer info
 
             // Check for valid input shape
@@ -70,8 +70,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             return pybind11::make_tuple(
                 pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            );
-        }, "Search the index with queries and return (indices, distances)");
+            ); }, "Search the index with queries and return (indices, distances)");
 
     ////// LBBRUTEFORCE //////
     pybind11::class_<diNoLib::LbBruteforce>(m, "LbBruteforce", "Lower Bound brute-force similarity search")
@@ -102,15 +101,16 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
         .def("setTightBound", &diNoLib::LbBruteforce::setTightBound, "Enable or disable tight lower bounds")
 
         // Build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> db) {
+        .def("buildIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> db)
+             {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Database array must be 2D");
-            self.buildIndex(static_cast<float *>(buf.ptr), buf.shape[0], buf.shape[1]);
-        }, "Build the index from a 2D float32 numpy array")
+            self.buildIndex(static_cast<float *>(buf.ptr), buf.shape[0], buf.shape[1]); }, "Build the index from a 2D float32 numpy array")
 
         // Search the index using a query array and return (indices, distances)
-        .def("searchIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k) {
+        .def("searchIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+             {
             pybind11::buffer_info buf = query.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Query array must be 2D");
@@ -143,15 +143,14 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
                         static_cast<pybind11::ssize_t>(sizeof(float))
                     }
                 ))
-            );
-        }, "Search the index with queries and return (indices, distances)");    
+            ); }, "Search the index with queries and return (indices, distances)");
 
     ////// MESSI //////
     pybind11::class_<diNoLib::Messi>(m, "Messi", "MESSI (Multi-Queue Efficient SAX Similarity Index) algorithm for time series similarity search")
         // Constructor
         .def(pybind11::init<diNoLib::DistanceType>(), "Create a new Messi instance with the given distance metric")
 
-        // Getters 
+        // Getters
         .def("getNumThreads", &diNoLib::Messi::getNumThreads, "Get the number of search threads")
         .def("getPaaSegments", &diNoLib::Messi::getPaaSegments, "Get the number of PAA segments used in SAX transformation")
         .def("getSaxCardinality", &diNoLib::Messi::getSaxCardinality, "Get the cardinality of SAX symbols")
@@ -168,7 +167,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
         .def("getReadBlockLength", &diNoLib::Messi::getReadBlockLength, "Get block size for reading the time series data")
         .def("getWarpingWindow", &diNoLib::Messi::getWarpingWindow, "Get the DTW warping window constraint")
 
-        // Setters 
+        // Setters
         .def("setNumThreads", &diNoLib::Messi::setNumThreads, "Set the number of threads to use for both indexing and search")
         .def("setPaaSegments", &diNoLib::Messi::setPaaSegments, "Set the number of PAA segments")
         .def("setSaxCardinality", &diNoLib::Messi::setSaxCardinality, "Set the SAX cardinality")
@@ -185,15 +184,16 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
         .def("setWarpingWindow", &diNoLib::Messi::setWarpingWindow, "Set the warping window size for DTW")
 
         // Build the index from a 2D NumPy array
-        .def("buildIndex", [](diNoLib::Messi &self, pybind11::array_t<float> db) {
+        .def("buildIndex", [](diNoLib::Messi &self, pybind11::array_t<float> db)
+             {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
-            self.buildIndex(static_cast<float *>(buf.ptr), buf.shape[0], buf.shape[1]);
-        }, "Build the MESSI index from a 2D float32 NumPy array")
+            self.buildIndex(static_cast<float *>(buf.ptr), buf.shape[0], buf.shape[1]); }, "Build the MESSI index from a 2D float32 NumPy array")
 
         // Search the index with query array and return top-k results
-        .def("searchIndex", [](diNoLib::Messi &self, pybind11::array_t<float> query, diNoLib::idx_t k) {
+        .def("searchIndex", [](diNoLib::Messi &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+             {
             pybind11::buffer_info query_buf = query.request();
             if (query_buf.ndim != 2)
                 throw std::runtime_error("Query array must be 2D");
@@ -211,8 +211,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             return pybind11::make_tuple(
                 pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            );
-        }, "Search the MESSI index using queries and return (indices, distances)");
+            ); }, "Search the MESSI index using queries and return (indices, distances)");
 
     ////// ODYSSEY //////
     pybind11::class_<diNoLib::Odyssey>(m, "Odyssey", "Odyssey similarity search with MPI")
@@ -226,7 +225,8 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
         .def("getNumThreads", &diNoLib::Odyssey::getNumThreads, "Get the number of threads (for OpenMP parts)")
 
         // Bind method to build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::Odyssey &self, pybind11::array_t<float> db) {
+        .def("buildIndex", [](diNoLib::Odyssey &self, pybind11::array_t<float> db)
+             {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
@@ -234,13 +234,11 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             diNoLib::idx_t n = buf.shape[0];
             diNoLib::idx_t d = buf.shape[1];
 
-            self.buildIndex(static_cast<float *>(buf.ptr), n, d);
-        }, "Build the index from a 2D float32 numpy array")
+            self.buildIndex(static_cast<float *>(buf.ptr), n, d); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
-        .def("searchIndex", [](diNoLib::Odyssey &self,
-                               pybind11::array_t<float> query,
-                               diNoLib::idx_t k) {
+        .def("searchIndex", [](diNoLib::Odyssey &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+             {
             pybind11::buffer_info query_buf = query.request(); // Get query buffer info
 
             // Check for valid input shape
@@ -265,8 +263,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             return pybind11::make_tuple(
                 pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            );
-        }, "Search the index with queries and return (indices, distances)");    
+            ); }, "Search the index with queries and return (indices, distances)");
 
     ////// PARIS //////
 
@@ -282,7 +279,8 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
         .def("getNumThreads", &diNoLib::Sing::getNumThreads, "Get the number of threads")
 
         // Bind method to build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::Sing &self, pybind11::array_t<float> db) {
+        .def("buildIndex", [](diNoLib::Sing &self, pybind11::array_t<float> db)
+             {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
@@ -290,13 +288,11 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             diNoLib::idx_t n = buf.shape[0];
             diNoLib::idx_t d = buf.shape[1];
 
-            self.buildIndex(static_cast<float *>(buf.ptr), n, d);
-        }, "Build the index from a 2D float32 numpy array")
+            self.buildIndex(static_cast<float *>(buf.ptr), n, d); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
-        .def("searchIndex", [](diNoLib::Sing &self,
-                               pybind11::array_t<float> query,
-                               diNoLib::idx_t k) {
+        .def("searchIndex", [](diNoLib::Sing &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+             {
             pybind11::buffer_info query_buf = query.request(); // Get query buffer info
 
             // Check for valid input shape
@@ -321,6 +317,5 @@ PYBIND11_MODULE(diNoSimilaritySearch, m) {
             return pybind11::make_tuple(
                 pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            );
-        }, "Search the index with queries and return (indices, distances)");    
+            ); }, "Search the index with queries and return (indices, distances)");
 }
