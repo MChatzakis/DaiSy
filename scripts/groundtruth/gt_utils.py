@@ -1,5 +1,4 @@
 import numpy as np
-import faiss
 import os
 import re
 
@@ -10,8 +9,8 @@ def formatFile_db(filename: str,
     @brief Load the database and reshape it into a 2D NumPy array.
 
     @param filename: Path to the binary file
-    @param num_points: Number of vectors
-    @param dim: Dimensionality of each vector
+    @param num_points: Number of vectors (or time series)
+    @param dim: Dimensionality of each vector (or length of time series)
     @return: np.ndarray of shape (num_points, dim), dtype float32
     """    
     db = np.fromfile(filename, dtype='float32')
@@ -24,7 +23,7 @@ def formatFile_query(filename: str,
     @brief Load the query dataset and reshape it into a 2D NumPy array.
 
     @param filename: Path to the data
-    @param dim: Dimensionality of each query vector
+    @param dim: Dimensionality of each query vector (or length of time series)
     @param nq: Number of queries to return
     @return: np.ndarray of shape (nq, dim), dtype float32
     @throws ValueError: If requested more queries than available
@@ -35,63 +34,33 @@ def formatFile_query(filename: str,
     return queries[:nq]
 
 def saveOutput(filename_prefix: str, 
-               indices: np.ndarray,
-               is_distance: bool = False) -> None:
+               data_array: np.ndarray, 
+               is_distance: bool = False,
+               metric_name: str = "L2") -> None:
     """
     @brief Save the output array to a .txt file.
 
     @param filename_prefix: Filename stem
-    @param indices: NumPy Array of indices or distances
+    @param data_array: NumPy Array of indices or distances
     @param is_distance: Boolean flag to check if it is distance data (for folder routing)
+    @param metric_name: Name of the metric (e.g., "L2", "DTW") for folder routing
     @return: None
     @side_effects: Creates output directories and writes text files.
     """    
-    folder = "./tests/gt/" 
+    base_folder = "./tests/gt/" 
     
     if is_distance:
-        folder = os.path.join(folder, "Distances")
+        folder = os.path.join(base_folder, f"Distances_{metric_name}")
         os.makedirs(folder, exist_ok=True)
         output_filename = os.path.join(folder, f"{filename_prefix}.txt")    
-        np.savetxt(output_filename, indices, fmt='%.15f')
+        np.savetxt(output_filename, data_array, fmt='%.15f')
         print(f"Saved output to {output_filename}")        
     else:
-        folder = os.path.join(folder, "Indices")
+        folder = os.path.join(base_folder, f"Indices_{metric_name}")
         os.makedirs(folder, exist_ok=True)
         output_filename = os.path.join(folder, f"{filename_prefix}.txt")    
-        np.savetxt(output_filename, indices, fmt='%.f')
+        np.savetxt(output_filename, data_array, fmt='%.f')
         print(f"Saved output to {output_filename}")
-
-def bruteForceSS_gt(dim: int, 
-                    db_file: str, 
-                    query_file: str, 
-                    num_db: int, 
-                    num_queries: int, 
-                    db_name: str, 
-                    k_tab: list[int] | None = None) -> None:
-    """
-    @brief Run brute-force nearest neighbor search using FAISS and save distances and indices.
-
-    @param dim: Dimensionality of vectors
-    @param db_file: Path to the database file
-    @param query_file: Path to the query file
-    @param num_db: Number of vectors in the database
-    @param num_queries: Number of queries to process
-    @param db_name: Name label for the dataset (used in filenames)
-    @param k_tab: list[int] | None: list of k values for top-k search
-    @return: None
-    """    
-    db = formatFile_db(db_file, num_db, dim)
-    queries = formatFile_query(query_file, dim, num_queries)
-    if k_tab is None:
-        k_tab = [1, 10, 100]    
-
-    index = faiss.IndexFlatL2(dim)
-    index.add(db)
-
-    for k in k_tab:
-        D, I = index.search(queries, k)
-        saveOutput(f"bruteFSS_gt_I_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", I)
-        saveOutput(f"bruteFSS_gt_D_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", D, is_distance=True)
 
 def path_to_filename(path: str) -> str:
     """
@@ -155,32 +124,45 @@ def find_dataset_pairs(data_folder: str) -> list[tuple[str, str]]:
             ))
     return pairs
 
-def run_all_datasets(override_num_queries: int | None = None, 
-                     override_k_tab: list[int] | None = None) -> None:
+def run_all_datasets(groundtruth_function, 
+                     override_num_queries: int | None = None, 
+                     override_k_tab: list[int] | None = None,
+                     default_num_queries_for_dtw: int = 10) -> None:
     """
-    @brief Run brute-force search on all dataset pairs found in './data'.
+    @brief Run brute-force search on all dataset pairs found in './data' using a provided groundtruth function.
 
+    @param groundtruth_function: The function to call for generating ground truth (e.g., bruteForceSS_gt, bruteForceDTW_gt)
     @param override_num_queries: Optional override for number of queries per dataset
     @param override_k_tab: Optional override for list of 'k' values in top-k search
+    @param default_num_queries_for_dtw: Default number of queries to use if groundtruth_function is DTW specific
+                                        and no override_num_queries is provided.
     @return: None
     """    
-    data_folder = './data'
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_folder = os.path.join(script_dir, '..', '..', 'data') 
+    
+    data_folder = os.path.normpath(data_folder)
+    
     dataset_pairs = find_dataset_pairs(data_folder)
 
     for db_path, query_path in dataset_pairs:
         DB_NAME, DIM, NUM_DB_POINTS = parse_filename_for_config(db_path)
         _, _, parsed_num_queries = parse_filename_for_config(query_path)
 
-        NUM_QUERIES = override_num_queries if override_num_queries is not None else parsed_num_queries
+        NUM_QUERIES = override_num_queries
+        if NUM_QUERIES is None:
+            # Check if the function name indicates DTW to apply specific default
+            if "DTW" in groundtruth_function.__name__:
+                NUM_QUERIES = min(parsed_num_queries, default_num_queries_for_dtw)
+            else:
+                NUM_QUERIES = parsed_num_queries # Use all queries for L2 by default
+
         K_TAB = override_k_tab if override_k_tab is not None else [1, 10, 100]
 
-        print(f"\nRunning bruteForceSS_gt on dataset: {DB_NAME}")
-        print(f"  - DIM = {DIM}")
-        print(f"  - NUM_DB_POINTS = {NUM_DB_POINTS}")
-        print(f"  - NUM_QUERIES = {NUM_QUERIES}")
+        print(f"\nRunning {groundtruth_function.__name__} on dataset: {DB_NAME}")
+        print(f"  - Length/Dimension = {DIM}")
+        print(f"  - Number of DB Points = {NUM_DB_POINTS}")
+        print(f"  - Number of Queries = {NUM_QUERIES}")
+        print(f"  - K values = {K_TAB}")
 
-        bruteForceSS_gt(DIM, db_path, query_path, NUM_DB_POINTS, NUM_QUERIES, DB_NAME)
-
-
-if __name__ == '__main__':
-    run_all_datasets()
+        groundtruth_function(DIM, db_path, query_path, NUM_DB_POINTS, NUM_QUERIES, DB_NAME, K_TAB)

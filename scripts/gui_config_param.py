@@ -8,8 +8,10 @@ from diNoSimilaritySearch import BruteForceSearch, LbBruteforce, Messi, Odyssey,
 # Global variables
 user_inputs = {}
 
-dist_options = [("Squared Euclidean (L2²)", "L2_SQUARED")]
-
+dist_options = [
+    ("Squared Euclidean (L2²)", "L2_SQUARED"),
+    ("Dynamic Time Wrapping", "DTW")
+]
 search_classes = {
     "Brute Force": BruteForceSearch,
     "Lower Bound Brute Force": LbBruteforce,
@@ -296,7 +298,7 @@ k_entry.pack(anchor="w")
 CreateToolTip(k_entry, "Enter the number of closest neighbors to retrieve.")
 
 # Distance Metric
-distance_var = tk.StringVar(value="L2_SQUARED")
+distance_var = tk.StringVar(value=dist_options[0][1]) 
 distance_frame = ttk.LabelFrame(main_frame, text="Distance Metric", padding=10)
 distance_frame.pack(fill="x", pady=10)
 for text, val in dist_options:

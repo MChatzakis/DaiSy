@@ -162,9 +162,7 @@ Before building, initialize submodules:
 
 - **macOS**
 
-  ```bash
-
-  ```
+_Nvidia stopped supporting macOS for CUDA._
 
 - **Windows**
 
@@ -308,7 +306,7 @@ pip install -r requirements_faiss.txt
 conda env create -f environment_faiss.yml
 ```
 
-_Replace `my_custom_env` with your preferred environment name._
+_Note: Replace `my_custom_env` with your preferred environment name._
 
 ## Building with CMake
 
@@ -363,15 +361,25 @@ To run any compiled C++ demo, navigate to your `build/` directory and execute th
 
 The diNo library includes several Python-based demos. Ensure you run these scripts from within the `demos/` directory itself for correct imports and paths.
 
+#### ``
+
+To run the demo with GUI:
+
+```bash
+python3.12 ./demo_gui.py
+```
+
+_Note: replace `python3.12` with your current version._
+
 #### `demo_bruteforce` and `demo_LbBruteforce`
 
 For these demos, run these commands:
 
 ```bash
-./demo_X.py
+python3.12 ./demo_X.py
 ```
 
-_'X' is the name of the algo (e.g., `./demo_bruteforce`)._
+_Note: replace `python3.12` with your current version. 'X' is the name of the algo (e.g., `./demo_bruteforce`)._
 
 #### `demo_Odyssey`
 
@@ -403,7 +411,7 @@ After building your project with CMake, navigate to your `build/` directory, and
 ./tests/test_X_Y
 ```
 
-_'X' is the name of the algo with 'Y' name of the distanceComputer (e.g., `./tests/test_bruteforce_L2Square`)._
+_Note: 'X' is the name of the algo with 'Y' name of the distanceComputer (e.g., `./tests/test_bruteforce_L2Square`)._
 
 ## Running Benchmarks
 
@@ -413,9 +421,9 @@ After building with CMake, navigate to the build directory and run your benchmar
 ./benchmark/bm_X_Y
 ```
 
-_'X' is the name of the algo with 'Y' name of the distanceComputer (e.g., `./benchmarks/bm_bruteforce_L2Square`)._
+_Note: 'X' is the name of the algo with 'Y' name of the distanceComputer (e.g., `./benchmarks/bm_bruteforce_L2Square`)._
 
 ## Notes
 
-- The compiled `.so` (shared object) file from pybind is located in the /demo folder.
+- The compiled `.so` (shared object) file from pybind is located in the `/demo` folder.
 - Run all Python scripts from within the `/demo` directory to ensure correct imports and paths.
