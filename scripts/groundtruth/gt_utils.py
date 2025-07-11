@@ -35,29 +35,25 @@ def formatFile_query(filename: str,
 
 def saveOutput(filename_prefix: str,
                data_array: np.ndarray,
-               is_distance: bool = False,
-               metric_name: str = "L2") -> None:
+               is_distance: bool = False) -> None:
     """
     @brief Save the output array to a .txt file.
 
     @param filename_prefix: Filename stem
     @param data_array: NumPy Array of indices or distances
     @param is_distance: Boolean flag to check if it is distance data (for folder routing)
-    @param metric_name: Name of the metric (e.g., "L2", "DTW") for folder routing
-    @return: None
+=    @return: None
     @side_effects: Creates output directories and writes text files.
     """
     base_folder = "./tests/gt/"
 
     if is_distance:
-        # Changed from f"Distances_{metric_name}"
         folder = os.path.join(base_folder, "Distances")
         os.makedirs(folder, exist_ok=True)
         output_filename = os.path.join(folder, f"{filename_prefix}.txt")
         np.savetxt(output_filename, data_array, fmt='%.15f')
         print(f"Saved output to {output_filename}")
     else:
-        # Changed from f"Indices_{metric_name}"
         folder = os.path.join(base_folder, "Indices")
         os.makedirs(folder, exist_ok=True)
         output_filename = os.path.join(folder, f"{filename_prefix}.txt")
