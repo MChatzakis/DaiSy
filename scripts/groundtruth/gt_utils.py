@@ -2,8 +2,8 @@ import numpy as np
 import os
 import re
 
-def formatFile_db(filename: str, 
-                  num_points: int, 
+def formatFile_db(filename: str,
+                  num_points: int,
                   dim: int) -> np.ndarray:
     """
     @brief Load the database and reshape it into a 2D NumPy array.
@@ -12,12 +12,12 @@ def formatFile_db(filename: str,
     @param num_points: Number of vectors (or time series)
     @param dim: Dimensionality of each vector (or length of time series)
     @return: np.ndarray of shape (num_points, dim), dtype float32
-    """    
+    """
     db = np.fromfile(filename, dtype='float32')
     return db.reshape((num_points, dim))
 
-def formatFile_query(filename: str, 
-                     dim: int, 
+def formatFile_query(filename: str,
+                     dim: int,
                      nq: int) -> np.ndarray:
     """
     @brief Load the query dataset and reshape it into a 2D NumPy array.
@@ -27,14 +27,14 @@ def formatFile_query(filename: str,
     @param nq: Number of queries to return
     @return: np.ndarray of shape (nq, dim), dtype float32
     @throws ValueError: If requested more queries than available
-    """    
+    """
     queries = np.fromfile(filename, dtype='float32').reshape((-1, dim))
     if nq > queries.shape[0]:
         raise ValueError(f"Requested {nq} queries, but only {queries.shape[0]} available.")
     return queries[:nq]
 
-def saveOutput(filename_prefix: str, 
-               data_array: np.ndarray, 
+def saveOutput(filename_prefix: str,
+               data_array: np.ndarray,
                is_distance: bool = False,
                metric_name: str = "L2") -> None:
     """
@@ -46,19 +46,21 @@ def saveOutput(filename_prefix: str,
     @param metric_name: Name of the metric (e.g., "L2", "DTW") for folder routing
     @return: None
     @side_effects: Creates output directories and writes text files.
-    """    
-    base_folder = "./tests/gt/" 
-    
+    """
+    base_folder = "./tests/gt/"
+
     if is_distance:
-        folder = os.path.join(base_folder, f"Distances_{metric_name}")
+        # Changed from f"Distances_{metric_name}"
+        folder = os.path.join(base_folder, "Distances")
         os.makedirs(folder, exist_ok=True)
-        output_filename = os.path.join(folder, f"{filename_prefix}.txt")    
+        output_filename = os.path.join(folder, f"{filename_prefix}.txt")
         np.savetxt(output_filename, data_array, fmt='%.15f')
-        print(f"Saved output to {output_filename}")        
+        print(f"Saved output to {output_filename}")
     else:
-        folder = os.path.join(base_folder, f"Indices_{metric_name}")
+        # Changed from f"Indices_{metric_name}"
+        folder = os.path.join(base_folder, "Indices")
         os.makedirs(folder, exist_ok=True)
-        output_filename = os.path.join(folder, f"{filename_prefix}.txt")    
+        output_filename = os.path.join(folder, f"{filename_prefix}.txt")
         np.savetxt(output_filename, data_array, fmt='%.f')
         print(f"Saved output to {output_filename}")
 
@@ -68,7 +70,7 @@ def path_to_filename(path: str) -> str:
 
     @param path: Full path to a file
     @return: Just the filename
-    """    
+    """
     return os.path.basename(path)
 
 def parse_filename_for_config(path: str) -> tuple[str | None, int | None, int | None]:
@@ -76,7 +78,7 @@ def parse_filename_for_config(path: str) -> tuple[str | None, int | None, int | 
     @brief Extract dimensionality and database size from filename using regex.
 
     @param path: File path containing 'len<dim>' and 'size<points>'
-    @return: 
+    @return:
             * db_name: str | None
             * dim: int | None
             * n_database: int | None
@@ -99,7 +101,7 @@ def parse_filename_for_config(path: str) -> tuple[str | None, int | None, int | 
 
     db_name_match = re.search(db_name_rx, filename)
     db_name = db_name_match.group(1) if db_name_match else None
-    
+
     return db_name, dim, n_database
 
 def find_dataset_pairs(data_folder: str) -> list[tuple[str, str]]:
@@ -108,7 +110,7 @@ def find_dataset_pairs(data_folder: str) -> list[tuple[str, str]]:
 
     @param data_folder: Path to the folder containing dataset files
     @return: List of (database_file_path, query_file_path) tuples
-    """    
+    """
     files = os.listdir(data_folder)
     data_files = [f for f in files if '.data.' in f]
     query_files = [f for f in files if '.query.' in f]
@@ -124,8 +126,8 @@ def find_dataset_pairs(data_folder: str) -> list[tuple[str, str]]:
             ))
     return pairs
 
-def run_all_datasets(groundtruth_function, 
-                     override_num_queries: int | None = None, 
+def run_all_datasets(groundtruth_function,
+                     override_num_queries: int | None = None,
                      override_k_tab: list[int] | None = None,
                      default_num_queries_for_dtw: int = 10) -> None:
     """
@@ -137,12 +139,12 @@ def run_all_datasets(groundtruth_function,
     @param default_num_queries_for_dtw: Default number of queries to use if groundtruth_function is DTW specific
                                         and no override_num_queries is provided.
     @return: None
-    """    
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_folder = os.path.join(script_dir, '..', '..', 'data') 
-    
+    data_folder = os.path.join(script_dir, '..', '..', 'data')
+
     data_folder = os.path.normpath(data_folder)
-    
+
     dataset_pairs = find_dataset_pairs(data_folder)
 
     for db_path, query_path in dataset_pairs:

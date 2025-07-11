@@ -8,7 +8,7 @@ float *loadBinData(const char *filename, unsigned long long n, unsigned long lon
     FILE *fp = fopen(filename, "rb");
     if (fp == nullptr)
     {
-        std::cerr << "Error opening file: " << filename << std::endl;
+        std::cerr << "(loadBinData) Error opening file: " << filename << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -53,7 +53,7 @@ float *z_normalize(const float *data, unsigned long long n, unsigned long long d
     return normalized_data;
 }
 
-float *loadRandomData(unsigned long long n, unsigned long long dim, bool z_norm, int seed) 
+float *loadRandomData(unsigned long long n, unsigned long long dim, bool z_norm, int seed)
 {
     if (seed != 0)
     {

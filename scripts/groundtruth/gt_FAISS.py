@@ -33,8 +33,8 @@ def bruteForceSS_gt(dim: int,
 
     for k in k_tab:
         D, I = index.search(queries, k)
-        saveOutput(f"bruteFSS_gt_I_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", I, metric_name="L2")
-        saveOutput(f"bruteFSS_gt_D_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", D, is_distance=True, metric_name="L2")
+        saveOutput(f"bruteForce_gt_I_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", I, metric_name="L2")
+        saveOutput(f"bruteForce_gt_D_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", D, is_distance=True, metric_name="L2")
 
 if __name__ == '__main__':
     print("--- Generating FAISS L2 Ground Truth ---")
