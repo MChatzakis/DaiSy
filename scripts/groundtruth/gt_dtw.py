@@ -29,6 +29,7 @@ def bruteForceDTW_gt(dim: int,
                      k_tab: list[int] | None = None) -> None:
     db = formatFile_db(db_file, num_db, dim)
     queries = formatFile_query(query_file, dim, num_queries)
+    print(f"Loaded {num_db} database time series and {num_queries} queries for DTW.")
 
     if k_tab is None:
         k_tab = [1, 10, 100]
@@ -45,9 +46,9 @@ def bruteForceDTW_gt(dim: int,
         idx = np.argsort(all_distances, axis=1)[:, :k]
         dists = np.take_along_axis(all_distances, idx, axis=1)
 
-        saveOutput(f"bruteForce_gtDTW_I_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", idx, metric_name="DTW")
-        saveOutput(f"bruteForce_gtDTW_D_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", dists, is_distance=True, metric_name="DTW")
+        saveOutput(f"bruteForce_gtDTW_I_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", idx)
+        saveOutput(f"bruteForce_gtDTW_D_{db_name}_len{dim}_size{num_db}_q{num_queries}_k{k}", dists, is_distance=True)
 
 if __name__ == '__main__':
     print("--- Generating DTW Ground Truth (Parallel) ---")
-    run_all_datasets(bruteForceDTW_gt)
+    run_all_datasets(bruteForceDTW_gt, dtw_query_percentage=1.0)

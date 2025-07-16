@@ -125,7 +125,8 @@ def find_dataset_pairs(data_folder: str) -> list[tuple[str, str]]:
 def run_all_datasets(groundtruth_function,
                      override_num_queries: int | None = None,
                      override_k_tab: list[int] | None = None,
-                     default_num_queries_for_dtw: int = 10) -> None:
+                     default_num_queries_for_dtw: int = 10,
+                     dtw_query_percentage: float = 0.1) -> None:
     """
     @brief Run brute-force search on all dataset pairs found in './data' using a provided groundtruth function.
 
@@ -134,6 +135,7 @@ def run_all_datasets(groundtruth_function,
     @param override_k_tab: Optional override for list of 'k' values in top-k search
     @param default_num_queries_for_dtw: Default number of queries to use if groundtruth_function is DTW specific
                                         and no override_num_queries is provided.
+    @param dtw_query_percentage: Percentage of available queries to use for DTW (default 0.1 = 10%)
     @return: None
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -151,7 +153,9 @@ def run_all_datasets(groundtruth_function,
         if NUM_QUERIES is None:
             # Check if the function name indicates DTW to apply specific default
             if "DTW" in groundtruth_function.__name__:
-                NUM_QUERIES = min(parsed_num_queries, default_num_queries_for_dtw)
+                # Use percentage-based approach for DTW, with a minimum from default_num_queries_for_dtw
+                percentage_queries = int(parsed_num_queries * dtw_query_percentage)
+                NUM_QUERIES = max(percentage_queries, min(parsed_num_queries, default_num_queries_for_dtw))
             else:
                 NUM_QUERIES = parsed_num_queries # Use all queries for L2 by default
 
