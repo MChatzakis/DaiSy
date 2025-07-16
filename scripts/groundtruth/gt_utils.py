@@ -45,7 +45,7 @@ def saveOutput(filename_prefix: str,
 =    @return: None
     @side_effects: Creates output directories and writes text files.
     """
-    base_folder = "./tests/gt/"
+    base_folder = "./tests/groundtruth/"
 
     if is_distance:
         folder = os.path.join(base_folder, "Distances")
