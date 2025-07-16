@@ -35,29 +35,25 @@ def formatFile_query(filename: str,
 
 def saveOutput(filename_prefix: str,
                data_array: np.ndarray,
-               is_distance: bool = False,
-               metric_name: str = "L2") -> None:
+               is_distance: bool = False) -> None:
     """
     @brief Save the output array to a .txt file.
 
     @param filename_prefix: Filename stem
     @param data_array: NumPy Array of indices or distances
     @param is_distance: Boolean flag to check if it is distance data (for folder routing)
-    @param metric_name: Name of the metric (e.g., "L2", "DTW") for folder routing
-    @return: None
+=    @return: None
     @side_effects: Creates output directories and writes text files.
     """
     base_folder = "./tests/gt/"
 
     if is_distance:
-        # Changed from f"Distances_{metric_name}"
         folder = os.path.join(base_folder, "Distances")
         os.makedirs(folder, exist_ok=True)
         output_filename = os.path.join(folder, f"{filename_prefix}.txt")
         np.savetxt(output_filename, data_array, fmt='%.15f')
         print(f"Saved output to {output_filename}")
     else:
-        # Changed from f"Indices_{metric_name}"
         folder = os.path.join(base_folder, "Indices")
         os.makedirs(folder, exist_ok=True)
         output_filename = os.path.join(folder, f"{filename_prefix}.txt")
@@ -129,7 +125,8 @@ def find_dataset_pairs(data_folder: str) -> list[tuple[str, str]]:
 def run_all_datasets(groundtruth_function,
                      override_num_queries: int | None = None,
                      override_k_tab: list[int] | None = None,
-                     default_num_queries_for_dtw: int = 10) -> None:
+                     default_num_queries_for_dtw: int = 10,
+                     dtw_query_percentage: float = 0.1) -> None:
     """
     @brief Run brute-force search on all dataset pairs found in './data' using a provided groundtruth function.
 
@@ -138,6 +135,7 @@ def run_all_datasets(groundtruth_function,
     @param override_k_tab: Optional override for list of 'k' values in top-k search
     @param default_num_queries_for_dtw: Default number of queries to use if groundtruth_function is DTW specific
                                         and no override_num_queries is provided.
+    @param dtw_query_percentage: Percentage of available queries to use for DTW (default 0.1 = 10%)
     @return: None
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -155,7 +153,9 @@ def run_all_datasets(groundtruth_function,
         if NUM_QUERIES is None:
             # Check if the function name indicates DTW to apply specific default
             if "DTW" in groundtruth_function.__name__:
-                NUM_QUERIES = min(parsed_num_queries, default_num_queries_for_dtw)
+                # Use percentage-based approach for DTW, with a minimum from default_num_queries_for_dtw
+                percentage_queries = int(parsed_num_queries * dtw_query_percentage)
+                NUM_QUERIES = max(percentage_queries, min(parsed_num_queries, default_num_queries_for_dtw))
             else:
                 NUM_QUERIES = parsed_num_queries # Use all queries for L2 by default
 

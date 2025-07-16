@@ -4,14 +4,14 @@
 const char *astro_data = "../data/astronomy.data.len256.size50000.znorm.bin";
 const char *astro_query = "../data/astronomy.query.len256.size100.znorm.bin";
 const char *astro_name = "AstronomyData_q100";
-const char *astro_gt_data = "../tests/gt/Indices/bruteForce_gt_I_astronomy_len256_size50000_q100_k";
-const char *astro_gt_query = "../tests/gt/Distances/bruteForce_gt_D_astronomy_len256_size50000_q100_k";
+const char *astro_gt_data = "../tests/gt/Indices/bruteForce_gtFAISS_I_astronomy_len256_size50000_q100_k";
+const char *astro_gt_query = "../tests/gt/Distances/bruteForce_gtFAISS_D_astronomy_len256_size50000_q100_k";
 
 const char *random_data = "../data/random.data.randwalk.len96.size200000.znorm.bin";
 const char *random_query = "../data/random.query.randwalk.len96.size1000.bin";
 const char *random_name = "RandomWalkData_q1000";
-const char *random_gt_data = "../tests/gt/Indices/bruteForce_gt_I_random_len96_size200000_q1000_k";
-const char *random_gt_query = "../tests/gt/Distances/bruteForce_gt_D_random_len96_size200000_q1000_k";
+const char *random_gt_data = "../tests/gt/Indices/bruteForce_gtFAISS_I_random_len96_size200000_q1000_k";
+const char *random_gt_query = "../tests/gt/Distances/bruteForce_gtFAISS_D_random_len96_size200000_q1000_k";
 
 std::vector<SSTestConfig> generate_configs(
     const char *name,
