@@ -82,6 +82,45 @@ if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_bruteforce_L2Square.")
 endif()
 
+# ////// BRUTEFORCE DTW //////
+if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "Attempting to add executable: test_bruteforce_dtw")
+endif()
+add_executable(
+    test_bruteforce_dtw
+    test_bruteforce_dtw.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "Executable test_bruteforce_dtw added.")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Linking libraries for test_bruteforce_dtw...")
+endif()
+target_link_libraries(
+    test_bruteforce_dtw
+    PRIVATE
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+if(DEBUG_MSG)
+    message(STATUS "Libraries linked for test_bruteforce_dtw.")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Adding include directories for test_bruteforce_dtw...")
+endif()
+target_include_directories(test_bruteforce_dtw
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+if(DEBUG_MSG)
+    message(STATUS "Include directories added for test_bruteforce_dtw.")
+endif()
+
 # ////// LBBRUTEFORCE L2Square //////
 if(DEBUG_MSG)
     message(STATUS "---")

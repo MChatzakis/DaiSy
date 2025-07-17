@@ -45,6 +45,11 @@ namespace diNoLib
         float l2_dist_SIMD(float *t, float *s, int dim, float bound);
         float l2_dist_naive(float *t, float *s, int dim, float bound);
 
+        // DTW distance methods
+        float dtw_dist_method(float *t, float *s, int dim, float bound);
+        float dtw_dist_SIMD(float *t, float *s, int dim, float bound);
+        float dtw_dist_naive(float *t, float *s, int dim, float bound);
+
     public:
         // Constructor
         DistanceComputer(DistanceType distance_type)
@@ -60,10 +65,7 @@ namespace diNoLib
         }
 
         // Destructor
-        ~DistanceComputer()
-        {
-            // TODO
-        }
+        ~DistanceComputer() = default;
 
         float compute_dist(float *t,
                            float *s,
