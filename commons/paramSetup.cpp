@@ -13,6 +13,12 @@ const char *random_name = "RandomWalkData_q1000";
 const char *random_gt_data = "../tests/groundtruth/Indices/bruteForce_gtFAISS_I_random_len96_size200000_q1000_k";
 const char *random_gt_query = "../tests/groundtruth/Distances/bruteForce_gtFAISS_D_random_len96_size200000_q1000_k";
 
+// DTW-specific groundtruth paths
+const char *astro_gt_dtw_data = "../tests/groundtruth/Indices/bruteForce_gtDTW_I_astronomy_len256_size50000_q100_k";
+const char *astro_gt_dtw_query = "../tests/groundtruth/Distances/bruteForce_gtDTW_D_astronomy_len256_size50000_q100_k";
+const char *random_gt_dtw_data = "../tests/groundtruth/Indices/bruteForce_gtDTW_I_random_len96_size200000_q1000_k";
+const char *random_gt_dtw_query = "../tests/groundtruth/Distances/bruteForce_gtDTW_D_random_len96_size200000_q1000_k";
+
 std::vector<SSTestConfig> generate_configs(
     const char *name,
     const char *data,
@@ -40,6 +46,19 @@ const std::vector<SSTestConfig> test_configs = []
 
     configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
     configs.insert(configs.end(), random_configs.begin(), random_configs.end());
+
+    return configs;
+}();
+
+const std::vector<SSTestConfig> test_configs_dtw = []
+{
+    std::vector<SSTestConfig> configs;
+
+    auto astro_configs_dtw = generate_configs(astro_name, astro_data, astro_query, astro_gt_dtw_data, astro_gt_dtw_query);
+    auto random_configs_dtw = generate_configs(random_name, random_data, random_query, random_gt_dtw_data, random_gt_dtw_query);
+
+    configs.insert(configs.end(), astro_configs_dtw.begin(), astro_configs_dtw.end());
+    configs.insert(configs.end(), random_configs_dtw.begin(), random_configs_dtw.end());
 
     return configs;
 }();

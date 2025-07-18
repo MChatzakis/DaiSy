@@ -1,7 +1,39 @@
+#include "test_utils.hpp"
+#include "../commons/test_bm_utils.hpp"
+#include "../commons/paramSetup.hpp"
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/Bruteforce.hpp"
 
-int main()
+std::string prefix = "bruteForce";
+
+TEST_P(BruteforceDTWParameterizedTest, AllConfigurations)
+{
+    const SSTestConfig &config = GetParam();
+
+    std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
+    std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
+
+    runSSTWithDistance(
+        diNoLib::DistanceType::DTW,
+        prefix,
+        gt_I_path,
+        gt_D_path,
+        config.dataset_path,
+        config.query_path,
+        config.thread_count);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    BruteforceDTWTests,
+    BruteforceDTWParameterizedTest,
+    ::testing::ValuesIn(test_configs_dtw),
+    [](const ::testing::TestParamInfo<SSTestConfig> &info)
+    {
+        return info.param.name + "_k" + std::to_string(info.param.k_value) +
+               "_thread" + std::to_string(info.param.thread_count);
+    });
+
+// Additional manual tests for DTW-specific functionality
+TEST(BruteforceDTWManualTests, BasicDTWFunctionality)
 {
     printf("Testing BruteForce DTW integration...\n");
 
@@ -33,14 +65,17 @@ int main()
             }
         }
 
-        printf("   DTW Results are valid: %s\n", has_valid_results ? "PASS" : "FAIL");
+        EXPECT_TRUE(has_valid_results) << "DTW Results should be valid";
 
         delete[] database;
         delete[] query;
         delete[] I;
         delete[] D;
     }
+}
 
+TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
+{
     // Test 2: Compare DTW vs L2_SQUARED results are different
     {
         printf("Test 2: DTW vs L2_SQUARED produce different results...\n");
@@ -77,7 +112,7 @@ int main()
             }
         }
 
-        printf("   DTW and L2_SQUARED produce different results: %s\n", results_different ? "PASS" : "FAIL");
+        EXPECT_TRUE(results_different) << "DTW and L2_SQUARED should produce different results";
 
         delete[] database;
         delete[] query;
@@ -86,7 +121,10 @@ int main()
         delete[] I_l2;
         delete[] D_l2;
     }
+}
 
+TEST(BruteforceDTWManualTests, DTWMultiThreading)
+{
     // Test 3: Thread safety test
     {
         printf("Test 3: DTW multi-threading...\n");
@@ -116,7 +154,7 @@ int main()
             }
         }
 
-        printf("   Multi-threaded DTW results are valid: %s\n", all_valid ? "PASS" : "FAIL");
+        EXPECT_TRUE(all_valid) << "Multi-threaded DTW results should be valid";
 
         delete[] database;
         delete[] query;
@@ -125,5 +163,10 @@ int main()
     }
 
     printf("\nAll DTW integration tests completed!\n");
-    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

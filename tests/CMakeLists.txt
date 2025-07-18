@@ -90,6 +90,7 @@ endif()
 add_executable(
     test_bruteforce_dtw
     test_bruteforce_dtw.cpp
+    test_utils.cpp
 )
 if(DEBUG_MSG)
     message(STATUS "Executable test_bruteforce_dtw added.")
@@ -101,6 +102,7 @@ endif()
 target_link_libraries(
     test_bruteforce_dtw
     PRIVATE
+    GTest::gtest_main
     dino_lib
     commons_lib
     stdc++fs
@@ -119,6 +121,17 @@ target_include_directories(test_bruteforce_dtw
 )
 if(DEBUG_MSG)
     message(STATUS "Include directories added for test_bruteforce_dtw.")
+endif()
+
+if(DEBUG_MSG)
+    message(STATUS "Discovering tests for test_bruteforce_dtw...")
+endif()
+gtest_discover_tests(
+    test_bruteforce_dtw
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+if(DEBUG_MSG)
+    message(STATUS "Tests discovered for test_bruteforce_dtw.")
 endif()
 
 # ////// LBBRUTEFORCE L2Square //////
