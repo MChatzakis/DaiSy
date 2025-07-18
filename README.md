@@ -351,10 +351,10 @@ cmake --build .
 
 ### C++ Demos
 
-To run any compiled C++ demo, navigate to your `build/` directory and execute the specific demo file. For example, to run `demo_Odyssey`:
+To run any compiled C++ demo, navigate to your `build/` directory and execute the specific demo file. For example, to run `demo_Odyssey_L2Square`:
 
 ```bash
-./demos/demo_Odyssey
+./demos/demo_Odyssey_L2Square
 ```
 
 ### Python Demos
@@ -371,7 +371,7 @@ python3.12 ./demo_gui.py
 
 _Note: replace `python3.12` with your current version._
 
-#### `demo_bruteforce` and `demo_LbBruteforce`
+#### `demo_bruteforce_L2Square` and `demo_LbBruteforce_L2Square`
 
 For these demos, run these commands:
 
@@ -379,14 +379,14 @@ For these demos, run these commands:
 python3.12 ./demo_X.py
 ```
 
-_Note: replace `python3.12` with your current version. 'X' is the name of the algo (e.g., `./demo_bruteforce`)._
+_Note: replace `python3.12` with your current version. 'X' is the name of the algo (e.g., `./demo_bruteforce_L2Square`)._
 
-#### `demo_Odyssey`
+#### `demo_Odyssey_L2Square`
 
-To run the demo_Odyssey Python script, which utilizes MPI, execute it from the demos/ folder using mpirun:
+To run the demo_Odyssey_L2Square Python script, which utilizes MPI, execute it from the demos/ folder using mpirun:
 
 ```bash
-mpirun -np 4 python ../demos/demo_Odyssey.py
+mpirun -np 4 python ../demos/demo_Odyssey_L2Square.py
 ```
 
 ## Running Tests
