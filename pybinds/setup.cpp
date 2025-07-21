@@ -18,6 +18,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
     ////// DISTANCETYPE //////
     pybind11::enum_<diNoLib::DistanceType>(m, "DistanceType")
         .value("L2_SQUARED", diNoLib::DistanceType::L2_SQUARED)
+        .value("DTW", diNoLib::DistanceType::DTW)
         .export_values();
 
     ////// BRUTEFORCE //////
@@ -143,7 +144,53 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                         static_cast<pybind11::ssize_t>(sizeof(float))
                     }
                 ))
-            ); }, "Search the index with queries and return (indices, distances)");
+            ); }, "Search the index with queries and return (indices, distances)")
+
+        // Search the index using DTW distance specifically
+        .def("searchIndexDTW", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+             {
+            pybind11::buffer_info buf = query.request();
+            if (buf.ndim != 2) 
+                throw std::runtime_error("Query array must be 2D");
+
+            std::vector<diNoLib::idx_t> indices(buf.shape[0] * k);
+            std::vector<float> distances(buf.shape[0] * k);
+
+            self.searchIndexDTW(static_cast<float *>(buf.ptr), buf.shape[0], k, indices.data(), distances.data());
+
+            return pybind11::make_tuple(
+                pybind11::array_t<diNoLib::idx_t>(
+                    std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)}, 
+                    indices.data()
+                ),
+                pybind11::array_t<float>(
+                    std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)}, 
+                    distances.data()
+                )
+            ); }, "Search the index using DTW distance and return (indices, distances)")
+
+        // Search the index using L2 squared distance specifically
+        .def("searchIndexL2Squared", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+             {
+            pybind11::buffer_info buf = query.request();
+            if (buf.ndim != 2) 
+                throw std::runtime_error("Query array must be 2D");
+
+            std::vector<diNoLib::idx_t> indices(buf.shape[0] * k);
+            std::vector<float> distances(buf.shape[0] * k);
+
+            self.searchIndexL2Squared(static_cast<float *>(buf.ptr), buf.shape[0], k, indices.data(), distances.data());
+
+            return pybind11::make_tuple(
+                pybind11::array_t<diNoLib::idx_t>(
+                    std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)}, 
+                    indices.data()
+                ),
+                pybind11::array_t<float>(
+                    std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)}, 
+                    distances.data()
+                )
+            ); }, "Search the index using L2 squared distance and return (indices, distances)");
 
     ////// MESSI //////
     pybind11::class_<diNoLib::Messi>(m, "Messi", "MESSI (Multi-Queue Efficient SAX Similarity Index) algorithm for time series similarity search")

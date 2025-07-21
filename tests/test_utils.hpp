@@ -104,6 +104,19 @@ protected:
 };
 
 /**
+ * @brief LbBruteforceDTWParameterizedTest
+ */
+class LbBruteforceDTWParameterizedTest : public SimilaritySearchTest,
+                                         public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+/**
  * @brief MessiParameterizedTest
  */
 class MessiParameterizedTest : public SimilaritySearchTest,

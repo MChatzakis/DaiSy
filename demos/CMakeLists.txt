@@ -44,30 +44,30 @@ if(BUILD_DEMO)
     endif()
 
     if(DEBUG_MSG)
-        message(STATUS "Attempting to add executable: demo_bruteforce_dtw")
+        message(STATUS "Attempting to add executable: demo_bruteforce_DTW")
     endif()
-    add_executable(demo_bruteforce_dtw demo_bruteforce_dtw.cpp)
+    add_executable(demo_bruteforce_DTW demo_bruteforce_DTW.cpp)
     if(DEBUG_MSG)
-        message(STATUS "Executable demo_bruteforce_dtw added.")
+        message(STATUS "Executable demo_bruteforce_DTW added.")
     endif()
 
     if(DEBUG_MSG)
-        message(STATUS "Linking libraries for demo_bruteforce_dtw...")
+        message(STATUS "Linking libraries for demo_bruteforce_DTW...")
     endif()
-    target_link_libraries(demo_bruteforce_dtw PRIVATE dino_lib commons_lib)
+    target_link_libraries(demo_bruteforce_DTW PRIVATE dino_lib commons_lib)
     if(DEBUG_MSG)
-        message(STATUS "Libraries linked for demo_bruteforce_dtw.")
+        message(STATUS "Libraries linked for demo_bruteforce_DTW.")
     endif()
 
     if(DEBUG_MSG)
-        message(STATUS "Adding include directories for demo_bruteforce_dtw...")
+        message(STATUS "Adding include directories for demo_bruteforce_DTW...")
     endif()
-    target_include_directories(demo_bruteforce_dtw PRIVATE
+    target_include_directories(demo_bruteforce_DTW PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
     )
     if(DEBUG_MSG)
-        message(STATUS "Include directories added for demo_bruteforce_dtw.")
+        message(STATUS "Include directories added for demo_bruteforce_DTW.")
     endif()
     
     # ////// LBBRUTEFORCE L2Square //////
@@ -101,6 +101,39 @@ if(BUILD_DEMO)
     )
     if(DEBUG_MSG)
         message(STATUS "Include directories added for demo_LbBruteforce_L2Square.")
+    endif()
+
+    # ////// LBBRUTEFORCE DTW //////
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "## Demo: LbBruteforce DTW")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Attempting to add executable: demo_LbBruteforce_DTW")
+    endif()
+    add_executable(demo_LbBruteforce_DTW demo_LbBruteforce_DTW.cpp)
+    if(DEBUG_MSG)
+        message(STATUS "Executable demo_LbBruteforce_DTW added.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for demo_LbBruteforce_DTW...")
+    endif()
+    target_link_libraries(demo_LbBruteforce_DTW PRIVATE dino_lib commons_lib)
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for demo_LbBruteforce_DTW.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for demo_LbBruteforce_DTW...")
+    endif()
+    target_include_directories(demo_LbBruteforce_DTW PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for demo_LbBruteforce_DTW.")
     endif()
 
     # ////// MESSI L2Square //////
