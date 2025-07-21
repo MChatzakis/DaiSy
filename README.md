@@ -13,8 +13,8 @@
 2. [Installation](#installation)
    - 2.1. [Submodules](#submodules)
    - 2.2. [Installing tkinter](#installing-tkinter)
-   - 2.3. [Installing MPI](#installing-mpi)
-   - 2.4. [Installing CUDA](#installing-cuda)
+   - 2.3. [Installing MPI for Odyssey](#installing-mpi-for-odyssey)
+   - 2.4. [Installing CUDA for SING](#installing-cuda-for-sing)
 3. [Environment Setup](#environment-setup)
    - 3.1. [diNo Environment](#dino-environment)
    - 3.2. [FAISS Environment](#faiss-environment)
@@ -260,7 +260,7 @@ _Note: replace `python3.12` with your current version._
 conda env create -f environment_diNo.yml
 ```
 
-_Replace `my_custom_env` with your preferred environment name._
+_Replace `diNo_env` with your preferred environment name._
 
 ### FAISS Environment
 
@@ -306,7 +306,7 @@ pip install -r requirements_faiss.txt
 conda env create -f environment_faiss.yml
 ```
 
-_Note: Replace `my_custom_env` with your preferred environment name._
+_Note: Replace `faiss_env` with your preferred environment name._
 
 ## Building with CMake
 

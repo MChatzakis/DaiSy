@@ -8,7 +8,9 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
                                   const std::string &gt_D,
                                   const std::string &dataset_path,
                                   const std::string &query_path,
-                                  int num_thread)
+                                  int num_thread,
+                                  double rtol,
+                                  double atol)
 {
     std::string filename_gt = pathToFilename(gt_I);
     std::string dataset_name = pathToFilename(dataset_path);
@@ -46,8 +48,10 @@ void SimilaritySearchTest::runSSTWithDistance(diNoLib::DistanceType distance_typ
                                               const std::string &gt_D,
                                               const std::string &dataset_path,
                                               const std::string &query_path,
-                                              int num_thread)
+                                              int num_thread,
+                                              double rtol,
+                                              double atol)
 {
     diNoLib::BruteForceSearch search(distance_type);
-    runSST(&search, prefix_name, gt_I, gt_D, dataset_path, query_path, num_thread);
+    runSST(&search, prefix_name, gt_I, gt_D, dataset_path, query_path, num_thread, rtol, atol);
 }

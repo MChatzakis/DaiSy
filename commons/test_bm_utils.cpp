@@ -137,7 +137,9 @@ void compareWithGroundTruth(const std::string &pathI,
                             const diNoLib::idx_t *I,
                             float *D,
                             diNoLib::idx_t n_query,
-                            diNoLib::idx_t k)
+                            diNoLib::idx_t k,
+                            double rtol,
+                            double atol)
 {
     size_t sizeI;
     size_t sizeD;
@@ -153,17 +155,22 @@ void compareWithGroundTruth(const std::string &pathI,
         {
             auto idx = i * k + j;
             bool I_equal = isclose(I[idx], static_cast<diNoLib::idx_t>(arrayI_gt[idx]));
-            bool D_close = isclose(D[idx], arrayD_gt[idx], 1e-2, 1e-8);
+            bool D_close = isclose(D[idx], arrayD_gt[idx], rtol, atol);
 
             if (!I_equal && !D_close)
             {
                 // Error case 1
-                add_failure("ERROR 1: Indices mismatch AND distance mismatch at (" + std::to_string(i) + "," + std::to_string(j) + "): " + "expected label " + std::to_string(arrayI_gt[idx]) + ", got " + std::to_string(I[idx]) + "; " + "expected distance " + std::to_string(arrayD_gt[idx]) + ", got " + std::to_string(D[idx]));
+                add_failure("ERROR 1: Indices mismatch AND distance mismatch at (" + std::to_string(i) + "," + std::to_string(j) + "): " +
+                            "expected label " + std::to_string(arrayI_gt[idx]) + ", got " +
+                            std::to_string(I[idx]) + "; " + "expected distance " +
+                            std::to_string(arrayD_gt[idx]) + ", got " + std::to_string(D[idx]));
             }
             else if (I_equal && !D_close)
             {
                 // Error case 2
-                add_failure("ERROR 2: Indices mismatch AND distance mismatch at (" + std::to_string(i) + "," + std::to_string(j) + "): " + "expected label " + std::to_string(arrayI_gt[idx]) + ", got " + std::to_string(I[idx]) + "; " + "expected distance " + std::to_string(arrayD_gt[idx]) + ", got " + std::to_string(D[idx]));
+                add_failure("ERROR 2: Indices match BUT distance mismatch at (" + std::to_string(i) + "," + std::to_string(j) + "): " +
+                            "label " + std::to_string(I[idx]) + "; expected distance " +
+                            std::to_string(arrayD_gt[idx]) + ", got " + std::to_string(D[idx]));
             }
             else if (!I_equal && D_close)
             {

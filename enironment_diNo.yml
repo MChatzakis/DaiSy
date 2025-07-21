@@ -1,0 +1,7 @@
+name: diNo_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy=2.2.6
+  - mpi4py=4.0.3
