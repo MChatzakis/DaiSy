@@ -35,7 +35,9 @@ protected:
                 const std::string &gt_D,
                 const std::string &dataset_path,
                 const std::string &query_path,
-                int num_thread = 1);
+                int num_thread = 1,
+                double rtol = 1e-2,
+                double atol = 1e-8);
 
     /**
      * @brief Run a similarity search test with a specific distance type
@@ -54,7 +56,9 @@ protected:
                             const std::string &gt_D,
                             const std::string &dataset_path,
                             const std::string &query_path,
-                            int num_thread = 1);
+                            int num_thread = 1,
+                            double rtol = 1e-2,
+                            double atol = 1e-8);
 };
 
 /**

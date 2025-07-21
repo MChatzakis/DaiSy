@@ -47,5 +47,6 @@
         "variant": "cpp",
         "chrono": "cpp",
         "regex": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

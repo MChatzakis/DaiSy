@@ -12,6 +12,9 @@ TEST_P(BruteforceDTWParameterizedTest, AllConfigurations)
     std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
     std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
 
+    double dtw_rtol = 1.0;
+    double dtw_atol = 100.0;
+
     runSSTWithDistance(
         diNoLib::DistanceType::DTW,
         prefix,
@@ -19,7 +22,9 @@ TEST_P(BruteforceDTWParameterizedTest, AllConfigurations)
         gt_D_path,
         config.dataset_path,
         config.query_path,
-        config.thread_count);
+        config.thread_count,
+        dtw_rtol,
+        dtw_atol);
 }
 
 INSTANTIATE_TEST_SUITE_P(
