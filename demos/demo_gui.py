@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from scripts.gui_config_param import get_config, search_classes
 
-from diNoSimilaritySearch import DistanceType, BruteForceSearch, LbBruteforce, Odyssey #, Messi, Odyssey, ParIS, Sing
+from diNoSimilaritySearch import DistanceType #, BruteForceSearch, LbBruteforce, Odyssey #, Messi, Odyssey, ParIS, Sing
 
 def main():
 # With the GUI
@@ -18,6 +18,10 @@ def main():
 
     filename_db   = params["Dataset Path"]
     filename_query= params["Query Path"]
+    use_subset    = params["Use Dataset Subset"]
+    subset_size   = params["Dataset Subset Size"]
+    use_query_subset = params["Use Query Subset"]
+    query_subset_size = params["Query Subset Size"]
     n_database    = params["Number of Database Vectors"]
     dim           = params["Vector Dimensionality"]    
     nq            = params["Query Number"]
@@ -28,18 +32,48 @@ def main():
 
     # 1. Loading
         # database vectors from file and reshape based on input dims
-    db = np.fromfile(filename_db, dtype='float32')
-    try:
-        db = db.reshape((n_database, dim))
-    except ValueError:
-        raise ValueError(f"Could not reshape database vectors to ({n_database}, {dim})")
+    if use_subset and subset_size:
+        print(f"Loading subset of {subset_size} vectors from dataset...")
+        # Calculate how many bytes to read for the subset
+        bytes_to_read = subset_size * dim * 4  # 4 bytes per float32
+        with open(filename_db, 'rb') as f:
+            db_bytes = f.read(bytes_to_read)
+        db = np.frombuffer(db_bytes, dtype='float32')
+        try:
+            db = db.reshape((subset_size, dim))
+        except ValueError:
+            raise ValueError(f"Could not reshape database subset to ({subset_size}, {dim})")
+        print(f"Successfully loaded {db.shape[0]} vectors from dataset subset")
+    else:
+        print(f"Loading full dataset with {n_database} vectors...")
+        db = np.fromfile(filename_db, dtype='float32')
+        try:
+            db = db.reshape((n_database, dim))
+        except ValueError:
+            raise ValueError(f"Could not reshape database vectors to ({n_database}, {dim})")
+        print(f"Successfully loaded {db.shape[0]} vectors from full dataset")
 
         # queries
-    query_all = np.fromfile(filename_query, dtype='float32')
-    try:
-        query_all = query_all.reshape((-1, dim))
-    except ValueError:
-        raise ValueError(f"Could not reshape query vectors with dimension {dim}")
+    if use_query_subset and query_subset_size:
+        print(f"Loading subset of {query_subset_size} queries from query file...")
+        # Calculate how many bytes to read for the query subset
+        query_bytes_to_read = query_subset_size * dim * 4  # 4 bytes per float32
+        with open(filename_query, 'rb') as f:
+            query_bytes = f.read(query_bytes_to_read)
+        query_all = np.frombuffer(query_bytes, dtype='float32')
+        try:
+            query_all = query_all.reshape((query_subset_size, dim))
+        except ValueError:
+            raise ValueError(f"Could not reshape query subset to ({query_subset_size}, {dim})")
+        print(f"Successfully loaded {query_all.shape[0]} queries from query subset")
+    else:
+        print("Loading full query file...")
+        query_all = np.fromfile(filename_query, dtype='float32')
+        try:
+            query_all = query_all.reshape((-1, dim))
+        except ValueError:
+            raise ValueError(f"Could not reshape query vectors with dimension {dim}")
+        print(f"Successfully loaded {query_all.shape[0]} queries from full query file")
 
     query = query_all[:nq]
 

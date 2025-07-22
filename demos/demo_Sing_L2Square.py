@@ -17,7 +17,7 @@ def main():
     k = 5
 
     # 1. Generate random data and queries
-    np.random.seed(100)  # to match the seed from C++ if needed
+    np.random.seed(100)   
     db = np.random.randn(n_database, dim).astype(np.float32)
 
     np.random.seed(50)

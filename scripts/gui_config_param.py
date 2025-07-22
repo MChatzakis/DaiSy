@@ -79,8 +79,26 @@ def store_input() -> None:
         return
 
     try:
-        ndb_val = int(ndb_entry.get())
-        n_query_val = int(n_query_entry.get())
+        # Validate dataset subset configuration
+        if use_subset_var.get():
+            subset_val = int(subset_size_entry.get())
+            if subset_val <= 0:
+                raise ValueError("Dataset subset size must be positive")
+            ndb_val = subset_val  # Use subset size as n_database
+        else:
+            ndb_val = int(ndb_entry.get())
+            subset_val = None  # No subset used
+        
+        # Validate query subset configuration
+        if use_query_subset_var.get():
+            query_subset_val = int(query_subset_size_entry.get())
+            if query_subset_val <= 0:
+                raise ValueError("Query subset size must be positive")
+            n_query_val = query_subset_val  # Use subset size as n_query
+        else:
+            n_query_val = int(n_query_entry.get())
+            query_subset_val = None  # No subset used
+            
         dim_val = int(dim_entry.get())
         query_val = int(query_entry.get())
         k_val = int(k_entry.get())
@@ -96,13 +114,17 @@ def store_input() -> None:
             messagebox.showerror("Input Error", "Query Number cannot exceed Number of Query Vectors.")
             return
 
-    except ValueError:
-        messagebox.showerror("Input Error", "Please enter valid integers for all numeric fields.")
+    except ValueError as e:
+        messagebox.showerror("Input Error", f"Please enter valid values: {str(e)}")
         return
 
     user_inputs = {
         "Dataset Path": user_dataset_path.get(),
         "Query Path": user_query_path.get(),
+        "Use Dataset Subset": use_subset_var.get(),
+        "Dataset Subset Size": subset_val,
+        "Use Query Subset": use_query_subset_var.get(),
+        "Query Subset Size": query_subset_val,
         "Number of Database Vectors": ndb_val,
         "Number of Query Vectors": n_query_val, 
         "Vector Dimensionality": dim_val,
@@ -128,11 +150,11 @@ def get_config() -> dict:
     window.mainloop()
     return user_inputs
 
-def param_gui() -> Optional[Tuple[str, str, int, int, int, int, int, str, str, int]]:
+def param_gui() -> Optional[Tuple[str, str, bool, Optional[int], bool, Optional[int], int, int, int, int, int, str, str, int]]:
     """
     @brief Launch GUI and collect user-defined parameters for search.
 
-    @return: Tuple,
+    @return: Tuple containing all configuration parameters,
              or None if no configuration is provided
     @throws KeyError: If a required configuration key is missing
     """    
@@ -142,6 +164,10 @@ def param_gui() -> Optional[Tuple[str, str, int, int, int, int, int, str, str, i
             return (
                 config["Dataset Path"],
                 config["Query Path"],
+                config["Use Dataset Subset"],
+                config["Dataset Subset Size"],
+                config["Use Query Subset"],
+                config["Query Subset Size"],
                 config["Number of Database Vectors"],   
                 config["Number of Query Vectors"],   
                 config["Vector Dimensionality"],        
@@ -262,6 +288,34 @@ ttk.Entry(dataset_frame, textvariable=user_query_path, state="readonly", width=8
 input_frame = ttk.LabelFrame(main_frame, text="Parameters", padding=10)
 input_frame.pack(fill="x", pady=10)
 
+# Use Dataset Subset Option
+use_subset_var = tk.BooleanVar()
+use_subset_frame = ttk.Frame(input_frame)
+use_subset_frame.pack(anchor="w", pady=(10, 5))
+use_subset_check = ttk.Checkbutton(use_subset_frame, text="Use only a subset of the dataset", variable=use_subset_var)
+use_subset_check.pack(side="left")
+CreateToolTip(use_subset_check, "Enable this to use only a portion of the dataset instead of the full dataset.")
+
+# Dataset Subset Size (only enabled when use_subset is checked)
+subset_size_label = ttk.Label(input_frame, text="Dataset Subset Size:")
+subset_size_label.pack(anchor="w", pady=(5, 0))
+subset_size_entry = ttk.Entry(input_frame, width=13)
+subset_size_entry.pack(anchor="w")
+subset_size_entry.config(state="disabled")
+CreateToolTip(subset_size_entry, "Specify how many vectors to use from the dataset (when subset option is enabled).")
+
+def toggle_subset_entry():
+    if use_subset_var.get():
+        subset_size_entry.config(state="normal")
+        ndb_entry.config(state="disabled")
+        ndb_label.config(text="Number of Database Vectors (auto-set from subset):")
+    else:
+        subset_size_entry.config(state="disabled")
+        ndb_entry.config(state="normal")
+        ndb_label.config(text="Number of Database Vectors (n_database):")
+
+use_subset_check.config(command=toggle_subset_entry)
+
 # Number of Database Vectors (n_database)
 ndb_label = ttk.Label(input_frame, text="Number of Database Vectors (n_database):")
 ndb_label.pack(anchor="w", pady=(10, 0))
@@ -275,6 +329,34 @@ nquery_label.pack(anchor="w", pady=(10, 0))
 n_query_entry = ttk.Entry(input_frame, width=13)
 n_query_entry.pack(anchor="w")
 CreateToolTip(n_query_entry, "Specify the number of query vectors.")
+
+# Use Query Subset Option
+use_query_subset_var = tk.BooleanVar()
+use_query_subset_frame = ttk.Frame(input_frame)
+use_query_subset_frame.pack(anchor="w", pady=(10, 5))
+use_query_subset_check = ttk.Checkbutton(use_query_subset_frame, text="Use only a subset of the queries", variable=use_query_subset_var)
+use_query_subset_check.pack(side="left")
+CreateToolTip(use_query_subset_check, "Enable this to use only a portion of the query file instead of all queries.")
+
+# Query Subset Size (only enabled when use_query_subset is checked)
+query_subset_size_label = ttk.Label(input_frame, text="Query Subset Size:")
+query_subset_size_label.pack(anchor="w", pady=(5, 0))
+query_subset_size_entry = ttk.Entry(input_frame, width=13)
+query_subset_size_entry.pack(anchor="w")
+query_subset_size_entry.config(state="disabled")
+CreateToolTip(query_subset_size_entry, "Specify how many queries to use from the query file (when subset option is enabled).")
+
+def toggle_query_subset_entry():
+    if use_query_subset_var.get():
+        query_subset_size_entry.config(state="normal")
+        n_query_entry.config(state="disabled")
+        nquery_label.config(text="Number of Query Vectors (auto-set from subset):")
+    else:
+        query_subset_size_entry.config(state="disabled")
+        n_query_entry.config(state="normal")
+        nquery_label.config(text="Number of Query Vectors (n_query):")
+
+use_query_subset_check.config(command=toggle_query_subset_entry)
 
 # Vector Dimensionality (dim)
 dim_label = ttk.Label(input_frame, text="Vector Dimensionality (dim):")
