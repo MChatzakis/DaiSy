@@ -1,429 +1,367 @@
 # diNo Library
 
-**diNoSimilaritySearch** is a C++ and Python library for approximate nearest neighbor search. It includes:
+**diNoSimilaritySearch** is a high-performance C++ and Python library for nearest neighbor search on time series data. It provides multiple algorithms optimized for different use cases and computational environments.
 
-- C++ core library
-- Python bindings
-- Benchmarking tools
-- GoogleTest integration
+## Features
+
+- **Multiple Algorithms**: Brute force, Lower bound brute force, MESSI, Odyssey (MPI), SING (CUDA)
+- **Cross-Platform**: Support for Linux, macOS, and Windows
+- **Language Bindings**: Native C++ library with Python bindings
+- **Optimized**: CUDA and MPI support for GPU and distributed computing
+- **Well-Tested**: Comprehensive test suite with GoogleTest
+- **Benchmarking**: Built-in performance benchmarking tools
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/MChatzakis/diNo-lib.git
+cd diNo-lib
+git submodule update --init --recursive
+
+# Setup environment and build
+python3.12 -m venv diNo_env
+source diNo_env/bin/activate  # On Windows: .\diNo_env\Scripts\activate
+pip install -r requirements_diNo.txt
+
+# Build the library
+mkdir -p build && cd build
+cmake ..
+cmake --build .
+
+# Run a demo
+./demos/demo_bruteforce_L2Square
+```
 
 ## Table of Contents
 
-1. [Requirements](#requirements)
-2. [Installation](#installation)
-   - 2.1. [Submodules](#submodules)
-   - 2.2. [Installing tkinter](#installing-tkinter)
-   - 2.3. [Installing MPI for Odyssey](#installing-mpi-for-odyssey)
-   - 2.4. [Installing CUDA for SING](#installing-cuda-for-sing)
-3. [Environment Setup](#environment-setup)
-   - 3.1. [diNo Environment](#dino-environment)
-   - 3.2. [FAISS Environment](#faiss-environment)
-4. [Building with CMake](#building-with-cmake)
-5. [How to run Demos](#how-to-run-demos)
-   - 5.1. [C++ Demos](#c-demos)
-   - 5.2. [Python Demos](#python-demos)
-6. [Running Tests](#running-tests)
-7. [Running Benchmarks](#running-benchmarks)
-8. [Notes](#notes)
+1. [Features](#features)
+2. [Quick Start](#quick-start)
+3. [Requirements](#requirements)
+4. [Installation](#installation)
+   - 4.1. [Submodules](#submodules)
+   - 4.2. [Dependencies](#dependencies)
+5. [Environment Setup](#environment-setup)
+   - 5.1. [diNo Environment](#dino-environment)
+   - 5.2. [FAISS Environment](#faiss-environment)
+6. [Building with CMake](#building-with-cmake)
+7. [Usage](#usage)
+   - 7.1. [C++ Demos](#c-demos)
+   - 7.2. [Python Demos](#python-demos)
+8. [Running Tests](#running-tests)
+9. [Running Benchmarks](#running-benchmarks)
+10. [Troubleshooting](#troubleshooting)
+11. [License](#license)
 
 ## Requirements
 
-- **FAISS compatibility**: Python 3.8.16 / 3.9.17 / 3.10.13 (recommended)
-- **diNo Python API**: Python 3.12
-- **C++ Build**: Requires C++14 or higher
+### Core Requirements
+
+- **C++ Compiler**: C++14 or higher
 - **CMake**: Version 3.15+
-- **GoogleTest**: Included via CMake
-- **GoogleBenchmark**: Included via CMake
-- **MPI**: Required for Odyssey algorithm
+- **Python**: 3.10-3.12 (3.12 recommended for diNo, 3.10 for FAISS)
+
+### Optional Dependencies
+
+- **MPI**: Required for Odyssey algorithm (distributed computing)
+- **CUDA**: Required for SING algorithm (GPU acceleration)
+- **tkinter**: Required for GUI demos
+
+### Included via CMake
+
+- **GoogleTest**: Unit testing framework
+- **GoogleBenchmark**: Performance benchmarking
 
 ## Installation
 
 ### Submodules
 
-Before building, initialize submodules:
+Initialize git submodules before building:
 
-- `git submodule update --init --recursive`
+```bash
+git submodule update --init --recursive
+```
 
-### Installing `tkinter`
+### Dependencies
 
-- **Linux** (Ubuntu/Debian)
+Choose the components you need:
 
-  ```bash
-  sudo apt install python3.12-tk
-  ```
+#### Basic Setup (Core library only)
 
-(Adjust version as needed.)
+No additional dependencies required.
 
-- **macOS**
+#### GUI Demos (tkinter)
 
-  ```bash
-  brew install python-tk
-  ```
+- **Linux (Ubuntu/Debian)**:
 
-- **Windows**
+```bash
+sudo apt install python3-tk
+```
 
-  `tkinter` is included in the standard Python installer. Ensure "Tcl/Tk and IDLE" is selected during installation.
+- **macOS**:
 
-### Installing `MPI` for Odyssey
+```bash
+brew install python-tk
+```
 
-- **Linux** (Ubuntu/Debian)
+- **Windows**: Included with Python installer (ensure "Tcl/Tk and IDLE" is selected).
 
-  ```bash
-  sudo apt update
-  sudo apt install openmpi-bin openmpi-common libopenmpi-dev
-  ```
+#### Distributed Computing (MPI for Odyssey)
 
-- **macOS**
+- **Linux (Ubuntu/Debian)**:
 
-  ```bash
-  brew install open-mpi
-  ```
+```bash
+sudo apt update
+sudo apt install openmpi-bin openmpi-common libopenmpi-dev
+```
 
-- **Windows**
+- **macOS**:
 
-  Use WSL and follow Linux steps, or install MPICH natively. Ensure consistency with your build tools.
+```bash
+brew install open-mpi
+```
 
-### Installing `CUDA` for SING
+- **Windows**: Use WSL with Linux instructions, or install MPICH natively.
 
-- **Linux** (Ubuntu)
+#### GPU Acceleration (CUDA for SING)
 
-  1. Install Required Packages
+- **Linux**: See [detailed CUDA installation guide](docs/cuda-installation.md)
 
-  ```bash
-  sudo apt update
-  sudo apt install curl
-  ```
+- **macOS**: Not supported (NVIDIA discontinued macOS CUDA support)
 
-  _Updates package lists and installs curl for downloading files from the internet._
-
-  2. Install NVIDIA Drivers
-
-  ```bash
-  sudo ubuntu-drivers autoinstall
-  ```
-
-  _Note: While `ubuntu-drivers` autoinstall is convenient, for specific driver versions or more control (often preferred for CUDA), you might use `sudo apt install nvidia-driver-XXX` (e.g., `nvidia-driver-535`) after checking available drivers with `ubuntu-drivers devices`._
-
-  Then, make sure to reboot your system after driver installation.
-
-  ```bash
-  sudo reboot
-  ```
-
-  3. Add the NVIDIA GPG Key
-
-  ```bash
-  curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-cuda-keyring.gpg
-  ```
-
-  The curl `-fsSL` command ensures a silent, secure, and error-handled download.
-  The downloaded key is then piped (`|`) to `sudo gpg --dearmor`, which converts it into a binary format suitable for APT and saves it as `nvidia-cuda-keyring.gpg` in the `/usr/share/keyrings/` directory.
-
-  4. Add the CUDA Repository
-
-  ```bash
-  echo "deb [signed-by=/usr/share/keyrings/nvidia-cuda-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" | sudo tee /etc/apt/sources.list.d/cuda-repository.list
-  ```
-
-  _Adds the NVIDIA CUDA repository to your system's software sources._
-
-  5. Update the Package Repository
-
-  ```bash
-  sudo apt update
-  ```
-
-  6. Install the CUDA Toolkit
-
-  ```bash
-  sudo apt install cuda
-  ```
-
-  7. Set Up Environment Variables (Persistent)
-
-  ```bash
-  echo 'export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}' >> ~/.bashrc
-  echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}' >> ~/.bashrc
-  ```
-
-  _To make environment variables persistent, you should append them to a shell configuration file like ~/.bashrc (for Bash users). Using export directly in the terminal only sets them for the current session._
-
-  ```bash
-  source ~/.bashrc
-  ```
-
-  _Applies the updated environment variables to your current shell session._
-
-  8. Verification
-
-  ```bash
-  nvcc --version
-  ```
-
-- **macOS**
-
-_Nvidia stopped supporting macOS for CUDA._
-
-- **Windows**
-
-  1.  Check System Compatibility
-
-      - NVIDIA GPU: _Ensure your system has an NVIDIA GPU. You can check this in Device Manager under "Display adapters."_
-      - Windows Version: _Ensure your Windows version is supported by the CUDA Toolkit you intend to install._
-
-  2.  Update NVIDIA Drivers
-
-      - It's highly recommended to have the latest NVIDIA display drivers installed.
-      - Download them from the official NVIDIA driver download page: https://www.nvidia.com/drivers
-      - Select your product type, series, product, operating system, and language.
-      - Download and run the installer, choosing "Express Installation."
-
-  3.  Download CUDA Toolkit
-
-      - Go to the NVIDIA CUDA Toolkit Download page: https://developer.nvidia.com/cuda-downloads
-      - Select your operating system (Windows), architecture (x86_64), and Windows version.
-      - Choose the installer type. The `exe (local)` installer downloads everything, while `exe (network)` downloads components during installation. For most users, the `exe (local)` is recommended.
-      - Download the installer executable.
-
-  4.  Install CUDA Toolkit
-
-      - Run the downloaded `.exe` installer as an administrator (right-click -> "Run as administrator").
-      - Temporary Extract Location: The installer will first ask for a temporary extraction path. You can keep the default or choose a different location.
-      - System Check: _The installer will perform a system check._
-      - License Agreement: _Read and accept the NVIDIA Software License Agreement._
-      - Installation Options:
-        - Choose "Express" installation for typical setups. This installs all components in default locations.
-        - Choose "Custom (Advanced)" if you want to select specific components (e.g., only the Toolkit, not the Visual Studio integration if you don't use VS) or change installation paths. For most users, "Express" is sufficient.
-      - Installation Process: _The installer will proceed to install the CUDA Toolkit, including necessary drivers (if not already updated), development tools, and libraries._
-      - Finish: _Once the installation is complete, click "Next" and then "Finish." You may be prompted to restart your computer._
-
-  5.  Verify Installation
-      - Environment Variables: _The CUDA installer typically sets the necessary environment variables automatically (e.g., `CUDA_PATH`, `PATH` to include `CUDA_PATH\bin` and `CUDA_PATH\lib\x64`). You can verify this by searching for "Environment Variables" in the Windows search bar and checking "System variables."_
-      - Command Prompt Verification:
-        - Open Command Prompt (search for `cmd` and open).
-        - Run the following command to check the `nvcc` compiler version:
-        ```bash
-        nvcc --version
-        ```
-        - You should see output indicating the CUDA Toolkit version.
-        - You can also run the NVIDIA System Management Interface:
-        ```bash
-        nvidia-smi
-        ```
-        - This will display information about your NVIDIA GPU, driver version, and CUDA version supported by the driver.
+- **Windows**: Download from [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads)
 
 ## Environment Setup
 
 ### diNo Environment
 
-#### Option 1: Using pip
+**Recommended for most users** - supports the latest diNo features.
 
-1. Create a virtual environment (optional but recommended):
+#### Using pip (Recommended)
 
-   ```bash
-   python3.12 -m venv diNo_env
-   ```
+```bash
+# Create and activate virtual environment
+python3.12 -m venv diNo_env
+source diNo_env/bin/activate  # Windows: .\diNo_env\Scripts\activate
 
-_Note: replace `python3.12` with your current version._
+# Install dependencies
+pip install -r requirements_diNo.txt
+```
 
-2. Activate the virtual environment:
-
-- **macOS/Linux**:
-
-  ```bash
-  source diNo_env/bin/activate
-  ```
-
-- **Windows**:
-
-  ```bash
-  .\diNo_env\Scripts\activate
-  ```
-
-3. Install dependencies:
-
-   From your `diNo_env/`:
-
-   ```bash
-   pip install -r requirements_diNo.txt
-   ```
-
-4. Deactivate the environment (when you're done):
-
-   ```bash
-   deactivate
-   ```
-
-#### Option 2: Using Conda
+#### Using Conda
 
 ```bash
 conda env create -f environment_diNo.yml
+conda activate diNo_env
 ```
-
-_Replace `diNo_env` with your preferred environment name._
 
 ### FAISS Environment
 
-#### Option 1: Using pip
+**For FAISS comparison benchmarks** - requires specific Python versions.
 
-1. Create a virtual environment (optional but recommended):
-
-   ```bash
-   python3.10 -m venv faiss_env
-   ```
-
-2. Activate the virtual environment:
-
-   - **macOS/Linux**:
-
-   ```bash
-   source faiss_env/bin/activate
-   ```
-
-   - **Windows**:
-
-   ```bash
-   .\faiss_env\Scripts\activate
-   ```
-
-3. Install dependencies:
-
-From your `faiss_env/`:
+#### Using pip
 
 ```bash
+# Create and activate virtual environment
+python3.10 -m venv faiss_env
+source faiss_env/bin/activate  # Windows: .\faiss_env\Scripts\activate
+
+# Install dependencies
 pip install -r requirements_faiss.txt
 ```
 
-4. Deactivate the environment (when you're done):
-
-   ```bash
-   deactivate
-   ```
-
-#### Option 2: Using Conda
+#### Using Conda
 
 ```bash
 conda env create -f environment_faiss.yml
+conda activate faiss_env
 ```
-
-_Note: Replace `faiss_env` with your preferred environment name._
 
 ## Building with CMake
 
-### Basic Build (C++ only)
+### Standard Build
 
-To build only the core C++ library (without Python bindings or anything):
+Build everything with default options:
 
 ```bash
-mkdir build
-cd build
+mkdir -p build && cd build
+cmake ..
+cmake --build .
+```
+
+### Build Options
+
+Configure build components using CMake flags:
+
+| Flag              | Description                      | Default |
+| ----------------- | -------------------------------- | ------- |
+| `BUILD_PYTHON`    | Build Python bindings            | ON      |
+| `BUILD_BENCHMARK` | Build benchmarking tools         | ON      |
+| `BUILD_DEMO`      | Build demo applications          | ON      |
+| `ODYSSEY_MPI`     | Enable MPI for Odyssey algorithm | ON      |
+| `SING_CUDA`       | Enable CUDA for SING algorithm   | ON      |
+| `DEBUG_MSG`       | Enable debug messages            | OFF     |
+
+### Common Build Configurations
+
+**C++ only (minimal build)**:
+
+```bash
 cmake .. -DBUILD_PYTHON=OFF -DBUILD_BENCHMARK=OFF -DBUILD_DEMO=OFF
 cmake --build .
 ```
 
-### Optional Build Flags
-
-- `DEBUG_MSG=OFF`– Disable debug messages (default OFF)
-- `BUILD_PYTHON=ON` – Build Python bindings (default ON)
-- `BUILD_BENCHMARK=ON`– Build benchmarks (default ON)
-- `BUILD_DEMO=ON` – Build demo files (default ON)
-- `ODYSSEY_MPI=ON`– Enable Odyssey (default ON)
-- `SING_CUDA=ON`– Enable Sing (default ON)
-- _Note: If you turn off a flag, you need to explicitly turn it back on if you want to enable that component later._
-
-### Disable Specific Components
-
-Disable Python Bindings for example
+**Without GPU/MPI support**:
 
 ```bash
-cmake .. -DBUILD_PYTHON=OFF
+cmake .. -DODYSSEY_MPI=OFF -DSING_CUDA=OFF
 cmake --build .
 ```
 
-### Disable everything
+**Debug build**:
 
 ```bash
-cmake .. -DBUILD_PYTHON=OFF -DBUILD_BENCHMARK=OFF -DBUILD_DEMO=OFF -DODYSSEY_MPI=OFF -DSING_CUDA=OFF
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DDEBUG_MSG=ON
 cmake --build .
 ```
 
-## How to run Demos
+## Usage
 
 ### C++ Demos
 
-To run any compiled C++ demo, navigate to your `build/` directory and execute the specific demo file. For example, to run `demo_Odyssey_L2Square`:
+Run compiled C++ demos from the `build/` directory:
 
 ```bash
-./demos/demo_Odyssey_L2Square
+# Basic similarity search
+./demos/demo_bruteforce_L2Square
+./demos/demo_bruteforce_DTW
+
+# Lower bound optimization
+./demos/demo_LbBruteforce_L2Square
+./demos/demo_LbBruteforce_DTW
+
+# Advanced algorithms
+./demos/demo_Messi_L2Squares
+./demos/demo_Paris_L2Square
+./demos/demo_Odyssey_L2Square  # Requires MPI
+./demos/demo_Sing_L2Square     # Requires CUDA
 ```
 
 ### Python Demos
 
-The diNo library includes several Python-based demos. Ensure you run these scripts from within the `demos/` directory itself for correct imports and paths.
-
-#### ``
-
-To run the demo with GUI:
+**Important**: Run Python demos from the `demos/` directory for correct imports.
 
 ```bash
-python3.12 ./demo_gui.py
+cd demos
 ```
 
-_Note: replace `python3.12` with your current version._
-
-#### `demo_bruteforce_L2Square` and `demo_LbBruteforce_L2Square`
-
-For these demos, run these commands:
+#### Basic Demos
 
 ```bash
-python3.12 ./demo_X.py
+python3.12 demo_bruteforce_L2Square.py
+python3.12 demo_bruteforce_DTW.py
+python3.12 demo_LbBruteforce_L2Square.py
+python3.12 demo_LbBruteforce_DTW.py
+python3.12 demo_Messi_L2Square.py
 ```
 
-_Note: replace `python3.12` with your current version. 'X' is the name of the algo (e.g., `./demo_bruteforce_L2Square`)._
-
-#### `demo_Odyssey_L2Square`
-
-To run the demo_Odyssey_L2Square Python script, which utilizes MPI, execute it from the demos/ folder using mpirun:
+#### GUI Demo
 
 ```bash
-mpirun -np 4 python ../demos/demo_Odyssey_L2Square.py
+python3.12 demo_gui.py
+```
+
+#### Advanced Demos
+
+**MPI-based (Odyssey)**:
+
+```bash
+mpirun -np 4 python3.12 demo_Odyssey_L2Square.py
+```
+
+**CUDA-based (SING)**:
+
+```bash
+python3.12 demo_Sing_L2Square.py
 ```
 
 ## Running Tests
 
-### Running All Tests
+### All Tests
 
-Use CTest for running all the unit tests:
-
-```bash
-mkdir build # Note: If it already exists, this command will give an error unless you add '-p' to make it 'mkdir -p build'.
-cd build    # Note: This directory must exist for the command to succeed.
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
-```
-
-### Running Specific Tests
-
-After building your project with CMake, navigate to your `build/` directory, and then run it directly:
+Run the complete test suite:
 
 ```bash
-./tests/test_X_Y
+cd build
+ctest --output-on-failure
 ```
 
-_Note: 'X' is the name of the algo with 'Y' name of the distanceComputer (e.g., `./tests/test_bruteforce_L2Square`)._
+### Specific Tests
+
+Run individual test executables:
+
+```bash
+cd build
+./tests/test_bruteforce_L2Square
+./tests/test_bruteforce_DTW
+./tests/test_LbBruteforce_L2Square
+./tests/test_LbBruteforce_DTW
+./tests/test_Messi_L2Square
+./tests/test_Odyssey_L2Square       # Requires MPI
+./tests/test_Sing_L2Square          # Requires CUDA
+```
+
+### Test with Verbose Output
+
+```bash
+ctest --output-on-failure --verbose
+```
 
 ## Running Benchmarks
 
-After building with CMake, navigate to the build directory and run your benchmark executable directly:
+Execute performance benchmarks from the `build/` directory:
 
 ```bash
-./benchmark/bm_X_Y
+cd build
+
+# Basic benchmarks
+./benchmark/bm_bruteforce_L2Square
+./benchmark/bm_LbBruteforce_L2Square
+./benchmark/bm_Messi_L2Square
+
+# Advanced benchmarks (if available)
+./benchmark/bm_Odyssey_L2Square      # Requires MPI
+./benchmark/bm_Sing_L2Square         # Requires CUDA
 ```
 
-_Note: 'X' is the name of the algo with 'Y' name of the distanceComputer (e.g., `./benchmarks/bm_bruteforce_L2Square`)._
+## Troubleshooting
 
-## Notes
+### Common Issues
 
-- The compiled `.so` (shared object) file from pybind is located in the `/demo` folder.
-- Run all Python scripts from within the `/demo` directory to ensure correct imports and paths.
+**Build Errors**:
+
+- Ensure all submodules are initialized: `git submodule update --init --recursive`
+- Check CMake version: `cmake --version` (requires 3.15+)
+- Verify C++ compiler supports C++14 or higher
+
+**Python Import Errors**:
+
+- Run Python scripts from the `demos/` directory
+- Ensure virtual environment is activated
+- Check that Python bindings were built (`BUILD_PYTHON=ON`)
+
+**MPI Issues**:
+
+- Verify MPI installation: `mpirun --version`
+- Check MPI process count matches your system cores
+- Ensure consistent MPI implementation across build and runtime
+
+**CUDA Issues**:
+
+- Verify CUDA installation: `nvcc --version`
+- Check GPU compatibility and driver version: `nvidia-smi`
+- Ensure CUDA toolkit path is in environment variables
+
+## License
+
+This project is licensed under the [MIT License](LICENSE) - see the LICENSE file for details.

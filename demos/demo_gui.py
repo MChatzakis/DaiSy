@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from scripts.gui_config_param import get_config, search_classes
 
-from diNoSimilaritySearch import DistanceType #, BruteForceSearch, LbBruteforce, Odyssey #, Messi, Odyssey, ParIS, Sing
+from diNoSimilaritySearch import DistanceType #, BruteForceSearch, LbBruteforce, Odyssey, Messi, ParIS, Sing
 
 def main():
 # With the GUI
@@ -34,7 +34,6 @@ def main():
         # database vectors from file and reshape based on input dims
     if use_subset and subset_size:
         print(f"Loading subset of {subset_size} vectors from dataset...")
-        # Calculate how many bytes to read for the subset
         bytes_to_read = subset_size * dim * 4  # 4 bytes per float32
         with open(filename_db, 'rb') as f:
             db_bytes = f.read(bytes_to_read)
@@ -56,7 +55,6 @@ def main():
         # queries
     if use_query_subset and query_subset_size:
         print(f"Loading subset of {query_subset_size} queries from query file...")
-        # Calculate how many bytes to read for the query subset
         query_bytes_to_read = query_subset_size * dim * 4  # 4 bytes per float32
         with open(filename_query, 'rb') as f:
             query_bytes = f.read(query_bytes_to_read)
