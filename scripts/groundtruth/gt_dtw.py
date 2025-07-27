@@ -12,10 +12,15 @@ def compute_dtw_row(i, query, db):
         print(f"  Warning: Query {i} is invalid (all NaNs or empty). Skipping.")
         return row
 
+    # Calculate warping window (10% of sequence length, same as C++)
+    warping_window = max(1, int(0.1 * len(query)))
+
     for j, db_ts in enumerate(db):
         if is_valid_ts(db_ts):
             try:
-                row[j] = dtw(query, db_ts)
+                # Use constrained DTW with same warping window as C++
+                row[j] = dtw(query, db_ts, global_constraint="sakoe_chiba", 
+                           sakoe_chiba_radius=warping_window)
             except Exception as e:
                 print(f"  Error: DTW failed between query {i} and db {j}: {e}")
     return row
