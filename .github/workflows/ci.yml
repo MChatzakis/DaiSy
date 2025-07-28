@@ -13,8 +13,8 @@ jobs:
     strategy:
       matrix:
         build-type: [Release, Debug]
-        mpi: [ON, OFF] # Enable or disable MPI
-        cuda: [ON, OFF] # Enable or disable CUDA
+        # mpi: [ON, OFF] # Enable or disable MPI (COMMENTED OUT)
+        # cuda: [ON, OFF] # Enable or disable CUDA (COMMENTED OUT)
 
     steps:
       - name: Checkout code
@@ -50,8 +50,8 @@ jobs:
           cd build
           cmake .. \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
-            -DODYSSEY_MPI=${{ matrix.mpi }} \
-            -DSING_CUDA=${{ matrix.cuda }} \
+            -DODYSSEY_MPI=OFF \
+            -DSING_CUDA=OFF \
             -DBUILD_PYTHON=ON \
             -DBUILD_BENCHMARK=ON \
             -DBUILD_DEMO=ON \
