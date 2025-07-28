@@ -11,6 +11,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Initialize submodules (fallback)
+        run: |
+          git submodule update --init --recursive
+
+      - name: Verify pybind11 submodule
+        run: |
+          ls -la extern/pybind11/CMakeLists.txt || echo "pybind11 CMakeLists.txt not found"
 
       - name: Install system dependencies
         run: |
