@@ -31,7 +31,8 @@ source diNo_env/bin/activate  # On Windows: .\diNo_env\Scripts\activate
 pip install -r requirements_diNo.txt
 
 # Build the library
-mkdir -p build && cd build
+mkdir build
+cd build
 cmake ..
 cmake --build .
 
