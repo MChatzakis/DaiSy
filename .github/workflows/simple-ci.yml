@@ -1,0 +1,70 @@
+name: Simple CI
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          libomp-dev
+          
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    - name: Install basic Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy
+        
+    - name: Create build directory
+      run: mkdir -p build
+      
+    - name: Configure CMake (minimal configuration)
+      run: |
+        cd build
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DODYSSEY_MPI=OFF \
+          -DSING_CUDA=OFF \
+          -DBUILD_PYTHON=OFF \
+          -DBUILD_BENCHMARK=OFF \
+          -DBUILD_DEMO=OFF
+          
+    - name: Build project
+      run: |
+        cd build
+        make -j$(nproc)
+        
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure --verbose
+        
+    - name: List and run test executables directly
+      if: always()
+      run: |
+        cd build/tests
+        echo "Available test executables:"
+        ls -la test_* 2>/dev/null || echo "No test executables found"
+        
+        # Run each test executable if they exist
+        for test_exe in test_*; do
+          if [ -x "$test_exe" ]; then
+            echo "Running $test_exe"
+            ./$test_exe || echo "Test $test_exe failed but continuing..."
+          fi
+        done

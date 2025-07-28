@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        build-type: [Release, Debug]
+        mpi: [ON, OFF]
+        cuda: [OFF]  # CUDA disabled for CI environment
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          libomp-dev \
+          libopenmpi-dev \
+          openmpi-bin \
+          openmpi-common \
+          libopenmpi-dev
+          
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy==2.2.6 mpi4py==4.0.3
+        
+    - name: Create build directory
+      run: mkdir build
+      
+    - name: Configure CMake
+      run: |
+        cd build
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
+          -DODYSSEY_MPI=${{ matrix.mpi }} \
+          -DSING_CUDA=${{ matrix.cuda }} \
+          -DBUILD_PYTHON=ON \
+          -DBUILD_BENCHMARK=ON \
+          -DBUILD_DEMO=ON \
+          -DDEBUG_MSG=ON
+          
+    - name: Build project
+      run: |
+        cd build
+        make -j$(nproc)
+        
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure --verbose
+        
+    - name: Run individual test executables (fallback)
+      if: failure()
+      run: |
+        cd build
+        # List all test executables and run them individually
+        find . -name "test_*" -type f -executable | while read test_exe; do
+          echo "Running $test_exe"
+          if ! $test_exe --gtest_output=xml:${test_exe##*/}_results.xml; then
+            echo "Test $test_exe failed"
+            exit 1
+          fi
+        done
