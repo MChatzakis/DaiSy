@@ -4,7 +4,13 @@
 
 ## Features
 
-- **Multiple Algorithms**: Brute force, Lower bound brute force, MESSI, Odyssey (MPI), SING (CUDA)
+- **Multiple Algorithms**:
+  - **_Brute Force_** - Basic similarity search
+  - **_Lower Bound Brute Force_** - Optimized brute force
+  - **_MESSI_** - An advanced indexing algorithm that maximizes memory efficiency to enable fast, exact Dynamic Time Warping (DTW) searches on large in-memory datasets.
+  - **_Odyssey_** - An MPI-based distributed search algorithm that focuses on distributing the search workload across multiple machines to efficiently handle truly massive datasets. It aims to exploit parallelism both within and across system nodes.
+  - **_PARIS_** - An indexing algorithm that leverages parallelism to offer fast search times for disk-based datasets.
+  - **_SING_** - A CUDA-accelerated search algorithm that leverages GPUs for parallel processing to perform exact DTW similarity searches on vast time series datasets, overcoming computational bottlenecks.
 - **Cross-Platform**: Support for Linux, macOS, and Windows
 - **Language Bindings**: Native C++ library with Python bindings
 - **Optimized**: CUDA and MPI support for GPU and distributed computing
@@ -319,7 +325,7 @@ ctest --output-on-failure --verbose
 
 ## Running Benchmarks
 
-Execute performance benchmarks from the `build/` directory:
+Execute performance benchmarks from the `build/` directory (after building with the `cmake`):
 
 ```bash
 cd build
