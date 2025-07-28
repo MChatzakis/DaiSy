@@ -1,0 +1,42 @@
+# Python Bindings Module
+
+The pybinds module uses pybind11 to create efficient Python bindings for the diNo library's C++ core. This enables Python developers to access high-performance time series similarity search algorithms while maintaining the convenience and flexibility of Python programming.
+
+## Core Components
+
+### Main Binding File (`setup.cpp`)
+
+The primary file that defines the Python API bindings for the diNo library.
+
+## Adding New Algorithms
+
+To add a new algorithm to the Python bindings, follow these steps:
+
+### 1. **Prepare the C++ Algorithm**
+
+First, ensure your algorithm is properly implemented in the C++ library.
+
+### 2. **Add the Include Statement**
+
+In `setup.cpp`, add the include for your new algorithm.
+
+### 3. **Create Python Bindings**
+
+Add the pybind11 class definition in the `PYBIND11_MODULE` section.
+
+### 4. **Build and Test**
+
+After adding the bindings:
+
+1. **Rebuild the module**
+2. **Test in Python**
+
+### 5. **Common Patterns**
+
+All algorithm bindings follow these common patterns:
+
+- **Constructor**: Takes a `DistanceType` parameter
+- **buildIndex**: Accepts 2D NumPy array, validates dimensions
+- **searchIndex**: Returns tuple of (indices, distances) as NumPy arrays
+- **Parameter Methods**: Getters/setters for algorithm-specific configuration
+- **Lambda Functions**: Used for complex parameter conversions and array handling

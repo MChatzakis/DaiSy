@@ -1,0 +1,69 @@
+# Library Core Module
+
+This directory contains the core implementation of the diNo library, including all similarity search algorithms, distance computation engines, indexing structures, and utility components.
+
+## Core Architecture
+
+### Base Interface (`SimilaritySearchAlgorithm.hpp`)
+
+All similarity search algorithms inherit from the `SimilaritySearchAlgorithm` base class, providing a unified interface:
+
+### Type System
+
+- **`idx_t`**: Unsigned 64-bit integer for indices and sizes
+- **`DistanceType`**: Enumeration of supported distance metrics
+
+### Supported Algorithms
+
+Child class of `SimilaritySearchAlgorithm`
+
+- **Brute Force Search** (`Bruteforce.hpp/cpp`)
+- **Lower Bound Brute Force** (`LbBruteforce.hpp/cpp`)
+- **MESSI** (`Messi.hpp/cpp`)
+- **Odyssey** (`Odyssey.hpp/cpp`)
+- **PARIS** (`ParIS.hpp/cpp`)
+- **SING** (`Sing.hpp/cpp`)
+
+## Distance Computation System
+
+### Distance Computer Interface (`DistanceComputer.hpp/cpp`)
+
+Provides a unified interface for different distance metrics.
+
+#### Supported Distance Metrics
+
+- **L2 Squared**: Euclidean distance without square root
+- **Dynamic Time Warping (DTW)**: Elastic matching distance
+
+## iSAX Indexing System
+
+The iSAX (indexable Symbolic Aggregate approXimation) system provides efficient indexing for large time series databases.
+
+### Core Components
+
+- **SAX Representation** (`SAX.hpp/cpp`)
+- **iSAX Index** (`iSAXIndex.hpp/cpp`)
+- **Search Interface** (`iSAXSearch.hpp/cpp`)
+
+## Extension Points
+
+### Adding New Algorithms
+
+1. Inherit from `SimilaritySearchAlgorithm`
+2. implement required virtual methods
+3. Add to CMake build system
+4. Create corresponding demo and test programs
+
+### Adding New Distance Metrics
+
+1. Inherit from `DistanceComputer`
+2. Implement distance computation logic
+3. Add appropriate optimizations (early termination, SIMD)
+4. Register with distance metric system
+
+### GPU Algorithm Development
+
+1. Use CUDA toolkit integration
+2. Follow GPU memory management patterns
+3. Implement appropriate kernel optimizations
+4. Add fallback CPU implementations

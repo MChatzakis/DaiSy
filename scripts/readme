@@ -1,0 +1,39 @@
+# Scripts Module
+
+The scripts module provides essential utilities that support the development, testing, and usage of the diNo library. These tools help with data preparation, parameter configuration, visualization, and validation of similarity search results.
+
+## Core Components
+
+### Data Sampling Tool (`data_sampler.py`)
+
+A comprehensive utility for processing, sampling, and preparing time series datasets for use with the diNo library.
+
+### GUI Configuration Tool (`gui_config_param.py`)
+
+An interactive graphical interface for configuring algorithm parameters and exploring the diNo library's capabilities.
+
+### Ground Truth Generation (`groundtruth/`)
+
+Tools and utilities for generating and validating ground truth results for similarity search evaluation.
+
+#### Usage
+
+**Steps:**
+
+1.  **Navigate to the Ground Truth Directory**:
+
+2.  **Run the Desired Script**:
+    Execute the script corresponding to the distance metric you need with their virtual environment.
+
+    ```bash
+    python gt_FAISS.py
+    ```
+
+    Similarly, to generate ground truth for DTW variations, run:
+
+    ```bash
+    python gt_DTW.py
+    ```
+
+3.  **Output Location**:
+    The generated ground truth files (containing distances and indices) will be saved in the `tests/groundtruth/` directory, organized by distance metric and dataset parameters.

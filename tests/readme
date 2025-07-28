@@ -1,3 +1,28 @@
-This directory will be the unit-testing module.
+# Tests Module
 
-Tasks:
+This directory contains the comprehensive testing suite for the diNo library, including unit tests, integration tests, performance regression tests, and correctness validation for all similarity search algorithms.
+
+## Testing Framework
+
+`test_utils.hpp/cpp`: Provides common utilities and infrastructure used across all test modules.
+
+## How to Add a Test
+
+### 1. Create a New Test File
+
+### 2. Include Required Headers
+
+### 3. Define Test Structure
+
+Follow the parameterized test pattern used throughout the test suite for BruteForce_L2Square.cpp
+
+### 4. Add Test to CMakeLists.txt
+
+### 5. Build and Run
+
+### 6. Test Requirements
+
+- Tests must use the `runSST()` function from `test_utils.hpp` for consistency
+- Tests should be parameterized to run with different configurations (k-values, thread counts, datasets)
+- Include proper ground truth validation
+- Follow the existing naming conventions and code structure
