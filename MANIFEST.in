@@ -1,0 +1,13 @@
+include README.md
+include LICENSE
+include requirements_diNo.txt
+recursive-include lib *.hpp *.cpp
+recursive-include commons *.hpp *.cpp
+recursive-include pybinds *.cpp
+recursive-exclude build *
+recursive-exclude diNo_env *
+recursive-exclude faiss_env * 
+recursive-exclude fastdtw_env *
+recursive-exclude tslearn_env *
+recursive-exclude demos *.so
+recursive-exclude demos __pycache__

@@ -31,18 +31,86 @@
 *.out
 *.app
 
+# Build directories
 build/
+dist/
+*.egg-info/
 
-# Env
+# Python packaging and build artifacts
+*.egg
+*.whl
+.eggs/
+*.manifest
+*.spec
+
+# Virtual environments
 *env/
+venv/
+ENV/
+env/
 
-# python
+# Python cache and compiled files
 *__pycache__/
-
-# Ignore compiled Python files
 *.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.py[cod]
+*$py.class
 
-# vscode
+# Distribution / packaging artifacts
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# VS Code
 .vscode/
 
 # Allow specific VS Code files to be tracked
