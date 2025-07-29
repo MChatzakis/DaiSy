@@ -1,4 +1,8 @@
 numpy==2.2.6
-mpi4py==4.0.3
 pip==24.0
+pybind11==3.0.0
 setuptools==80.9.0
+wheel==0.45.1
+build==1.0.0
+twine==4.0.0
+pytest==7.0.0
