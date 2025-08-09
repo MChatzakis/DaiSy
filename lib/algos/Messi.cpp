@@ -1090,6 +1090,31 @@ namespace diNoLib
     {
         delete[] database;
 
-        // todo add free funcs here:
+        // Cleanup iSAX index structures
+        if (index != nullptr) {
+            if (index->sax_cache != nullptr) {
+                free(index->sax_cache);
+            }
+            if (index->answer != nullptr) {
+                free(index->answer);
+            }
+            if (index->fbl != nullptr) {
+                destroy_fbl(index->fbl);
+            }
+            if (index->sax_file != nullptr) {
+                fclose(index->sax_file);
+            }
+            free(index);
+        }
+        
+        if (index_settings != nullptr) {
+            if (index_settings->bit_masks != nullptr) {
+                free(index_settings->bit_masks);
+            }
+            if (index_settings->max_sax_cardinalities != nullptr) {
+                free(index_settings->max_sax_cardinalities);
+            }
+            free(index_settings);
+        }
     }
 }

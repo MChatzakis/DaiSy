@@ -39,6 +39,11 @@ namespace diNoLib
 
     void BruteForceSearch::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        // Validate input parameters
+        if (!validateSearchParams(k, n_query)) {
+            return; // Early return on validation failure
+        }
+        
 #pragma omp parallel num_threads(num_threads)
         {
 #pragma omp for
@@ -81,6 +86,11 @@ namespace diNoLib
 
     void BruteForceSearch::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        // Validate input parameters
+        if (!validateSearchParams(k, n_query)) {
+            return; // Early return on validation failure
+        }
+        
 #pragma omp parallel num_threads(num_threads)
         {
 #pragma omp for

@@ -88,11 +88,78 @@ namespace diNoLib
 
     void ParIS::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        //todo
+        // TODO: Implement Paris search algorithm
+        // For now, fall back to brute force search similar to other algorithms
+        #pragma omp parallel num_threads(num_threads)
+        {
+            #pragma omp for 
+            for (idx_t qi = 0; qi < n_query; qi++)
+            {   
+                std::priority_queue<std::pair<float, idx_t>> pq;
+                const float *q_vec = query + qi * dim;
+
+                float bound = FLT_MAX;  // initialize bound to max float
+
+                for (idx_t dbi = 0; dbi < n_database; ++dbi)
+                {
+                    const float *db_vec = database + dbi * dim;
+                    float dist = this->distance_computer->compute_dist(const_cast<float *>(q_vec), 
+                                                                        const_cast<float *>(db_vec), 
+                                                                        dim, 
+                                                                        bound);
+                    if ((idx_t)pq.size() < k) // maintain max-heap
+                    {
+                        pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
+                    }
+                    else if (dist < pq.top().first) 
+                    {
+                        pq.pop();
+                        pq.emplace(dist, dbi);                         
+                        bound = pq.top().first; // update the bound variable for pruning
+                    }
+
+                }
+                
+                // store top-k results in reverse order
+                for (idx_t j = k; j > 0; --j)
+                {
+                    D[qi * k + (j - 1)] = pq.top().first;
+                    I[qi * k + (j - 1)] = pq.top().second;
+                    pq.pop();
+                }               
+            }
+        }
     }
 
     ParIS::~ParIS()
     {
         delete[] database;
+        
+        // Cleanup iSAX index structures
+        if (index != nullptr) {
+            if (index->sax_cache != nullptr) {
+                free(index->sax_cache);
+            }
+            if (index->answer != nullptr) {
+                free(index->answer);
+            }
+            if (index->fbl != nullptr) {
+                destroy_fbl(index->fbl);
+            }
+            if (index->sax_file != nullptr) {
+                fclose(index->sax_file);
+            }
+            free(index);
+        }
+        
+        if (index_settings != nullptr) {
+            if (index_settings->bit_masks != nullptr) {
+                free(index_settings->bit_masks);
+            }
+            if (index_settings->max_sax_cardinalities != nullptr) {
+                free(index_settings->max_sax_cardinalities);
+            }
+            free(index_settings);
+        }
     }
 }

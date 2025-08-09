@@ -122,6 +122,11 @@ namespace diNoLib
                 float bound = FLT_MAX; // initialize bound to max float
 
                 ts_type *q_paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+                if (q_paa == nullptr) {
+                    fprintf(stderr, "Error: Failed to allocate memory for PAA representation\n");
+                    continue; // Skip this query
+                }
+                
                 this->distance_computer->compute_paa_from_ts(
                     q_vec, q_paa,
                     index->settings->paa_segments,
@@ -156,10 +161,13 @@ namespace diNoLib
                         {
                             pq.pop();
                             pq.emplace(dist, dbi);
-                            bound = pq.top().first; // update the `bound` variable
+                            bound = pq.top().first; // update the bound variable for pruning
                         }
                     }
                 }
+
+                // Free the allocated PAA memory
+                free(q_paa);
 
                 // store top-k results in reverse order
                 for (idx_t j = k; j > 0; --j)
@@ -168,8 +176,6 @@ namespace diNoLib
                     I[qi * k + (j - 1)] = pq.top().second;
                     pq.pop();
                 }
-
-                free(q_paa);
             }
         }
     }
@@ -190,6 +196,17 @@ namespace diNoLib
                 float *upper_envelope = (float *)malloc(sizeof(float) * dim);
                 ts_type *q_paa_upper = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
                 ts_type *q_paa_lower = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+
+                // Check memory allocation
+                if (!lower_envelope || !upper_envelope || !q_paa_upper || !q_paa_lower) {
+                    fprintf(stderr, "Error: Failed to allocate memory for DTW computation\n");
+                    // Clean up any successful allocations
+                    if (lower_envelope) free(lower_envelope);
+                    if (upper_envelope) free(upper_envelope);
+                    if (q_paa_upper) free(q_paa_upper);
+                    if (q_paa_lower) free(q_paa_lower);
+                    continue; // Skip this query
+                }
 
                 // Compute DTW envelopes with warping window
                 // For DTW we use a default warping window, could be made configurable
@@ -238,10 +255,16 @@ namespace diNoLib
                         {
                             pq.pop();
                             pq.emplace(dist, dbi);
-                            bound = pq.top().first; // update the `bound` variable
+                            bound = pq.top().first; // update the bound variable for pruning
                         }
                     }
                 }
+
+                // Free the allocated memory
+                free(lower_envelope);
+                free(upper_envelope);
+                free(q_paa_upper);
+                free(q_paa_lower);
 
                 // store top-k results in reverse order
                 for (idx_t j = k; j > 0; --j)

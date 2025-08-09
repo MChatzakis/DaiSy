@@ -52,6 +52,30 @@ namespace diNoLib
         idx_t getDim() const { return dim; }
 
         virtual void buildIndex(const float *database, const idx_t n_database, const idx_t dim) = 0;
+        
+    protected:
+        // Helper function to validate search parameters
+        bool validateSearchParams(const idx_t k, const idx_t n_query) const {
+            if (k == 0) {
+                std::cerr << "[Error] k must be greater than 0\n";
+                return false;
+            }
+            if (k > n_database) {
+                std::cerr << "[Error] k (" << k << ") cannot be greater than database size (" << n_database << ")\n";
+                return false;
+            }
+            if (n_query == 0) {
+                std::cerr << "[Error] n_query must be greater than 0\n";
+                return false;
+            }
+            if (database == nullptr) {
+                std::cerr << "[Error] Index must be built before searching\n";
+                return false;
+            }
+            return true;
+        }
+        
+    public:
         virtual void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) = 0;
         /**
          * @param query a pointor to an array of float
