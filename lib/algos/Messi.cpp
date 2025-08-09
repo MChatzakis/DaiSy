@@ -309,7 +309,7 @@ namespace diNoLib
         {
             (((MESSI_workerdata *)rfdata)->allqueuelabel[startqueuenumber]) = 0;
             pthread_mutex_lock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
-            while (n = (query_result *)pqueue_pop(((MESSI_workerdata *)rfdata)->allpq[startqueuenumber]))
+            while ((n = (query_result *)pqueue_pop(((MESSI_workerdata *)rfdata)->allpq[startqueuenumber])))
             {
                 free(n);
             }
@@ -356,6 +356,8 @@ namespace diNoLib
                 break;
             }
         }
+        
+        return nullptr; // pthread function should return a pointer
     }
 
     void *MESSI_topk_search_worker_DTW(void *rfdata)
@@ -439,7 +441,7 @@ namespace diNoLib
         {
             (((MESSI_workerdata *)rfdata)->allqueuelabel[startqueuenumber]) = 0;
             pthread_mutex_lock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
-            while (n = (query_result *)pqueue_pop(((MESSI_workerdata *)rfdata)->allpq[startqueuenumber]))
+            while ((n = (query_result *)pqueue_pop(((MESSI_workerdata *)rfdata)->allpq[startqueuenumber])))
             {
                 free(n);
             }
@@ -486,6 +488,8 @@ namespace diNoLib
                 break;
             }
         }
+        
+        return nullptr; // pthread function should return a pointer
     }
 
     Messi::Messi(DistanceType distance_type)
@@ -835,7 +839,7 @@ namespace diNoLib
             for (int i = 0; i < result.k; i++)
             {
                 // printf("datalabel[result.position[i]] is %ld\n",datalabel[result.position[i]] );
-                printf(" the [%d] query [%d] NN is %f at %ld\n", q_loaded, i, result.knn[i], result.position[i]);
+                printf(" the [%llu] query [%d] NN is %f at %ld\n", (unsigned long long)q_loaded, i, result.knn[i], result.position[i]);
             }
 
             q_loaded++;

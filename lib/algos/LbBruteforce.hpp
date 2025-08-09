@@ -4,6 +4,7 @@
 #include "SimilaritySearchAlgorithm.hpp"
 
 #include "../isax/iSAXSearch.hpp"
+#include "../isax/iSAXTypes.hpp"
 
 #include <queue>
 #include <cfloat>
@@ -13,6 +14,24 @@ namespace diNoLib
 {
     class LbBruteforce : public SimilaritySearchAlgorithm
     {
+    private:
+        // iSAX configuration parameters
+        int paa_segments = 16;
+        int sax_cardinality = 8;
+        int leaf_size = 2000;
+        int min_leaf_size = 10;
+        int initial_lbl_size = 2000;
+        int flush_limit = 200000;
+        int initial_fbl_size = 100;
+        int total_loaded_leaves = 1;
+        int tight_bound = 0;
+        int num_threads = 1;
+
+        // iSAX index structures
+        isax_index_settings *index_settings = nullptr;
+        isax_index *index = nullptr;
+        sax_type **db_sax_representations = nullptr;
+
     public:
         LbBruteforce(DistanceType distance_type);
         void setNumThreads(int num_threads);

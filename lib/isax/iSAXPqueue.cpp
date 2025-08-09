@@ -417,8 +417,18 @@ namespace diNoLib
         if (q->nowk == q->k)
         {
             q->k = q->k * 2;
-            realloc(q->position, sizeof(long int) * (q->k));
-            realloc(q->knn, sizeof(float) * (q->k));
+            long int *new_position = (long int *)realloc(q->position, sizeof(long int) * (q->k));
+            float *new_knn = (float *)realloc(q->knn, sizeof(float) * (q->k));
+            
+            if (new_position == nullptr || new_knn == nullptr) {
+                fprintf(stderr, "Error: Failed to reallocate memory for priority queue\n");
+                // In case of failure, restore original size to maintain consistency
+                q->k = q->k / 2;
+                return;
+            }
+            
+            q->position = new_position;
+            q->knn = new_knn;
         }
         for (i = 0; i < q->nowk; i++)
         {

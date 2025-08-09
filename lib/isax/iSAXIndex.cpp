@@ -41,7 +41,9 @@ namespace diNoLib
             }
             else
             {
-                chdir("../");
+                if (chdir("../") != 0) {
+                    fprintf(stderr, "Warning: Failed to change directory\n");
+                }
             }
             settings->max_total_full_buffer_size = max_total_buffer_size;
             settings->initial_fbl_buffer_size = initial_fbl_buffer_size;
