@@ -242,6 +242,3 @@ else()
     endif()
 endif()
 
-# Add verification test
-add_executable(simple_verification ../simple_verification.cpp)
-target_link_libraries(simple_verification commons_lib dino_lib)
