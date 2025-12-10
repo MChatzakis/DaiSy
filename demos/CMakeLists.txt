@@ -169,6 +169,39 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_Messi_L2Square.")
     endif()
 
+    # ////// MESSI DTW //////
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "## Demo: Messi DTW")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Attempting to add executable: demo_Messi_DTW")
+    endif()
+    add_executable(demo_Messi_DTW demo_Messi_DTW.cpp)
+    if(DEBUG_MSG)
+        message(STATUS "Executable demo_Messi_DTW added.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for demo_Messi_DTW...")
+    endif()
+    target_link_libraries(demo_Messi_DTW PRIVATE dino_lib commons_lib)
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for demo_Messi_DTW.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for demo_Messi_DTW...")
+    endif()
+    target_include_directories(demo_Messi_DTW PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for demo_Messi_DTW.")
+    endif()
+
 # ////// ODYSSEY L2Square //////
     if(DEBUG_MSG)
         message(STATUS "---")

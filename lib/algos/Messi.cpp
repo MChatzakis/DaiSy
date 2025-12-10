@@ -798,7 +798,6 @@ namespace diNoLib
     {
         isax_index *index = this->index;
 
-        int q_loaded = 0;
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         ts_type *paaUpperLemQuery = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         ts_type *paaLowerLemQuery = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
@@ -823,7 +822,6 @@ namespace diNoLib
             }
         }
 
-        // while (q_loaded < n_query)
         for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
         {
             // COUNT_INPUT_TIME_START
@@ -834,23 +832,23 @@ namespace diNoLib
             lower_upper_lemire(ts, index->settings->timeseries_size, this->warping_window, lowerLemire, upperLemire);
             paa_from_ts(upperLemire, paaUpperLemQuery, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
             paa_from_ts(lowerLemire, paaLowerLemQuery, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+            paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
-            pqueue_bsf result; // = search_function(ts, paa, paaUpperLemQuery, paaLowerLemQuery, index, &nodelist, minimum_distance, min_checked_leaves, warpWind, k);
-            /////////////////// BEDUG PRINT
-            result.k = 0;
-            //---
+            pqueue_bsf result = MESSI_search_topk_DTW((float *)ts, paa, paaUpperLemQuery, paaLowerLemQuery, &nodelist, k);
 
-            for (int i = 0; i < result.k; i++)
+            for (idx_t ik = 0; ik < k; ik++)
             {
-                // printf("datalabel[result.position[i]] is %ld\n",datalabel[result.position[i]] );
-                printf(" the [%llu] query [%d] NN is %f at %ld\n", (unsigned long long)q_loaded, i, result.knn[i], result.position[i]);
+                I[q_loaded * k + ik] = result.position[ik];
+                D[q_loaded * k + ik] = result.knn[ik];
             }
-
-            q_loaded++;
         }
 
         free(paa);
-        // free(ts);
+        free(paaUpperLemQuery);
+        free(paaLowerLemQuery);
+        free(upperLemire);
+        free(lowerLemire);
+        free(nodelist.nlist);
         fprintf(stderr, ">>> Finished querying.\n");
     }
 
@@ -1012,6 +1010,7 @@ namespace diNoLib
         // LBDcalculationnumber = 0;
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
         approximate_DTWtopk_inmemory(ts, paa, index, warpWind, pq_bsf, rawfile);
+        this->minimum_distance = pq_bsf->knn[k - 1];
 
         int tight_bound = index->settings->tight_bound;
         int aggressive_check = index->settings->aggressive_check;
@@ -1080,6 +1079,7 @@ namespace diNoLib
         {
             pthread_join(threadid[i], NULL);
         }
+        this->minimum_distance = pq_bsf->knn[k - 1];
 
         // Free the nodes that where not popped.
         // Free the priority queue.
@@ -1091,6 +1091,8 @@ namespace diNoLib
             pqueue_free(allpq[i]);
         }
         free(allpq);
+        free(upperLemire);
+        free(lowerLemire);
 
         // free(rfdata);
         // printf(" and the bsf update time is \t %ld\n ",LBDcalculationnumber);
