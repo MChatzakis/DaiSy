@@ -913,9 +913,11 @@ namespace diNoLib
             //---
 
             refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database);
+            this->minimum_distance = pq_bsf->knn[k - 1];
             
             /////////////////// BEDUG PRINT
             printf("@ MESSI_search_topk_L2Squared - AFTER refine_topk_answer_inmemory\n"); fflush(stdout);
+            printf("@ MESSI_search_topk_L2Squared - pq_bsf->knn[k-1]: %f\n", pq_bsf->knn[k-1]); fflush(stdout);
             printf("@ MESSI_search_topk_L2Squared - minimum_distance: %f\n", this->minimum_distance);
 
             //---
@@ -981,6 +983,7 @@ namespace diNoLib
             pthread_join(threadid[i], NULL);
         }
         printf("@ MESSI_search_topk_L2Squared - AFTER joining threads\n"); fflush(stdout);
+        this->minimum_distance = pq_bsf->knn[k - 1];
 
         // Free the nodes that where not popped.
         // Free the priority queue.
