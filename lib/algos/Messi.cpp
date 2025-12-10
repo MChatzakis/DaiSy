@@ -895,7 +895,6 @@ namespace diNoLib
         printf("@ MESSI_search_topk_L2Squared - after approximate_topk_inmemory\n"); fflush(stdout);
         printf("@ MESSI_search_topk_L2Squared - search_workers: %d\n", this->search_workers); fflush(stdout);
         printf("@ MESSI_search_topk_L2Squared - n_pqueue: %d\n", this->n_pqueue); fflush(stdout);        
-        printf("@ MESSI_search_topk_L2Squared - minimum_distance: %f\n", this->minimum_distance);
         printf("@ MESSI_search_topk_L2Squared - min_checked_leaves: %d\n", this->min_checked_leaves);
         printf("@ MESSI_search_topk_L2Squared - database: %p\n", this->database);
         printf("@ MESSI_search_topk_L2Squared - index: %p\n", this->index);
@@ -905,7 +904,7 @@ namespace diNoLib
         int aggressive_check = index->settings->aggressive_check;
         int node_counter = 0;
 
-        if (pq_bsf->knn[k - 1] == FLT_MAX || min_checked_leaves > 1)
+        if (this->minimum_distance == FLT_MAX || min_checked_leaves > 1)
         {
             /////////////////// BEDUG PRINT
             printf("@ MESSI_search_topk_L2Squared - BEFORE refine_topk_answer_inmemory\n"); fflush(stdout);
@@ -917,6 +916,8 @@ namespace diNoLib
             
             /////////////////// BEDUG PRINT
             printf("@ MESSI_search_topk_L2Squared - AFTER refine_topk_answer_inmemory\n"); fflush(stdout);
+            printf("@ MESSI_search_topk_L2Squared - minimum_distance: %f\n", this->minimum_distance);
+
             //---
         }
         pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
