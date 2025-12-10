@@ -641,7 +641,10 @@ namespace diNoLib
 
         pthread_mutex_t lock_record = PTHREAD_MUTEX_INITIALIZER, lockfbl = PTHREAD_MUTEX_INITIALIZER, lock_index = PTHREAD_MUTEX_INITIALIZER, lock_firstnode = PTHREAD_MUTEX_INITIALIZER, lock_disk = PTHREAD_MUTEX_INITIALIZER;
 
-        destroy_fbl(index->fbl);
+        if (index->fbl != nullptr)
+        {
+            destroy_fbl(index->fbl);
+        }
         index->fbl = (first_buffer_layer *)initialize_pRecBuf(index->settings->initial_fbl_buffer_size, pow(2, index->settings->paa_segments), index->settings->max_total_buffer_size + DISK_BUFFER_SIZE * (PROGRESS_CALCULATE_THREAD_NUMBER - 1), index);
 
         int nodeid[index->fbl->number_of_buffers];
