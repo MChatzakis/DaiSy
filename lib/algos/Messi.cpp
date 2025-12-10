@@ -641,10 +641,7 @@ namespace diNoLib
 
         pthread_mutex_t lock_record = PTHREAD_MUTEX_INITIALIZER, lockfbl = PTHREAD_MUTEX_INITIALIZER, lock_index = PTHREAD_MUTEX_INITIALIZER, lock_firstnode = PTHREAD_MUTEX_INITIALIZER, lock_disk = PTHREAD_MUTEX_INITIALIZER;
 
-        if (index->fbl != nullptr)
-        {
-            destroy_fbl(index->fbl);
-        }
+        destroy_fbl(index->fbl);
         index->fbl = (first_buffer_layer *)initialize_pRecBuf(index->settings->initial_fbl_buffer_size, pow(2, index->settings->paa_segments), index->settings->max_total_buffer_size + DISK_BUFFER_SIZE * (PROGRESS_CALCULATE_THREAD_NUMBER - 1), index);
 
         int nodeid[index->fbl->number_of_buffers];
@@ -893,6 +890,7 @@ namespace diNoLib
         //---
 
         approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database);
+        this->minimum_distance = pq_bsf->knn[k - 1];
         /////////////////// BEDUG PRINT
         printf("@ MESSI_search_topk_L2Squared - after approximate_topk_inmemory\n"); fflush(stdout);
         printf("@ MESSI_search_topk_L2Squared - search_workers: %d\n", this->search_workers); fflush(stdout);
