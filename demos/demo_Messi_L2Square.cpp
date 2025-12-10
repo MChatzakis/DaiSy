@@ -30,7 +30,7 @@ int main(){
     
     // 2. Create a brute-force search object
     diNoLib::Messi messi_search(diNoLib::DistanceType::L2_SQUARED);
-    messi_search.setNumThreads(1);
+    messi_search.setNumThreads(4);
 
     // 3. Build the index
     messi_search.buildIndex(database, n_database, dim);
