@@ -349,6 +349,8 @@ namespace diNoLib
                         // add
                         free(n);
                     }
+                    // mark queue as drained so other threads can exit the outer loop
+                    ((MESSI_workerdata *)rfdata)->allqueuelabel[i] = 0;
                 }
             }
             if (finished)
@@ -481,6 +483,8 @@ namespace diNoLib
                         // add
                         free(n);
                     }
+                    // mark queue as drained so other threads can exit the outer loop
+                    ((MESSI_workerdata *)rfdata)->allqueuelabel[i] = 0;
                 }
             }
             if (finished)
