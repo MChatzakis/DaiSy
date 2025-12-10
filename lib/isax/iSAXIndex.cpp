@@ -191,6 +191,10 @@ namespace diNoLib
     {
         parallel_first_buffer_layer *fbl = (parallel_first_buffer_layer *)malloc(sizeof(parallel_first_buffer_layer));
 
+        // In the in-memory variant we do not allocate a contiguous hard buffer.
+        // Initialize to NULL so destroy_fbl() can free safely.
+        fbl->hard_buffer = NULL;
+
         fbl->max_total_size = max_total_buffers_size;
         fbl->initial_buffer_size = initial_buffer_size;
         fbl->number_of_buffers = number_of_buffers;
