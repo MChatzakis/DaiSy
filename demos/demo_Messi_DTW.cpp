@@ -32,7 +32,8 @@ int main(){
     diNoLib::Messi messi_search(diNoLib::DistanceType::DTW);
     messi_search.setNumThreads(4);
 
-    messi_search.setWarpingWindow(10);  // Set warping window (typically 10% of time series length)
+    int warp_window = std::max(1, static_cast<int>(dim * 0.1));
+    messi_search.setWarpingWindow(warp_window);  // Set warping window (typically 10% of time series length)
     // 3. Build the index
     messi_search.buildIndex(database, n_database, dim);
     printf(">>> Finished indexing \n");
