@@ -17,9 +17,6 @@ int main()
 
     // 2. Create a brute-force search object
     diNoLib::LbBruteforce bf_search(diNoLib::DistanceType::DTW);
-    
-    int warp_window = std::max(1, static_cast<int>(dim * 0.1));
-    bf_search.setWarpingWindow(warp_window);  // Set warping window (typically 10% of time series length)
 
     // 3. Build the index
     bf_search.buildIndex(database, n_database, dim);
