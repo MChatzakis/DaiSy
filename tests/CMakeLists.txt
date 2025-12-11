@@ -239,18 +239,18 @@ endif()
 # endif()
 
 # ////// MESSI L2Square ////// (COMMENTED OUT - UNDER IMPLEMENTATION)
-# if(DEBUG_MSG)
-#     message(STATUS "---")
-#     message(STATUS "Attempting to add executable: test_Messi_L2Square")
-# endif()
-# add_executable(
-#     test_Messi_L2Square
-#     test_Messi_L2Square.cpp
-#     test_utils.cpp
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Executable test_Messi_L2Square added.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "---")
+     message(STATUS "Attempting to add executable: test_Messi_L2Square")
+ endif()
+ add_executable(
+     test_Messi_L2Square
+     test_Messi_L2Square.cpp
+     test_utils.cpp
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Executable test_Messi_L2Square added.")
+ endif()
 
 # if(DEBUG_MSG)
 #     message(STATUS "Linking libraries for test_Messi_L2Square...")
