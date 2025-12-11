@@ -252,43 +252,43 @@ endif()
      message(STATUS "Executable test_Messi_L2Square added.")
  endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Linking libraries for test_Messi_L2Square...")
-# endif()
-# target_link_libraries(
-#     test_Messi_L2Square
-#     PRIVATE
-#     GTest::gtest_main
-#     dino_lib
-#     commons_lib
-#     stdc++fs
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Libraries linked for test_Messi_L2Square.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Linking libraries for test_Messi_L2Square...")
+ endif()
+ target_link_libraries(
+     test_Messi_L2Square
+     PRIVATE
+     GTest::gtest_main
+     dino_lib
+     commons_lib
+     stdc++fs
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Libraries linked for test_Messi_L2Square.")
+ endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Adding include directories for test_Messi_L2Square...")
-# endif()
-# target_include_directories(test_Messi_L2Square
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Include directories added for test_Messi_L2Square.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Adding include directories for test_Messi_L2Square...")
+ endif()
+ target_include_directories(test_Messi_L2Square
+     PRIVATE
+     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Include directories added for test_Messi_L2Square.")
+ endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Discovering tests for test_Messi_L2Square...")
-# endif()
-# gtest_discover_tests(
-#     test_Messi_L2Square
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Tests discovered for test_Messi_L2Square.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Discovering tests for test_Messi_L2Square...")
+ endif()
+ gtest_discover_tests(
+     test_Messi_L2Square
+     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Tests discovered for test_Messi_L2Square.")
+ endif()
 
 # ////// ODYSSEY L2Square (conditional on MPI) ////// (COMMENTED OUT - UNDER IMPLEMENTATION)
 # if(DEBUG_MSG)
