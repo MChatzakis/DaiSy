@@ -90,8 +90,8 @@ const std::vector<SSTestConfig> test_configs = []
     configs.insert(configs.end(), random_stress.begin(), random_stress.end());
 
     //MEMORY LEAK TESTS
-    auto astro_leak = generate_leak_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
-    auto random_leak = generate_leak_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
+    auto astro_leak = generate_memory_leak_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
+    auto random_leak = generate_memory_leak_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
 
     configs.insert(configs.end(), astro_leak.begin(), astro_leak.end());
     configs.insert(configs.end(), random_leak.begin(), random_leak.end());
