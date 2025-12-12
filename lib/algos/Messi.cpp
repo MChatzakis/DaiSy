@@ -156,10 +156,6 @@ namespace diNoLib
         int k;
         float *cb = (float *)malloc(sizeof(float) * index->settings->timeseries_size);
         float *cb1 = (float *)malloc(sizeof(float) * index->settings->timeseries_size);
-        // float* cb2 = (float *)malloc(sizeof(float)*index->settings->timeseries_size);
-        // float* datauper = (float *)malloc(sizeof(float)*index->settings->timeseries_size);
-        // float* datalower = (float *)malloc(sizeof(float)*index->settings->timeseries_size);
-        //  tempral sum
         int length = 2 * warpWind + 1;
         float *tSum = (float *)malloc(sizeof(float) * length);
         // pre_cost
@@ -170,9 +166,7 @@ namespace diNoLib
         // If node has buffered data
         if (node->buffer != NULL)
         {
-            // #pragma omp parallel for num_threads(2) reduction(min : bsf)
 
-            // __sync_fetch_and_add(&LBDcalculationnumber,node->buffer->partial_buffer_size);
             for (int i = 0; i < node->buffer->partial_buffer_size; i++)
             {
 
@@ -182,44 +176,25 @@ namespace diNoLib
                                                             index->settings->sax_alphabet_cardinality,
                                                             index->settings->paa_segments, MINVAL, MAXVAL,
                                                             index->settings->mindist_sqrt);
-                //__sync_fetch_and_add(&LBDcalculationnumber,1);
 
                 if (distmin < bsf)
                 {
                     distmin = lb_keogh_data_bound(&(rawfile[*node->buffer->partial_position_buffer[i]]), uo, lo, cb1, index->settings->timeseries_size, bsf);
-                    // if (distmin1<bsf)
                     {
-                        // lower_upper_lemire(&(rawfile[*node->buffer->partial_position_buffer[i]]),index->settings->timeseries_size,warpWind,datalower,datauper);
-                        // distmin2=lb_keogh_data_bound(query, datauper,datalower,cb2, index->settings->timeseries_size,bsf);
-
-                        // if (distmin2<bsf)
+                        
                         {
-                            // printf("the dist is %f !!!!\n",distmin2);
-                            //     if(distmin1> distmin2)
-                            //   {
+                           
                             cb[index->settings->timeseries_size - 1] = cb1[index->settings->timeseries_size - 1];
                             for (k = index->settings->timeseries_size - 2; k >= 0; k--)
                                 cb[k] = cb[k + 1] + cb1[k];
-                            //}
-                            // else
-                            //{
-                            // cb[index->settings->timeseries_size-1] = cb2[index->settings->timeseries_size-1];
-                            // for(k=index->settings->timeseries_size-2;k>=0; k--)
-                            // cb[k] = cb[k+1] + cb2[k];
-                            //}
+                            
 
                             float dist = dtwsimdPruned(query, &(rawfile[*node->buffer->partial_position_buffer[i]]), cb, index->settings->timeseries_size, warpWind, bsf, tSum, pCost, rDist);
-                            // float dist =  dtw(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),cb, index->settings->timeseries_size, warpWind, bsf);
-                            // float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
-                            //   index->settings->timeseries_size, bsf);
-                            //__sync_fetch_and_add(&RDcalculationnumber,1);
+                            
                             if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                             {
                                 pthread_rwlock_wrlock(lock_queue);
-                                //__sync_fetch_and_add(&RDcalculationnumber,1);
-                                // COUNT_QUEUE_TIME_START
                                 pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
-                                // COUNT_QUEUE_TIME_END
                                 pthread_rwlock_unlock(lock_queue);
                             }
                         }
@@ -267,14 +242,10 @@ namespace diNoLib
             current_root_node = ((MESSI_workerdata *)rfdata)->nodelist[current_root_node_number];
 
             insert_tree_node_m_hybridpqueue(paa, current_root_node, index, bsfdisntance, ((MESSI_workerdata *)rfdata)->allpq, ((MESSI_workerdata *)rfdata)->alllock, &tnumber, n_pqueue);
-            // insert_tree_node_mW(paa,current_root_node,index,bsfdisntance,pq,((MESSI_workerdata*)rfdata)->lock_queue);
         }
 
-        // COUNT_QUEUE_TIME_END
-        // calculate_node_quque=pq->size;
-        // gettimeofday(&workercurenttime, NULL);
+     
         pthread_barrier_wait(((MESSI_workerdata *)rfdata)->lock_barrier);
-        // printf("the size of quque is %d \n",pq->size);
         while (1)
         {
             pthread_mutex_lock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
@@ -282,23 +253,19 @@ namespace diNoLib
             pthread_mutex_unlock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
             if (n == NULL)
                 break;
-            // pthread_rwlock_rdlock(((MESSI_workerdata*)rfdata)->lock_bsf);
-            bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
-            // pthread_rwlock_unlock(((MESSI_workerdata*)rfdata)->lock_bsf);
-            //  The best node has a worse mindist, so search is finished!
 
+            bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
+          
             if (n->distance > bsfdisntance || n->distance > minimum_distance)
             {
                 break;
             }
             else
             {
-                // If it is a leaf, check its real distance.
                 if (n->node->is_leaf)
                 {
 
                     checks++;
-                    // float distance = calculate_node_distance2_inmemory(index, n->node, ts,paa, bsfdisntance);
                     calculate_node2_topk_inmemory(index, n->node, ts, paa, pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf, rawfile);
                 }
             }
@@ -689,109 +656,51 @@ namespace diNoLib
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        /////////////////// BEDUG PRINT        
-        // printf("@ searchIndexL2Squared constructor - point 1\n");
-        fflush(stdout);
-        //---
+    
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         
-        /////////////////// BEDUG PRINT   
-        // printf("@ searchIndexL2Squared constructor - point 2\n");
-        fflush(stdout);
-        //---
         node_list nodelist;
         nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * pow(2, index->settings->paa_segments));
-
-        /////////////////// BEDUG PRINT   
-        // printf("@ searchIndexL2Squared constructor - point 3\n");
-        fflush(stdout);
-        //---
         nodelist.node_amount = 0;
         isax_node *current_root_node = index->first_node;
-        /////////////////// BEDUG PRINT   
-        // printf("@ searchIndexL2Squared constructor - point 4\n");
-        fflush(stdout); 
+    
         //---       
         while (1)
-        {
-            /////////////////// BEDUG PRINT   
-            // printf("@ searchIndexL2Squared constructor - point 5\n");
-            fflush(stdout);  
-            //---          
+        {  
             if (current_root_node != NULL)
             {
-                /////////////////// BEDUG PRINT   
-                // printf("@ searchIndexL2Squared constructor - point 6\n");
-                fflush(stdout);
-                //---
+            
                 nodelist.nlist[nodelist.node_amount] = current_root_node;
                 current_root_node = current_root_node->next;
                 nodelist.node_amount++;
             }
-            else
-            {
-                /////////////////// BEDUG PRINT   
-                // printf("@ searchIndexL2Squared constructor - point 7\n");
-                fflush(stdout);
-                //---
-                break;
-            }
+            else break;
         }
-        /////////////////// BEDUG PRINT   
-        // printf("@ searchIndexL2Squared constructor - point 8\n");
-        fflush(stdout);
-        //---
+
 
         for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
         {
-            /////////////////// BEDUG PRINT   
-            // printf("@ searchIndexL2Squared constructor - point 9\n");
-            fflush(stdout);
-            //---
+        
             const float *ts = query + q_loaded * this->dim;
-            /////////////////// BEDUG PRINT   
-            // printf("@ searchIndexL2Squared constructor - point 9.1\n");
-            fflush(stdout);
-            //---
 
             //  Parse ts and make PAA representation
-            // paa_from_ts((float *)ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment); // check this catastrophic cast and maybe fix?
             paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
-            /////////////////// BEDUG PRINT   
-            printf("@ searchIndexL2Squared constructor - point 9.2\n");
-            fflush(stdout);
-            //---
 
             pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k); // check cast again.. BUG
-            /////////////////// BEDUG PRINT   
-            printf("@ searchIndexL2Squared constructor - point 9.3\n");
-            fflush(stdout);
-            //---
+  
             for (idx_t ik = 0; ik < k; ik++)                                                 // check again if this is correct!
             {
-                /////////////////// BEDUG PRINT   
-                printf("@ searchIndexL2Squared constructor - point 10\n");
-                fflush(stdout);
-                //---
+            
                 I[q_loaded * k + ik] = result.position[ik];
                 D[q_loaded * k + ik] = result.knn[ik];
             }
-            /////////////////// BEDUG PRINT   
-            printf("@ searchIndexL2Squared constructor - point 11\n");
-            fflush(stdout);
-            //---
+            
         }
-        /////////////////// BEDUG PRINT   
-        printf("@ searchIndexL2Squared constructor - point 12\n");
-        fflush(stdout);
-        //---        
 
         free(paa);
         fprintf(stderr, ">>> Finished querying.\n");
-        /////////////////// BEDUG PRINT   
-        printf("@ searchIndexL2Squared constructor - point 13\n");
         fflush(stdout);
-        //---        
+              
     }
 
     void Messi::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
@@ -994,10 +903,8 @@ namespace diNoLib
         }
         free(allpq);
 
-        // free(rfdata);
         return *pq_bsf;
 
-        // Free the nodes that where not popped.
     }
 
     pqueue_bsf Messi::MESSI_search_topk_DTW(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, node_list *nodelist, idx_t k)
