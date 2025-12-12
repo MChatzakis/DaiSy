@@ -251,7 +251,7 @@ namespace diNoLib
                         if ((idx_t)pq.size() < k) // maintain max-heap
                         {
                             pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
-                            fprintf(stderr, "Inserted into pq 2\n");
+                            fprintf(stderr, "Inserted into pq 1\n");
                             fflush(stdout);
                         }
                         else if (dist < pq.top().first)
