@@ -197,6 +197,9 @@ namespace diNoLib
                 ts_type *q_paa_upper = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
                 ts_type *q_paa_lower = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
 
+                fprintf(stderr, "Allocation succeeded 1\n");
+                fflush(stdout);
+
                 // Check memory allocation
                 if (!lower_envelope || !upper_envelope || !q_paa_upper || !q_paa_lower) {
                     fprintf(stderr, "Error: Failed to allocate memory for DTW computation\n");
@@ -212,6 +215,8 @@ namespace diNoLib
                 // For DTW we use a default warping window, could be made configurable
                 int warping_window = static_cast<int>(dim * 0.1); // 10% of time series length
                 lower_upper_lemire(const_cast<float *>(q_vec), dim, warping_window, lower_envelope, upper_envelope);
+                fprintf(stderr, "Allocation succeeded 2\n");
+                fflush(stdout);
 
                 // Compute PAA for upper and lower envelopes
                 this->distance_computer->compute_paa_from_ts(
