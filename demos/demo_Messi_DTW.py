@@ -4,9 +4,9 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-#from scripts.gui_config_param import get_config, search_classes
+from scripts.gui_config_param import get_config, search_classes
 
-from diNoSimilaritySearch import DistanceType, BruteForceSearch
+from diNoSimilaritySearch import DistanceType, Messi
 
 def main():
 # Without the GUI
@@ -24,8 +24,10 @@ def main():
     query = np.random.randn(n_query, dim).astype(np.float32)
 
     # 2. Create a brute-force search object
-    index = BruteForceSearch(DistanceType.L2_SQUARED)
+    index = Messi(DistanceType.DTW)
 
+    #REMEMBER TO SET THE WARPING WINDOW TO 10% OF THE TIME SERIES LENGTH, NOT 10 AS A NUMBER
+    index.setWarpingWindow(int(dim * 0.1))
     # 3. Build the index
     index.setNumThreads(1)
     index.buildIndex(db)

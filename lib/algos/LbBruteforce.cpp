@@ -213,6 +213,7 @@ namespace diNoLib
                 int warping_window = static_cast<int>(dim * 0.1); // 10% of time series length
                 lower_upper_lemire(const_cast<float *>(q_vec), dim, warping_window, lower_envelope, upper_envelope);
 
+
                 // Compute PAA for upper and lower envelopes
                 this->distance_computer->compute_paa_from_ts(
                     upper_envelope, q_paa_upper,
@@ -250,21 +251,18 @@ namespace diNoLib
                         if ((idx_t)pq.size() < k) // maintain max-heap
                         {
                             pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
+                
                         }
                         else if (dist < pq.top().first)
                         {
                             pq.pop();
                             pq.emplace(dist, dbi);
                             bound = pq.top().first; // update the bound variable for pruning
+                    
                         }
                     }
                 }
 
-                // Free the allocated memory
-                free(lower_envelope);
-                free(upper_envelope);
-                free(q_paa_upper);
-                free(q_paa_lower);
 
                 // store top-k results in reverse order
                 for (idx_t j = k; j > 0; --j)
