@@ -8,21 +8,26 @@ TEST_P(MessiParameterizedTest, AllConfigurations)
 {
     const SSTestConfig &config = GetParam();
     diNoLib::DistanceType dist_L2Squared = diNoLib::DistanceType::L2_SQUARED;
-    diNoLib::Messi search(dist_L2Squared);
+    for (int i = 0; i < 5; ++i)
+    {
+        diNoLib::Messi search(dist_L2Squared);
 
-    std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
-    std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
+        std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
+        std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
 
-    runSST(
-        &search,
-        prefix,
-        gt_I_path,
-        gt_D_path,
-        config.dataset_path,
-        config.query_path,
-        config.thread_count);
+        runSST(
+            &search,
+            prefix,
+            gt_I_path,
+            gt_D_path,
+            config.dataset_path,
+            config.query_path,
+            config.thread_count);
+    }
+
 }
 
+    
 INSTANTIATE_TEST_SUITE_P(
     MessiTests,
     MessiParameterizedTest,
