@@ -33,7 +33,8 @@ INSTANTIATE_TEST_SUITE_P(
     [](const ::testing::TestParamInfo<SSTestConfig> &info)
     {
         return info.param.name + "_k" + std::to_string(info.param.k_value) +
-               "_thread" + std::to_string(info.param.thread_count);
+               "_thread" + std::to_string(info.param.thread_count) +
+               "_idx" + std::to_string(info.index); 
     });
 
 int main(int argc, char **argv)
