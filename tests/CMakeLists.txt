@@ -186,7 +186,7 @@ if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_LbBruteforce_L2Square.")
 endif()
 
- ////// LBBRUTEFORCE DTW ////// 
+# ////// LBBRUTEFORCE DTW ////// 
  if(DEBUG_MSG)
      message(STATUS "---")
      message(STATUS "Attempting to add executable: test_LbBruteforce_DTW")
