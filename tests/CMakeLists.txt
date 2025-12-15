@@ -82,57 +82,57 @@ if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_bruteforce_L2Square.")
 endif()
 
-# ////// BRUTEFORCE DTW ////// (COMMENTED OUT - UNDER IMPLEMENTATION)
-# if(DEBUG_MSG)
-#     message(STATUS "---")
-#     message(STATUS "Attempting to add executable: test_bruteforce_DTW")
-# endif()
-# add_executable(
-#     test_bruteforce_DTW
-#     test_bruteforce_DTW.cpp
-#     test_utils.cpp
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Executable test_bruteforce_DTW added.")
-# endif()
+# ////// BRUTEFORCE DTW ////// 
+ if(DEBUG_MSG)
+     message(STATUS "---")
+     message(STATUS "Attempting to add executable: test_bruteforce_DTW")
+ endif()
+ add_executable(
+     test_bruteforce_DTW
+     test_bruteforce_DTW.cpp
+     test_utils.cpp
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Executable test_bruteforce_DTW added.")
+ endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Linking libraries for test_bruteforce_DTW...")
-# endif()
-# target_link_libraries(
-#     test_bruteforce_DTW
-#     PRIVATE
-#     GTest::gtest_main
-#     dino_lib
-#     commons_lib
-#     stdc++fs
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Libraries linked for test_bruteforce_DTW.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Linking libraries for test_bruteforce_DTW...")
+ endif()
+ target_link_libraries(
+     test_bruteforce_DTW
+     PRIVATE
+     GTest::gtest_main
+     dino_lib
+     commons_lib
+     stdc++fs
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Libraries linked for test_bruteforce_DTW.")
+ endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Adding include directories for test_bruteforce_DTW...")
-# endif()
-# target_include_directories(test_bruteforce_DTW
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Include directories added for test_bruteforce_DTW.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Adding include directories for test_bruteforce_DTW...")
+ endif()
+ target_include_directories(test_bruteforce_DTW
+     PRIVATE
+     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Include directories added for test_bruteforce_DTW.")
+ endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Discovering tests for test_bruteforce_DTW...")
-# endif()
-# gtest_discover_tests(
-#     test_bruteforce_DTW
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Tests discovered for test_bruteforce_DTW.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Discovering tests for test_bruteforce_DTW...")
+ endif()
+ gtest_discover_tests(
+     test_bruteforce_DTW
+     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Tests discovered for test_bruteforce_DTW.")
+ endif()
 
 # ////// LBBRUTEFORCE L2Square //////
 if(DEBUG_MSG)
@@ -186,59 +186,111 @@ if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_LbBruteforce_L2Square.")
 endif()
 
-# ////// LBBRUTEFORCE DTW ////// (COMMENTED OUT - UNDER IMPLEMENTATION)
-# if(DEBUG_MSG)
-#     message(STATUS "---")
-#     message(STATUS "Attempting to add executable: test_LbBruteforce_DTW")
-# endif()
-# add_executable(
-#     test_LbBruteforce_DTW
-#     test_LbBruteforce_DTW.cpp
-#     test_utils.cpp
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Executable test_LbBruteforce_DTW added.")
-# endif()
+# ////// LBBRUTEFORCE DTW ////// 
+ if(DEBUG_MSG)
+     message(STATUS "---")
+     message(STATUS "Attempting to add executable: test_LbBruteforce_DTW")
+ endif()
+ add_executable(
+     test_LbBruteforce_DTW
+     test_LbBruteforce_DTW.cpp
+     test_utils.cpp
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Executable test_LbBruteforce_DTW added.")
+ endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Linking libraries for test_LbBruteforce_DTW...")
-# endif()
-# target_link_libraries(
-#     test_LbBruteforce_DTW
-#     PRIVATE
-#     GTest::gtest_main
-#     dino_lib
-#     commons_lib
-#     stdc++fs
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Libraries linked for test_LbBruteforce_DTW.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Linking libraries for test_LbBruteforce_DTW...")
+ endif()
+ target_link_libraries(
+     test_LbBruteforce_DTW
+     PRIVATE
+     GTest::gtest_main
+     dino_lib
+     commons_lib
+     stdc++fs
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Libraries linked for test_LbBruteforce_DTW.")
+ endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Adding include directories for test_LbBruteforce_DTW...")
-# endif()
-# target_include_directories(test_LbBruteforce_DTW
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Include directories added for test_LbBruteforce_DTW.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Adding include directories for test_LbBruteforce_DTW...")
+ endif()
+ target_include_directories(test_LbBruteforce_DTW
+     PRIVATE
+     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Include directories added for test_LbBruteforce_DTW.")
+ endif()
 
-# if(DEBUG_MSG)
-#     message(STATUS "Discovering tests for test_LbBruteforce_DTW...")
-# endif()
-# gtest_discover_tests(
-#     test_LbBruteforce_DTW
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "Tests discovered for test_LbBruteforce_DTW.")
-# endif()
+ if(DEBUG_MSG)
+     message(STATUS "Discovering tests for test_LbBruteforce_DTW...")
+ endif()
+ gtest_discover_tests(
+     test_LbBruteforce_DTW
+     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Tests discovered for test_LbBruteforce_DTW.")
+ endif()
 
-# ////// MESSI L2Square ////// (COMMENTED OUT - UNDER IMPLEMENTATION)
+# ////// MESSI DTW ////// 
+ if(DEBUG_MSG)
+     message(STATUS "---")
+     message(STATUS "Attempting to add executable: test_Messi_DTW")
+ endif()
+ add_executable(
+     test_Messi_DTW
+     test_Messi_DTW.cpp
+     test_utils.cpp
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Executable test_Messi_DTW added.")
+ endif()
+
+ if(DEBUG_MSG)
+     message(STATUS "Linking libraries for test_Messi_DTW...")
+ endif()
+ target_link_libraries(
+     test_Messi_DTW
+     PRIVATE
+     GTest::gtest_main
+     dino_lib
+     commons_lib
+     stdc++fs
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Libraries linked for test_Messi_DTW.")
+ endif()
+
+ if(DEBUG_MSG)
+     message(STATUS "Adding include directories for test_Messi_DTW...")
+ endif()
+ target_include_directories(test_Messi_DTW
+     PRIVATE
+     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Include directories added for test_Messi_DTW.")
+ endif()
+
+ if(DEBUG_MSG)
+     message(STATUS "Discovering tests for test_Messi_DTW...")
+ endif()
+ gtest_discover_tests(
+     test_Messi_DTW
+     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+ )
+ if(DEBUG_MSG)
+     message(STATUS "Tests discovered for test_Messi_DTW.")
+ endif()
+
+# ////// MESSI L2Square ////// 
  if(DEBUG_MSG)
      message(STATUS "---")
      message(STATUS "Attempting to add executable: test_Messi_L2Square")
