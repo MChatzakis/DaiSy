@@ -68,18 +68,7 @@ namespace diNoLib
             this->db_sax_representations[dbi] = (sax_type *)malloc(sizeof(sax_type) * this->index->settings->paa_segments);
             float *vi_vec = this->database + dbi * dim;
 
-            // todo: move those dist functions in the distance computer!
-            // if (sax_from_ts(
-            //         vi_vec,
-            //         this->db_sax_representations[dbi],
-            //         this->index->settings->ts_values_per_paa_segment,
-            //         this->index->settings->paa_segments,
-            //         this->index->settings->sax_alphabet_cardinality,
-            //         this->index->settings->sax_bit_cardinality) != SUCCESS)
-            // {
-            //     fprintf(stderr, "error: cannot insert record in index, since sax representation failed to be created");
-            //     exit(EXIT_FAILURE);
-            // }
+    
             if (!this->distance_computer->compute_sax_from_ts(vi_vec,
                                                               this->db_sax_representations[dbi],
                                                               this->index->settings->ts_values_per_paa_segment,
