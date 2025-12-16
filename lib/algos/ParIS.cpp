@@ -184,7 +184,16 @@ namespace diNoLib
                 I[q_loaded * k + ik] = result.position[ik];
             }
 
-            pqueue_bsf_free(&result);
+            // Free only the internal pointers, not the structure itself (it's on the stack)
+            if (result.position != nullptr) {
+                free(result.position);
+            }
+            if (result.knn != nullptr) {
+                free(result.knn);
+            }
+            if (result.node != nullptr) {
+                free(result.node);
+            }
         }
 
         free(paa);
@@ -754,8 +763,9 @@ namespace diNoLib
         fclose(raw_file);
 
         pqueue_bsf result = *pq_bsf;
-        // Note: We return by value, but the internal pointers (knn, position, node) are still valid
-        // The caller should free using pqueue_bsf_free(&result)
+        // Note: We return by value (stack copy), but the internal pointers (knn, position, node) point to heap memory
+        // The caller should free only the internal pointers, not the structure itself
+        // Don't free pq_bsf here - the caller will free the internal pointers from the returned copy
         return result;
     }
 }
