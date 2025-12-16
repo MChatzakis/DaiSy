@@ -1,5 +1,6 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/Messi.hpp"
+#include "../lib/algos/DataSource.hpp"
 #include <chrono>
 
 int main(){
@@ -20,7 +21,8 @@ int main(){
     // messi_search.setNumThreads(1); 
 
     // // 3. Build the index
-    // messi_search.buildIndex(database, n_database, dim);
+    // diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+    // messi_search.buildIndex(&data_source);
 
     // // 4. Search the index
     // diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
@@ -35,7 +37,8 @@ int main(){
     int warp_window = std::max(1, static_cast<int>(dim * 0.1));
     messi_search.setWarpingWindow(warp_window);  // Set warping window (typically 10% of time series length)
     // 3. Build the index
-    messi_search.buildIndex(database, n_database, dim);
+    diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+    messi_search.buildIndex(&data_source);
     printf(">>> Finished indexing \n");
 
     // 4. Search the index

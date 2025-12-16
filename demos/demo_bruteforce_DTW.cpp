@@ -1,5 +1,6 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/Bruteforce.hpp"
+#include "../lib/algos/DataSource.hpp"
 
 int main()
 {
@@ -19,7 +20,8 @@ int main()
     diNoLib::BruteForceSearch bf_search(diNoLib::DistanceType::DTW);
 
     // 3. Build the index
-    bf_search.buildIndex(database, n_database, dim);
+    diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+    bf_search.buildIndex(&data_source);
 
     // 4. Search the index
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];

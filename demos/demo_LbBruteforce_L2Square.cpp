@@ -1,5 +1,6 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/LbBruteforce.hpp"
+#include "../lib/algos/DataSource.hpp"
 
 int main(){
     // 0. Configuration of the variables
@@ -18,7 +19,8 @@ int main(){
     diNoLib::LbBruteforce bf_search(diNoLib::DistanceType::L2_SQUARED);
 
     // 3. Build the index
-    bf_search.buildIndex(database, n_database, dim);
+    diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+    bf_search.buildIndex(&data_source);
 
     // 4. Search the index
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];

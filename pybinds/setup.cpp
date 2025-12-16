@@ -9,6 +9,7 @@
 #include "../lib/algos/Odyssey.hpp"
 // #include "../lib/algos/ParIS.hpp"
 #include "../lib/algos/Sing.hpp"
+#include "../lib/algos/DataSource.hpp"
 
 // Define a Python module named 'diNoSimilaritySearch'
 PYBIND11_MODULE(diNoSimilaritySearch, m)
@@ -335,7 +336,9 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             diNoLib::idx_t n = buf.shape[0];
             diNoLib::idx_t d = buf.shape[1];
 
-            self.buildIndex(static_cast<float *>(buf.ptr), n, d); }, "Build the index from a 2D float32 numpy array")
+            // Create InMemoryDataSource from numpy array
+            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
         .def("searchIndex", [](diNoLib::Sing &self, pybind11::array_t<float> query, diNoLib::idx_t k)
