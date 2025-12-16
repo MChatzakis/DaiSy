@@ -10,6 +10,8 @@
 
 namespace diNoLib
 {
+    // Forward declaration of idx_t type (also defined in SimilaritySearchAlgorithm.hpp)
+    using idx_t = unsigned long long;
     /**
      * @brief Abstract interface for data sources (Adapter Pattern)
      * 
