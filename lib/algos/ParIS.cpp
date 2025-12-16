@@ -192,6 +192,9 @@ namespace diNoLib
 
     ParIS::~ParIS()
     {
+        // Save settings pointer before freeing index (they point to the same object)
+        isax_index_settings *settings_to_free = nullptr;
+        
         // Cleanup iSAX index structures
         if (index != nullptr) {
             if (index->sax_cache != nullptr) {
@@ -210,29 +213,33 @@ namespace diNoLib
                 fclose(index->sax_file);
                 index->sax_file = nullptr;
             }
-            // Note: index->settings and index_settings point to the same object
-            // We'll clean up settings after freeing index
+            // Save settings pointer before freeing index
+            settings_to_free = index->settings;
             free(index);
             index = nullptr;
         }
         
-        if (index_settings != nullptr) {
+        // Clean up settings (index->settings and index_settings point to the same object)
+        // Use index_settings if settings_to_free is null (index was never created)
+        isax_index_settings *settings = (settings_to_free != nullptr) ? settings_to_free : index_settings;
+        if (settings != nullptr) {
             // Free raw_filename if it was allocated
-            if (index_settings->raw_filename != nullptr) {
-                free(index_settings->raw_filename);
-                index_settings->raw_filename = nullptr;
+            if (settings->raw_filename != nullptr) {
+                free(settings->raw_filename);
+                settings->raw_filename = nullptr;
             }
-            if (index_settings->bit_masks != nullptr) {
-                free(index_settings->bit_masks);
-                index_settings->bit_masks = nullptr;
+            if (settings->bit_masks != nullptr) {
+                free(settings->bit_masks);
+                settings->bit_masks = nullptr;
             }
-            if (index_settings->max_sax_cardinalities != nullptr) {
-                free(index_settings->max_sax_cardinalities);
-                index_settings->max_sax_cardinalities = nullptr;
+            if (settings->max_sax_cardinalities != nullptr) {
+                free(settings->max_sax_cardinalities);
+                settings->max_sax_cardinalities = nullptr;
             }
-            free(index_settings);
-            index_settings = nullptr;
+            free(settings);
         }
+        
+        index_settings = nullptr;
     }
 
     // File-based calculate_node_topk (reads from disk files)
