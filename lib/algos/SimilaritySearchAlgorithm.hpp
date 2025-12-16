@@ -7,6 +7,7 @@
 
 #include "../distance_computers/DistanceComputer.hpp"
 #include "../isax/iSAXSearch.hpp"
+#include "DataSource.hpp"
 
 namespace diNoLib
 {
@@ -51,7 +52,16 @@ namespace diNoLib
         idx_t getNDatabase() const { return n_database; }
         idx_t getDim() const { return dim; }
 
-        virtual void buildIndex(const float *database, const idx_t n_database, const idx_t dim) = 0;
+        /**
+         * @brief Build index from a DataSource (supports both in-memory and file-based data)
+         * 
+         * All algorithms must implement this method. It works with both InMemoryDataSource 
+         * (for in-memory algorithms like Bruteforce, LbBruteforce, Messi) and FileDataSource 
+         * (for disk-based algorithms like ParIS).
+         * 
+         * @param data_source DataSource providing access to time series data
+         */
+        virtual void buildIndex(DataSource *data_source) = 0;
         
     protected:
         // Helper function to validate search parameters

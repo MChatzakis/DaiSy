@@ -1,4 +1,6 @@
 #include "ParIS.hpp"
+#include "../isax/SAX.hpp"
+#include <stdexcept>
 
 namespace diNoLib
 {
@@ -34,12 +36,25 @@ namespace diNoLib
         return this->num_threads;
     }
 
-    void ParIS::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
+    void ParIS::buildIndex(DataSource *data_source)
     {
-        this->database = new float[n_database * dim];
-        std::copy(database, database + n_database * dim, this->database);
-        this->n_database = n_database;
-        this->dim = dim;
+        this->dim = data_source->getDim();
+        this->n_database = data_source->getTotalRecords();
+
+        // ParIS requires FileDataSource
+        FileDataSource *file_source = dynamic_cast<FileDataSource *>(data_source);
+        if (file_source == nullptr)
+        {
+            fprintf(stderr, "Error: ParIS::buildIndex requires FileDataSource\n");
+            throw std::runtime_error("ParIS::buildIndex requires FileDataSource");
+        }
+
+        const char *filename = file_source->getFilename();
+        if (filename == nullptr)
+        {
+            fprintf(stderr, "Error: FileDataSource does not have a filename\n");
+            throw std::runtime_error("FileDataSource does not have a filename");
+        }
 
         this->index_settings = isax_index_settings_init("",                        // INDEX DIRECTORY
                                                         this->dim,                 // TIME SERIES SIZE
@@ -59,82 +74,56 @@ namespace diNoLib
         this->index = isax_index_init(this->index_settings);
         isax_index *index = this->index;
 
-        idx_t ts_loaded = 0;
-        sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments);
+        // Use the multi-threaded file-based indexing function
+        int ts_num = (this->n_database > 0) ? (int)this->n_database : 0;
+        int calculate_thread = this->index_workers;
 
-        while (ts_loaded < this->n_database)
+        // If n_database is 0, we need to determine it from file size
+        // The isax_index_binary_file_m function will handle this
+        if (ts_num == 0)
         {
-            ts_type *ts = &this->database[ts_loaded * this->dim];
-            file_position_type pos = ts_loaded * this->dim;
-
-            if (sax_from_ts(ts, sax, index->settings->ts_values_per_paa_segment, index->settings->paa_segments, index->settings->sax_alphabet_cardinality, index->settings->sax_bit_cardinality) == SUCCESS)
+            // Get file size to determine number of records
+            FILE *temp_file = fopen(filename, "rb");
+            if (temp_file != nullptr)
             {
-                isax_fbl_index_insert(index, sax, &pos);
-                ts_loaded++;
+                fseek(temp_file, 0L, SEEK_END);
+                long file_size = ftell(temp_file);
+                fclose(temp_file);
+                ts_num = file_size / (sizeof(float) * this->dim);
+                this->n_database = ts_num;
             }
             else
             {
-                fprintf(stderr, "error: cannot insert record in index, since sax representation failed to be created");
-                exit(EXIT_FAILURE);
+                fprintf(stderr, "Error: Could not open file to determine size\n");
+                throw std::runtime_error("Could not open file to determine size");
             }
         }
 
-        free(sax);
-
-        flush_fbl(index->fbl, index);
+        // Call the multi-threaded indexing function
+        isax_index_binary_file_m(filename, ts_num, index, calculate_thread, this->read_block_length);
 
         fprintf(stderr, ">>> Finished indexing\n");
     }
 
     void ParIS::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        // TODO: Implement Paris search algorithm
-        // For now, fall back to brute force search similar to other algorithms
-        #pragma omp parallel num_threads(num_threads)
+        // TODO: Implement ParIS search algorithm using iSAX index
+        // For now, return empty results to allow testing of buildIndex phase
+        fprintf(stderr, "Warning: ParIS::searchIndex is not yet implemented. Only buildIndex phase is available.\n");
+        
+        // Initialize results to invalid values
+        for (idx_t qi = 0; qi < n_query; qi++)
         {
-            #pragma omp for 
-            for (idx_t qi = 0; qi < n_query; qi++)
-            {   
-                std::priority_queue<std::pair<float, idx_t>> pq;
-                const float *q_vec = query + qi * dim;
-
-                float bound = FLT_MAX;  // initialize bound to max float
-
-                for (idx_t dbi = 0; dbi < n_database; ++dbi)
-                {
-                    const float *db_vec = database + dbi * dim;
-                    float dist = this->distance_computer->compute_dist(const_cast<float *>(q_vec), 
-                                                                        const_cast<float *>(db_vec), 
-                                                                        dim, 
-                                                                        bound);
-                    if ((idx_t)pq.size() < k) // maintain max-heap
-                    {
-                        pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
-                    }
-                    else if (dist < pq.top().first) 
-                    {
-                        pq.pop();
-                        pq.emplace(dist, dbi);                         
-                        bound = pq.top().first; // update the bound variable for pruning
-                    }
-
-                }
-                
-                // store top-k results in reverse order
-                for (idx_t j = k; j > 0; --j)
-                {
-                    D[qi * k + (j - 1)] = pq.top().first;
-                    I[qi * k + (j - 1)] = pq.top().second;
-                    pq.pop();
-                }               
+            for (idx_t j = 0; j < k; j++)
+            {
+                I[qi * k + j] = 0;
+                D[qi * k + j] = FLT_MAX;
             }
         }
     }
 
     ParIS::~ParIS()
     {
-        delete[] database;
-        
         // Cleanup iSAX index structures
         if (index != nullptr) {
             if (index->sax_cache != nullptr) {

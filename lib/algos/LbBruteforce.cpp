@@ -35,12 +35,37 @@ namespace diNoLib
         return this->num_threads;
     }
 
-    void LbBruteforce::buildIndex(const float *database, const idx_t n_database, const idx_t dim)
+    void LbBruteforce::buildIndex(DataSource *data_source)
     {
-        this->database = new float[n_database * dim];
-        std::copy(database, database + n_database * dim, this->database);
-        this->n_database = n_database;
-        this->dim = dim;
+        this->dim = data_source->getDim();
+        this->n_database = data_source->getTotalRecords();
+        
+        // For LbBruteforce, we need all data in memory, so load it all
+        if (this->n_database == 0)
+        {
+            // If total records unknown, we need to count first
+            data_source->reset();
+            idx_t count = 0;
+            float *dummy = new float[this->dim];
+            while (data_source->nextRecord(dummy))
+            {
+                count++;
+            }
+            delete[] dummy;
+            this->n_database = count;
+            data_source->reset();
+        }
+        
+        // Allocate and load all data
+        this->database = new float[this->n_database * this->dim];
+        float *record = new float[this->dim];
+        idx_t idx = 0;
+        while (data_source->nextRecord(record))
+        {
+            std::copy(record, record + this->dim, this->database + idx * this->dim);
+            idx++;
+        }
+        delete[] record;
 
         this->index_settings = isax_index_settings_init("",                        // INDEX DIRECTORY
                                                         this->dim,                 // TIME SERIES SIZE

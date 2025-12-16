@@ -57,7 +57,7 @@ namespace diNoLib
         void setTotalLoadedLeaves(int total_loaded_leaves) { this->total_loaded_leaves = total_loaded_leaves; }
         void setTightBound(int tight_bound) { this->tight_bound = tight_bound; }
 
-        void buildIndex(const float *database, const idx_t n_database, const idx_t dim) override;
+        void buildIndex(DataSource *data_source) override;
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
