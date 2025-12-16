@@ -251,7 +251,7 @@ namespace diNoLib
         index_settings = nullptr;
     }
 
-    // File-based calculate_node_topk (reads from disk files)
+    // File-based calculate_node_topk (reads from disk files and in-memory buffers)
     void calculate_node_topk(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf)
     {
         FILE *raw_file = fopen(index->settings->raw_filename, "rb");
@@ -260,6 +260,48 @@ namespace diNoLib
             return;
         }
 
+        // Check in-memory buffers first (like in-memory version)
+        if (node->buffer != NULL)
+        {
+            int i;
+            // Check full buffers
+            for (i = 0; i < node->buffer->full_buffer_size; i++)
+            {
+                float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
+                                                        index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
+                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                {
+                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                }
+            }
+            // Check temporary full buffers
+            for (i = 0; i < node->buffer->tmp_full_buffer_size; i++)
+            {
+                float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
+                                                        index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
+                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                {
+                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                }
+            }
+            // Check partial buffers (read from raw file)
+            for (i = 0; i < node->buffer->partial_buffer_size; i++)
+            {
+                file_position_type pos = *node->buffer->partial_position_buffer[i];
+                fseek(raw_file, pos, SEEK_SET);
+                ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
+                size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
+                (void)items_read; // Suppress unused variable warning
+                float dist = ts_euclidean_distance_SIMD(query, ts_buffer, index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
+                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                {
+                    pqueue_bsf_insert(pq_bsf, dist, pos / index->settings->timeseries_size, node);
+                }
+                free(ts_buffer);
+            }
+        }
+
+        // Check partial data file
         if (node->filename != NULL && node->has_partial_data_file)
         {
             FILE *node_file = fopen(node->filename, "rb");
@@ -282,6 +324,11 @@ namespace diNoLib
                 fclose(node_file);
             }
         }
+
+        // Skip full data files in refine_topk_answer - they will be handled by mindistance_worker
+        // which scans the SAX cache and finds all candidates. This avoids position mapping issues.
+        // The in-memory buffers and partial data files should provide a good BSF for pruning.
+
         fclose(raw_file);
     }
 
