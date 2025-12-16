@@ -1,6 +1,8 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/ParIS.hpp"
 #include "../lib/algos/DataSource.hpp"
+#include <cstdio>
+#include <cstring>
 
 int main(){
     // 0. Configuration of the variables
@@ -8,31 +10,41 @@ int main(){
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
     diNoLib::idx_t k = 5;
-    const char *db_file = "../data/random.data.randwalk.len96.size200000.znorm.bin";
-    const char *query_file = "../data/random.query.randwalk.len96.size1000.bin";
 
-    // 1. Load queries from binary file
-    float *query = loadBinData(query_file, n_query, dim);
+    // 1. Generate random data and queries (same as LbBruteforce demo)
+    float *database = loadRandomData(n_database, dim, true, 100);
+    float *query = loadRandomData(n_query, dim, true, 50);
 
-    printf("Loaded %llu database points from %s\n", n_database, db_file);
-    printf("Loaded %llu query points from %s with dimension %llu\n", n_query, query_file, dim);
+    printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
-    // 2. Create FileDataSource and ParIS search object
-    diNoLib::FileDataSource file_source(db_file, dim, n_database);
+    // 2. Write database to temporary file (ParIS requires FileDataSource)
+    const char *temp_db_file = "/tmp/paris_test_db.bin";
+    FILE *fp = fopen(temp_db_file, "wb");
+    if (fp == nullptr) {
+        fprintf(stderr, "Error: Could not create temporary database file\n");
+        delete[] database;
+        delete[] query;
+        return 1;
+    }
+    fwrite(database, sizeof(float), n_database * dim, fp);
+    fclose(fp);
+
+    // 3. Create FileDataSource and ParIS search object
+    diNoLib::FileDataSource file_source(temp_db_file, dim, n_database);
     diNoLib::ParIS paris_search(diNoLib::DistanceType::L2_SQUARED);
     paris_search.setNumThreads(4);
 
-    // 3. Build the index
+    // 4. Build the index
     paris_search.buildIndex(&file_source);
     printf(">>> Finished indexing\n");
 
-    // 4. Search the index
+    // 5. Search the index
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
     float *D = new float[n_query * k];
     paris_search.searchIndex(query, n_query, k, I, D);
     printf(">>> Finished search\n");
 
-    // 5. Print the results
+    // 6. Print the results
     for (diNoLib::idx_t i = 0; i < n_query; i++)
     {
         printf("Query %llu: ", i);
@@ -43,10 +55,12 @@ int main(){
         printf("\n");
     }
 
-    // 6. Clean up
+    // 7. Clean up
+    delete[] database;
     delete[] query;
     delete[] I;
     delete[] D;
+    remove(temp_db_file);  // Remove temporary file
 
     return 0;
 }
