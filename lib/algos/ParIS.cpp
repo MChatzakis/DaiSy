@@ -473,11 +473,10 @@ namespace diNoLib
         // *** REAL DISTANCE *** 
         checks++; 
         calculate_node_topk(index, n->node, ts, pq_bsf);
- 
-                if(pq_bsf->knn[pq_bsf->k-1] < FLT_MAX) {
-                    pqueue_insert(pq, n);
-                    break;
-                }
+
+                // Continue searching - the termination condition at line 440 will handle stopping
+                // when no node can improve the results (n->distance >= pq_bsf->knn[pq_bsf->k-1])
+                // Don't break early here, as there might be better candidates still in the queue
             } 
             else { 
               // If it is an intermediate node calculate mindist for children 
@@ -668,7 +667,7 @@ namespace diNoLib
 
         int sum_of_lab = 0;
 
-        // Early termination
+        // Early termination - perfect match found (distance = 0)
         if (pq_bsf->knn[k-1] == 0) {
             free(ts_buffer);
             free(threadid);
@@ -678,9 +677,9 @@ namespace diNoLib
             return result;
         }
         
-        if(pq_bsf->knn[k-1] == FLT_MAX || min_checked_leaves > 1) {
-            refine_topk_answer(ts, paa, index, pq_bsf, minimum_distance, min_checked_leaves);
-        }
+        // Always refine to get a tight BSF distance for exact results
+        // This ensures the mindistance_worker phase can prune correctly
+        refine_topk_answer(ts, paa, index, pq_bsf, minimum_distance, min_checked_leaves);
         
         unsigned long i;
 
