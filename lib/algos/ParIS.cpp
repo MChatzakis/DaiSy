@@ -473,12 +473,10 @@ namespace diNoLib
         // *** REAL DISTANCE *** 
         checks++; 
         calculate_node_topk(index, n->node, ts, pq_bsf);
-
-                // Don't break early - continue searching to ensure exact results
-                // The subsequent mindistance_worker and topk_read_worker phases will refine further
+ 
                 if(pq_bsf->knn[pq_bsf->k-1] < FLT_MAX) {
-                    // Update the BSF but continue searching for better candidates
-                    // This ensures we have a tight BSF for the subsequent phases
+                    pqueue_insert(pq, n);
+                    break;
                 }
             } 
             else { 
@@ -670,7 +668,7 @@ namespace diNoLib
 
         int sum_of_lab = 0;
 
-        // Early termination - perfect match found
+        // Early termination
         if (pq_bsf->knn[k-1] == 0) {
             free(ts_buffer);
             free(threadid);
@@ -680,9 +678,9 @@ namespace diNoLib
             return result;
         }
         
-        // Always refine to ensure exact results (unless we have perfect match)
-        // This ensures we have a good BSF distance for pruning in the subsequent phases
-        refine_topk_answer(ts, paa, index, pq_bsf, minimum_distance, min_checked_leaves);
+        if(pq_bsf->knn[k-1] == FLT_MAX || min_checked_leaves > 1) {
+            refine_topk_answer(ts, paa, index, pq_bsf, minimum_distance, min_checked_leaves);
+        }
         
         unsigned long i;
 
