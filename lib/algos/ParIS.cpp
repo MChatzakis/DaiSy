@@ -724,9 +724,19 @@ namespace diNoLib
             return result;
         }
         
-        // Always refine to get a tight BSF distance for exact results
-        // This ensures the mindistance_worker phase can prune correctly
+        // Save approximate BSF before refinement
+        // We'll use this for mindistance_worker to avoid over-pruning valid candidates
+        float approximate_bsf = pq_bsf->knn[k - 1];
+        
+        // Always refine to improve the results in pq_bsf
+        // This tightens the BSF and finds better candidates
         refine_topk_answer(ts, paa, index, pq_bsf, minimum_distance, min_checked_leaves);
+        
+        // Use approximate BSF for mindistance_worker if it's valid (not FLT_MAX)
+        // This ensures we don't prune valid candidates that might be in full data files
+        // that weren't checked in refine_topk_answer. The approximate BSF is guaranteed
+        // to not prune valid candidates since it comes from the initial approximate search.
+        float bsf_for_mindistance = (approximate_bsf != FLT_MAX) ? approximate_bsf : pq_bsf->knn[k - 1];
         
         unsigned long i;
 
@@ -741,7 +751,7 @@ namespace diNoLib
             essdata[i].stop_number = (i + 1) * (index->sax_cache_size / maxquerythread);
             essdata[i].paa = paa;
             essdata[i].ts = ts;
-            essdata[i].bsfdistance = pq_bsf->knn[k - 1];
+            essdata[i].bsfdistance = bsf_for_mindistance;
             essdata[i].sum_of_lab = 0;
         }
         essdata[maxquerythread - 1].index = index;
@@ -750,7 +760,7 @@ namespace diNoLib
         essdata[maxquerythread - 1].stop_number = index->sax_cache_size;
         essdata[maxquerythread - 1].paa = paa;
         essdata[maxquerythread - 1].ts = ts;
-        essdata[maxquerythread - 1].bsfdistance = pq_bsf->knn[k - 1];
+        essdata[maxquerythread - 1].bsfdistance = bsf_for_mindistance;
         essdata[maxquerythread - 1].sum_of_lab = 0;
 
         for(i = 0; i < maxquerythread; i++)
