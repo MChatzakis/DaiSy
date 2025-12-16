@@ -479,9 +479,10 @@ namespace diNoLib
           } 
                 } 
             } 
- 
+            } 
+
             // Free the node currently popped. 
-           free(n); 
+           free(n);
         } 
         // Free the nodes that where not popped. 
         while ((n = (query_result *)pqueue_pop(pq))) 
