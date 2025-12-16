@@ -2162,7 +2162,8 @@ namespace diNoLib
 
         if (ts_num > read_block_length * (calculate_thread - 1))
         {
-            fread(ts1, sizeof(ts_type), index->settings->timeseries_size * read_block_length * (calculate_thread - 1), ifile);
+            size_t items_read = fread(ts1, sizeof(ts_type), index->settings->timeseries_size * read_block_length * (calculate_thread - 1), ifile);
+            (void)items_read; // Suppress unused variable warning - we trust the file size check above
             ts2 = ts;
             ts = ts1;
             ts1 = ts2;
@@ -2184,7 +2185,8 @@ namespace diNoLib
 
                 *pos = ftell(ifile);
                 // read the data of next round
-                fread(ts1, sizeof(ts_type), index->settings->timeseries_size * read_block_length * (calculate_thread - 1), ifile);
+                size_t items_read = fread(ts1, sizeof(ts_type), index->settings->timeseries_size * read_block_length * (calculate_thread - 1), ifile);
+                (void)items_read; // Suppress unused variable warning - we trust the file size check above
                 // write the sax in disk (last round)
                 if (sax_fist_time_check)
                 {
@@ -2251,7 +2253,12 @@ namespace diNoLib
             }
         }
         *pos = ftell(ifile);
-        fread(ts1, sizeof(ts_type), index->settings->timeseries_size * (ts_num % (read_block_length * (calculate_thread - 1))), ifile);
+        size_t remainder_size = index->settings->timeseries_size * (ts_num % (read_block_length * (calculate_thread - 1)));
+        if (remainder_size > 0)
+        {
+            size_t items_read = fread(ts1, sizeof(ts_type), remainder_size, ifile);
+            (void)items_read; // Suppress unused variable warning - we trust the file size check above
+        }
         ts2 = ts;
         ts = ts1;
         ts1 = ts2;
