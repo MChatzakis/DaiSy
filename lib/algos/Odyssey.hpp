@@ -16,9 +16,6 @@ namespace diNoLib
     class Odyssey : public SimilaritySearchAlgorithm
     {
     private:
-        float* database = nullptr;
-        idx_t n_database = 0;
-        idx_t dim = 0;
         int num_threads = 1;
                 
     public:
