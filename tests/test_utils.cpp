@@ -1,6 +1,7 @@
 #include "test_utils.hpp"
 
 #include "../commons/dataloaders.hpp"
+#include "../lib/algos/DataSource.hpp"
 
 void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
                                   const std::string &prefix_name,
@@ -27,7 +28,8 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     float *database = loadBinData(dataset_path.c_str(), n_database, dim);
     float *query = loadBinData(query_path.c_str(), n_query, dim);
 
-    search->buildIndex(database, n_database, dim);
+    diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+    search->buildIndex(&data_source);
     search->setNumThreads(num_thread);
 
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
