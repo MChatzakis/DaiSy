@@ -336,8 +336,15 @@ namespace diNoLib
             // Traverse tree
 
             // Adaptive splitting
+            // For file-based indexing, skip adaptive splitting if node has file data
             if (node->is_leaf && !node->has_full_data_file &&
-                (node->leaf_size > index->settings->min_leaf_size))
+                !node->has_partial_data_file &&
+                (node->leaf_size > index->settings->min_leaf_size) &&
+                node->buffer != NULL &&
+                (node->buffer->full_buffer_size > 0 || 
+                 node->buffer->partial_buffer_size > 0 ||
+                 node->buffer->tmp_full_buffer_size > 0 ||
+                 node->buffer->tmp_partial_buffer_size > 0))
             {
                 split_node(index, node);
             }
@@ -357,8 +364,15 @@ namespace diNoLib
                 }
 
                 // Adaptive splitting
+                // For file-based indexing, skip adaptive splitting if node has file data
                 if (node->is_leaf && !node->has_full_data_file &&
-                    (node->leaf_size > index->settings->min_leaf_size))
+                    !node->has_partial_data_file &&
+                    (node->leaf_size > index->settings->min_leaf_size) &&
+                    node->buffer != NULL &&
+                    (node->buffer->full_buffer_size > 0 || 
+                     node->buffer->partial_buffer_size > 0 ||
+                     node->buffer->tmp_full_buffer_size > 0 ||
+                     node->buffer->tmp_partial_buffer_size > 0))
                 {
                     split_node(index, node);
                 }
@@ -422,8 +436,16 @@ namespace diNoLib
           // If it is a leaf, check its real distance. 
             if (n->node->is_leaf) { 
         // *** ADAPTIVE SPLITTING *** 
+        // For file-based indexing, skip adaptive splitting if node has file data
+        // to avoid double-free issues with FBL-managed memory
             if (!n->node->has_full_data_file && 
-          (n->node->leaf_size > index->settings->min_leaf_size)) 
+          !n->node->has_partial_data_file &&
+          (n->node->leaf_size > index->settings->min_leaf_size) &&
+          n->node->buffer != NULL &&
+          (n->node->buffer->full_buffer_size > 0 || 
+           n->node->buffer->partial_buffer_size > 0 ||
+           n->node->buffer->tmp_full_buffer_size > 0 ||
+           n->node->buffer->tmp_partial_buffer_size > 0)) 
             { 
           // Split and push again in the queue 
                 split_node(index, n->node); 
