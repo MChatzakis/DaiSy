@@ -196,27 +196,42 @@ namespace diNoLib
         if (index != nullptr) {
             if (index->sax_cache != nullptr) {
                 free(index->sax_cache);
+                index->sax_cache = nullptr;
             }
             if (index->answer != nullptr) {
                 free(index->answer);
+                index->answer = nullptr;
             }
             if (index->fbl != nullptr) {
                 destroy_fbl(index->fbl);
+                index->fbl = nullptr;
             }
             if (index->sax_file != nullptr) {
                 fclose(index->sax_file);
+                index->sax_file = nullptr;
             }
+            // Note: index->settings and index_settings point to the same object
+            // We'll clean up settings after freeing index
             free(index);
+            index = nullptr;
         }
         
         if (index_settings != nullptr) {
+            // Free raw_filename if it was allocated
+            if (index_settings->raw_filename != nullptr) {
+                free(index_settings->raw_filename);
+                index_settings->raw_filename = nullptr;
+            }
             if (index_settings->bit_masks != nullptr) {
                 free(index_settings->bit_masks);
+                index_settings->bit_masks = nullptr;
             }
             if (index_settings->max_sax_cardinalities != nullptr) {
                 free(index_settings->max_sax_cardinalities);
+                index_settings->max_sax_cardinalities = nullptr;
             }
             free(index_settings);
+            index_settings = nullptr;
         }
     }
 
