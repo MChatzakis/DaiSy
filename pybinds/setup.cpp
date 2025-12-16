@@ -43,7 +43,9 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             diNoLib::idx_t n = buf.shape[0];
             diNoLib::idx_t d = buf.shape[1];
 
-            self.buildIndex(static_cast<float *>(buf.ptr), n, d); }, "Build the index from a 2D float32 numpy array")
+            // Create InMemoryDataSource from numpy array
+            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
         .def("searchIndex", [](diNoLib::BruteForceSearch &self, pybind11::array_t<float> query, diNoLib::idx_t k)
@@ -108,7 +110,13 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Database array must be 2D");
-            self.buildIndex(static_cast<float *>(buf.ptr), buf.shape[0], buf.shape[1]); }, "Build the index from a 2D float32 numpy array")
+            
+            diNoLib::idx_t n = buf.shape[0];
+            diNoLib::idx_t d = buf.shape[1];
+            
+            // Create InMemoryDataSource from numpy array
+            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Search the index using a query array and return (indices, distances)
         .def("searchIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k)
@@ -237,7 +245,13 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
-            self.buildIndex(static_cast<float *>(buf.ptr), buf.shape[0], buf.shape[1]); }, "Build the MESSI index from a 2D float32 NumPy array")
+            
+            diNoLib::idx_t n = buf.shape[0];
+            diNoLib::idx_t d = buf.shape[1];
+            
+            // Create InMemoryDataSource from numpy array
+            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the MESSI index from a 2D float32 NumPy array")
 
         // Search the index with query array and return top-k results
         .def("searchIndex", [](diNoLib::Messi &self, pybind11::array_t<float> query, diNoLib::idx_t k)
@@ -282,7 +296,9 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             diNoLib::idx_t n = buf.shape[0];
             diNoLib::idx_t d = buf.shape[1];
 
-            self.buildIndex(static_cast<float *>(buf.ptr), n, d); }, "Build the index from a 2D float32 numpy array")
+            // Create InMemoryDataSource from numpy array
+            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
         .def("searchIndex", [](diNoLib::Odyssey &self, pybind11::array_t<float> query, diNoLib::idx_t k)
