@@ -425,7 +425,7 @@ namespace diNoLib
                     pqueue_insert(pq, n);
                     break;
                 }
-      } 
+            } 
             else { 
               // If it is an intermediate node calculate mindist for children 
               // and push them in the queue 
