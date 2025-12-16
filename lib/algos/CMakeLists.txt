@@ -98,16 +98,16 @@ if(DEBUG_MSG)
 endif()
 
 # ////// PARIS //////
-# if(DEBUG_MSG)
-#     message(STATUS "Adding ParIS.cpp to dino_lib sources (commented out).")
-# endif()
-# target_sources(dino_lib
-#     PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/ParIS.cpp
-# )
-# if(DEBUG_MSG)
-#     message(STATUS "ParIS.cpp added (commented out).")
-# endif()
+if(DEBUG_MSG)
+    message(STATUS "Adding ParIS.cpp to dino_lib sources.")
+endif()
+target_sources(dino_lib
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/ParIS.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "ParIS.cpp added.")
+endif()
 
 # ////// SING //////
 if (SING_CUDA_AVAILABLE)
