@@ -9,9 +9,47 @@
 #include <queue>
 #include <cfloat>
 #include <omp.h> 
+#include <pthread.h>
 
 namespace diNoLib
 {
+    // Constants for ParIS search
+    #define MAXREADTHREAD 4
+
+    typedef struct ParIS_LDCW_data
+    {
+        isax_index *index;
+        pthread_rwlock_t *lock_bsf;
+        unsigned long start_number;
+        unsigned long stop_number;
+        ts_type *paa;
+        ts_type *ts;
+        float bsfdistance;
+        unsigned long sum_of_lab;
+        unsigned long *label_number;
+        float *minidisvector;
+    } ParIS_LDCW_data;
+
+    typedef struct ParIS_read_worker_data
+    {
+        isax_index *index;
+        ts_type *ts;
+        unsigned long *counter;
+        unsigned long *load_point;
+        pthread_rwlock_t *lock_bsf;
+        float *minidisvector;
+        unsigned long sum_of_lab;
+        pqueue_bsf *pq_bsf;
+    } ParIS_read_worker_data;
+
+    void *mindistance_worker(void *essdata);
+    void *topk_read_worker(void *read_pointer);
+    pqueue_bsf exact_topk_serial_ParIS(ts_type *ts, ts_type *paa, isax_index *index, float minimum_distance, int min_checked_leaves, int k, int maxquerythread);
+    void approximate_topk(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf);
+    void refine_topk_answer(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit);
+    void calculate_node_topk(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf);
+    float calculate_minimum_distance(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
+
     class ParIS : public SimilaritySearchAlgorithm
     {
     private:
@@ -34,6 +72,8 @@ namespace diNoLib
 
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
+
+        void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
                 
     public:
         ParIS(DistanceType distance_type);
