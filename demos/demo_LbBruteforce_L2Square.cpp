@@ -14,10 +14,10 @@ int main(){
 
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
-    // 2. Create a brute-force search object
+    // 2. Create a LbBruteforce search object
     diNoLib::LbBruteforce bf_search(diNoLib::DistanceType::L2_SQUARED);
 
-    // 3. Build the index
+    // 3. Build the index (simplified API - no need for DataSource!)
     bf_search.buildIndex(database, n_database, dim);
 
     // 4. Search the index

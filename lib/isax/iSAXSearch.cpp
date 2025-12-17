@@ -9,6 +9,11 @@ namespace diNoLib
 {
     void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile)
     {
+        // Bail out if node or buffer is missing
+        if (node == NULL || node->buffer == NULL)
+        {
+            return;
+        }
         // COUNT_CHECKED_NODE()
         //  If node has buffered data
         if (node->buffer != NULL)
@@ -39,6 +44,9 @@ namespace diNoLib
             }
             for (i = 0; i < node->buffer->partial_buffer_size; i++)
             {
+                // Skip if position buffer entry is NULL
+                if (node->buffer->partial_position_buffer[i] == NULL)
+                    continue;
 
                 float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
@@ -69,8 +77,12 @@ namespace diNoLib
 
             // Adaptive splitting
 
-            while (!node->is_leaf)
+            while (node != NULL && !node->is_leaf)
             {
+                // Check for missing split_data
+                if (node->split_data == NULL)
+                    break;
+                    
                 int location = index->settings->sax_bit_cardinality - 1 -
                                node->split_data->split_mask[node->split_data->splitpoint];
                 root_mask_type mask = index->settings->bit_masks[location];
@@ -86,7 +98,8 @@ namespace diNoLib
 
                 // Adaptive splitting
             }
-            calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile);
+            if (node != NULL)
+                calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile);
         }
         else
         {
@@ -100,7 +113,6 @@ namespace diNoLib
 
     void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile)
     {
-
         int tight_bound = index->settings->tight_bound;
         int aggressive_check = index->settings->aggressive_check;
 
@@ -112,6 +124,13 @@ namespace diNoLib
 
         while (current_root_node != NULL)
         {
+            // Skip nodes with uninitialized isax data
+            if (current_root_node->isax_values == NULL || current_root_node->isax_cardinalities == NULL)
+            {
+                current_root_node = current_root_node->next;
+                continue;
+            }
+            
             query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
 
             mindist_result->distance = minidist_paa_to_isax(paa, current_root_node->isax_values,
@@ -130,6 +149,15 @@ namespace diNoLib
         int checks = 0;
         while ((n = (query_result *)pqueue_pop(pq)))
         {
+            if (!n->node) {
+                free(n);
+                continue;
+            }
+            // Skip nodes missing SAX metadata to avoid invalid accesses
+            if (n->node->isax_values == NULL || n->node->isax_cardinalities == NULL) {
+                free(n);
+                continue;
+            }
             // The best node has a worse mindist, so search is finished!
             if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
             {
@@ -142,13 +170,20 @@ namespace diNoLib
                 if (n->node->is_leaf)
                 {
                     // *** ADAPTIVE SPLITTING ***
+                    // Only split if buffer exists (node hasn't been split already)
                     if (!n->node->has_full_data_file &&
-                        (n->node->leaf_size > index->settings->min_leaf_size))
+                        (n->node->leaf_size > index->settings->min_leaf_size) &&
+                        n->node->buffer != NULL)
                     {
-                        // Split and push again in the queue
+                        // Try to split - split_node may return early if can't split further
                         split_node(index, n->node);
-                        pqueue_insert(pq, n);
-                        continue;
+                        // Only re-queue if split succeeded (node is no longer a leaf)
+                        if (!n->node->is_leaf)
+                        {
+                            pqueue_insert(pq, n);
+                            continue;
+                        }
+                        // If still a leaf (split failed), fall through to process normally
                     }
                     // *** EXTRA BOUNDING ***
                     if (tight_bound)
@@ -176,7 +211,9 @@ namespace diNoLib
                 {
                     // If it is an intermediate node calculate mindist for children
                     // and push them in the queue
-                    if (n->node->left_child->isax_cardinalities != NULL)
+                    if (n->node->left_child != NULL && 
+                        n->node->left_child->isax_values != NULL && 
+                        n->node->left_child->isax_cardinalities != NULL)
                     {
                         if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
                         {
@@ -196,9 +233,11 @@ namespace diNoLib
                             pqueue_insert(pq, mindist_result);
                         }
                     }
-                    if (n->node->right_child->isax_cardinalities != NULL)
+                    if (n->node->right_child != NULL && 
+                        n->node->right_child->isax_values != NULL && 
+                        n->node->right_child->isax_cardinalities != NULL)
                     {
-                        if (n->node->right_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
+                        if (n->node->right_child->is_leaf && !n->node->right_child->has_partial_data_file && aggressive_check)
                         {
                             calculate_node_topk_inmemory(index, n->node->right_child, ts, pq_bsf, rawfile);
                         }
@@ -232,7 +271,6 @@ namespace diNoLib
             pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
         }
         // Free the priority queue.
-
         pqueue_free(pq);
     }
 

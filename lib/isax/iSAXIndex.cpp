@@ -1,6 +1,9 @@
 #include "iSAXIndex.hpp"
+#include "SAX.hpp"
 
 #include <float.h>
+#include <string.h>
+#include <stdlib.h>
 namespace diNoLib
 {
 
@@ -186,8 +189,51 @@ namespace diNoLib
         free(fbl);
     }
 
+    void destroy_parallel_fbl(parallel_first_buffer_layer *fbl)
+    {
+        if (fbl == NULL) return;
+        
+        int total_workers = fbl->total_worker_number;
+        
+        // Free internal allocations of each soft buffer
+        if (fbl->soft_buffers != NULL) {
+            for (int i = 0; i < fbl->number_of_buffers; i++) {
+                parallel_fbl_soft_buffer *sb = &fbl->soft_buffers[i];
+                if (sb->initialized) {
+                    // Free per-worker arrays
+                    if (sb->sax_records != NULL) {
+                        for (int w = 0; w < total_workers; w++) {
+                            if (sb->sax_records[w] != NULL) {
+                                free(sb->sax_records[w]);
+                            }
+                        }
+                        free(sb->sax_records);
+                    }
+                    if (sb->pos_records != NULL) {
+                        for (int w = 0; w < total_workers; w++) {
+                            if (sb->pos_records[w] != NULL) {
+                                free(sb->pos_records[w]);
+                            }
+                        }
+                        free(sb->pos_records);
+                    }
+                    if (sb->max_buffer_size != NULL) {
+                        free(sb->max_buffer_size);
+                    }
+                    if (sb->buffer_size != NULL) {
+                        free(sb->buffer_size);
+                    }
+                }
+            }
+            free(fbl->soft_buffers);
+        }
+        
+        free(fbl->hard_buffer);
+        free(fbl);
+    }
+
     parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers,
-                                                    int max_total_buffers_size, isax_index *index)
+                                                    int max_total_buffers_size, isax_index *index, int total_workers)
     {
         parallel_first_buffer_layer *fbl = (parallel_first_buffer_layer *)malloc(sizeof(parallel_first_buffer_layer));
 
@@ -198,6 +244,7 @@ namespace diNoLib
         fbl->max_total_size = max_total_buffers_size;
         fbl->initial_buffer_size = initial_buffer_size;
         fbl->number_of_buffers = number_of_buffers;
+        fbl->total_worker_number = total_workers;  // Store for cleanup
 
         // Allocate a big chunk of memory to store sax data and positions
         // long long hard_buffer_size = (long long)(index->settings->sax_byte_size + index->settings->position_byte_size) * (long long)max_total_buffers_size;
@@ -579,10 +626,6 @@ namespace diNoLib
             }
         }
 
-        // #ifdef DEBUG
-        // printf("%d -> %f\n", records_buffer[0].sax[0], sax2paa[0]);
-        // #endif
-
         for (i = 0; i < settings->paa_segments; i++)
         {
             segment_mean[i] /= (records_buffer_size);
@@ -622,10 +665,6 @@ namespace diNoLib
                 int new_cardinality = pow(2, new_bit_cardinality + 1);
                 int offset = (new_cardinality - 1) * (new_cardinality - 2) / 2;
                 float b = sax_breakpoints[offset + break_point_id];
-
-                // #ifdef DEBUG
-                // printf("%d -> %d + %d -> %f\n", break_point_id >> 1, break_point_id, offset, b);
-                // #endif
 
                 if (segment_to_split == -1)
                 {
@@ -703,6 +742,41 @@ namespace diNoLib
 
     void split_node(isax_index *index, isax_node *node)
     {
+        // Bail early if buffer is NULL (node was already split or not initialized)
+        if (node == NULL || node->buffer == NULL)
+        {
+            return;
+        }
+        
+        // Pre-check: if parent exists and all split_mask entries are at max, can't split
+        if (node->parent != NULL && node->parent->split_data != NULL)
+        {
+            int can_split = 0;
+            for (int i = 0; i < index->settings->paa_segments; i++)
+            {
+                if (node->parent->split_data->split_mask[i] < index->settings->sax_bit_cardinality - 1)
+                {
+                    can_split = 1;
+                    break;
+                }
+            }
+            if (!can_split)
+            {
+                // Cannot split further - all dimensions at max depth
+                return;
+            }
+        }
+        
+        // Pre-check: if no records to split, don't proceed
+        int total_records = node->buffer->full_buffer_size + 
+                           node->buffer->partial_buffer_size +
+                           node->buffer->tmp_full_buffer_size + 
+                           node->buffer->tmp_partial_buffer_size;
+        if (total_records == 0)
+        {
+            return;
+        }
+        
         // *******************************************************
         // CREATE TWO NEW NODES AND SET OLD ONE AS AN INTERMEDIATE
         // *******************************************************
@@ -752,11 +826,56 @@ namespace diNoLib
         node->right_child = right_child;
 
         // ############ S P L I T   D A T A #############
-        // Allocating 1 more position to cover any off-sized allocations happening due to
-        // trying to load one more record from a fetched file page which does not exist.
-        // e.g. line 284 ( if(!fread... )
-        isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) *
-                                                                    (index->settings->max_leaf_size + 1));
+        // Count in-memory records
+        int inmem_count = node->buffer->full_buffer_size + 
+                         node->buffer->partial_buffer_size +
+                         node->buffer->tmp_full_buffer_size + 
+                         node->buffer->tmp_partial_buffer_size;
+        
+        // Count records in files by checking file sizes
+        int file_record_count = 0;
+        if (node->filename != NULL) {
+            // Count .full file records
+            char *full_fname = (char *)malloc(sizeof(char) * (strlen(node->filename) + 6));
+            strcpy(full_fname, node->filename);
+            strcat(full_fname, ".full");
+            FILE *f = fopen(full_fname, "r");
+            if (f != NULL) {
+                fseek(f, 0, SEEK_END);
+                long fsize = ftell(f);
+                // Each full record = position + sax + ts
+                int full_record_size = index->settings->position_byte_size + 
+                                      index->settings->sax_byte_size + 
+                                      index->settings->ts_byte_size;
+                file_record_count += (fsize / full_record_size) + 1;
+                fclose(f);
+            }
+            free(full_fname);
+            
+            // Count .part file records
+            char *part_fname = (char *)malloc(sizeof(char) * (strlen(node->filename) + 6));
+            strcpy(part_fname, node->filename);
+            strcat(part_fname, ".part");
+            f = fopen(part_fname, "r");
+            if (f != NULL) {
+                fseek(f, 0, SEEK_END);
+                long fsize = ftell(f);
+                // Each partial record = position + sax (no ts)
+                int part_record_size = index->settings->position_byte_size + 
+                                      index->settings->sax_byte_size;
+                file_record_count += (fsize / part_record_size) + 1;
+                fclose(f);
+            }
+            free(part_fname);
+        }
+        
+        // Allocate buffer for all records with safety margin
+        int split_buffer_size = inmem_count + file_record_count + 100;
+        isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) * split_buffer_size);
+        if (split_buffer == NULL) {
+            fprintf(stderr, "ERROR: Failed to allocate split_buffer of size %d\n", split_buffer_size);
+            return;
+        }
 
         int split_buffer_index = 0;
 
@@ -834,6 +953,11 @@ namespace diNoLib
                 // COUNT_INPUT_TIME_START
                 while (!feof(full_file))
                 {
+                    // Bounds check to prevent buffer overflow
+                    if (split_buffer_index >= split_buffer_size - 1) {
+                        fprintf(stderr, "WARNING: split_buffer overflow prevented (full file)\n");
+                        break;
+                    }
                     split_buffer[split_buffer_index].position = (file_position_type *)malloc(index->settings->position_byte_size);
                     split_buffer[split_buffer_index].sax = (sax_type *)malloc(index->settings->sax_byte_size);
                     split_buffer[split_buffer_index].ts = (ts_type *)malloc(index->settings->ts_byte_size);
@@ -860,7 +984,7 @@ namespace diNoLib
                         }
                         else
                         {
-                            if (!fread(split_buffer[split_buffer_index].sax, sizeof(ts_type),
+                            if (!fread(split_buffer[split_buffer_index].ts, sizeof(ts_type),
                                        index->settings->timeseries_size, full_file))
                             {
                                 // Free because it is not inserted in the tree
@@ -906,6 +1030,11 @@ namespace diNoLib
 
                 while (!feof(partial_file))
                 {
+                    // Bounds check to prevent buffer overflow
+                    if (split_buffer_index >= split_buffer_size - 1) {
+                        fprintf(stderr, "WARNING: split_buffer overflow prevented (partial file)\n");
+                        break;
+                    }
                     split_buffer[split_buffer_index].position = (file_position_type *)malloc(index->settings->position_byte_size);
                     split_buffer[split_buffer_index].sax = (sax_type *)malloc(index->settings->sax_byte_size);
                     split_buffer[split_buffer_index].insertion_mode = (insertion_mode)(PARTIAL | TMP);
@@ -966,16 +1095,40 @@ namespace diNoLib
         // printf("not informed decision: %d\n", split_data->splitpoint);
         if (split_data->splitpoint < 0)
         {
-            fprintf(stderr, "error: cannot split in depth more than %d.\n",
-                    index->settings->sax_bit_cardinality);
-            exit(-1);
+            // This shouldn't happen due to pre-check, but handle gracefully
+            fprintf(stderr, "warning: split_node failed to find valid splitpoint\n");
+            // Revert changes and return
+            node->is_leaf = 1;
+            destroy_node_buffer(left_child->buffer);
+            free(left_child);
+            destroy_node_buffer(right_child->buffer);
+            free(right_child);
+            node->left_child = NULL;
+            node->right_child = NULL;
+            free(split_data->split_mask);
+            free(split_data);
+            node->split_data = NULL;
+            free(split_buffer);
+            return;
         }
 
         if (++split_data->split_mask[split_data->splitpoint] > index->settings->sax_bit_cardinality - 1)
         {
-            fprintf(stderr, "error: cannot split in depth more than %d.\n",
-                    index->settings->sax_bit_cardinality);
-            exit(-1);
+            // This shouldn't happen due to pre-check, but handle gracefully  
+            fprintf(stderr, "warning: split_node exceeded max cardinality\n");
+            --split_data->split_mask[split_data->splitpoint];
+            node->is_leaf = 1;
+            destroy_node_buffer(left_child->buffer);
+            free(left_child);
+            destroy_node_buffer(right_child->buffer);
+            free(right_child);
+            node->left_child = NULL;
+            node->right_child = NULL;
+            free(split_data->split_mask);
+            free(split_data);
+            node->split_data = NULL;
+            free(split_buffer);
+            return;
         }
 
         root_mask_type mask = index->settings->bit_masks[index->settings->sax_bit_cardinality -
@@ -1066,10 +1219,6 @@ namespace diNoLib
             }
         }
 
-#ifdef DEBUG
-        printf("\tCreated filename:\t\t %s\n\n", node->filename);
-#endif
-
         return SUCCESS;
     }
 
@@ -1122,10 +1271,10 @@ namespace diNoLib
                 else if (node_buffer->max_tmp_partial_buffer_size <= node_buffer->tmp_partial_buffer_size)
                 {
                     node_buffer->max_tmp_partial_buffer_size *= BUFFER_REALLOCATION_RATE;
-                    node_buffer->tmp_partial_position_buffer = (file_position_type **)realloc(node_buffer->tmp_full_position_buffer,
+                    node_buffer->tmp_partial_position_buffer = (file_position_type **)realloc(node_buffer->tmp_partial_position_buffer,
                                                                                               sizeof(file_position_type *) *
                                                                                                   node_buffer->max_tmp_partial_buffer_size);
-                    node_buffer->tmp_partial_sax_buffer = (sax_type **)realloc(node_buffer->tmp_full_sax_buffer,
+                    node_buffer->tmp_partial_sax_buffer = (sax_type **)realloc(node_buffer->tmp_partial_sax_buffer,
                                                                                sizeof(sax_type *) *
                                                                                    node_buffer->max_tmp_partial_buffer_size);
                 }
@@ -1501,6 +1650,64 @@ namespace diNoLib
         return SUCCESS;
     }
 
+    enum response flush_subtree_leaf_buffers_m(isax_index *index, isax_node *node, pthread_mutex_t *lock_index, pthread_mutex_t *lock_write)
+    {
+        if (node->is_leaf && node->filename != NULL)
+        {
+            // Set that unloaded data exist in disk
+            if (node->buffer->partial_buffer_size > 0 || node->buffer->tmp_partial_buffer_size > 0)
+            {
+                node->has_partial_data_file = 1;
+            }
+            // Set that the node has flushed full data in the disk
+            if (node->buffer->full_buffer_size > 0 || node->buffer->tmp_full_buffer_size > 0)
+            {
+                node->has_full_data_file = 1;
+            }
+
+            if (node->has_full_data_file)
+            {
+                int prev_rec_count = node->leaf_size - (node->buffer->full_buffer_size + node->buffer->tmp_full_buffer_size);
+
+                int previous_page_size = ceil((float)(prev_rec_count * index->settings->full_record_size) / (float)PAGE_SIZE);
+                int current_page_size = ceil((float)(node->leaf_size * index->settings->full_record_size) / (float)PAGE_SIZE);
+
+                index->memory_info.disk_data_full += (current_page_size - previous_page_size);
+            }
+            if (node->has_partial_data_file)
+            {
+                int prev_rec_count = node->leaf_size - (node->buffer->partial_buffer_size + node->buffer->tmp_partial_buffer_size);
+
+                int previous_page_size = ceil((float)(prev_rec_count * index->settings->partial_record_size) / (float)PAGE_SIZE);
+                int current_page_size = ceil((float)(node->leaf_size * index->settings->partial_record_size) / (float)PAGE_SIZE);
+
+                index->memory_info.disk_data_partial += (current_page_size - previous_page_size);
+            }
+            if (node->has_full_data_file && node->has_partial_data_file)
+            {
+                printf("WARNING: (Mem size counting) this leaf has both partial and full data.\n");
+            }
+            index->memory_info.disk_data_full += (node->buffer->full_buffer_size +
+                                                  node->buffer->tmp_full_buffer_size);
+
+            index->memory_info.disk_data_partial += (node->buffer->partial_buffer_size +
+                                                     node->buffer->tmp_partial_buffer_size);
+
+            pthread_mutex_lock(lock_write);
+            flush_node_buffer(node->buffer, index->settings->paa_segments,
+                              index->settings->timeseries_size,
+                              node->filename);
+            pthread_mutex_unlock(lock_write);
+        }
+        else if (!node->is_leaf)
+        {
+            flush_subtree_leaf_buffers_m(index, node->left_child, lock_index, lock_write);
+            flush_subtree_leaf_buffers_m(index, node->right_child, lock_index, lock_write);
+        }
+
+        return SUCCESS;
+    }
+
     enum response clear_node_buffer(isax_node_buffer *node_buffer, enum buffer_cleaning_mode clean_mode)
     {
         // ONLY SELECTIVELY CLEAR STUFF THAT COME FROM THE INSERT
@@ -1855,6 +2062,429 @@ namespace diNoLib
         destroy(&dl);
     }
 
-   
+    root_mask_type isax_fbl_index_insert_m(isax_index *index, sax_type *sax, file_position_type *pos,
+                                           pthread_mutex_t *lock_record, pthread_mutex_t *lock_fbl,
+                                           pthread_mutex_t *lock_cbl, pthread_mutex_t *lock_firstnode,
+                                           pthread_mutex_t *lock_index, pthread_mutex_t *lock_disk)
+    {
+        // Thread-safe version: same logic as isax_fbl_index_insert() but with locks
+        // and without the flush check (handled separately by indexconstruction())
+        pthread_mutex_lock(lock_disk);
+        fwrite(sax, index->settings->sax_byte_size, 1, index->sax_file);
+        pthread_mutex_unlock(lock_disk);
+        
+        root_mask_type first_bit_mask = 0x00;
+        CREATE_MASK(first_bit_mask, index, sax);
+        
+        // insert_to_fbl() accesses shared structures, so we need locks
+        pthread_mutex_lock(lock_firstnode);
+        pthread_mutex_lock(lock_fbl);
+        insert_to_fbl(index->fbl, sax, pos, first_bit_mask, index);
+        pthread_mutex_unlock(lock_fbl);
+        pthread_mutex_unlock(lock_firstnode);
+        
+        // Use atomic increment for thread safety
+        __sync_fetch_and_add(&(index->total_records), 1);
+        
+        // Note: flush check is handled separately by indexconstruction() in multi-threaded version
+        return first_bit_mask;
+    }
+
+    void *indexconstructionworker(void *input)
+    {
+        isax_index *index = ((trans_fbl_input*)input)->index;
+        pthread_mutex_t *lock_index = ((trans_fbl_input*)input)->lock_index;
+        pthread_mutex_t *lock_write = ((trans_fbl_input*)input)->lock_write;
+        int j, c = 1;
+        isax_node_record *r = (isax_node_record *)malloc(sizeof(isax_node_record));
+        
+        while(1)
+        {
+            pthread_mutex_lock(((trans_fbl_input*)input)->lock_fbl_conter);
+            j = ((trans_fbl_input*)input)->conternumber;
+            ((trans_fbl_input*)input)->conternumber++;
+            pthread_mutex_unlock(((trans_fbl_input*)input)->lock_fbl_conter);
+            
+            if(j >= ((trans_fbl_input*)input)->stop_number)
+            {
+                break;
+            }
+            
+            fbl_soft_buffer *current_fbl_node = &index->fbl->soft_buffers[j];
+            if (!current_fbl_node->initialized) {
+                continue;
+            }
+            
+            int i;
+            if (current_fbl_node->buffer_size > 0) 
+            {
+                // For all records in this buffer 
+                for (i = 0; i < current_fbl_node->buffer_size; i++) 
+                {
+                    r->sax = (sax_type *) current_fbl_node->sax_records[i];
+                    r->position = (file_position_type *) current_fbl_node->pos_records[i];
+                    r->insertion_mode = (insertion_mode)(NO_TMP | PARTIAL);
+                    // Add record to index
+                    add_record_to_node(index, current_fbl_node->node, r, 1);
+                }
+
+                // flush index node
+                flush_subtree_leaf_buffers_m(index, current_fbl_node->node, lock_index, lock_write);
+                
+                // clear FBL records moved in LBL buffers
+                free(current_fbl_node->sax_records);
+                free(current_fbl_node->pos_records);
+                
+                // clear records read from files (free only prev sax buffers)
+                isax_index_clear_node_buffers(index, current_fbl_node->node, 
+                                              INCLUDE_CHILDREN,
+                                              TMP_AND_TS_CLEAN);
+                
+                index->allocated_memory = 0;
+                // Set to 0 in order to re-allocate original space for buffers.
+                current_fbl_node->buffer_size = 0;
+                current_fbl_node->max_buffer_size = 0;
+            }
+        }
+        
+        free(r);
+        return NULL;
+    }
+
+    enum response indexconstruction(first_buffer_layer *fbl, isax_index *index, pthread_mutex_t *lock_index,
+                          pthread_mutex_t *lock_disk, int calculate_thread)
+    {
+        int j;
+        trans_fbl_input input_data;
+        pthread_t threadid[calculate_thread];
+        pthread_mutex_t lock_fbl_conter = PTHREAD_MUTEX_INITIALIZER;
+        
+        // Initialize all fields
+        input_data.start_number = 0;
+        input_data.stop_number = fbl->number_of_buffers;
+        input_data.conternumber = 0;
+        input_data.index = index;
+        input_data.lock_index = lock_index;
+        input_data.lock_fbl_conter = &lock_fbl_conter;
+        input_data.lock_write = lock_disk;
+        input_data.fbl = fbl;
+        input_data.preworkernumber = 0;
+        input_data.fbloffset = 0;
+        input_data.buffersize = NULL;
+        input_data.lock_barrier1 = NULL;
+        input_data.lock_barrier2 = NULL;
+        input_data.lock_barrier3 = NULL;
+        input_data.finished = false;
+        
+        // Start the worker threads
+        for (int k = 0; k < calculate_thread; k++)
+        {
+            pthread_create(&(threadid[k]), NULL, indexconstructionworker, (void*)&(input_data));
+        }
+        
+        // Wait for all threads to complete
+        for (int k = 0; k < calculate_thread; k++)
+        {
+            pthread_join(threadid[k], NULL);
+        }   
+        
+        fbl->current_record_index = 0;
+        fbl->current_record = fbl->hard_buffer;
+        
+        return SUCCESS;
+    }
+
+    void *indexbulkloadingworker(void *transferdata)
+    {
+        sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * ((index_buffer_data *)transferdata)->index->settings->paa_segments);
+
+        int fin_number = ((index_buffer_data *)transferdata)->fin_number;
+        file_position_type *pos = (file_position_type *)malloc(sizeof(file_position_type));
+        sax_type *saxv;
+        int offset_saxv = ((index_buffer_data *)transferdata)->blocid * ((index_buffer_data *)transferdata)->index->settings->paa_segments;
+        int paa_segments = ((index_buffer_data *)transferdata)->index->settings->paa_segments;
+        isax_index *index = ((index_buffer_data *)transferdata)->index;
+        int i = 0;
+        pthread_barrier_t *lock_barrier1, *lock_barrier2;
+
+        while (!((index_buffer_data *)transferdata)->finished)
+        {
+            saxv = (((index_buffer_data *)transferdata)->saxv);
+            lock_barrier1 = ((index_buffer_data *)transferdata)->lock_barrier1;
+            lock_barrier2 = ((index_buffer_data *)transferdata)->lock_barrier2;
+            for (i = 0; i < fin_number; i++)
+            {
+                if (sax_from_ts(((ts_type *)(((index_buffer_data *)transferdata)->ts) + i * index->settings->timeseries_size), sax,
+                                index->settings->ts_values_per_paa_segment,
+                                index->settings->paa_segments, index->settings->sax_alphabet_cardinality,
+                                index->settings->sax_bit_cardinality) == SUCCESS)
+                {
+                    *pos = ((index_buffer_data *)transferdata)->pos + index->settings->timeseries_size * sizeof(ts_type) * i;
+                    memcpy(&(saxv[offset_saxv + i * paa_segments]), sax, sizeof(sax_type) * paa_segments);
+                    isax_fbl_index_insert_m(index, sax, pos, ((index_buffer_data *)transferdata)->lock_record,
+                                           ((index_buffer_data *)transferdata)->lock_fbl,
+                                           ((index_buffer_data *)transferdata)->lock_cbl,
+                                           ((index_buffer_data *)transferdata)->lock_firstnode,
+                                           ((index_buffer_data *)transferdata)->lock_index,
+                                           ((index_buffer_data *)transferdata)->lock_disk);
+                }
+                else
+                {
+                    fprintf(stderr, "error: cannot insert record in index, since sax representation\
+                    failed to be created");
+                }
+            }
+            pthread_barrier_wait(lock_barrier1);
+            pthread_barrier_wait(lock_barrier2);
+        }
+        free(pos);
+        free(sax);
+        return NULL;
+    }
+
+    void isax_index_binary_file_m(const char *ifilename, int ts_num, isax_index *index, int calculate_thread, int read_block_length)
+    {
+        fprintf(stderr, ">>> Indexing: %s\n", ifilename);
+        FILE *ifile;
+
+        ifile = fopen(ifilename, "rb");
+        index_buffer_data *input_data = (index_buffer_data *)malloc(sizeof(index_buffer_data) * (calculate_thread - 1));
+        file_position_type *pos = (file_position_type *)malloc(sizeof(file_position_type));
+        pthread_t threadid[calculate_thread - 1];
+        bool sax_fist_time_check = false;
+        long int ts_loaded = 0;
+        int j, conter = 0;
+        long long int i;
+        int prev_flush_time = 0, now_flush_time = 0;
+        int sax_save_number;
+        // initial the locks
+        pthread_mutex_t lock_record = PTHREAD_MUTEX_INITIALIZER, lockfbl = PTHREAD_MUTEX_INITIALIZER,
+                        lock_index = PTHREAD_MUTEX_INITIALIZER,
+                        lock_firstnode = PTHREAD_MUTEX_INITIALIZER, lock_disk = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_t *lockcbl;
+        pthread_barrier_t lock_barrier1, lock_barrier2;
+        pthread_barrier_init(&lock_barrier1, NULL, calculate_thread);
+        pthread_barrier_init(&lock_barrier2, NULL, calculate_thread);
+
+        lockcbl = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * LOCK_SIZE);
+
+        for (i = 0; i < LOCK_SIZE; i++)
+        {
+            pthread_mutex_init(&lockcbl[i], NULL);
+        }
+
+        for (i = 0; i < (calculate_thread - 1); i++)
+        {
+            input_data[i].index = index;
+            input_data[i].lock_fbl = &lockfbl;
+            input_data[i].lock_record = &lock_record;
+            input_data[i].lock_cbl = lockcbl;
+            input_data[i].lock_firstnode = &lock_firstnode;
+            input_data[i].lock_index = &lock_index;
+            input_data[i].blocid = i * read_block_length;
+            input_data[i].lock_disk = &lock_disk;
+
+            input_data[i].lock_barrier1 = &lock_barrier1;
+            input_data[i].lock_barrier2 = &lock_barrier2;
+            input_data[i].finished = false;
+        }
+        if (ifile == NULL)
+        {
+            fprintf(stderr, "File %s not found!\n", ifilename);
+            exit(-1);
+        }
+
+        fseek(ifile, 0L, SEEK_END);
+        file_position_type sz = (file_position_type)ftell(ifile);
+        file_position_type total_records = sz / index->settings->ts_byte_size;
+        fseek(ifile, 0L, SEEK_SET);
+
+        if (total_records < ts_num)
+        {
+            fprintf(stderr, "File %s has only %llu records!\n", ifilename, total_records);
+            exit(-1);
+        }
+
+        // read_block_length is now a parameter to the function
+        ts_type *ts = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size * read_block_length * (calculate_thread - 1));
+        ts_type *ts1 = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size * read_block_length * (calculate_thread - 1));
+        ts_type *ts2;
+        sax_type *saxv = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments * read_block_length * (calculate_thread - 1));
+        sax_type *saxv1 = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments * read_block_length * (calculate_thread - 1));
+        sax_type *saxv2;
+
+        index->settings->raw_filename = (char *)malloc(256);
+        strcpy(index->settings->raw_filename, ifilename);
+
+        *pos = ftell(ifile);
+
+        if (ts_num > read_block_length * (calculate_thread - 1))
+        {
+            size_t items_read = fread(ts1, sizeof(ts_type), index->settings->timeseries_size * read_block_length * (calculate_thread - 1), ifile);
+            (void)items_read; // Suppress unused variable warning - we trust the file size check above
+            ts2 = ts;
+            ts = ts1;
+            ts1 = ts2;
+
+            for (j = 0; j < (calculate_thread - 1); j++)
+            {
+                input_data[j].pos = *pos + index->settings->timeseries_size * sizeof(ts_type) * j * read_block_length;
+                input_data[j].ts = &(ts[index->settings->timeseries_size * j * read_block_length]);
+                input_data[j].saxv = saxv;
+                input_data[j].fin_number = read_block_length;
+            }
+            for (j = 0; j < (calculate_thread - 1); j++)
+            {
+                pthread_create(&(threadid[j]), NULL, indexbulkloadingworker, (void *)&(input_data[j]));
+            }
+
+            for (i = read_block_length * (calculate_thread - 1) * 2; i <= ts_num; i += read_block_length * (calculate_thread - 1))
+            {
+
+                *pos = ftell(ifile);
+                // read the data of next round
+                size_t items_read = fread(ts1, sizeof(ts_type), index->settings->timeseries_size * read_block_length * (calculate_thread - 1), ifile);
+                (void)items_read; // Suppress unused variable warning - we trust the file size check above
+                // write the sax in disk (last round)
+                if (sax_fist_time_check)
+                {
+                    pthread_mutex_lock(&lock_disk);
+                    fwrite(saxv1, index->settings->sax_byte_size, read_block_length * (calculate_thread - 1), index->sax_file);
+                    pthread_mutex_unlock(&lock_disk);
+                }
+                else
+                {
+                    sax_fist_time_check = true;
+                }
+
+                pthread_barrier_wait(&lock_barrier1);
+                // wait for the finish of other threads
+                ts2 = ts;
+                ts = ts1;
+                ts1 = ts2;
+                __sync_fetch_and_add(&(index->fbl->current_record_index), read_block_length * (calculate_thread - 1));
+                now_flush_time = i / (index->settings->max_total_buffer_size);
+                if (now_flush_time != prev_flush_time)
+                {
+                    indexconstruction(index->fbl, index, &lock_index, &lock_disk, calculate_thread);
+                }
+                saxv2 = saxv;
+                saxv = saxv1;
+                saxv1 = saxv2;
+
+                prev_flush_time = now_flush_time;
+                for (j = 0; j < (calculate_thread - 1); j++)
+                {
+                    input_data[j].pos = *pos + index->settings->timeseries_size * sizeof(ts_type) * j * read_block_length;
+                    input_data[j].ts = &(ts[index->settings->timeseries_size * j * read_block_length]);
+                    input_data[j].saxv = saxv;
+                    input_data[j].fin_number = read_block_length;
+                }
+                pthread_barrier_wait(&lock_barrier2);
+            }
+
+            pthread_barrier_wait(&lock_barrier1);
+            for (j = 0; j < (calculate_thread - 1); j++)
+            {
+                input_data[j].finished = true;
+            }
+            // wait for the finish of other threads
+            __sync_fetch_and_add(&(index->fbl->current_record_index), read_block_length * (calculate_thread - 1));
+            now_flush_time = i / (index->settings->max_total_buffer_size);
+            if (now_flush_time != prev_flush_time)
+            {
+                indexconstruction(index->fbl, index, &lock_index, &lock_disk, calculate_thread);
+            }
+
+            prev_flush_time = now_flush_time;
+            for (j = 0; j < (calculate_thread - 1); j++)
+            {
+                input_data[j].pos = *pos + index->settings->timeseries_size * sizeof(ts_type) * j * read_block_length;
+                input_data[j].ts = &(ts[index->settings->timeseries_size * j * read_block_length]);
+                input_data[j].saxv = saxv;
+                input_data[j].fin_number = read_block_length;
+            }
+            pthread_barrier_wait(&lock_barrier2);
+            for (j = 0; j < (calculate_thread - 1); j++)
+            {
+                pthread_join(threadid[j], NULL);
+            }
+        }
+        *pos = ftell(ifile);
+        size_t remainder_size = index->settings->timeseries_size * (ts_num % (read_block_length * (calculate_thread - 1)));
+        if (remainder_size > 0)
+        {
+            size_t items_read = fread(ts1, sizeof(ts_type), remainder_size, ifile);
+            (void)items_read; // Suppress unused variable warning - we trust the file size check above
+        }
+        ts2 = ts;
+        ts = ts1;
+        ts1 = ts2;
+
+        // handle the rest data
+        int conter_ts_number = ts_num % (read_block_length * (calculate_thread - 1));
+        sax_save_number = conter_ts_number;
+
+        for (j = 0; j < (calculate_thread - 1); j++)
+        {
+            input_data[j].pos = *pos + index->settings->timeseries_size * sizeof(ts_type) * j * read_block_length;
+            conter++;
+            input_data[j].ts = &(ts[index->settings->timeseries_size * j * read_block_length]);
+            input_data[j].fin_number = min(conter_ts_number, read_block_length);
+            input_data[j].saxv = saxv;
+            conter_ts_number = conter_ts_number - read_block_length;
+
+            if (conter_ts_number < 0)
+                break;
+        }
+
+        pthread_barrier_init(&lock_barrier1, NULL, conter + 1);
+        pthread_barrier_init(&lock_barrier2, NULL, conter + 1);
+        for (j = 0; j < conter; j++)
+        {
+            input_data[j].finished = false;
+            pthread_create(&(threadid[j]), NULL, indexbulkloadingworker, (void *)&(input_data[j]));
+        }
+
+        if (sax_fist_time_check)
+        {
+            pthread_mutex_lock(&lock_disk);
+            fwrite(saxv1, index->settings->sax_byte_size, read_block_length * (calculate_thread - 1), index->sax_file);
+            pthread_mutex_unlock(&lock_disk);
+        }
+        else
+        {
+            sax_fist_time_check = true;
+        }
+        pthread_barrier_wait(&lock_barrier1);
+        saxv2 = saxv;
+        saxv = saxv1;
+        saxv1 = saxv2;
+        for (j = 0; j < conter; j++)
+        {
+            input_data[j].finished = true;
+        }
+        pthread_barrier_wait(&lock_barrier2);
+
+        for (j = 0; j < conter; j++)
+        {
+            pthread_join(threadid[j], NULL);
+        }
+        pthread_mutex_lock(&lock_disk);
+        fwrite(saxv1, index->settings->sax_byte_size, sax_save_number, index->sax_file);
+        pthread_mutex_unlock(&lock_disk);
+        __sync_fetch_and_add(&(index->fbl->current_record_index), sax_save_number);
+        indexconstruction(index->fbl, index, &lock_index, &lock_disk, calculate_thread);
+        free(ts);
+        free(ts1);
+        free(input_data);
+        free(lockcbl);
+        free(saxv);
+        free(saxv1);
+        free(pos);
+        pthread_barrier_destroy(&lock_barrier1);
+        pthread_barrier_destroy(&lock_barrier2);
+        fclose(ifile);
+    }
 
 }

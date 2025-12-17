@@ -8,6 +8,7 @@ namespace diNoLib
 
 #define DISK_BUFFER_SIZE 8192
 #define PROGRESS_CALCULATE_THREAD_NUMBER 12
+#define LOCK_SIZE 256
 #define CREATE_MASK(mask, index, sax_array)                                                            \
     int mask__i;                                                                                       \
     for (mask__i = 0; mask__i < index->settings->paa_segments; mask__i++)                              \

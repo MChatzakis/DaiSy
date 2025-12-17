@@ -7,6 +7,7 @@
 
 #include "../distance_computers/DistanceComputer.hpp"
 #include "../isax/iSAXSearch.hpp"
+#include "DataSource.hpp"
 
 namespace diNoLib
 {
@@ -51,7 +52,44 @@ namespace diNoLib
         idx_t getNDatabase() const { return n_database; }
         idx_t getDim() const { return dim; }
 
-        virtual void buildIndex(const float *database, const idx_t n_database, const idx_t dim) = 0;
+        /**
+         * @brief Build index from a DataSource (advanced usage)
+         * 
+         * All algorithms must implement this method. It works with both InMemoryDataSource 
+         * (for in-memory algorithms like Bruteforce, LbBruteforce, Messi) and FileDataSource 
+         * (for disk-based algorithms like ParIS).
+         * 
+         * @param data_source DataSource providing access to time series data
+         */
+        virtual void buildIndex(DataSource *data_source) = 0;
+
+        /**
+         * @brief Build index from in-memory data (convenience method)
+         * 
+         * Use this for algorithms that work with in-memory data (Bruteforce, LbBruteforce, Messi, etc.)
+         * 
+         * @param database Pointer to the database array (n_database * dim floats)
+         * @param n_database Number of time series in the database
+         * @param dim Dimension of each time series
+         */
+        virtual void buildIndex(float *database, idx_t n_database, idx_t dim) {
+            InMemoryDataSource data_source(database, n_database, dim);
+            buildIndex(&data_source);
+        }
+
+        /**
+         * @brief Build index from a file (convenience method)
+         * 
+         * Use this for algorithms that work with file-based data (ParIS, etc.)
+         * 
+         * @param filename Path to the binary data file
+         * @param dim Dimension of each time series
+         * @param n_database Number of time series (0 = auto-detect from file size)
+         */
+        virtual void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) {
+            FileDataSource data_source(filename.c_str(), dim, n_database);
+            buildIndex(&data_source);
+        }
         
     protected:
         // Helper function to validate search parameters

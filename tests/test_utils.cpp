@@ -1,6 +1,7 @@
 #include "test_utils.hpp"
 
 #include "../commons/dataloaders.hpp"
+#include "../lib/algos/DataSource.hpp"
 
 void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
                                   const std::string &prefix_name,
@@ -27,7 +28,16 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     float *database = loadBinData(dataset_path.c_str(), n_database, dim);
     float *query = loadBinData(query_path.c_str(), n_query, dim);
 
-    search->buildIndex(database, n_database, dim);
+    // Check if search is ParIS - it requires file-based buildIndex
+    diNoLib::ParIS* paris_search = dynamic_cast<diNoLib::ParIS*>(search);
+    if (paris_search != nullptr) {
+        // ParIS uses file-based buildIndex
+        search->buildIndex(dataset_path, dim, n_database);
+    } else {
+        // Other algorithms use in-memory buildIndex
+        search->buildIndex(database, n_database, dim);
+    }
+    
     search->setNumThreads(num_thread);
 
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];

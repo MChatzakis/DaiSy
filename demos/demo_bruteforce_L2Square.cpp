@@ -17,7 +17,7 @@ int main(){
     // 2. Create a brute-force search object
     diNoLib::BruteForceSearch bf_search(diNoLib::DistanceType::L2_SQUARED);
 
-    // 3. Build the index
+    // 3. Build the index (simplified API - no need for DataSource!)
     bf_search.buildIndex(database, n_database, dim);
 
     // 4. Search the index

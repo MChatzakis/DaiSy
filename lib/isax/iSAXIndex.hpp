@@ -233,6 +233,47 @@ namespace diNoLib
         int read_block_length;
     } buffer_data_inmemory;
 
+    typedef struct trans_fbl_input
+    {
+        int start_number, stop_number, conternumber;
+        isax_index *index;
+        pthread_mutex_t *lock_index;
+        pthread_mutex_t *lock_fbl_conter;
+        pthread_mutex_t *lock_write;
+        first_buffer_layer *fbl;
+        int preworkernumber;
+        int fbloffset;
+        int *buffersize;
+        pthread_barrier_t *lock_barrier1, *lock_barrier2, *lock_barrier3;
+        bool finished;
+    } trans_fbl_input;
+
+    typedef struct index_buffer_data
+    {
+        //int ts_num,ts_loaded;
+        file_position_type pos; //file offset (in bytes) where this worker’s first time series starts in the raw file.
+        isax_index *index; //the shared isax_index* being built.
+        ts_type * ts; //pointer to this worker’s slice of the current block of time-series data (already read into memory).
+        sax_type *saxv; // pointer to the shared SAX output buffer for the current block (workers write their SAX words here).
+        int fin_number; //how many time series this worker must process in this block (normally read_block_length, possibly fewer in the tail block).
+        int blocid; //logical block id for this worker (used in some variants).
+        //lock pointers for coordinating insertion into buffers, tree updates, and disk writes.
+        pthread_mutex_t *lock_record; 
+        pthread_mutex_t *lock_fbl;
+        pthread_mutex_t *lock_index;
+        pthread_mutex_t *lock_cbl;
+        pthread_mutex_t *lock_firstnode;
+        pthread_mutex_t *lock_nodeconter;
+        pthread_mutex_t *lock_disk;
+        file_position_type *fbl; //unused in this path (reserved in other variants).
+        int *bufferpresize; //pre-size hints for buffers (used by “_new” variant).
+        int workernumber; //worker ID (0 to total_workernumber-1).
+        int total_workernumber; //total number of worker threads.
+        int *nodecounter; //shared counter for tracking total nodes created (used in some variants).
+        pthread_barrier_t *lock_barrier1, *lock_barrier2, *lock_barrier3; //barriers for synchronization between workers.
+        bool finished; //flag to tell a worker that no more data will come (used to exit its loop).
+    } index_buffer_data;
+
     typedef struct isax_node_record
     {
         sax_type *sax;
@@ -271,7 +312,7 @@ namespace diNoLib
 
     first_buffer_layer *initialize_fbl(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index);
 
-    parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index);
+    parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index, int total_workers);
 
     isax_index *isax_index_init_inmemory(isax_index_settings *settings);
     isax_index *isax_index_init(isax_index_settings *settings);
@@ -286,6 +327,7 @@ namespace diNoLib
     root_mask_type isax_pRecBuf_index_insert_inmemory(isax_index *index, sax_type *sax, file_position_type *pos, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber);
 
     void destroy_fbl(first_buffer_layer *fbl);
+    void destroy_parallel_fbl(parallel_first_buffer_layer *fbl);
     void destroy_node_buffer(isax_node_buffer *node_buffer);
     void split_node(isax_index *index, isax_node *node);
     void split_node(isax_index *index, isax_node *node);
@@ -315,6 +357,18 @@ namespace diNoLib
 
     isax_node *insert_to_fbl(first_buffer_layer *fbl, sax_type *sax, file_position_type *pos, root_mask_type mask, isax_index *index);
     root_mask_type isax_fbl_index_insert(isax_index *index, sax_type *sax, file_position_type *pos);
+    
+    // Multi-threaded file-based indexing functions
+    root_mask_type isax_fbl_index_insert_m(isax_index *index, sax_type *sax, file_position_type *pos,
+                                           pthread_mutex_t *lock_record, pthread_mutex_t *lock_fbl,
+                                           pthread_mutex_t *lock_cbl, pthread_mutex_t *lock_firstnode,
+                                           pthread_mutex_t *lock_index, pthread_mutex_t *lock_disk);
+    enum response flush_subtree_leaf_buffers_m(isax_index *index, isax_node *node, pthread_mutex_t *lock_index, pthread_mutex_t *lock_write);
+    enum response indexconstruction(first_buffer_layer *fbl, isax_index *index, pthread_mutex_t *lock_index,
+                          pthread_mutex_t *lock_disk, int calculate_thread);
+    void *indexconstructionworker(void *input);
+    void *indexbulkloadingworker(void *transferdata);
+    void isax_index_binary_file_m(const char *ifilename, int ts_num, isax_index *index, int calculate_thread, int read_block_length = 100000);
 
     void lower_upper_lemire(float *t, int len, int r, float *l, float *u);
 

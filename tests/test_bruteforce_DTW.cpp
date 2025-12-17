@@ -2,6 +2,7 @@
 #include "../commons/test_bm_utils.hpp"
 #include "../commons/paramSetup.hpp"
 #include "../commons/dataloaders.hpp"
+#include "../lib/algos/DataSource.hpp"
 
 std::string prefix = "bruteForce";
 
@@ -55,7 +56,8 @@ TEST(BruteforceDTWManualTests, BasicDTWFunctionality)
         float *query = loadRandomData(n_query, dim, true, 24);
 
         diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
-        bf_search_dtw.buildIndex(database, n_database, dim);
+        diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+        bf_search_dtw.buildIndex(&data_source);
 
         diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
         float *D = new float[n_query * k];
@@ -95,14 +97,16 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
 
         // DTW search
         diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
-        bf_search_dtw.buildIndex(database, n_database, dim);
+        diNoLib::InMemoryDataSource data_source_dtw(database, n_database, dim);
+        bf_search_dtw.buildIndex(&data_source_dtw);
         diNoLib::idx_t *I_dtw = new diNoLib::idx_t[n_query * k];
         float *D_dtw = new float[n_query * k];
         bf_search_dtw.searchIndex(query, n_query, k, I_dtw, D_dtw);
 
         // L2_SQUARED search
         diNoLib::BruteForceSearch bf_search_l2(diNoLib::DistanceType::L2_SQUARED);
-        bf_search_l2.buildIndex(database, n_database, dim);
+        diNoLib::InMemoryDataSource data_source_l2(database, n_database, dim);
+        bf_search_l2.buildIndex(&data_source_l2);
         diNoLib::idx_t *I_l2 = new diNoLib::idx_t[n_query * k];
         float *D_l2 = new float[n_query * k];
         bf_search_l2.searchIndex(query, n_query, k, I_l2, D_l2);
@@ -144,7 +148,8 @@ TEST(BruteforceDTWManualTests, DTWMultiThreading)
 
         diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
         bf_search_dtw.setNumThreads(4);
-        bf_search_dtw.buildIndex(database, n_database, dim);
+        diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+        bf_search_dtw.buildIndex(&data_source);
 
         diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
         float *D = new float[n_query * k];

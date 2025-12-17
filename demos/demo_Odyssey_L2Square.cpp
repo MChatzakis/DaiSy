@@ -1,5 +1,6 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/Odyssey.hpp"
+#include "../lib/algos/DataSource.hpp"
 
 #if ODYSSEY_MPI
 #include <mpi.h>
@@ -33,7 +34,8 @@ int main(int argc, char *argv[]){ // main function needs argc and argv for MPI_I
     diNoLib::Odyssey bf_search(diNoLib::DistanceType::L2_SQUARED);
 
     // 3. Build the index
-    bf_search.buildIndex(database, n_database, dim);
+    diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+    bf_search.buildIndex(&data_source);
 
     // 4. Search the index
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
