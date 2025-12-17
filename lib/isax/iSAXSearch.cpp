@@ -100,12 +100,17 @@ namespace diNoLib
 
     void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile)
     {
+        static int call_count = 0;
+        call_count++;
+        fprintf(stderr, "DEBUG refine: call #%d, k=%d\n", call_count, pq_bsf->k); fflush(stderr);
 
         int tight_bound = index->settings->tight_bound;
         int aggressive_check = index->settings->aggressive_check;
 
         int j = 0;
+        fprintf(stderr, "DEBUG refine: pqueue_init with size %d\n", index->settings->root_nodes_size); fflush(stderr);
         pqueue_t *pq = pqueue_init(index->settings->root_nodes_size, cmp_pri, get_pri, set_pri, get_pos, set_pos);
+        fprintf(stderr, "DEBUG refine: pqueue_init done, pq=%p\n", (void*)pq); fflush(stderr);
 
         // Insert all root nodes in heap.
         isax_node *current_root_node = index->first_node;
@@ -128,8 +133,11 @@ namespace diNoLib
         }
         query_result *n;
         int checks = 0;
+        int pop_count = 0;
+        fprintf(stderr, "DEBUG refine: starting while loop\n"); fflush(stderr);
         while ((n = (query_result *)pqueue_pop(pq)))
         {
+            pop_count++;
             // The best node has a worse mindist, so search is finished!
             if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
             {
@@ -223,6 +231,7 @@ namespace diNoLib
             }
         }
         // Free the nodes that where not popped.
+        fprintf(stderr, "DEBUG refine: cleanup, pop_count was %d\n", pop_count); fflush(stderr);
         while ((n = (query_result *)pqueue_pop(pq)))
         {
             free(n);
@@ -234,6 +243,7 @@ namespace diNoLib
         // Free the priority queue.
 
         pqueue_free(pq);
+        fprintf(stderr, "DEBUG refine: done\n"); fflush(stderr);
     }
 
     // new
