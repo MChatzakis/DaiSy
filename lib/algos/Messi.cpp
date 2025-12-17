@@ -77,7 +77,7 @@ namespace diNoLib
                                                   MINVAL, MAXVAL,
                                                   index->settings->mindist_sqrt);
         // COUNT_CAL_TIME_END
-        if (distance < bsf)
+        if (distance <= bsf)
         {
             if (node->is_leaf)
             {
@@ -193,41 +193,35 @@ namespace diNoLib
         // raw distance
         float *rDist = (float *)malloc(sizeof(float) * length);
 
-        // Node has buffered data (already checked above)
+        // Node has partial-buffered data (original implementation only uses partial_buffer)
         for (int i = 0; i < node->buffer->partial_buffer_size; i++)
+        {
+            distmin = minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, node->buffer->partial_sax_buffer[i],
+                                                        index->settings->max_sax_cardinalities,
+                                                        index->settings->sax_bit_cardinality,
+                                                        index->settings->sax_alphabet_cardinality,
+                                                        index->settings->paa_segments, MINVAL, MAXVAL,
+                                                        index->settings->mindist_sqrt);
+
+            if (distmin <= bsf)
             {
+                distmin = lb_keogh_data_bound(&(rawfile[*node->buffer->partial_position_buffer[i]]), uo, lo, cb1, index->settings->timeseries_size, bsf);
 
-                distmin = minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, node->buffer->partial_sax_buffer[i],
-                                                            index->settings->max_sax_cardinalities,
-                                                            index->settings->sax_bit_cardinality,
-                                                            index->settings->sax_alphabet_cardinality,
-                                                            index->settings->paa_segments, MINVAL, MAXVAL,
-                                                            index->settings->mindist_sqrt);
+                cb[index->settings->timeseries_size - 1] = cb1[index->settings->timeseries_size - 1];
+                for (k = index->settings->timeseries_size - 2; k >= 0; k--)
+                    cb[k] = cb[k + 1] + cb1[k];
 
-                if (distmin < bsf)
+                float dist = dtwsimdPruned(query, &(rawfile[*node->buffer->partial_position_buffer[i]]), cb, index->settings->timeseries_size, warpWind, bsf, tSum, pCost, rDist);
+
+                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
-                    distmin = lb_keogh_data_bound(&(rawfile[*node->buffer->partial_position_buffer[i]]), uo, lo, cb1, index->settings->timeseries_size, bsf);
-                    {
-                        
-                        {
-                           
-                            cb[index->settings->timeseries_size - 1] = cb1[index->settings->timeseries_size - 1];
-                            for (k = index->settings->timeseries_size - 2; k >= 0; k--)
-                                cb[k] = cb[k + 1] + cb1[k];
-                            
-
-                            float dist = dtwsimdPruned(query, &(rawfile[*node->buffer->partial_position_buffer[i]]), cb, index->settings->timeseries_size, warpWind, bsf, tSum, pCost, rDist);
-                            
-                            if (dist <= pq_bsf->knn[pq_bsf->k - 1])
-                            {
-                                pthread_rwlock_wrlock(lock_queue);
-                                pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
-                                pthread_rwlock_unlock(lock_queue);
-                            }
-                        }
-                    }
+                    pthread_rwlock_wrlock(lock_queue);
+                    pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+                    pthread_rwlock_unlock(lock_queue);
                 }
             }
+        }
+
         free(tSum);
         free(pCost);
         free(rDist);
