@@ -19,6 +19,10 @@ namespace diNoLib
         BruteForceSearch(DistanceType distance_type);
         void setNumThreads(int num_threads);
         int getNumThreads() const { return this->num_threads; }
+        
+        // Bring base class buildIndex overloads into scope
+        using SimilaritySearchAlgorithm::buildIndex;
+        
         void buildIndex(DataSource *data_source) override;
         
         // BruteForceSearch only supports in-memory data

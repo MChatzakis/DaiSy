@@ -126,6 +126,9 @@ namespace diNoLib
         void setReadBlockLength(int read_block_length) { this->read_block_length = read_block_length; }
         void setWarpingWindow(int warping_window) { this->warping_window = warping_window; }
 
+        // Bring base class buildIndex overloads into scope
+        using SimilaritySearchAlgorithm::buildIndex;
+        
         void buildIndex(DataSource *data_source) override;
         
         // Messi only supports in-memory data

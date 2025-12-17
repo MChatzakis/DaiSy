@@ -79,6 +79,9 @@ namespace diNoLib
         ParIS(DistanceType distance_type);
         void setNumThreads(int num_threads);
         int getNumThreads() const;
+        // Bring base class buildIndex overloads into scope
+        using SimilaritySearchAlgorithm::buildIndex;
+        
         void buildIndex(DataSource *data_source) override;
         
         // ParIS only supports file-based data - override to give clear error

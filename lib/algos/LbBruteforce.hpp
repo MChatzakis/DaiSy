@@ -57,6 +57,9 @@ namespace diNoLib
         void setTotalLoadedLeaves(int total_loaded_leaves) { this->total_loaded_leaves = total_loaded_leaves; }
         void setTightBound(int tight_bound) { this->tight_bound = tight_bound; }
 
+        // Bring base class buildIndex overloads into scope
+        using SimilaritySearchAlgorithm::buildIndex;
+        
         void buildIndex(DataSource *data_source) override;
         
         // LbBruteforce only supports in-memory data
