@@ -459,6 +459,8 @@ namespace diNoLib
                         pthread_mutex_unlock(&(((MESSI_workerdata *)rfdata)->alllock[i]));
                         if (n == NULL)
                             break;
+                        // Update bsfdisntance BEFORE pruning check (fixes stale BSF bug)
+                        bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
                         if (n->distance > bsfdisntance || n->distance > minimum_distance)
                         {
                             break;
@@ -468,7 +470,6 @@ namespace diNoLib
                             // If it is a leaf, check its real distance.
                             if (n->node->is_leaf)
                             {
-                                bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
                                 checks++;
                                 calculate_node_DTW2knn_inmemory(index, n->node, ts, uo, lo, paa, paaU, paaL, bsfdisntance, warpWind, pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf, rawfile);
                             }
