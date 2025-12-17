@@ -1,6 +1,5 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/Messi.hpp"
-#include "../lib/algos/DataSource.hpp"
 #include <chrono>
 
 int main(){
@@ -16,29 +15,15 @@ int main(){
 
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
-    // // 2. Create a brute-force search object
-    // diNoLib::Messi messi_search(diNoLib::DistanceType::L2_SQUARED);
-    // messi_search.setNumThreads(1); 
-
-    // // 3. Build the index
-    // diNoLib::InMemoryDataSource data_source(database, n_database, dim);
-    // messi_search.buildIndex(&data_source);
-
-    // // 4. Search the index
-    // diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
-    // float *D = new float[n_query * k];
-    // messi_search.searchIndex(query, n_query, k, I, D);
-
-    
     // 2. Create a DTW search object
     diNoLib::Messi messi_search(diNoLib::DistanceType::DTW);
     messi_search.setNumThreads(4);
 
     int warp_window = std::max(1, static_cast<int>(dim * 0.1));
     messi_search.setWarpingWindow(warp_window);  // Set warping window (typically 10% of time series length)
-    // 3. Build the index
-    diNoLib::InMemoryDataSource data_source(database, n_database, dim);
-    messi_search.buildIndex(&data_source);
+    
+    // 3. Build the index (simplified API - no need for DataSource!)
+    messi_search.buildIndex(database, n_database, dim);
     printf(">>> Finished indexing \n");
 
     // 4. Search the index

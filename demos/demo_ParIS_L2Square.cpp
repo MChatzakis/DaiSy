@@ -1,8 +1,8 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/ParIS.hpp"
-#include "../lib/algos/DataSource.hpp"
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 int main(){
     // 0. Configuration of the variables
@@ -17,9 +17,9 @@ int main(){
 
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
-    // 2. Write database to temporary file (ParIS requires FileDataSource)
-    const char *temp_db_file = "/tmp/paris_test_db.bin";
-    FILE *fp = fopen(temp_db_file, "wb");
+    // 2. Write database to temporary file (ParIS requires file-based data)
+    std::string temp_db_file = "/tmp/paris_test_db.bin";
+    FILE *fp = fopen(temp_db_file.c_str(), "wb");
     if (fp == nullptr) {
         fprintf(stderr, "Error: Could not create temporary database file\n");
         delete[] database;
@@ -29,13 +29,12 @@ int main(){
     fwrite(database, sizeof(float), n_database * dim, fp);
     fclose(fp);
 
-    // 3. Create FileDataSource and ParIS search object
-    diNoLib::FileDataSource file_source(temp_db_file, dim, n_database);
+    // 3. Create ParIS search object
     diNoLib::ParIS paris_search(diNoLib::DistanceType::L2_SQUARED);
     paris_search.setNumThreads(4);
 
-    // 4. Build the index
-    paris_search.buildIndex(&file_source);
+    // 4. Build the index (simplified API - just pass filename!)
+    paris_search.buildIndex(temp_db_file, dim, n_database);
     printf(">>> Finished indexing\n");
 
     // 5. Search the index
@@ -60,7 +59,7 @@ int main(){
     delete[] query;
     delete[] I;
     delete[] D;
-    remove(temp_db_file);  // Remove temporary file
+    remove(temp_db_file.c_str());  // Remove temporary file
 
     return 0;
 }

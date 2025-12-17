@@ -78,9 +78,15 @@ namespace diNoLib
     public:
         ParIS(DistanceType distance_type);
         void setNumThreads(int num_threads);
-        int getNumThreads() const;        
+        int getNumThreads() const;
         void buildIndex(DataSource *data_source) override;
-        void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;  
+        
+        // ParIS only supports file-based data - override to give clear error
+        void buildIndex(float *database, idx_t n_database, idx_t dim) override {
+            throw std::runtime_error("ParIS requires file-based data. Use buildIndex(filename, dim, n_database) instead.");
+        }
+        
+        void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
            
 
         ~ParIS();

@@ -127,6 +127,12 @@ namespace diNoLib
         void setWarpingWindow(int warping_window) { this->warping_window = warping_window; }
 
         void buildIndex(DataSource *data_source) override;
+        
+        // Messi only supports in-memory data
+        void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) override {
+            throw std::runtime_error("Messi requires in-memory data. Use buildIndex(database, n_database, dim) instead.");
+        }
+        
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
         ~Messi();
