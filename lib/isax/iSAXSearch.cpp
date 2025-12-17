@@ -138,6 +138,18 @@ namespace diNoLib
         while ((n = (query_result *)pqueue_pop(pq)))
         {
             pop_count++;
+            if (pop_count % 100 == 1) {
+                fprintf(stderr, "DEBUG refine: pop #%d, n=%p\n", pop_count, (void*)n); fflush(stderr);
+            }
+            if (!n) {
+                fprintf(stderr, "DEBUG refine: n is NULL!\n"); fflush(stderr);
+                break;
+            }
+            if (!n->node) {
+                fprintf(stderr, "DEBUG refine: n->node is NULL at pop #%d!\n", pop_count); fflush(stderr);
+                free(n);
+                continue;
+            }
             // The best node has a worse mindist, so search is finished!
             if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
             {
@@ -184,7 +196,7 @@ namespace diNoLib
                 {
                     // If it is an intermediate node calculate mindist for children
                     // and push them in the queue
-                    if (n->node->left_child->isax_cardinalities != NULL)
+                    if (n->node->left_child != NULL && n->node->left_child->isax_cardinalities != NULL)
                     {
                         if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
                         {
@@ -204,9 +216,9 @@ namespace diNoLib
                             pqueue_insert(pq, mindist_result);
                         }
                     }
-                    if (n->node->right_child->isax_cardinalities != NULL)
+                    if (n->node->right_child != NULL && n->node->right_child->isax_cardinalities != NULL)
                     {
-                        if (n->node->right_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
+                        if (n->node->right_child->is_leaf && !n->node->right_child->has_partial_data_file && aggressive_check)
                         {
                             calculate_node_topk_inmemory(index, n->node->right_child, ts, pq_bsf, rawfile);
                         }
