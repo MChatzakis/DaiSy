@@ -178,7 +178,10 @@ namespace diNoLib
                         n->node->buffer != NULL)
                     {
                         if (total_call_count >= 525) {
-                            fprintf(stderr, "DEBUG refine[%d]: calling split_node\n", total_call_count); fflush(stderr);
+                            fprintf(stderr, "DEBUG refine[%d]: calling split_node, index=%p, n->node=%p\n", 
+                                    total_call_count, (void*)index, (void*)n->node); fflush(stderr);
+                            fprintf(stderr, "DEBUG refine[%d]: n->node->parent=%p\n", 
+                                    total_call_count, (void*)n->node->parent); fflush(stderr);
                         }
                         // Split and push again in the queue
                         split_node(index, n->node);

@@ -698,10 +698,11 @@ namespace diNoLib
 
     void split_node(isax_index *index, isax_node *node)
     {
+        fprintf(stderr, "DEBUG split_node: ENTERED FUNCTION\n"); fflush(stderr);
         // *******************************************************
         // CREATE TWO NEW NODES AND SET OLD ONE AS AN INTERMEDIATE
         // *******************************************************
-        fprintf(stderr, "DEBUG split_node: enter, node=%p\n", (void*)node); fflush(stderr);
+        fprintf(stderr, "DEBUG split_node: enter, index=%p, node=%p\n", (void*)index, (void*)node); fflush(stderr);
         int i, sktting;
 
         node->is_leaf = 0;
