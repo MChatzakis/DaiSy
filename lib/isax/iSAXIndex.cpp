@@ -189,6 +189,47 @@ namespace diNoLib
         free(fbl);
     }
 
+    void destroy_parallel_fbl(parallel_first_buffer_layer *fbl, int total_workers)
+    {
+        if (fbl == NULL) return;
+        
+        // Free internal allocations of each soft buffer
+        if (fbl->soft_buffers != NULL) {
+            for (int i = 0; i < fbl->number_of_buffers; i++) {
+                parallel_fbl_soft_buffer *sb = &fbl->soft_buffers[i];
+                if (sb->initialized) {
+                    // Free per-worker arrays
+                    if (sb->sax_records != NULL) {
+                        for (int w = 0; w < total_workers; w++) {
+                            if (sb->sax_records[w] != NULL) {
+                                free(sb->sax_records[w]);
+                            }
+                        }
+                        free(sb->sax_records);
+                    }
+                    if (sb->pos_records != NULL) {
+                        for (int w = 0; w < total_workers; w++) {
+                            if (sb->pos_records[w] != NULL) {
+                                free(sb->pos_records[w]);
+                            }
+                        }
+                        free(sb->pos_records);
+                    }
+                    if (sb->max_buffer_size != NULL) {
+                        free(sb->max_buffer_size);
+                    }
+                    if (sb->buffer_size != NULL) {
+                        free(sb->buffer_size);
+                    }
+                }
+            }
+            free(fbl->soft_buffers);
+        }
+        
+        free(fbl->hard_buffer);
+        free(fbl);
+    }
+
     parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers,
                                                     int max_total_buffers_size, isax_index *index)
     {
@@ -753,18 +794,13 @@ namespace diNoLib
         node->right_child = right_child;
 
         // ############ S P L I T   D A T A #############
-        // Calculate actual buffer size needed from all sources:
-        // - in-memory buffers (full, partial, tmp_full, tmp_partial)
-        // - plus room for file reads (.full and .part files)
-        int inmem_records = node->buffer->full_buffer_size + 
-                           node->buffer->partial_buffer_size +
-                           node->buffer->tmp_full_buffer_size + 
-                           node->buffer->tmp_partial_buffer_size;
-        // Use the larger of inmem_records or max_leaf_size, plus margin for file reads
-        int split_buffer_size = (inmem_records > index->settings->max_leaf_size) 
-                               ? (inmem_records * 2 + 100)  // Extra room for files
-                               : (index->settings->max_leaf_size * 2 + 100);
+        // Allocate buffer for splitting - use 4x max_leaf_size to be safe for all sources
+        int split_buffer_size = index->settings->max_leaf_size * 4 + 100;
         isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) * split_buffer_size);
+        if (split_buffer == NULL) {
+            fprintf(stderr, "ERROR: Failed to allocate split_buffer\n");
+            return;
+        }
 
         int split_buffer_index = 0;
 

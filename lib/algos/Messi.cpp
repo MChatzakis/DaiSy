@@ -678,6 +678,11 @@ namespace diNoLib
         __sync_fetch_and_add(&(index->total_records), this->n_database);
         index->sax_cache_size = index->total_records;
         fprintf(stderr, ">>> Finished indexing\n");
+        
+        // Clean up pthread resources
+        pthread_barrier_destroy(&lock_barrier1);
+        pthread_barrier_destroy(&lock_barrier2);
+        
         free(input_data);
         free(nodeid);
         free(nodesize);
@@ -1018,7 +1023,8 @@ namespace diNoLib
                 free(index->answer);
             }
             if (index->fbl != nullptr) {
-                destroy_fbl(index->fbl);
+                // Use parallel FBL destructor since we use initialize_pRecBuf
+                destroy_parallel_fbl((parallel_first_buffer_layer *)index->fbl, this->index_workers);
             }
             if (index->sax_file != nullptr) {
                 fclose(index->sax_file);
