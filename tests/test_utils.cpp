@@ -32,7 +32,7 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     diNoLib::ParIS* paris_search = dynamic_cast<diNoLib::ParIS*>(search);
     if (paris_search != nullptr) {
         // ParIS requires FileDataSource
-        diNoLib::FileDataSource file_data_source(dataset_path, n_database, dim);
+        diNoLib::FileDataSource file_data_source(dataset_path.c_str(), dim, n_database);
         search->buildIndex(&file_data_source);
     } else {
         // Other algorithms use InMemoryDataSource
