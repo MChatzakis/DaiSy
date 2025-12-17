@@ -818,12 +818,9 @@ namespace diNoLib
 
     pqueue_bsf Messi::MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
     {
-        fprintf(stderr, "DEBUG: MESSI_search_topk_L2Squared k=%llu\n", k); fflush(stderr);
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
-        fprintf(stderr, "DEBUG: after pqueue_bsf_init\n"); fflush(stderr);
 
         approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database);
-        fprintf(stderr, "DEBUG: after approximate_topk_inmemory, minimum_distance=%f\n", pq_bsf->knn[k - 1]); fflush(stderr);
         this->minimum_distance = pq_bsf->knn[k - 1];
 
         int tight_bound = index->settings->tight_bound;
@@ -832,9 +829,7 @@ namespace diNoLib
 
         if (this->minimum_distance == FLT_MAX || min_checked_leaves > 1)
         {
-            fprintf(stderr, "DEBUG: calling refine_topk_answer_inmemory\n"); fflush(stderr);
             refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database);
-            fprintf(stderr, "DEBUG: after refine_topk_answer_inmemory\n"); fflush(stderr);
             this->minimum_distance = pq_bsf->knn[k - 1];
         }
         pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);

@@ -698,16 +698,13 @@ namespace diNoLib
 
     void split_node(isax_index *index, isax_node *node)
     {
-        fprintf(stderr, "DEBUG split_node: ENTERED FUNCTION\n"); fflush(stderr);
         // *******************************************************
         // CREATE TWO NEW NODES AND SET OLD ONE AS AN INTERMEDIATE
         // *******************************************************
-        fprintf(stderr, "DEBUG split_node: enter, index=%p, node=%p\n", (void*)index, (void*)node); fflush(stderr);
         int i, sktting;
 
         node->is_leaf = 0;
         node->leaf_size = 0;
-        fprintf(stderr, "DEBUG split_node: after setting is_leaf/leaf_size\n"); fflush(stderr);
 
         // Create split_data for this node.
         isax_node_split_data *split_data = (isax_node_split_data *)malloc(sizeof(isax_node_split_data));
@@ -720,7 +717,6 @@ namespace diNoLib
         {
             fprintf(stderr, "error: could not allocate memory for node split mask.\n");
         }
-        fprintf(stderr, "DEBUG split_node: allocated split_data, parent=%p\n", (void*)node->parent); fflush(stderr);
 
         if (node->parent == NULL)
         {
@@ -732,19 +728,11 @@ namespace diNoLib
         }
         else
         {
-            fprintf(stderr, "DEBUG split_node: parent->split_data=%p\n", (void*)node->parent->split_data); fflush(stderr);
-            if (node->parent->split_data == NULL) {
-                fprintf(stderr, "ERROR split_node: parent->split_data is NULL!\n"); fflush(stderr);
-                free(split_data->split_mask);
-                free(split_data);
-                return;
-            }
             for (i = 0; i < index->settings->paa_segments; i++)
             {
                 split_data->split_mask[i] = node->parent->split_data->split_mask[i];
             }
         }
-        fprintf(stderr, "DEBUG split_node: split_mask initialized\n"); fflush(stderr);
 
         __sync_fetch_and_add(&(index->memory_info.mem_tree_structure), 2);
 
@@ -757,7 +745,6 @@ namespace diNoLib
         node->split_data = split_data;
         node->left_child = left_child;
         node->right_child = right_child;
-        fprintf(stderr, "DEBUG split_node: children created\n"); fflush(stderr);
 
         // ############ S P L I T   D A T A #############
         // Allocating 1 more position to cover any off-sized allocations happening due to
@@ -765,7 +752,6 @@ namespace diNoLib
         // e.g. line 284 ( if(!fread... )
         isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) *
                                                                     (index->settings->max_leaf_size + 1));
-        fprintf(stderr, "DEBUG split_node: split_buffer allocated, buffer=%p\n", (void*)node->buffer); fflush(stderr);
 
         int split_buffer_index = 0;
 
@@ -773,7 +759,6 @@ namespace diNoLib
         // SPLIT SAX BUFFERS CONTAINED IN *RAM* AND PUT IN CHILDREN
         // ********************************************************
         // Split both sax and ts data and move to the new leafs
-        fprintf(stderr, "DEBUG split_node: full_buffer_size=%d\n", node->buffer->full_buffer_size); fflush(stderr);
 
         if (node->buffer->full_buffer_size > 0)
             for (i = node->buffer->full_buffer_size - 1; i >= 0; i--)
@@ -870,7 +855,7 @@ namespace diNoLib
                         }
                         else
                         {
-                            if (!fread(split_buffer[split_buffer_index].sax, sizeof(ts_type),
+                            if (!fread(split_buffer[split_buffer_index].ts, sizeof(ts_type),
                                        index->settings->timeseries_size, full_file))
                             {
                                 // Free because it is not inserted in the tree
@@ -1128,10 +1113,10 @@ namespace diNoLib
                 else if (node_buffer->max_tmp_partial_buffer_size <= node_buffer->tmp_partial_buffer_size)
                 {
                     node_buffer->max_tmp_partial_buffer_size *= BUFFER_REALLOCATION_RATE;
-                    node_buffer->tmp_partial_position_buffer = (file_position_type **)realloc(node_buffer->tmp_full_position_buffer,
+                    node_buffer->tmp_partial_position_buffer = (file_position_type **)realloc(node_buffer->tmp_partial_position_buffer,
                                                                                               sizeof(file_position_type *) *
                                                                                                   node_buffer->max_tmp_partial_buffer_size);
-                    node_buffer->tmp_partial_sax_buffer = (sax_type **)realloc(node_buffer->tmp_full_sax_buffer,
+                    node_buffer->tmp_partial_sax_buffer = (sax_type **)realloc(node_buffer->tmp_partial_sax_buffer,
                                                                                sizeof(sax_type *) *
                                                                                    node_buffer->max_tmp_partial_buffer_size);
                 }

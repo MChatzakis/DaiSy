@@ -100,17 +100,11 @@ namespace diNoLib
 
     void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile)
     {
-        static int call_count = 0;
-        call_count++;
-        fprintf(stderr, "DEBUG refine: call #%d, k=%d\n", call_count, pq_bsf->k); fflush(stderr);
-
         int tight_bound = index->settings->tight_bound;
         int aggressive_check = index->settings->aggressive_check;
 
         int j = 0;
-        fprintf(stderr, "DEBUG refine: pqueue_init with size %d\n", index->settings->root_nodes_size); fflush(stderr);
         pqueue_t *pq = pqueue_init(index->settings->root_nodes_size, cmp_pri, get_pri, set_pri, get_pos, set_pos);
-        fprintf(stderr, "DEBUG refine: pqueue_init done, pq=%p\n", (void*)pq); fflush(stderr);
 
         // Insert all root nodes in heap.
         isax_node *current_root_node = index->first_node;
@@ -133,28 +127,11 @@ namespace diNoLib
         }
         query_result *n;
         int checks = 0;
-        int pop_count = 0;
-        static int total_call_count = 0;
-        total_call_count++;
-        fprintf(stderr, "DEBUG refine: starting while loop (total call %d)\n", total_call_count); fflush(stderr);
         while ((n = (query_result *)pqueue_pop(pq)))
         {
-            pop_count++;
-            // Print every pop for calls >= 525
-            if (total_call_count >= 525) {
-                fprintf(stderr, "DEBUG refine[%d]: pop #%d, n=%p, n->node=%p\n", total_call_count, pop_count, (void*)n, (void*)(n ? n->node : NULL)); fflush(stderr);
-            }
-            if (!n) {
-                fprintf(stderr, "DEBUG refine: n is NULL!\n"); fflush(stderr);
-                break;
-            }
             if (!n->node) {
-                fprintf(stderr, "DEBUG refine: n->node is NULL at pop #%d!\n", pop_count); fflush(stderr);
                 free(n);
                 continue;
-            }
-            if (total_call_count >= 525) {
-                fprintf(stderr, "DEBUG refine[%d]: pop #%d is_leaf=%d\n", total_call_count, pop_count, n->node->is_leaf); fflush(stderr);
             }
             // The best node has a worse mindist, so search is finished!
             if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
@@ -167,36 +144,20 @@ namespace diNoLib
                 // If it is a leaf, check its real distance.
                 if (n->node->is_leaf)
                 {
-                    if (total_call_count >= 525) {
-                        fprintf(stderr, "DEBUG refine[%d]: leaf processing, has_full_data_file=%d, leaf_size=%d, buffer=%p\n", 
-                                total_call_count, n->node->has_full_data_file, n->node->leaf_size, (void*)n->node->buffer); fflush(stderr);
-                    }
                     // *** ADAPTIVE SPLITTING ***
                     // Only split if buffer exists (node hasn't been split already)
                     if (!n->node->has_full_data_file &&
                         (n->node->leaf_size > index->settings->min_leaf_size) &&
                         n->node->buffer != NULL)
                     {
-                        if (total_call_count >= 525) {
-                            fprintf(stderr, "DEBUG refine[%d]: calling split_node, index=%p, n->node=%p\n", 
-                                    total_call_count, (void*)index, (void*)n->node); fflush(stderr);
-                            fprintf(stderr, "DEBUG refine[%d]: n->node->parent=%p\n", 
-                                    total_call_count, (void*)n->node->parent); fflush(stderr);
-                        }
                         // Split and push again in the queue
                         split_node(index, n->node);
-                        if (total_call_count >= 525) {
-                            fprintf(stderr, "DEBUG refine[%d]: split_node done\n", total_call_count); fflush(stderr);
-                        }
                         pqueue_insert(pq, n);
                         continue;
                     }
                     // *** EXTRA BOUNDING ***
                     if (tight_bound)
                     {
-                        if (total_call_count >= 525) {
-                            fprintf(stderr, "DEBUG refine[%d]: tight_bound check\n", total_call_count); fflush(stderr);
-                        }
                         j++;
                         float mindistance = calculate_minimum_distance_inmemory(index, n->node, ts, paa);
 
@@ -207,14 +168,8 @@ namespace diNoLib
                         }
                     }
                     // *** REAL DISTANCE ***
-                    if (total_call_count >= 525) {
-                        fprintf(stderr, "DEBUG refine[%d]: calling calculate_node_topk_inmemory\n", total_call_count); fflush(stderr);
-                    }
                     checks++;
                     calculate_node_topk_inmemory(index, n->node, ts, pq_bsf, rawfile);
-                    if (total_call_count >= 525) {
-                        fprintf(stderr, "DEBUG refine[%d]: calculate_node_topk_inmemory done\n", total_call_count); fflush(stderr);
-                    }
 
                     if (pq_bsf->knn[pq_bsf->k - 1] < FLT_MAX)
                     {
@@ -226,10 +181,6 @@ namespace diNoLib
                 {
                     // If it is an intermediate node calculate mindist for children
                     // and push them in the queue
-                    if (total_call_count >= 525) {
-                        fprintf(stderr, "DEBUG refine[%d]: intermediate node, left=%p, right=%p\n", 
-                                total_call_count, (void*)n->node->left_child, (void*)n->node->right_child); fflush(stderr);
-                    }
                     if (n->node->left_child != NULL && n->node->left_child->isax_cardinalities != NULL)
                     {
                         if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
@@ -277,7 +228,6 @@ namespace diNoLib
             }
         }
         // Free the nodes that where not popped.
-        fprintf(stderr, "DEBUG refine: cleanup, pop_count was %d\n", pop_count); fflush(stderr);
         while ((n = (query_result *)pqueue_pop(pq)))
         {
             free(n);
@@ -287,9 +237,7 @@ namespace diNoLib
             pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
         }
         // Free the priority queue.
-
         pqueue_free(pq);
-        fprintf(stderr, "DEBUG refine: done\n"); fflush(stderr);
     }
 
     // new
