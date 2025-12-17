@@ -189,9 +189,11 @@ namespace diNoLib
         free(fbl);
     }
 
-    void destroy_parallel_fbl(parallel_first_buffer_layer *fbl, int total_workers)
+    void destroy_parallel_fbl(parallel_first_buffer_layer *fbl)
     {
         if (fbl == NULL) return;
+        
+        int total_workers = fbl->total_worker_number;
         
         // Free internal allocations of each soft buffer
         if (fbl->soft_buffers != NULL) {
@@ -231,7 +233,7 @@ namespace diNoLib
     }
 
     parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers,
-                                                    int max_total_buffers_size, isax_index *index)
+                                                    int max_total_buffers_size, isax_index *index, int total_workers)
     {
         parallel_first_buffer_layer *fbl = (parallel_first_buffer_layer *)malloc(sizeof(parallel_first_buffer_layer));
 
@@ -242,6 +244,7 @@ namespace diNoLib
         fbl->max_total_size = max_total_buffers_size;
         fbl->initial_buffer_size = initial_buffer_size;
         fbl->number_of_buffers = number_of_buffers;
+        fbl->total_worker_number = total_workers;  // Store for cleanup
 
         // Allocate a big chunk of memory to store sax data and positions
         // long long hard_buffer_size = (long long)(index->settings->sax_byte_size + index->settings->position_byte_size) * (long long)max_total_buffers_size;

@@ -312,7 +312,7 @@ namespace diNoLib
 
     first_buffer_layer *initialize_fbl(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index);
 
-    parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index);
+    parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index, int total_workers);
 
     isax_index *isax_index_init_inmemory(isax_index_settings *settings);
     isax_index *isax_index_init(isax_index_settings *settings);
@@ -327,7 +327,7 @@ namespace diNoLib
     root_mask_type isax_pRecBuf_index_insert_inmemory(isax_index *index, sax_type *sax, file_position_type *pos, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber);
 
     void destroy_fbl(first_buffer_layer *fbl);
-    void destroy_parallel_fbl(parallel_first_buffer_layer *fbl, int total_workers);
+    void destroy_parallel_fbl(parallel_first_buffer_layer *fbl);
     void destroy_node_buffer(isax_node_buffer *node_buffer);
     void split_node(isax_index *index, isax_node *node);
     void split_node(isax_index *index, isax_node *node);

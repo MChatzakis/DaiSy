@@ -635,7 +635,7 @@ namespace diNoLib
         pthread_mutex_t lock_record = PTHREAD_MUTEX_INITIALIZER, lockfbl = PTHREAD_MUTEX_INITIALIZER, lock_index = PTHREAD_MUTEX_INITIALIZER, lock_firstnode = PTHREAD_MUTEX_INITIALIZER, lock_disk = PTHREAD_MUTEX_INITIALIZER;
 
         destroy_fbl(index->fbl);
-        index->fbl = (first_buffer_layer *)initialize_pRecBuf(index->settings->initial_fbl_buffer_size, pow(2, index->settings->paa_segments), index->settings->max_total_buffer_size + DISK_BUFFER_SIZE * (PROGRESS_CALCULATE_THREAD_NUMBER - 1), index);
+        index->fbl = (first_buffer_layer *)initialize_pRecBuf(index->settings->initial_fbl_buffer_size, pow(2, index->settings->paa_segments), index->settings->max_total_buffer_size + DISK_BUFFER_SIZE * (PROGRESS_CALCULATE_THREAD_NUMBER - 1), index, this->index_workers);
 
         // Use heap allocation instead of VLAs to avoid stack overflow
         int *nodeid = (int *)malloc(sizeof(int) * index->fbl->number_of_buffers);
@@ -1024,7 +1024,7 @@ namespace diNoLib
             }
             if (index->fbl != nullptr) {
                 // Use parallel FBL destructor since we use initialize_pRecBuf
-                destroy_parallel_fbl((parallel_first_buffer_layer *)index->fbl, this->index_workers);
+                destroy_parallel_fbl((parallel_first_buffer_layer *)index->fbl);
             }
             if (index->sax_file != nullptr) {
                 fclose(index->sax_file);
