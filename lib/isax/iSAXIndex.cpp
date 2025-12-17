@@ -753,11 +753,18 @@ namespace diNoLib
         node->right_child = right_child;
 
         // ############ S P L I T   D A T A #############
-        // Allocating 1 more position to cover any off-sized allocations happening due to
-        // trying to load one more record from a fetched file page which does not exist.
-        // e.g. line 284 ( if(!fread... )
-        isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) *
-                                                                    (index->settings->max_leaf_size + 1));
+        // Calculate actual buffer size needed from all sources:
+        // - in-memory buffers (full, partial, tmp_full, tmp_partial)
+        // - plus room for file reads (.full and .part files)
+        int inmem_records = node->buffer->full_buffer_size + 
+                           node->buffer->partial_buffer_size +
+                           node->buffer->tmp_full_buffer_size + 
+                           node->buffer->tmp_partial_buffer_size;
+        // Use the larger of inmem_records or max_leaf_size, plus margin for file reads
+        int split_buffer_size = (inmem_records > index->settings->max_leaf_size) 
+                               ? (inmem_records * 2 + 100)  // Extra room for files
+                               : (index->settings->max_leaf_size * 2 + 100);
+        isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) * split_buffer_size);
 
         int split_buffer_index = 0;
 
