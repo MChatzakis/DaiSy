@@ -9,6 +9,7 @@ namespace diNoLib
 {
     void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile)
     {
+        // Bail out if node or buffer is missing
         if (node == NULL || node->buffer == NULL)
         {
             return;
@@ -76,8 +77,12 @@ namespace diNoLib
 
             // Adaptive splitting
 
-            while (!node->is_leaf)
+            while (node != NULL && !node->is_leaf)
             {
+                // Check for missing split_data
+                if (node->split_data == NULL)
+                    break;
+                    
                 int location = index->settings->sax_bit_cardinality - 1 -
                                node->split_data->split_mask[node->split_data->splitpoint];
                 root_mask_type mask = index->settings->bit_masks[location];
@@ -93,7 +98,8 @@ namespace diNoLib
 
                 // Adaptive splitting
             }
-            calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile);
+            if (node != NULL)
+                calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile);
         }
         else
         {
