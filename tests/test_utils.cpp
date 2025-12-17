@@ -28,8 +28,18 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     float *database = loadBinData(dataset_path.c_str(), n_database, dim);
     float *query = loadBinData(query_path.c_str(), n_query, dim);
 
-    diNoLib::InMemoryDataSource data_source(database, n_database, dim);
-    search->buildIndex(&data_source);
+    // Check if search is ParIS - it requires FileDataSource
+    diNoLib::ParIS* paris_search = dynamic_cast<diNoLib::ParIS*>(search);
+    if (paris_search != nullptr) {
+        // ParIS requires FileDataSource
+        diNoLib::FileDataSource file_data_source(dataset_path, n_database, dim);
+        search->buildIndex(&file_data_source);
+    } else {
+        // Other algorithms use InMemoryDataSource
+        diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+        search->buildIndex(&data_source);
+    }
+    
     search->setNumThreads(num_thread);
 
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
