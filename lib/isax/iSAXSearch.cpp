@@ -167,18 +167,31 @@ namespace diNoLib
                 // If it is a leaf, check its real distance.
                 if (n->node->is_leaf)
                 {
+                    if (total_call_count >= 525) {
+                        fprintf(stderr, "DEBUG refine[%d]: leaf processing, has_full_data_file=%d, leaf_size=%d\n", 
+                                total_call_count, n->node->has_full_data_file, n->node->leaf_size); fflush(stderr);
+                    }
                     // *** ADAPTIVE SPLITTING ***
                     if (!n->node->has_full_data_file &&
                         (n->node->leaf_size > index->settings->min_leaf_size))
                     {
+                        if (total_call_count >= 525) {
+                            fprintf(stderr, "DEBUG refine[%d]: calling split_node\n", total_call_count); fflush(stderr);
+                        }
                         // Split and push again in the queue
                         split_node(index, n->node);
+                        if (total_call_count >= 525) {
+                            fprintf(stderr, "DEBUG refine[%d]: split_node done\n", total_call_count); fflush(stderr);
+                        }
                         pqueue_insert(pq, n);
                         continue;
                     }
                     // *** EXTRA BOUNDING ***
                     if (tight_bound)
                     {
+                        if (total_call_count >= 525) {
+                            fprintf(stderr, "DEBUG refine[%d]: tight_bound check\n", total_call_count); fflush(stderr);
+                        }
                         j++;
                         float mindistance = calculate_minimum_distance_inmemory(index, n->node, ts, paa);
 
@@ -189,8 +202,14 @@ namespace diNoLib
                         }
                     }
                     // *** REAL DISTANCE ***
+                    if (total_call_count >= 525) {
+                        fprintf(stderr, "DEBUG refine[%d]: calling calculate_node_topk_inmemory\n", total_call_count); fflush(stderr);
+                    }
                     checks++;
                     calculate_node_topk_inmemory(index, n->node, ts, pq_bsf, rawfile);
+                    if (total_call_count >= 525) {
+                        fprintf(stderr, "DEBUG refine[%d]: calculate_node_topk_inmemory done\n", total_call_count); fflush(stderr);
+                    }
 
                     if (pq_bsf->knn[pq_bsf->k - 1] < FLT_MAX)
                     {
