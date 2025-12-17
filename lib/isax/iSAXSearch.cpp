@@ -138,8 +138,10 @@ namespace diNoLib
             node_count++;
         }
         fprintf(stderr, "DEBUG refine_topk: inserted %d root nodes into pqueue\n", node_count); fflush(stderr);
+        fprintf(stderr, "DEBUG refine_topk: pq->size=%zu, pq->avail=%zu\n", pq->size, pq->avail); fflush(stderr);
         query_result *n;
         int checks = 0;
+        fprintf(stderr, "DEBUG refine_topk: about to call pqueue_pop\n"); fflush(stderr);
         while ((n = (query_result *)pqueue_pop(pq)))
         {
             // The best node has a worse mindist, so search is finished!

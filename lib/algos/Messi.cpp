@@ -591,6 +591,7 @@ namespace diNoLib
         }
         
         // Allocate and load all data
+        data_source->reset();  // IMPORTANT: Reset to beginning before reading
         this->database = new float[this->n_database * this->dim];
         float *record = new float[this->dim];
         idx_t idx = 0;
@@ -600,6 +601,11 @@ namespace diNoLib
             idx++;
         }
         delete[] record;
+        
+        fprintf(stderr, "DEBUG Messi::buildIndex: loaded %llu records (expected %llu)\n", idx, this->n_database);
+        if (idx != this->n_database) {
+            fprintf(stderr, "ERROR: Record count mismatch! Data may not be loaded correctly.\n");
+        }
 
         this->index_settings = isax_index_settings_init("",                        // INDEX DIRECTORY
                                                         this->dim,                 // TIME SERIES SIZE
@@ -681,6 +687,8 @@ namespace diNoLib
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        fprintf(stderr, "DEBUG searchIndexL2Squared: database=%p, index=%p, n_database=%llu, dim=%llu\n", 
+                (void*)this->database, (void*)this->index, this->n_database, this->dim);
     
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         
