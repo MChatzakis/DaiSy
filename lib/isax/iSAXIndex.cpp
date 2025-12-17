@@ -753,16 +753,11 @@ namespace diNoLib
         node->right_child = right_child;
 
         // ############ S P L I T   D A T A #############
-        // Calculate total records to prevent buffer overflow
-        int total_records = node->buffer->full_buffer_size + 
-                           node->buffer->partial_buffer_size +
-                           node->buffer->tmp_full_buffer_size + 
-                           node->buffer->tmp_partial_buffer_size;
-        // Allocate enough space for all records plus extra for file reads
-        int buffer_size = (total_records > index->settings->max_leaf_size) 
-                         ? (total_records + 100) 
-                         : (index->settings->max_leaf_size + 100);
-        isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) * buffer_size);
+        // Allocating 1 more position to cover any off-sized allocations happening due to
+        // trying to load one more record from a fetched file page which does not exist.
+        // e.g. line 284 ( if(!fread... )
+        isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) *
+                                                                    (index->settings->max_leaf_size + 1));
 
         int split_buffer_index = 0;
 
