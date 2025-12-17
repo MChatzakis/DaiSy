@@ -83,11 +83,11 @@ const std::vector<SSTestConfig> test_configs = []
 
 
     //CONCURRENCY STRESS TESTS
-    //auto astro_stress = generate_concurrency_stress_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
-    //auto random_stress = generate_concurrency_stress_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
+    auto astro_stress = generate_concurrency_stress_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
+    auto random_stress = generate_concurrency_stress_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
 
-    //configs.insert(configs.end(), astro_stress.begin(), astro_stress.end());
-    //configs.insert(configs.end(), random_stress.begin(), random_stress.end());
+    configs.insert(configs.end(), astro_stress.begin(), astro_stress.end());
+    configs.insert(configs.end(), random_stress.begin(), random_stress.end());
 
     //MEMORY LEAK TESTS
     auto astro_leak = generate_memory_leak_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);

@@ -9,6 +9,10 @@ namespace diNoLib
 {
     void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile)
     {
+        if (node == NULL || node->buffer == NULL)
+        {
+            return;
+        }
         // COUNT_CHECKED_NODE()
         //  If node has buffered data
         if (node->buffer != NULL)
@@ -143,6 +147,11 @@ namespace diNoLib
                 free(n);
                 continue;
             }
+            // Skip nodes missing SAX metadata to avoid invalid accesses
+            if (n->node->isax_values == NULL || n->node->isax_cardinalities == NULL) {
+                free(n);
+                continue;
+            }
             // The best node has a worse mindist, so search is finished!
             if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
             {
@@ -191,7 +200,9 @@ namespace diNoLib
                 {
                     // If it is an intermediate node calculate mindist for children
                     // and push them in the queue
-                    if (n->node->left_child != NULL && n->node->left_child->isax_cardinalities != NULL)
+                    if (n->node->left_child != NULL && 
+                        n->node->left_child->isax_values != NULL && 
+                        n->node->left_child->isax_cardinalities != NULL)
                     {
                         if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
                         {
@@ -211,7 +222,9 @@ namespace diNoLib
                             pqueue_insert(pq, mindist_result);
                         }
                     }
-                    if (n->node->right_child != NULL && n->node->right_child->isax_cardinalities != NULL)
+                    if (n->node->right_child != NULL && 
+                        n->node->right_child->isax_values != NULL && 
+                        n->node->right_child->isax_cardinalities != NULL)
                     {
                         if (n->node->right_child->is_leaf && !n->node->right_child->has_partial_data_file && aggressive_check)
                         {
