@@ -26,6 +26,7 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     ASSERT_EQ(n_database_gt, n_database);
 
     float *query = loadBinData(query_path.c_str(), n_query, dim);
+    float *database = nullptr;
 
     // Check if this is a ParIS instance (requires FileDataSource)
     diNoLib::ParIS *paris = dynamic_cast<diNoLib::ParIS *>(search);
@@ -38,10 +39,10 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     else
     {
         // Other algorithms use InMemoryDataSource
-        float *database = loadBinData(dataset_path.c_str(), n_database, dim);
+        database = loadBinData(dataset_path.c_str(), n_database, dim);
         diNoLib::InMemoryDataSource data_source(database, n_database, dim);
         search->buildIndex(&data_source);
-        delete[] database;
+        // NOTE: database must stay alive until after searchIndex completes!
     }
 
     search->setNumThreads(num_thread);
@@ -53,6 +54,7 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     compareWithGroundTruth(gt_I, gt_D, I, D, n_query, k);
 
     delete[] query;
+    delete[] database;  // Safe to delete here (nullptr for ParIS, valid for others)
     delete[] I;
     delete[] D;
 }
