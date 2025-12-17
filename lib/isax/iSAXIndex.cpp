@@ -748,6 +748,35 @@ namespace diNoLib
             return;
         }
         
+        // Pre-check: if parent exists and all split_mask entries are at max, can't split
+        if (node->parent != NULL && node->parent->split_data != NULL)
+        {
+            int can_split = 0;
+            for (int i = 0; i < index->settings->paa_segments; i++)
+            {
+                if (node->parent->split_data->split_mask[i] < index->settings->sax_bit_cardinality - 1)
+                {
+                    can_split = 1;
+                    break;
+                }
+            }
+            if (!can_split)
+            {
+                // Cannot split further - all dimensions at max depth
+                return;
+            }
+        }
+        
+        // Pre-check: if no records to split, don't proceed
+        int total_records = node->buffer->full_buffer_size + 
+                           node->buffer->partial_buffer_size +
+                           node->buffer->tmp_full_buffer_size + 
+                           node->buffer->tmp_partial_buffer_size;
+        if (total_records == 0)
+        {
+            return;
+        }
+        
         // *******************************************************
         // CREATE TWO NEW NODES AND SET OLD ONE AS AN INTERMEDIATE
         // *******************************************************
@@ -1013,16 +1042,40 @@ namespace diNoLib
         // printf("not informed decision: %d\n", split_data->splitpoint);
         if (split_data->splitpoint < 0)
         {
-            fprintf(stderr, "error: cannot split in depth more than %d.\n",
-                    index->settings->sax_bit_cardinality);
-            exit(-1);
+            // This shouldn't happen due to pre-check, but handle gracefully
+            fprintf(stderr, "warning: split_node failed to find valid splitpoint\n");
+            // Revert changes and return
+            node->is_leaf = 1;
+            destroy_node_buffer(left_child->buffer);
+            free(left_child);
+            destroy_node_buffer(right_child->buffer);
+            free(right_child);
+            node->left_child = NULL;
+            node->right_child = NULL;
+            free(split_data->split_mask);
+            free(split_data);
+            node->split_data = NULL;
+            free(split_buffer);
+            return;
         }
 
         if (++split_data->split_mask[split_data->splitpoint] > index->settings->sax_bit_cardinality - 1)
         {
-            fprintf(stderr, "error: cannot split in depth more than %d.\n",
-                    index->settings->sax_bit_cardinality);
-            exit(-1);
+            // This shouldn't happen due to pre-check, but handle gracefully  
+            fprintf(stderr, "warning: split_node exceeded max cardinality\n");
+            --split_data->split_mask[split_data->splitpoint];
+            node->is_leaf = 1;
+            destroy_node_buffer(left_child->buffer);
+            free(left_child);
+            destroy_node_buffer(right_child->buffer);
+            free(right_child);
+            node->left_child = NULL;
+            node->right_child = NULL;
+            free(split_data->split_mask);
+            free(split_data);
+            node->split_data = NULL;
+            free(split_buffer);
+            return;
         }
 
         root_mask_type mask = index->settings->bit_masks[index->settings->sax_bit_cardinality -

@@ -12,6 +12,12 @@ namespace diNoLib
 {
     void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue)
     {
+        // Skip nodes with uninitialized SAX data to avoid segfault
+        if (node == NULL || node->isax_values == NULL || node->isax_cardinalities == NULL)
+        {
+            return;
+        }
+        
         // COUNT_CAL_TIME_START
         float distance = minidist_paa_to_isax(paa, node->isax_values,
                                               node->isax_cardinalities,
@@ -38,11 +44,15 @@ namespace diNoLib
             }
             else
             {
-                if (node->left_child->isax_cardinalities != NULL)
+                if (node->left_child != NULL && 
+                    node->left_child->isax_values != NULL && 
+                    node->left_child->isax_cardinalities != NULL)
                 {
                     insert_tree_node_m_hybridpqueue(paa, node->left_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
                 }
-                if (node->right_child->isax_cardinalities != NULL)
+                if (node->right_child != NULL && 
+                    node->right_child->isax_values != NULL && 
+                    node->right_child->isax_cardinalities != NULL)
                 {
                     insert_tree_node_m_hybridpqueue(paa, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
                 }
@@ -52,6 +62,12 @@ namespace diNoLib
 
     void insert_tree_node_m_hybridpqueue_DTW(float *paaU, float *paaL, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue)
     {
+        // Skip nodes with uninitialized SAX data to avoid segfault
+        if (node == NULL || node->isax_values == NULL || node->isax_cardinalities == NULL)
+        {
+            return;
+        }
+        
         // COUNT_CAL_TIME_START
         float distance = minidist_paa_to_isax_DTW(paaU, paaL, node->isax_values,
                                                   node->isax_cardinalities,
@@ -76,11 +92,15 @@ namespace diNoLib
             }
             else
             {
-                if (node->left_child->isax_cardinalities != NULL)
+                if (node->left_child != NULL && 
+                    node->left_child->isax_values != NULL && 
+                    node->left_child->isax_cardinalities != NULL)
                 {
                     insert_tree_node_m_hybridpqueue_DTW(paaU, paaL, node->left_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
                 }
-                if (node->right_child->isax_cardinalities != NULL)
+                if (node->right_child != NULL && 
+                    node->right_child->isax_values != NULL && 
+                    node->right_child->isax_cardinalities != NULL)
                 {
                     insert_tree_node_m_hybridpqueue_DTW(paaU, paaL, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
                 }
@@ -90,9 +110,13 @@ namespace diNoLib
 
     void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
+        // Bail out if node or buffer is missing
+        if (node == NULL || node->buffer == NULL)
+        {
+            return;
+        }
         // COUNT_CHECKED_NODE()
-        //  If node has buffered data
-        if (node->buffer != NULL)
+        //  Node has buffered data (already checked above)
         {
             int i;
             for (i = 0; i < node->buffer->full_buffer_size; i++)
@@ -151,6 +175,12 @@ namespace diNoLib
 
     void calculate_node_DTW2knn_inmemory(isax_index *index, isax_node *node, ts_type *query, float *uo, float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf, int warpWind, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
+        // Bail out if node or buffer is missing
+        if (node == NULL || node->buffer == NULL)
+        {
+            return;
+        }
+        
         // COUNT_CHECKED_NODE()
         float distmin;
         int k;
@@ -163,11 +193,8 @@ namespace diNoLib
         // raw distance
         float *rDist = (float *)malloc(sizeof(float) * length);
 
-        // If node has buffered data
-        if (node->buffer != NULL)
-        {
-
-            for (int i = 0; i < node->buffer->partial_buffer_size; i++)
+        // Node has buffered data (already checked above)
+        for (int i = 0; i < node->buffer->partial_buffer_size; i++)
             {
 
                 distmin = minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, node->buffer->partial_sax_buffer[i],
@@ -201,7 +228,6 @@ namespace diNoLib
                     }
                 }
             }
-        }
         free(tSum);
         free(pCost);
         free(rDist);
