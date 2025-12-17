@@ -671,25 +671,19 @@ namespace diNoLib
             
              p=((ParIS_read_worker_data*)read_pointer)->load_point[t];
             //printf("t is %ld!!!\n",p );
-            // Always check candidates selected by mindistance_worker
-            // The lower bound check was already done in mindistance_worker, so we verify the actual distance here
-            // We read the BSF dynamically to use the most current value for pruning during distance calculation
-            fseek(raw_file, p * index->settings->ts_byte_size, SEEK_SET); 
-            size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
-            (void)items_read; // Suppress unused variable warning
-            // Read current BSF for pruning in distance calculation
-            bsf = pq_bsf->knn[pq_bsf->k-1];
-            dist = ts_euclidean_distance_SIMD(ts, ts_buffer, index->settings->timeseries_size, bsf); 
-            //printf("the distance is %f!!\n", dist);
-            if(dist <= bsf)  
-            {  
-                pthread_rwlock_wrlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf); 
-                // Re-read BSF after acquiring lock, as it might have changed
-                bsf = pq_bsf->knn[pq_bsf->k-1];
-                if(dist <= bsf) {
+            if (minidisvector[t] < bsf) 
+            {
+                fseek(raw_file, p * index->settings->ts_byte_size, SEEK_SET); 
+                size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
+                (void)items_read; // Suppress unused variable warning
+                dist = ts_euclidean_distance_SIMD(ts, ts_buffer, index->settings->timeseries_size, bsf); 
+                //printf("the distance is %f!!\n", dist);
+                if(dist <= bsf)  
+                {  
+                    pthread_rwlock_wrlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf); 
                     pqueue_bsf_insert(pq_bsf,dist,p,NULL);
-                }
-                pthread_rwlock_unlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf); 
+                    pthread_rwlock_unlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf); 
+                } 
             } 
             //printf("the t is :%ld  !!!!!\n",t); 
         }
