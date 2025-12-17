@@ -826,11 +826,18 @@ namespace diNoLib
         node->right_child = right_child;
 
         // ############ S P L I T   D A T A #############
-        // Allocate buffer for splitting - use 4x max_leaf_size to be safe for all sources
-        int split_buffer_size = index->settings->max_leaf_size * 4 + 100;
+        // Allocate buffer based on total records in node (in-memory + on-disk)
+        // Use node->leaf_size which tracks total, plus extra margin for safety
+        int inmem_count = node->buffer->full_buffer_size + 
+                         node->buffer->partial_buffer_size +
+                         node->buffer->tmp_full_buffer_size + 
+                         node->buffer->tmp_partial_buffer_size;
+        // leaf_size should include file records too, but add extra margin
+        int estimated_total = (node->leaf_size > inmem_count) ? node->leaf_size : inmem_count;
+        int split_buffer_size = estimated_total * 2 + 1000;  // 2x safety margin + 1000
         isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) * split_buffer_size);
         if (split_buffer == NULL) {
-            fprintf(stderr, "ERROR: Failed to allocate split_buffer\n");
+            fprintf(stderr, "ERROR: Failed to allocate split_buffer of size %d\n", split_buffer_size);
             return;
         }
 
@@ -910,6 +917,11 @@ namespace diNoLib
                 // COUNT_INPUT_TIME_START
                 while (!feof(full_file))
                 {
+                    // Bounds check to prevent buffer overflow
+                    if (split_buffer_index >= split_buffer_size - 1) {
+                        fprintf(stderr, "WARNING: split_buffer overflow prevented (full file)\n");
+                        break;
+                    }
                     split_buffer[split_buffer_index].position = (file_position_type *)malloc(index->settings->position_byte_size);
                     split_buffer[split_buffer_index].sax = (sax_type *)malloc(index->settings->sax_byte_size);
                     split_buffer[split_buffer_index].ts = (ts_type *)malloc(index->settings->ts_byte_size);
@@ -982,6 +994,11 @@ namespace diNoLib
 
                 while (!feof(partial_file))
                 {
+                    // Bounds check to prevent buffer overflow
+                    if (split_buffer_index >= split_buffer_size - 1) {
+                        fprintf(stderr, "WARNING: split_buffer overflow prevented (partial file)\n");
+                        break;
+                    }
                     split_buffer[split_buffer_index].position = (file_position_type *)malloc(index->settings->position_byte_size);
                     split_buffer[split_buffer_index].sax = (sax_type *)malloc(index->settings->sax_byte_size);
                     split_buffer[split_buffer_index].insertion_mode = (insertion_mode)(PARTIAL | TMP);
