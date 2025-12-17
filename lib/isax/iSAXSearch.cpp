@@ -168,12 +168,14 @@ namespace diNoLib
                 if (n->node->is_leaf)
                 {
                     if (total_call_count >= 525) {
-                        fprintf(stderr, "DEBUG refine[%d]: leaf processing, has_full_data_file=%d, leaf_size=%d\n", 
-                                total_call_count, n->node->has_full_data_file, n->node->leaf_size); fflush(stderr);
+                        fprintf(stderr, "DEBUG refine[%d]: leaf processing, has_full_data_file=%d, leaf_size=%d, buffer=%p\n", 
+                                total_call_count, n->node->has_full_data_file, n->node->leaf_size, (void*)n->node->buffer); fflush(stderr);
                     }
                     // *** ADAPTIVE SPLITTING ***
+                    // Only split if buffer exists (node hasn't been split already)
                     if (!n->node->has_full_data_file &&
-                        (n->node->leaf_size > index->settings->min_leaf_size))
+                        (n->node->leaf_size > index->settings->min_leaf_size) &&
+                        n->node->buffer != NULL)
                     {
                         if (total_call_count >= 525) {
                             fprintf(stderr, "DEBUG refine[%d]: calling split_node\n", total_call_count); fflush(stderr);
