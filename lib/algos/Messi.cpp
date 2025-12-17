@@ -715,17 +715,21 @@ namespace diNoLib
             //  Parse ts and make PAA representation
             paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
-            pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k); // check cast again.. BUG
+            pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k);
   
-            for (idx_t ik = 0; ik < k; ik++)                                                 // check again if this is correct!
+            for (idx_t ik = 0; ik < k; ik++)
             {
-            
                 I[q_loaded * k + ik] = result.position[ik];
                 D[q_loaded * k + ik] = result.knn[ik];
             }
             
+            // Free the internal arrays of result
+            free(result.position);
+            free(result.knn);
+            free(result.node);
         }
 
+        free(nodelist.nlist);
         free(paa);
         fprintf(stderr, ">>> Finished querying.\n");
         fflush(stdout);
@@ -779,6 +783,11 @@ namespace diNoLib
                 I[q_loaded * k + ik] = result.position[ik];
                 D[q_loaded * k + ik] = result.knn[ik];
             }
+            
+            // Free the internal arrays of result
+            free(result.position);
+            free(result.knn);
+            free(result.node);
         }
 
         free(paa);
@@ -792,15 +801,8 @@ namespace diNoLib
 
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        /////////////////// BEDUG PRINT 
-        printf("@ searchIndex constructor\n");
-        printf("@ Distance type is: %d\n", static_cast<int>(this->distance_type));
-        //---        
         if (this->distance_type == DistanceType::L2_SQUARED)
         {
-            /////////////////// BEDUG PRINT 
-            printf("@ searchIndex constructor case L2²\n");
-            //---
             searchIndexL2Squared(query, n_query, k, I, D);
         }
         else if (this->distance_type == DistanceType::DTW)
@@ -876,35 +878,31 @@ namespace diNoLib
         }
 
         query_result *n;
-        
-        printf("@ MESSI_search_topk_L2Squared - BEFORE creating threads\n"); fflush(stdout);
 
         for (int i = 0; i < this->search_workers; i++)
         {
-            printf("@ MESSI_search_topk_L2Squared - Creating thread %d\n", i); fflush(stdout);
             pthread_create(&(threadid[i]), NULL, MESSI_topk_search_worker_L2Squared, (void *)&(workerdata[i]));
         }
-        printf("@ MESSI_search_topk_L2Squared - BEFORE joining threads\n"); fflush(stdout);
         for (int i = 0; i < this->search_workers; i++)
         {
-            printf("@ MESSI_search_topk_L2Squared - Joining thread %d\n", i); fflush(stdout);
             pthread_join(threadid[i], NULL);
         }
-        printf("@ MESSI_search_topk_L2Squared - AFTER joining threads\n"); fflush(stdout);
         this->minimum_distance = pq_bsf->knn[k - 1];
 
         // Free the nodes that where not popped.
         // Free the priority queue.
         pthread_barrier_destroy(&lock_barrier);
 
-        // pqueue_free(pq);
         for (int i = 0; i < this->n_pqueue; i++)
         {
             pqueue_free(allpq[i]);
         }
         free(allpq);
 
-        return *pq_bsf;
+        // Copy result before freeing pq_bsf structure
+        pqueue_bsf result = *pq_bsf;
+        free(pq_bsf);  // Free the struct itself (internal arrays are now owned by result)
+        return result;
 
     }
 
@@ -1002,11 +1000,10 @@ namespace diNoLib
         free(upperLemire);
         free(lowerLemire);
 
-        // free(rfdata);
-        // printf(" and the bsf update time is \t %ld\n ",LBDcalculationnumber);
-        return *pq_bsf;
-
-        // Free the nodes that where not popped.
+        // Copy result before freeing pq_bsf structure
+        pqueue_bsf result = *pq_bsf;
+        free(pq_bsf);  // Free the struct itself (internal arrays are now owned by result)
+        return result;
     }
 
     Messi::~Messi()
