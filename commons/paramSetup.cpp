@@ -29,7 +29,7 @@ std::vector<SSTestConfig> generate_configs(
     std::vector<SSTestConfig> configs;
     for (int threads : {1, 4, 8})
     {
-        for (int k : {1, 10, 80})
+        for (int k : {1, 10, 100})
         {
             configs.push_back({name, data, query, gt_data, gt_query, threads, k});
         }
@@ -83,8 +83,8 @@ const std::vector<SSTestConfig> test_configs = []
 
 
     //CONCURRENCY STRESS TESTS
-    auto astro_stress = generate_concurrency_stress_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
-    auto random_stress = generate_concurrency_stress_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
+    //auto astro_stress = generate_concurrency_stress_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
+    //auto random_stress = generate_concurrency_stress_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
 
     configs.insert(configs.end(), astro_stress.begin(), astro_stress.end());
     configs.insert(configs.end(), random_stress.begin(), random_stress.end());

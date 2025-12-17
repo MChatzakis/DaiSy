@@ -39,6 +39,9 @@ namespace diNoLib
             }
             for (i = 0; i < node->buffer->partial_buffer_size; i++)
             {
+                // Skip if position buffer entry is NULL
+                if (node->buffer->partial_position_buffer[i] == NULL)
+                    continue;
 
                 float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);

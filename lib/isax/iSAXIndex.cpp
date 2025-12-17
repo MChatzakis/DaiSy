@@ -698,6 +698,12 @@ namespace diNoLib
 
     void split_node(isax_index *index, isax_node *node)
     {
+        // Bail early if buffer is NULL (node was already split or not initialized)
+        if (node == NULL || node->buffer == NULL)
+        {
+            return;
+        }
+        
         // *******************************************************
         // CREATE TWO NEW NODES AND SET OLD ONE AS AN INTERMEDIATE
         // *******************************************************
