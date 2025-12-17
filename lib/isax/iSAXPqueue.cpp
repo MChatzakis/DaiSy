@@ -111,16 +111,9 @@ namespace diNoLib
     static void
     percolate_down(pqueue_t *q, size_t i)
     {
-        fprintf(stderr, "DEBUG percolate_down: i=%zu\n", i); fflush(stderr);
         size_t child_node;
         void *moving_node = q->d[i];
-        fprintf(stderr, "DEBUG percolate_down: moving_node=%p\n", moving_node); fflush(stderr);
-        if (moving_node == NULL) {
-            fprintf(stderr, "ERROR: moving_node is NULL!\n"); fflush(stderr);
-            return;
-        }
         pqueue_pri_t moving_pri = q->getpri(moving_node);
-        fprintf(stderr, "DEBUG percolate_down: moving_pri=%f\n", moving_pri); fflush(stderr);
 
         while ((child_node = maxchild(q, i)) &&
                q->cmppri(moving_pri, q->getpri(q->d[child_node])))
@@ -132,7 +125,6 @@ namespace diNoLib
 
         q->d[i] = moving_node;
         q->setpos(moving_node, i);
-        fprintf(stderr, "DEBUG percolate_down: done\n"); fflush(stderr);
     }
 
     int pqueue_insert(pqueue_t *q, void *d)
@@ -207,18 +199,12 @@ namespace diNoLib
     {
         void *head;
 
-        fprintf(stderr, "DEBUG pqueue_pop: entering, q=%p\n", (void*)q); fflush(stderr);
         if (!q || q->size == 1)
             return NULL;
 
-        fprintf(stderr, "DEBUG pqueue_pop: q->d=%p, q->size=%zu\n", (void*)q->d, q->size); fflush(stderr);
-        fprintf(stderr, "DEBUG pqueue_pop: q->d[1]=%p\n", q->d[1]); fflush(stderr);
         head = q->d[1];
-        fprintf(stderr, "DEBUG pqueue_pop: q->d[%zu]=%p\n", q->size-1, q->d[q->size-1]); fflush(stderr);
         q->d[1] = q->d[--q->size];
-        fprintf(stderr, "DEBUG pqueue_pop: about to call percolate_down\n"); fflush(stderr);
         percolate_down(q, 1);
-        fprintf(stderr, "DEBUG pqueue_pop: percolate_down done\n"); fflush(stderr);
 
         return head;
     }

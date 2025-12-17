@@ -100,29 +100,19 @@ namespace diNoLib
 
     void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile)
     {
-        fprintf(stderr, "DEBUG refine_topk: entering function\n"); fflush(stderr);
-        fprintf(stderr, "DEBUG refine_topk: index=%p, index->settings=%p\n", (void*)index, (void*)(index ? index->settings : nullptr)); fflush(stderr);
 
         int tight_bound = index->settings->tight_bound;
         int aggressive_check = index->settings->aggressive_check;
-        fprintf(stderr, "DEBUG refine_topk: tight_bound=%d, aggressive_check=%d\n", tight_bound, aggressive_check); fflush(stderr);
 
         int j = 0;
-        fprintf(stderr, "DEBUG refine_topk: root_nodes_size=%d\n", index->settings->root_nodes_size); fflush(stderr);
         pqueue_t *pq = pqueue_init(index->settings->root_nodes_size, cmp_pri, get_pri, set_pri, get_pos, set_pos);
-        fprintf(stderr, "DEBUG refine_topk: pqueue initialized, pq=%p\n", (void*)pq); fflush(stderr);
 
         // Insert all root nodes in heap.
         isax_node *current_root_node = index->first_node;
-        fprintf(stderr, "DEBUG refine_topk: first_node=%p\n", (void*)current_root_node); fflush(stderr);
 
-        int node_count = 0;
         while (current_root_node != NULL)
         {
             query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
-
-            fprintf(stderr, "DEBUG refine_topk: node %d, isax_values=%p, isax_cardinalities=%p\n", 
-                    node_count, (void*)current_root_node->isax_values, (void*)current_root_node->isax_cardinalities); fflush(stderr);
 
             mindist_result->distance = minidist_paa_to_isax(paa, current_root_node->isax_values,
                                                             current_root_node->isax_cardinalities,
@@ -135,13 +125,9 @@ namespace diNoLib
             pqueue_insert(pq, mindist_result);
 
             current_root_node = current_root_node->next;
-            node_count++;
         }
-        fprintf(stderr, "DEBUG refine_topk: inserted %d root nodes into pqueue\n", node_count); fflush(stderr);
-        fprintf(stderr, "DEBUG refine_topk: pq->size=%zu, pq->avail=%zu\n", pq->size, pq->avail); fflush(stderr);
         query_result *n;
         int checks = 0;
-        fprintf(stderr, "DEBUG refine_topk: about to call pqueue_pop\n"); fflush(stderr);
         while ((n = (query_result *)pqueue_pop(pq)))
         {
             // The best node has a worse mindist, so search is finished!

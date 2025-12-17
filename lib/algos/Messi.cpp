@@ -601,11 +601,6 @@ namespace diNoLib
             idx++;
         }
         delete[] record;
-        
-        fprintf(stderr, "DEBUG Messi::buildIndex: loaded %llu records (expected %llu)\n", idx, this->n_database);
-        if (idx != this->n_database) {
-            fprintf(stderr, "ERROR: Record count mismatch! Data may not be loaded correctly.\n");
-        }
 
         this->index_settings = isax_index_settings_init("",                        // INDEX DIRECTORY
                                                         this->dim,                 // TIME SERIES SIZE
@@ -642,8 +637,9 @@ namespace diNoLib
         destroy_fbl(index->fbl);
         index->fbl = (first_buffer_layer *)initialize_pRecBuf(index->settings->initial_fbl_buffer_size, pow(2, index->settings->paa_segments), index->settings->max_total_buffer_size + DISK_BUFFER_SIZE * (PROGRESS_CALCULATE_THREAD_NUMBER - 1), index);
 
-        int nodeid[index->fbl->number_of_buffers];
-        int nodesize[index->fbl->number_of_buffers];
+        // Use heap allocation instead of VLAs to avoid stack overflow
+        int *nodeid = (int *)malloc(sizeof(int) * index->fbl->number_of_buffers);
+        int *nodesize = (int *)malloc(sizeof(int) * index->fbl->number_of_buffers);
 
         for (i = 0; i < this->index_workers; i++)
         {
@@ -683,12 +679,12 @@ namespace diNoLib
         index->sax_cache_size = index->total_records;
         fprintf(stderr, ">>> Finished indexing\n");
         free(input_data);
+        free(nodeid);
+        free(nodesize);
     }
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        fprintf(stderr, "DEBUG searchIndexL2Squared: database=%p, index=%p, n_database=%llu, dim=%llu\n", 
-                (void*)this->database, (void*)this->index, this->n_database, this->dim);
     
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         
@@ -820,25 +816,10 @@ namespace diNoLib
 
     pqueue_bsf Messi::MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
     {
-        /////////////////// BEDUG PRINT           
-        printf("@ MESSI_search_topk_L2Squared - start\n"); fflush(stdout);
-        //---
-
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
-        /////////////////// BEDUG PRINT
-        printf("@ MESSI_search_topk_L2Squared - after pqueue_bsf_init\n"); fflush(stdout);
-        //---
 
         approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database);
         this->minimum_distance = pq_bsf->knn[k - 1];
-        /////////////////// BEDUG PRINT
-        printf("@ MESSI_search_topk_L2Squared - after approximate_topk_inmemory\n"); fflush(stdout);
-        printf("@ MESSI_search_topk_L2Squared - search_workers: %d\n", this->search_workers); fflush(stdout);
-        printf("@ MESSI_search_topk_L2Squared - n_pqueue: %d\n", this->n_pqueue); fflush(stdout);        
-        printf("@ MESSI_search_topk_L2Squared - min_checked_leaves: %d\n", this->min_checked_leaves);
-        printf("@ MESSI_search_topk_L2Squared - database: %p\n", this->database);
-        printf("@ MESSI_search_topk_L2Squared - index: %p\n", this->index);
-        //---
 
         int tight_bound = index->settings->tight_bound;
         int aggressive_check = index->settings->aggressive_check;
@@ -846,21 +827,8 @@ namespace diNoLib
 
         if (this->minimum_distance == FLT_MAX || min_checked_leaves > 1)
         {
-            /////////////////// BEDUG PRINT
-            printf("@ MESSI_search_topk_L2Squared - BEFORE refine_topk_answer_inmemory\n"); fflush(stdout);
-            printf("@ MESSI_search_topk_L2Squared - pq_bsf->knn[k-1]: %f\n", pq_bsf->knn[k-1]); fflush(stdout);
-            printf("@ MESSI_search_topk_L2Squared - min_checked_leaves: %d\n", this->min_checked_leaves); fflush(stdout);
-            //---
-
             refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database);
             this->minimum_distance = pq_bsf->knn[k - 1];
-            
-            /////////////////// BEDUG PRINT
-            printf("@ MESSI_search_topk_L2Squared - AFTER refine_topk_answer_inmemory\n"); fflush(stdout);
-            printf("@ MESSI_search_topk_L2Squared - pq_bsf->knn[k-1]: %f\n", pq_bsf->knn[k-1]); fflush(stdout);
-            printf("@ MESSI_search_topk_L2Squared - minimum_distance: %f\n", this->minimum_distance);
-
-            //---
         }
         pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
 
