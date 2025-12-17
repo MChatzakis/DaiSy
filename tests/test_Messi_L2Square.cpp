@@ -8,7 +8,7 @@ TEST_P(MessiParameterizedTest, AllConfigurations)
 {
     const SSTestConfig &config = GetParam();
     diNoLib::DistanceType dist_L2Squared = diNoLib::DistanceType::L2_SQUARED;
-    for (int i = 0; i < 1; ++i)
+    for (int i = 0; i < 3; ++i)
     {
         diNoLib::Messi search(dist_L2Squared);
 
