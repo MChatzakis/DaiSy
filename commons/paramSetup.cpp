@@ -29,8 +29,7 @@ std::vector<SSTestConfig> generate_configs(
     std::vector<SSTestConfig> configs;
     for (int threads : {1, 4, 8})
     {
-        // Temporarily skip k=100 to test if it's the problem
-        for (int k : {1, 10 /*, 100*/})
+        for (int k : {1, 10, 100})
         {
             configs.push_back({name, data, query, gt_data, gt_query, threads, k});
         }
@@ -63,8 +62,7 @@ std::vector<SSTestConfig> generate_memory_leak_configs(
 {
     std::vector<SSTestConfig> configs;
     
-    // Temporarily skip k=100 to test if it's the problem
-    // configs.push_back({name, data, query, gt_data, gt_query, 4, 100}); 
+    configs.push_back({name, data, query, gt_data, gt_query, 4, 100}); 
     
     configs.push_back({name, data, query, gt_data, gt_query, 8, 1}); 
 
