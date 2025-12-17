@@ -826,15 +826,51 @@ namespace diNoLib
         node->right_child = right_child;
 
         // ############ S P L I T   D A T A #############
-        // Allocate buffer based on total records in node (in-memory + on-disk)
-        // Use node->leaf_size which tracks total, plus extra margin for safety
+        // Count in-memory records
         int inmem_count = node->buffer->full_buffer_size + 
                          node->buffer->partial_buffer_size +
                          node->buffer->tmp_full_buffer_size + 
                          node->buffer->tmp_partial_buffer_size;
-        // leaf_size should include file records too, but add extra margin
-        int estimated_total = (node->leaf_size > inmem_count) ? node->leaf_size : inmem_count;
-        int split_buffer_size = estimated_total * 2 + 1000;  // 2x safety margin + 1000
+        
+        // Count records in files by checking file sizes
+        int file_record_count = 0;
+        if (node->filename != NULL) {
+            // Count .full file records
+            char *full_fname = (char *)malloc(sizeof(char) * (strlen(node->filename) + 6));
+            strcpy(full_fname, node->filename);
+            strcat(full_fname, ".full");
+            FILE *f = fopen(full_fname, "r");
+            if (f != NULL) {
+                fseek(f, 0, SEEK_END);
+                long fsize = ftell(f);
+                // Each full record = position + sax + ts
+                int full_record_size = index->settings->position_byte_size + 
+                                      index->settings->sax_byte_size + 
+                                      index->settings->ts_byte_size;
+                file_record_count += (fsize / full_record_size) + 1;
+                fclose(f);
+            }
+            free(full_fname);
+            
+            // Count .part file records
+            char *part_fname = (char *)malloc(sizeof(char) * (strlen(node->filename) + 6));
+            strcpy(part_fname, node->filename);
+            strcat(part_fname, ".part");
+            f = fopen(part_fname, "r");
+            if (f != NULL) {
+                fseek(f, 0, SEEK_END);
+                long fsize = ftell(f);
+                // Each partial record = position + sax (no ts)
+                int part_record_size = index->settings->position_byte_size + 
+                                      index->settings->sax_byte_size;
+                file_record_count += (fsize / part_record_size) + 1;
+                fclose(f);
+            }
+            free(part_fname);
+        }
+        
+        // Allocate buffer for all records with safety margin
+        int split_buffer_size = inmem_count + file_record_count + 100;
         isax_node_record *split_buffer = (isax_node_record *)malloc(sizeof(isax_node_record) * split_buffer_size);
         if (split_buffer == NULL) {
             fprintf(stderr, "ERROR: Failed to allocate split_buffer of size %d\n", split_buffer_size);
