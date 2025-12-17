@@ -411,7 +411,7 @@ if(DEBUG_MSG)
 endif()
 add_executable(
     test_ParIS_L2Square
-    test_ParIS_L2Square.cpp
+    test_Paris_L2Square.cpp
     test_utils.cpp
 )
 if(DEBUG_MSG)
