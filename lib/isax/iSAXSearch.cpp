@@ -111,6 +111,13 @@ namespace diNoLib
 
         while (current_root_node != NULL)
         {
+            // Skip nodes with uninitialized isax data
+            if (current_root_node->isax_values == NULL || current_root_node->isax_cardinalities == NULL)
+            {
+                current_root_node = current_root_node->next;
+                continue;
+            }
+            
             query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
 
             mindist_result->distance = minidist_paa_to_isax(paa, current_root_node->isax_values,

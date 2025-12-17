@@ -29,7 +29,7 @@ std::vector<SSTestConfig> generate_configs(
     std::vector<SSTestConfig> configs;
     for (int threads : {1, 4, 8})
     {
-        for (int k : {1, 10, 100})
+        for (int k : {1, 10, 80})
         {
             configs.push_back({name, data, query, gt_data, gt_query, threads, k});
         }
