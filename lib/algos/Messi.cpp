@@ -685,7 +685,8 @@ namespace diNoLib
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-    
+        fprintf(stderr, "searchIndexL2Squared: n_query=%llu, k=%llu\n", n_query, k); fflush(stderr);
+
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         
         node_list nodelist;
@@ -818,9 +819,12 @@ namespace diNoLib
 
     pqueue_bsf Messi::MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
     {
+        fprintf(stderr, "MESSI_search k=%llu\n", k); fflush(stderr);
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
+        fprintf(stderr, "after pqueue_bsf_init\n"); fflush(stderr);
 
         approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database);
+        fprintf(stderr, "after approximate\n"); fflush(stderr);
         this->minimum_distance = pq_bsf->knn[k - 1];
 
         int tight_bound = index->settings->tight_bound;
