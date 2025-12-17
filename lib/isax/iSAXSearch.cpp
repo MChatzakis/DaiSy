@@ -175,10 +175,15 @@ namespace diNoLib
                         (n->node->leaf_size > index->settings->min_leaf_size) &&
                         n->node->buffer != NULL)
                     {
-                        // Split and push again in the queue
+                        // Try to split - split_node may return early if can't split further
                         split_node(index, n->node);
-                        pqueue_insert(pq, n);
-                        continue;
+                        // Only re-queue if split succeeded (node is no longer a leaf)
+                        if (!n->node->is_leaf)
+                        {
+                            pqueue_insert(pq, n);
+                            continue;
+                        }
+                        // If still a leaf (split failed), fall through to process normally
                     }
                     // *** EXTRA BOUNDING ***
                     if (tight_bound)
