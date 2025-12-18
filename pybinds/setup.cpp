@@ -8,7 +8,11 @@
 #include "../lib/algos/Messi.hpp"
 #include "../lib/algos/Odyssey.hpp"
 // #include "../lib/algos/ParIS.hpp"
-#include "../lib/algos/Sing.hpp"
+#ifdef SING_CUDA_ENABLED
+    #if SING_CUDA_ENABLED != 0
+    #include "../lib/algos/Sing.hpp"
+    #endif
+#endif
 #include "../lib/algos/DataSource.hpp"
 
 // Define a Python module named 'diNoSimilaritySearch'
@@ -332,6 +336,9 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
     ////// PARIS //////
 
     ////// SING //////
+    // Only include Sing bindings if Sing is built (requires CUDA)
+#ifdef SING_CUDA_ENABLED
+    #if SING_CUDA_ENABLED != 0
     pybind11::class_<diNoLib::Sing>(m, "Sing", "Sing similarity search algorithm")
         // Constructor
         .def(pybind11::init<diNoLib::DistanceType>(), "Create a new Sing instance with the given distance metric")
@@ -384,4 +391,6 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                 pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the index with queries and return (indices, distances)");
+    #endif
+#endif
 }
