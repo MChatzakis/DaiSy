@@ -53,8 +53,10 @@ namespace diNoLib
     void *dtwknnreadworker(void *read_pointer);  // DTW version of read worker
     pqueue_bsf exact_topk_serial_ParIS(ts_type *ts, ts_type *paa, isax_index *index, float minimum_distance, int min_checked_leaves, int k, int maxquerythread);
     void approximate_topk(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf);
+    void approximate_topk_dtw(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, int warpWind);
     void refine_topk_answer(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit);
     void calculate_node_topk(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf);
+    void calculate_node_topk_dtw(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, int warpWind);
     float calculate_minimum_distance(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
 
     class ParIS : public SimilaritySearchAlgorithm
@@ -82,6 +84,7 @@ namespace diNoLib
         isax_index *index = nullptr;
 
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
+        void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         pqueue_bsf exact_DTWknn_serial_ParIS(ts_type *ts, isax_index *index, int warpWind, int k);
                 
     public:
