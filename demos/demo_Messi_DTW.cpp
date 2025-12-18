@@ -1,6 +1,7 @@
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/Messi.hpp"
 #include <chrono>
+#include <algorithm>
 
 int main(){
     // 0. Configuration of the variables

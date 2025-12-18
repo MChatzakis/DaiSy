@@ -82,7 +82,7 @@ namespace diNoLib
         isax_index *index = nullptr;
 
         pqueue_bsf MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
-        pqueue_bsf MESSI_search_topk_DTW(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, node_list *nodelist, idx_t k);
+        pqueue_bsf MESSI_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
 
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);

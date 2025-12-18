@@ -275,6 +275,39 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_ParIS_L2Square.")
     endif()
 
+    # ////// PARIS DTW //////
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "## Demo: ParIS DTW")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Attempting to add executable: demo_ParIS_DTW")
+    endif()
+    add_executable(demo_ParIS_DTW demo_ParIS_DTW.cpp)
+    if(DEBUG_MSG)
+        message(STATUS "Executable demo_ParIS_DTW added.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for demo_ParIS_DTW...")
+    endif()
+    target_link_libraries(demo_ParIS_DTW PRIVATE dino_lib commons_lib)
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for demo_ParIS_DTW.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for demo_ParIS_DTW...")
+    endif()
+    target_include_directories(demo_ParIS_DTW PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for demo_ParIS_DTW.")
+    endif()
+
     # ////// SING L2Square //////
     if(DEBUG_MSG)
         message(STATUS "---")
