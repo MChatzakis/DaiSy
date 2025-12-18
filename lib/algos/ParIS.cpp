@@ -181,12 +181,23 @@ namespace diNoLib
                 warpWind,
                 k
             );
-            // TODO: Implement exact_DTWknn_serial_ParIS and uncomment above
-            // For now, return empty results
+
+            // Extract results
             for (idx_t ik = 0; ik < k; ik++)
             {
-                I[q_loaded * k + ik] = 0;
-                D[q_loaded * k + ik] = FLT_MAX;
+                D[q_loaded * k + ik] = result.knn[ik];
+                I[q_loaded * k + ik] = result.position[ik];
+            }
+
+            // Free only the internal pointers, not the structure itself (it's on the stack)
+            if (result.position != nullptr) {
+                free(result.position);
+            }
+            if (result.knn != nullptr) {
+                free(result.knn);
+            }
+            if (result.node != nullptr) {
+                free(result.node);
             }
         }
 
