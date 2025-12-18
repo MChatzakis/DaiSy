@@ -61,9 +61,9 @@ def main():
 
         # 6. Print the results
         for query_num in range(n_query):
-            print(f"Query {query_num}: ", end="")
-            for j in range(k):
-                print(f"{I[query_num, j]} ", end="")
+            print(f"Query {query_num}:")
+            print("Distances:", D[query_num])
+            print("Indices:", I[query_num])
             print()
 
     finally:
