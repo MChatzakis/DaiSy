@@ -7,7 +7,7 @@
 #include "../lib/algos/LbBruteforce.hpp"
 #include "../lib/algos/Messi.hpp"
 #include "../lib/algos/Odyssey.hpp"
-// #include "../lib/algos/ParIS.hpp"
+#include "../lib/algos/ParIS.hpp"
 #ifdef SING_CUDA_ENABLED
     #if SING_CUDA_ENABLED != 0
     #include "../lib/algos/Sing.hpp"
@@ -334,6 +334,46 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             ); }, "Search the index with queries and return (indices, distances)");
 
     ////// PARIS //////
+    pybind11::class_<diNoLib::ParIS>(m, "ParIS", "ParIS similarity search (file-based)")
+        // Constructor
+        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new ParIS instance with the given distance metric")
+
+        // Setters
+        .def("setNumThreads", &diNoLib::ParIS::setNumThreads, "Set the number of threads to use")
+        .def("setWarpingWindow", &diNoLib::ParIS::setWarpingWindow, "Set the warping window size for DTW (typically 10% of time series length)")
+
+        // Getters
+        .def("getNumThreads", &diNoLib::ParIS::getNumThreads, "Get the number of threads")
+        .def("getWarpingWindow", &diNoLib::ParIS::getWarpingWindow, "Get the warping window size for DTW")
+
+        // Build the index from a file (ParIS requires file-based data)
+        .def("buildIndex", [](diNoLib::ParIS &self, const std::string &filename, diNoLib::idx_t dim, diNoLib::idx_t n_database = 0)
+             {
+            self.buildIndex(filename, dim, n_database); }, 
+            pybind11::arg("filename"), pybind11::arg("dim"), pybind11::arg("n_database") = 0,
+            "Build the ParIS index from a binary file. filename: path to binary data file, dim: dimension of each time series, n_database: number of time series (0 = auto-detect from file size)")
+
+        // Search the index with query array and return top-k results
+        .def("searchIndex", [](diNoLib::ParIS &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            if (k <= 0)
+                throw std::runtime_error("k must be positive");
+
+            const diNoLib::idx_t n_query = query_buf.shape[0];
+            const diNoLib::idx_t dim = query_buf.shape[1];
+
+            std::vector<diNoLib::idx_t> indices(n_query * k);
+            std::vector<float> distances(n_query * k);
+
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k, indices.data(), distances.data());
+
+            return pybind11::make_tuple(
+                pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<float>({n_query, k}, distances.data())
+            ); }, "Search the ParIS index using queries and return (indices, distances)");
 
     ////// SING //////
     // Only include Sing bindings if Sing is built (requires CUDA)

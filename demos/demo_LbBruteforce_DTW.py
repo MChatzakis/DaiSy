@@ -7,11 +7,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from diNoSimilaritySearch import DistanceType, LbBruteforce
 
 def main():
-    # 0. Configuration of the variables
-    n_database = 1000  # Smaller dataset for DTW testing
+    n_database = 200000
     dim = 96
-    n_query = 5
-    k = 3
+    n_query = 10
+    k = 5
 
     # 1. Generate random data and queries
     np.random.seed(100)   
@@ -19,8 +18,6 @@ def main():
 
     np.random.seed(50)
     query = np.random.randn(n_query, dim).astype(np.float32)
-
-    print(f"Generated {n_database} database points and {n_query} query points with dimension {dim}")
 
     # 2. Create a LbBruteforce search object with DTW distance
     index = LbBruteforce(DistanceType.DTW)
@@ -36,11 +33,10 @@ def main():
     I, D = index.searchIndex(query, k)
     print("DTW search completed successfully!")
 
-    # 5. Print the results
-    for i in range(n_query):
-        print(f"Query {i} DTW nearest neighbors:", end=" ")
-        for j in range(k):
-            print(f"({I[i, j]}, {D[i, j]:.4f})", end=" ")
+    for query_num in range(n_query):
+        print(f"Query {query_num}:")
+        print("Distances:", D[query_num])
+        print("Indices:", I[query_num])
         print()
 
     print("Python DTW demo completed successfully!")
