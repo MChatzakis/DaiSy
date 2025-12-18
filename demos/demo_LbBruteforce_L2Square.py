@@ -4,7 +4,8 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from scripts.gui_config_param import get_config, search_classes
+# GUI import not needed for this demo - uncomment if using GUI
+# from scripts.gui_config_param import get_config, search_classes
 
 from diNoSimilaritySearch import DistanceType, LbBruteforce
 
