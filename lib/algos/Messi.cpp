@@ -765,12 +765,7 @@ namespace diNoLib
     {
         isax_index *index = this->index;
 
-        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
-        ts_type *paaUpperLemQuery = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
-        ts_type *paaLowerLemQuery = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
-
-        ts_type *upperLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
-        ts_type *lowerLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
+        // Compute query-independent things ONCE outside the loop
         node_list nodelist;
         nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * pow(2, index->settings->paa_segments));
         nodelist.node_amount = 0;
@@ -796,12 +791,8 @@ namespace diNoLib
             float *ts = (float *)&query[q_loaded * this->dim];
             // COUNT_INPUT_TIME_END
 
-            lower_upper_lemire(ts, index->settings->timeseries_size, this->warping_window, lowerLemire, upperLemire);
-            paa_from_ts(upperLemire, paaUpperLemQuery, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
-            paa_from_ts(lowerLemire, paaLowerLemQuery, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
-            paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
-
-            pqueue_bsf result = MESSI_search_topk_DTW((float *)ts, paa, paaUpperLemQuery, paaLowerLemQuery, &nodelist, k);
+            // Query-dependent computations (paa, envelopes, paaU, paaL) are done inside MESSI_search_topk_DTW
+            pqueue_bsf result = MESSI_search_topk_DTW((float *)ts, &nodelist, k);
 
             for (idx_t ik = 0; ik < k; ik++)
             {
@@ -815,11 +806,6 @@ namespace diNoLib
             free(result.node);
         }
 
-        free(paa);
-        free(paaUpperLemQuery);
-        free(paaLowerLemQuery);
-        free(upperLemire);
-        free(lowerLemire);
         free(nodelist.nlist);
         fprintf(stderr, ">>> Finished querying.\n");
     }
@@ -931,11 +917,15 @@ namespace diNoLib
 
     }
 
-    pqueue_bsf Messi::MESSI_search_topk_DTW(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, node_list *nodelist, idx_t k)
+    pqueue_bsf Messi::MESSI_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k)
     {
         isax_index *index = this->index;
         int warpWind = this->warping_window;
         float *rawfile = this->database;
+
+        // Compute query-dependent PAA representation
+        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+        paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
         // RDcalculationnumber = 0;
         // LBDcalculationnumber = 0;
@@ -949,10 +939,15 @@ namespace diNoLib
 
         pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
 
+        // Compute query-dependent Lemire envelopes and PAA representations for DTW
         ts_type *upperLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
         ts_type *lowerLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
+        ts_type *paaU = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+        ts_type *paaL = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
 
         lower_upper_lemire(ts, index->settings->timeseries_size, warpWind, lowerLemire, upperLemire);
+        paa_from_ts(upperLemire, paaU, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+        paa_from_ts(lowerLemire, paaL, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
         pthread_mutex_t ququelock[this->n_pqueue];
         int queuelabel[this->n_pqueue];
@@ -1024,6 +1019,9 @@ namespace diNoLib
         free(allpq);
         free(upperLemire);
         free(lowerLemire);
+        free(paaU);
+        free(paaL);
+        free(paa);
 
         // Copy result before freeing pq_bsf structure
         pqueue_bsf result = *pq_bsf;

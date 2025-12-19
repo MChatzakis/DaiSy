@@ -1,9 +1,11 @@
 #include "ParIS.hpp"
 #include "../isax/SAX.hpp"
 #include "../isax/iSAXPqueue.hpp"
+#include "../isax/iSAXIndex.hpp"
 #include <stdexcept>
 #include <pthread.h>
 #include <cstring>
+#include <algorithm>
 
 namespace diNoLib
 {
@@ -135,10 +137,22 @@ namespace diNoLib
         {
             searchIndexL2Squared(query, n_query, k, I, D);
         }
+        else if (this->distance_type == DistanceType::DTW)
+        {
+            searchIndexDTW(query, n_query, k, I, D);
+        }
         else
         {
-            fprintf(stderr, "Warning: ParIS::searchIndex for DTW is not yet implemented.\n");
-            // Initialize results to invalid values
+            fprintf(stderr, "Error: Unsupported distance type for ParIS index.\n");
+            exit(1);
+        }
+    }
+
+    void ParIS::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) 
+    {
+        if (index == nullptr || index->sax_cache == nullptr)
+        {
+            fprintf(stderr, "Error: Index not built or sax_cache not loaded\n");
             for (idx_t qi = 0; qi < n_query; qi++)
             {
                 for (idx_t j = 0; j < k; j++)
@@ -147,7 +161,175 @@ namespace diNoLib
                     D[qi * k + j] = FLT_MAX;
                 }
             }
+            return;
         }
+
+        // Compute query-independent things ONCE outside the loop
+        // Compute warping window if not set (default: 10% of time series length)
+        int warpWind = (this->warping_window > 0) ? this->warping_window : 
+                       std::max(1, static_cast<int>(this->dim * 0.1));
+
+        for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
+        {
+            // Get current query time series
+            const float *ts = query + q_loaded * this->dim;
+
+            // Query-dependent computations (paa, envelopes, paaU, paaL) are done inside exact_DTWknn_serial_ParIS
+            pqueue_bsf result = exact_DTWknn_serial_ParIS(
+                (float *)ts,
+                index,
+                warpWind,
+                k
+            );
+
+            // Extract results
+            for (idx_t ik = 0; ik < k; ik++)
+            {
+                D[q_loaded * k + ik] = result.knn[ik];
+                I[q_loaded * k + ik] = result.position[ik];
+            }
+
+            // Free only the internal pointers, not the structure itself (it's on the stack)
+            if (result.position != nullptr) {
+                free(result.position);
+            }
+            if (result.knn != nullptr) {
+                free(result.knn);
+            }
+            if (result.node != nullptr) {
+                free(result.node);
+            }
+        }
+
+    }
+
+    pqueue_bsf ParIS::exact_DTWknn_serial_ParIS(ts_type *ts, isax_index *index, int warpWind, int k) {
+        float minimum_distance = this->minimum_distance;
+        int min_checked_leaves = this->min_checked_leaves;
+
+        // Compute query-dependent PAA representation
+        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+        paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+
+        pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
+        
+        // Use file-based approximate function
+        approximate_topk_dtw(ts, paa, index, pq_bsf, warpWind);
+
+        
+        // Compute query-dependent Lemire envelopes and PAA representations for DTW
+        ts_type *upperLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
+        ts_type *lowerLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
+        ts_type *paaU = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+        ts_type *paaL = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+
+        lower_upper_lemire(ts, index->settings->timeseries_size, warpWind, lowerLemire, upperLemire);
+        paa_from_ts(upperLemire, paaU, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+        paa_from_ts(lowerLemire, paaL, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+        
+        ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
+        int sum_of_lab = 0;
+        int tight_bound = index->settings->tight_bound;
+        int aggressive_check = index->settings->aggressive_check;
+        float bsf_distance;
+        unsigned long j;
+        unsigned long i;
+        
+        // Allocate thread array dynamically
+        int maxquerythread = this->search_workers;
+        pthread_t *threadid = (pthread_t *)malloc(sizeof(pthread_t) * maxquerythread);
+        ParIS_LDCW_data *essdata = (ParIS_LDCW_data *)malloc(sizeof(ParIS_LDCW_data) * maxquerythread);
+        pthread_rwlock_t lock_bsf = PTHREAD_RWLOCK_INITIALIZER;
+
+        for (i = 0; i < (maxquerythread - 1); i++)
+        {
+            essdata[i].index = index;
+            essdata[i].lock_bsf = &lock_bsf;
+            essdata[i].start_number = i * (index->sax_cache_size / maxquerythread);
+            essdata[i].stop_number = (i + 1) * (index->sax_cache_size / maxquerythread);
+            essdata[i].paa = paa;
+            essdata[i].paaU = paaU;
+            essdata[i].paaL = paaL;
+            essdata[i].ts = ts;
+            essdata[i].bsfdistance = pq_bsf->knn[pq_bsf->k - 1];
+            essdata[i].sum_of_lab = 0;
+        }
+        essdata[maxquerythread - 1].index = index;
+        essdata[maxquerythread - 1].lock_bsf = &lock_bsf;
+        essdata[maxquerythread - 1].start_number = (maxquerythread - 1) * (index->sax_cache_size / maxquerythread);
+        essdata[maxquerythread - 1].stop_number = index->sax_cache_size;
+        essdata[maxquerythread - 1].paa = paa;
+        essdata[maxquerythread - 1].paaU = paaU;
+        essdata[maxquerythread - 1].paaL = paaL;
+        essdata[maxquerythread - 1].ts = ts;
+        essdata[maxquerythread - 1].bsfdistance = pq_bsf->knn[pq_bsf->k - 1];
+        essdata[maxquerythread - 1].sum_of_lab = 0;
+
+        for(i = 0; i < maxquerythread; i++) 
+        {
+            pthread_create(&(threadid[i]), NULL, mindistance_worker_dtw, (void*)&(essdata[i]));
+        }
+        for (i = 0; i < maxquerythread; i++)
+        {
+            pthread_join(threadid[i], NULL);
+            sum_of_lab += essdata[i].sum_of_lab;
+        }        
+
+        unsigned long* label_number = (unsigned long *)malloc(sizeof(unsigned long) * sum_of_lab);
+        float* minidisvector = (float *)malloc(sizeof(float) * sum_of_lab);
+        sum_of_lab = 0;
+        for (i = 0; i < maxquerythread; i++)
+        {
+            memcpy(&(label_number[sum_of_lab]), essdata[i].label_number, sizeof(unsigned long) * essdata[i].sum_of_lab);
+            memcpy(&(minidisvector[sum_of_lab]), essdata[i].minidisvector, sizeof(float) * essdata[i].sum_of_lab);
+            free(essdata[i].label_number);
+            free(essdata[i].minidisvector);
+            sum_of_lab += essdata[i].sum_of_lab;
+        }
+        
+        // Allocate read thread array dynamically
+        pthread_t *readthread = (pthread_t *)malloc(sizeof(pthread_t) * maxquerythread * MAXREADTHREAD);
+        ParIS_read_worker_data readpointer;
+        unsigned long readcounter = 0;
+        
+        readpointer.ts = ts;
+        readpointer.tsU = upperLemire;
+        readpointer.tsL = lowerLemire;
+        readpointer.index = index;
+        readpointer.counter = &readcounter;
+        readpointer.load_point = label_number;
+        readpointer.lock_bsf = &lock_bsf;
+        readpointer.minidisvector = minidisvector;
+        readpointer.sum_of_lab = sum_of_lab;
+        readpointer.warpWind = warpWind;
+        readpointer.pq_bsf = pq_bsf;
+        
+        for (i = 0; i < maxquerythread * MAXREADTHREAD; i++)
+        {   
+            pthread_create(&(readthread[i]), NULL, dtwknnreadworker, (void*)&(readpointer));
+        }
+
+        for (i = 0; i < maxquerythread * MAXREADTHREAD; i++)
+        {   
+            pthread_join(readthread[i], NULL);
+        }
+        
+        free(readthread);
+        free(threadid);
+
+        free(essdata);
+        free(minidisvector);
+        free(label_number);
+        free(upperLemire);
+        free(lowerLemire);
+        free(paaU);
+        free(paaL);
+        free(paa);
+        free(ts_buffer);
+        
+        pqueue_bsf result = *pq_bsf;
+        // Don't free pq_bsf - caller will free result
+        return result;
     }
 
     void ParIS::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
@@ -251,6 +433,140 @@ namespace diNoLib
         index_settings = nullptr;
     }
 
+    void* mindistance_worker_dtw(void *essdata)
+    {
+        unsigned long i;
+        float mindist;
+        isax_index *index = ((ParIS_LDCW_data*)essdata)->index;
+        unsigned long start_number = ((ParIS_LDCW_data*)essdata)->start_number;
+        unsigned long stop_number = ((ParIS_LDCW_data*)essdata)->stop_number;
+        ts_type *paaU = ((ParIS_LDCW_data*)essdata)->paaU;
+        ts_type *paaL = ((ParIS_LDCW_data*)essdata)->paaL;
+
+        ((ParIS_LDCW_data*)essdata)->label_number = (unsigned long *)malloc(sizeof(unsigned long) * 10000);
+        ((ParIS_LDCW_data*)essdata)->minidisvector = (float *)malloc(sizeof(float) * 10000);
+        unsigned long max_number = 10000;
+
+        for(i = start_number; i < stop_number; i++)
+        {
+            sax_type *sax = &index->sax_cache[i * index->settings->paa_segments];
+
+            mindist = minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, sax, index->settings->max_sax_cardinalities,
+                                                        index->settings->sax_bit_cardinality,
+                                                        index->settings->sax_alphabet_cardinality,
+                                                        index->settings->paa_segments, MINVAL, MAXVAL,
+                                                        index->settings->mindist_sqrt);
+            if(mindist <= ((ParIS_LDCW_data*)essdata)->bsfdistance) 
+            {
+                if (((ParIS_LDCW_data*)essdata)->sum_of_lab >= max_number)
+                {
+                    max_number = (max_number + 10000);
+                    unsigned long* change_lab = ((ParIS_LDCW_data*)essdata)->label_number;
+                    float* change_minivec = ((ParIS_LDCW_data*)essdata)->minidisvector;
+                    ((ParIS_LDCW_data*)essdata)->label_number = (unsigned long *)malloc(sizeof(unsigned long) * max_number);
+                    ((ParIS_LDCW_data*)essdata)->minidisvector = (float *)malloc(sizeof(float) * max_number);
+                    memcpy(((ParIS_LDCW_data*)essdata)->label_number, change_lab, sizeof(unsigned long) * (max_number - 10000));
+                    memcpy(((ParIS_LDCW_data*)essdata)->minidisvector, change_minivec, sizeof(float) * (max_number - 10000));
+                    free(change_lab);
+                    free(change_minivec);
+                }
+                ((ParIS_LDCW_data*)essdata)->label_number[((ParIS_LDCW_data*)essdata)->sum_of_lab] = i;
+                ((ParIS_LDCW_data*)essdata)->minidisvector[((ParIS_LDCW_data*)essdata)->sum_of_lab] = mindist;
+                ((ParIS_LDCW_data*)essdata)->sum_of_lab++;
+            }
+        }
+        return NULL;
+    }
+
+
+    void* dtwknnreadworker(void *read_pointer)
+    {
+        isax_index *index = ((ParIS_read_worker_data*)read_pointer)->index;
+        pqueue_bsf *pq_bsf = ((ParIS_read_worker_data*)read_pointer)->pq_bsf;
+        FILE *raw_file = fopen(index->settings->raw_filename, "rb");
+        if (raw_file == NULL) {
+            return NULL;  // Cannot open file
+        }
+        fseek(raw_file, 0, SEEK_SET);
+        ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
+        ts_type *ts = ((ParIS_read_worker_data*)read_pointer)->ts;
+        unsigned long t = 0, p;
+        unsigned long sum_of_lab = ((ParIS_read_worker_data*)read_pointer)->sum_of_lab;
+        int warpWind = ((ParIS_read_worker_data*)read_pointer)->warpWind;
+        float *minidisvector = ((ParIS_read_worker_data*)read_pointer)->minidisvector;
+        float *lowerLemire = ((ParIS_read_worker_data*)read_pointer)->tsL;
+        float *upperLemire = ((ParIS_read_worker_data*)read_pointer)->tsU;
+        
+        float bsf, dist, dist2;
+        float* cb = (float*)calloc(index->settings->timeseries_size, sizeof(float));
+        float* cb1 = (float*)calloc(index->settings->timeseries_size, sizeof(float));  
+        int length = 2 * warpWind + 1;
+        float* tSum = (float*)malloc(sizeof(float) * length);
+        // pre_cost
+        float* pCost = (float*)malloc(sizeof(float) * length);
+        // raw distance
+        float* rDist = (float*)malloc(sizeof(float) * length);
+        
+        while(1)
+        { 
+            pthread_rwlock_rdlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf); 
+            bsf = pq_bsf->knn[pq_bsf->k - 1];
+            pthread_rwlock_unlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf); 
+            
+            t = __sync_fetch_and_add(((ParIS_read_worker_data*)read_pointer)->counter, 1);
+            if (t >= sum_of_lab) 
+            {
+                break; 
+            } 
+            
+            p = ((ParIS_read_worker_data*)read_pointer)->load_point[t];
+            if (minidisvector[t] < bsf)
+            {
+                // Read time series from disk file (like topk_read_worker does)
+                fseek(raw_file, p * index->settings->ts_byte_size, SEEK_SET);
+                size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
+                (void)items_read; // Suppress unused variable warning
+                
+                // Re-read BSF after file read, as it might have changed
+                pthread_rwlock_rdlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf);
+                bsf = pq_bsf->knn[pq_bsf->k - 1];
+                pthread_rwlock_unlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf);
+                
+                dist2 = lb_keogh_data_bound(ts_buffer, upperLemire, lowerLemire, cb1, index->settings->timeseries_size, bsf);
+
+                if(dist2 < pq_bsf->knn[pq_bsf->k - 1])
+                {
+                    cb[index->settings->timeseries_size - 1] = cb1[index->settings->timeseries_size - 1];
+                    for(int k = index->settings->timeseries_size - 2; k >= 0; k--)
+                        cb[k] = cb[k + 1] + cb1[k];
+
+                    dist = dtwsimdPruned(ts, ts_buffer, cb, index->settings->timeseries_size, warpWind, pq_bsf->knn[pq_bsf->k - 1], tSum, pCost, rDist);
+                    
+                    if(dist < pq_bsf->knn[pq_bsf->k - 1])  
+                    {  
+                        pthread_rwlock_wrlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf); 
+                        // Re-read BSF after acquiring lock, as it might have changed
+                        bsf = pq_bsf->knn[pq_bsf->k - 1];
+                        if(dist < bsf) {
+                            pqueue_bsf_insert(pq_bsf, dist, p, NULL);
+                        }
+                        pthread_rwlock_unlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf); 
+                    }            
+                }    
+            } 
+        }
+        
+        free(tSum);
+        free(pCost);
+        free(cb);
+        free(cb1);
+        free(rDist);
+        free(ts_buffer);
+        fclose(raw_file);
+        
+        return NULL;
+    }
+
     // File-based calculate_node_topk (reads from disk files and in-memory buffers)
     void calculate_node_topk(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf)
     {
@@ -331,6 +647,92 @@ namespace diNoLib
 
         fclose(raw_file);
     }
+
+    // File-based calculate_node_topk_DTW (reads from disk files and in-memory buffers, uses DTW distance)
+    void calculate_node_topk_dtw(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, int warpWind)
+    {
+        FILE *raw_file = fopen(index->settings->raw_filename, "rb");
+        if (raw_file == nullptr)
+        {
+            return;
+        }
+
+        // Allocate cb buffer for DTW (used for early abandoning in dtw function)
+        float *cb = (float *)calloc(index->settings->timeseries_size, sizeof(float));
+
+        // Check in-memory buffers first (like in-memory version)
+        if (node->buffer != NULL)
+        {
+            int i;
+            // Check full buffers
+            for (i = 0; i < node->buffer->full_buffer_size; i++)
+            {
+                float dist = dtw(query, node->buffer->full_ts_buffer[i], cb,
+                                index->settings->timeseries_size, warpWind, pq_bsf->knn[pq_bsf->k - 1]);
+                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                {
+                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                }
+            }
+            // Check temporary full buffers
+            for (i = 0; i < node->buffer->tmp_full_buffer_size; i++)
+            {
+                float dist = dtw(query, node->buffer->tmp_full_ts_buffer[i], cb,
+                                index->settings->timeseries_size, warpWind, pq_bsf->knn[pq_bsf->k - 1]);
+                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                {
+                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                }
+            }
+            // Check partial buffers (read from raw file)
+            for (i = 0; i < node->buffer->partial_buffer_size; i++)
+            {
+                file_position_type pos = *node->buffer->partial_position_buffer[i];
+                fseek(raw_file, pos, SEEK_SET);
+                ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
+                size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
+                (void)items_read; // Suppress unused variable warning
+                float dist = dtw(query, ts_buffer, cb, index->settings->timeseries_size, warpWind, pq_bsf->knn[pq_bsf->k - 1]);
+                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                {
+                    pqueue_bsf_insert(pq_bsf, dist, pos / index->settings->timeseries_size, node);
+                }
+                free(ts_buffer);
+            }
+        }
+
+        // Check partial data file
+        if (node->filename != NULL && node->has_partial_data_file)
+        {
+            FILE *node_file = fopen(node->filename, "rb");
+            if (node_file != nullptr)
+            {
+                ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
+                for (int i = 0; i < node->leaf_size; i++)
+                {
+                    fseek(node_file, i * index->settings->partial_record_size, SEEK_SET);
+                    size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, node_file);
+                    (void)items_read; // Suppress unused variable warning
+                    float dist = dtw(query, ts_buffer, cb, index->settings->timeseries_size, warpWind, pq_bsf->knn[pq_bsf->k - 1]);
+                    if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                    {
+                        file_position_type pos = (file_position_type)(i * index->settings->timeseries_size);
+                        pqueue_bsf_insert(pq_bsf, dist, pos / index->settings->timeseries_size, node);
+                    }
+                }
+                free(ts_buffer);
+                fclose(node_file);
+            }
+        }
+
+        // Skip full data files in refine_topk_answer - they will be handled by mindistance_worker
+        // which scans the SAX cache and finds all candidates. This avoids position mapping issues.
+        // The in-memory buffers and partial data files should provide a good BSF for pruning.
+
+        free(cb);
+        fclose(raw_file);
+    }
+
 
     // File-based calculate_minimum_distance
     float calculate_minimum_distance(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query)
@@ -435,6 +837,76 @@ namespace diNoLib
             }
 
             calculate_node_topk(index, node, ts, pq_bsf);
+        }
+        else {
+
+        }
+        for (int i = 0; i < pq_bsf->k-1; ++i)
+        {
+            pq_bsf->knn[i]=pq_bsf->knn[pq_bsf->k-1];
+        }
+        free(sax);
+    }
+
+    // File-based approximate_topk (uses sax_cache loaded from sax_file)
+    void approximate_topk_dtw(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, int warpWind)
+    {
+        sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments);
+        sax_from_paa(paa, sax, index->settings->paa_segments,
+                     index->settings->sax_alphabet_cardinality,
+                     index->settings->sax_bit_cardinality);
+
+        root_mask_type root_mask = 0;
+        CREATE_MASK(root_mask, index, sax);
+
+        if (index->fbl->soft_buffers[(int)root_mask].initialized) {
+            isax_node *node = index->fbl->soft_buffers[(int)root_mask].node;
+            // Traverse tree
+
+            // Adaptive splitting
+            // For file-based indexing, skip adaptive splitting if node has file data
+            if (node->is_leaf && !node->has_full_data_file &&
+                !node->has_partial_data_file &&
+                (node->leaf_size > index->settings->min_leaf_size) &&
+                node->buffer != NULL &&
+                (node->buffer->full_buffer_size > 0 || 
+                 node->buffer->partial_buffer_size > 0 ||
+                 node->buffer->tmp_full_buffer_size > 0 ||
+                 node->buffer->tmp_partial_buffer_size > 0))
+            {
+                split_node(index, node);
+            }
+
+            while (!node->is_leaf) {
+                int location = index->settings->sax_bit_cardinality - 1 -
+                node->split_data->split_mask[node->split_data->splitpoint];
+                root_mask_type mask = index->settings->bit_masks[location];
+
+                if(sax[node->split_data->splitpoint] & mask)
+                {
+                    node = node->right_child;
+                }
+                else
+                {
+                    node = node->left_child;
+                }
+
+                // Adaptive splitting
+                // For file-based indexing, skip adaptive splitting if node has file data
+                if (node->is_leaf && !node->has_full_data_file &&
+                    !node->has_partial_data_file &&
+                    (node->leaf_size > index->settings->min_leaf_size) &&
+                    node->buffer != NULL &&
+                    (node->buffer->full_buffer_size > 0 || 
+                     node->buffer->partial_buffer_size > 0 ||
+                     node->buffer->tmp_full_buffer_size > 0 ||
+                     node->buffer->tmp_partial_buffer_size > 0))
+                {
+                    split_node(index, node);
+                }
+            }
+
+            calculate_node_topk_dtw(index, node, ts, pq_bsf, warpWind);
         }
         else {
 

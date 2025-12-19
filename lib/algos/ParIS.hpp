@@ -23,6 +23,8 @@ namespace diNoLib
         unsigned long start_number;
         unsigned long stop_number;
         ts_type *paa;
+        ts_type *paaU;  // Upper PAA bounds for DTW
+        ts_type *paaL;  // Lower PAA bounds for DTW
         ts_type *ts;
         float bsfdistance;
         unsigned long sum_of_lab;
@@ -34,20 +36,27 @@ namespace diNoLib
     {
         isax_index *index;
         ts_type *ts;
+        ts_type *tsU;  // Upper Lemire envelope for DTW
+        ts_type *tsL;  // Lower Lemire envelope for DTW
         unsigned long *counter;
         unsigned long *load_point;
         pthread_rwlock_t *lock_bsf;
         float *minidisvector;
         unsigned long sum_of_lab;
         pqueue_bsf *pq_bsf;
+        int warpWind;  // Warping window for DTW
     } ParIS_read_worker_data;
 
     void *mindistance_worker(void *essdata);
     void *topk_read_worker(void *read_pointer);
+    void *mindistance_worker_dtw(void *essdata);  // DTW version of mindistance_worker
+    void *dtwknnreadworker(void *read_pointer);  // DTW version of read worker
     pqueue_bsf exact_topk_serial_ParIS(ts_type *ts, ts_type *paa, isax_index *index, float minimum_distance, int min_checked_leaves, int k, int maxquerythread);
     void approximate_topk(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf);
+    void approximate_topk_dtw(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, int warpWind);
     void refine_topk_answer(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit);
     void calculate_node_topk(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf);
+    void calculate_node_topk_dtw(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, int warpWind);
     float calculate_minimum_distance(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
 
     class ParIS : public SimilaritySearchAlgorithm
@@ -69,16 +78,21 @@ namespace diNoLib
         float minimum_distance = FLT_MAX;
         int min_checked_leaves = -1;
         int n_pqueue = 42;
+        int warping_window = 10;  // warping window size (typically 10% of time series length)
 
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
 
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
+        void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
+        pqueue_bsf exact_DTWknn_serial_ParIS(ts_type *ts, isax_index *index, int warpWind, int k);
                 
     public:
         ParIS(DistanceType distance_type);
         void setNumThreads(int num_threads);
         int getNumThreads() const;
+        void setWarpingWindow(int warping_window) { this->warping_window = warping_window; }
+        int getWarpingWindow() const { return this->warping_window; }
         // Bring base class buildIndex overloads into scope
         using SimilaritySearchAlgorithm::buildIndex;
         
