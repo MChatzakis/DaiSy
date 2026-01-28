@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <cstring>
+#include <climits>
 
 namespace diNoLib
 {
@@ -226,6 +228,282 @@ namespace diNoLib
                static_cast<unsigned long long>(worker_inserts));
 
         std::free(r);
+    }
+
+    // Helper functions for tree analysis (faithful C++ port from original C code)
+    long int find_total_nodes(isax_node *root_node)
+    {
+        long int c = 1;
+        if (root_node == nullptr)
+        {
+            return 0;
+        }
+        else
+        {
+            c += find_total_nodes(root_node->left_child);
+            c += find_total_nodes(root_node->right_child);
+            return c;
+        }
+    }
+
+    long int find_total_leafs_nodes(isax_node *root_node)
+    {
+        if (root_node == nullptr)
+        {
+            return 0;
+        }
+
+        if (root_node->left_child == nullptr && root_node->right_child == nullptr)
+        {
+            return 1;
+        }
+        else
+        {
+            return find_total_leafs_nodes(root_node->left_child) + 
+                   find_total_leafs_nodes(root_node->right_child);
+        }
+    }
+
+    long int find_tree_height(isax_node *root_node)
+    {
+        if (root_node == nullptr)
+        {
+            return -1;
+        }
+        else
+        {
+            long int left_depth = find_tree_height(root_node->left_child);
+            long int right_depth = find_tree_height(root_node->right_child);
+
+            if (left_depth > right_depth)
+            {
+                return left_depth + 1;
+            }
+            else
+            {
+                return right_depth + 1;
+            }
+        }
+    }
+
+    long int find_total_tree_leafs_depths(isax_node *root_node, long int depth)
+    {
+        static long int total_leafs_depths = 0;
+        if (depth == 0)
+        {
+            // If we change tree, initialize again the variable
+            total_leafs_depths = 0;
+        }
+
+        if (root_node == nullptr)
+        {
+            return 0;
+        }
+        else if (root_node->left_child == nullptr && root_node->right_child == nullptr)
+        {
+            // is_leaf
+            total_leafs_depths += depth;
+        }
+
+        // NOT TRUE: intermediate node
+        find_total_tree_leafs_depths(root_node->left_child, depth + 1);
+        find_total_tree_leafs_depths(root_node->right_child, depth + 1);
+
+        return total_leafs_depths;
+    }
+
+    long int count_ts_in_nodes(isax_node *root_node, const char parallelism_in_subtree, 
+                               const char recBuf_helpers_exist)
+    {
+        long int my_subtree_nodes = 0;
+
+        if (!root_node->is_leaf)
+        {
+            my_subtree_nodes = count_ts_in_nodes(root_node->left_child, parallelism_in_subtree, recBuf_helpers_exist);
+            my_subtree_nodes += count_ts_in_nodes(root_node->right_child, parallelism_in_subtree, recBuf_helpers_exist);
+            return my_subtree_nodes;
+        }
+        else
+        {
+            // Leaf node: return leaf_size (simplified version - original code had more complex logic)
+            // NOTE: Original code checked for LOCKFREE_PARALLELISM_IN_SUBTREE flags and fai_leaf_size,
+            // but these are not present in our simplified EKOSMAS version
+            return root_node->leaf_size;
+        }
+    }
+
+    long int find_total_nodes_tmp(isax_node *root_node)
+    {
+        long int c = 1;
+        if (root_node == nullptr)
+        {
+            return 0;
+        }
+        else
+        {
+            c += find_total_nodes(root_node->left_child);
+            c += find_total_nodes(root_node->right_child);
+            return c;
+        }
+    }
+
+    long int find_tree_height_tmp(isax_node *root_node)
+    {
+        if (root_node == nullptr)
+        {
+            return -1;
+        }
+        else
+        {
+            long int left_depth = find_tree_height(root_node->left_child);
+            long int right_depth = find_tree_height(root_node->right_child);
+
+            if (left_depth > right_depth)
+            {
+                return left_depth + 1;
+            }
+            else
+            {
+                return right_depth + 1;
+            }
+        }
+    }
+
+    // Debug function to print index statistics (faithful C++ port from original C code)
+    void print_index_stats(isax_index *index, int my_rank)
+    {
+        long int empty_subtrees_buffers = 0;
+        int non_empty_subtrees_cnt = 0;
+
+        long int total_nodes = 0;
+        long int tree_height = 0;
+        // long int total_tree_leafs_depths = 0;
+
+        long int total_leafs_nodes = 0;
+
+        // Cast fbl to parallel_first_buffer_layer_ekosmas (EKOSMAS version)
+        parallel_first_buffer_layer_ekosmas *fbl_ekosmas = 
+            reinterpret_cast<parallel_first_buffer_layer_ekosmas *>(index->fbl);
+
+        for (int i = 0; i < fbl_ekosmas->number_of_buffers; i++)
+        {
+            parallel_fbl_soft_buffer_ekosmas *current_fbl_node = &fbl_ekosmas->soft_buffers[i];
+            if (!current_fbl_node->initialized)
+            {
+                empty_subtrees_buffers++;
+                continue;
+            }
+
+            non_empty_subtrees_cnt++;
+
+            isax_node *subtree_root = current_fbl_node->node;
+            long subtree_nodes = find_total_nodes(subtree_root);
+            long subtree_height = find_tree_height(subtree_root);
+            long subtree_leafs = find_total_leafs_nodes(subtree_root);
+
+            total_nodes += subtree_nodes;
+            tree_height += subtree_height;
+            total_leafs_nodes += subtree_leafs;
+
+            if (subtree_nodes > 1)
+            {
+                printf("Subtree[%d]: (height=%lu, nodes=%lu, leafs=%lu)\n", i, subtree_height, subtree_nodes, subtree_leafs);
+            }
+
+            // total_tree_leafs_depths += find_total_tree_leafs_depths(subtree_root, 0);
+        }
+
+        printf("\n--------------------\n[Node %d]: Tree Stats:\n"
+               "Total buffers(2^16): %d\n"
+               "Total tree nodes: %ld\n"
+               "Total leafs nodes: %ld\n"
+               "Average subtree height: %f\n"
+               // "Total tree leafs depth: %ld\n"
+               // "Average leaf depth: %Lf\n"
+               "Empty subtrees: %ld\n"
+               "Non Empty subtrees: %d\n-------------------\n",
+               my_rank,
+               fbl_ekosmas->number_of_buffers,
+               total_nodes,
+               total_leafs_nodes,
+               non_empty_subtrees_cnt > 0 ? (float)tree_height / non_empty_subtrees_cnt : 0.0f,
+               // total_tree_leafs_depths,
+               // (long double)total_tree_leafs_depths / total_leafs_nodes,
+               empty_subtrees_buffers,
+               non_empty_subtrees_cnt);
+    }
+
+    // Function to create subtree batches for query answering (faithful C++ port from original C code)
+    BatchList* create_subtree_batches(NodeList *nodelist, int number_of_batches_to_create, int pq_th)
+    {
+        // printf("[Node %d]: Node amount: %d\n", MY_RANK, nodelist->node_amount);
+        if (nodelist->node_amount < number_of_batches_to_create)
+        {
+            number_of_batches_to_create = nodelist->node_amount;
+        }
+
+        BatchList *batchlist = static_cast<BatchList *>(std::malloc(sizeof(BatchList)));
+        if (batchlist == nullptr)
+        {
+            fprintf(stderr, "Error: Memory allocation failed for BatchList\n");
+            std::exit(EXIT_FAILURE);
+        }
+
+        batchlist->batch_amount = number_of_batches_to_create;
+        // printf("[Node %d]: Batches to create: %d\n",MY_RANK, number_of_batches_to_create);
+        batchlist->batches = static_cast<SubtreeBatch *>(std::malloc(sizeof(SubtreeBatch) * number_of_batches_to_create));
+        if (batchlist->batches == nullptr)
+        {
+            fprintf(stderr, "Error: Memory allocation failed for SubtreeBatch array\n");
+            std::free(batchlist);
+            std::exit(EXIT_FAILURE);
+        }
+
+        int batch_size = nodelist->node_amount / batchlist->batch_amount;
+        for (int i = 0; i < number_of_batches_to_create; i++)
+        {
+            std::memset(&batchlist->batches[i], 0, sizeof(SubtreeBatch));
+
+            batchlist->batches[i].id = i;
+            batchlist->batches[i].from = i * batch_size;
+            batchlist->batches[i].nodelist = nodelist;
+            batchlist->batches[i].pq_th = pq_th;
+
+            // patches
+            // batchlist->batches[i].pq_amount = 0;
+            // batchlist->batches[i].current_subtree_to_process = 0;
+            // batchlist->batches[i].current_pq_to_process = 0;
+            // batchlist->batches[i].is_getting_help_phase1 = 0;
+            // batchlist->batches[i].is_getting_help_phase2 = 0;
+            // batchlist->batches[i].is_stolen = 0;
+
+            if (i == number_of_batches_to_create - 1)
+            {
+                batchlist->batches[i].to = nodelist->node_amount;                    //! padding-like
+                batchlist->batches[i].size = nodelist->node_amount - i * batch_size; //! einai swsto auto?
+            }
+            else
+            {
+                batchlist->batches[i].to = (i + 1) * batch_size;
+                batchlist->batches[i].size = batch_size;
+            }
+
+            pthread_mutex_init(&batchlist->batches[i].pq_insert_lock, nullptr);
+
+            batchlist->batches[i].max_pq_index = 0;
+            batchlist->batches[i].min_pq_index = INT32_MAX;
+
+            // NULLIFY all the priority queues
+            // for (int j = 0; j < MAX_PQs_WORKSTEALING; j++)
+            //{
+            //    batchlist->batches[i].pq[j] = NULL;
+            //}
+            // batchlist->batches[i].pq[0] = NULL;
+        }
+
+        // printf("Created %d batches\n", number_of_batches_to_create);
+
+        return batchlist;
     }
 
 } // namespace diNoLib
