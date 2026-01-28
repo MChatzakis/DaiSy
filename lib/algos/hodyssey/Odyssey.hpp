@@ -125,6 +125,10 @@ namespace diNoLib
         void setNumThreads(int num_threads);
         int getNumThreads() const;
         
+        // MPI rank and size getters (for demos/tests)
+        int getMyRank() const { return my_rank; }
+        int getCommSz() const { return comm_sz; }
+        
         // Bring base class buildIndex overloads into scope
         using SimilaritySearchAlgorithm::buildIndex;
         
