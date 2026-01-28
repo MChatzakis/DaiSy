@@ -31,7 +31,7 @@ namespace diNoLib
         : SimilaritySearchAlgorithm(distance_type)
     {
         initializeMPI(argc, argv);
-        dinoLib::timer_init(&this->timer_manager);
+        ::dinoLib::timer_init(&this->timer_manager);
 
         if (this->time_series_size % 8 != 0)
         {
@@ -58,7 +58,7 @@ namespace diNoLib
         this->num_threads = config.search_workers;
         
         initializeMPI(argc, argv);
-        dinoLib::timer_init(&this->timer_manager);
+        ::dinoLib::timer_init(&this->timer_manager);
 
         if (this->time_series_size % 8 != 0)
         {
@@ -217,7 +217,7 @@ namespace diNoLib
         int my_rank = this->my_rank;
         ReplicationData *replication_data = &this->replication_data;
         int index_threads = this->index_threads;
-        dinoLib::TimerManager *timer_manager = &this->timer_manager;
+        ::dinoLib::TimerManager *timer_manager = &this->timer_manager;
 
         // The original code uses odyssey->dataset (string path). In our port,
         // the filename is stored in index_settings->raw_filename (set in
@@ -244,7 +244,7 @@ namespace diNoLib
         // --------------------------------------------------------------------
         // Open input file and compute total records
         // --------------------------------------------------------------------
-        dinoLib::timer_start(timer_manager, "INPUT");
+        ::dinoLib::timer_start(timer_manager, "INPUT");
         FILE *ifile = std::fopen(ifilename, "rb");
         if (!ifile)
         {
@@ -255,7 +255,7 @@ namespace diNoLib
         std::fseek(ifile, 0L, SEEK_END);
         file_position_type sz = static_cast<file_position_type>(std::ftell(ifile)); // size in bytes
         std::fseek(ifile, 0L, SEEK_SET);
-        dinoLib::timer_stop(timer_manager, "INPUT");
+        ::dinoLib::timer_stop(timer_manager, "INPUT");
 
         // How many time series does this node own?
         idx_t my_time_series = rep_get_time_series_of_group(*replication_data, my_rank);
@@ -301,7 +301,7 @@ namespace diNoLib
             static_cast<file_position_type>(ts_offset) *
             static_cast<file_position_type>(index->settings->ts_byte_size);
 
-        dinoLib::timer_start(timer_manager, "INPUT");
+        ::dinoLib::timer_start(timer_manager, "INPUT");
         int returned_val = std::fseek(ifile, static_cast<long>(position_to_file), SEEK_SET);
         if (returned_val != 0)
         {
@@ -323,7 +323,7 @@ namespace diNoLib
             ifile);
 
         std::fclose(ifile);
-        dinoLib::timer_stop(timer_manager, "INPUT");
+        ::dinoLib::timer_stop(timer_manager, "INPUT");
 
         printf("[Node %d]: Loaded %zu data series starting from %llu.\n",
                my_rank,
@@ -344,14 +344,14 @@ namespace diNoLib
         // --------------------------------------------------------------------
         // Initialize FBL (parallel EKOSMAS version) and worker threads
         // --------------------------------------------------------------------
-        dinoLib::timer_start(timer_manager, "TOTAL_INDEX_BUFFER");
+        ::dinoLib::timer_start(timer_manager, "TOTAL_INDEX_BUFFER");
 
         // NOTE: In the original C code there was a branch on settings->znorm
         // allocating index->means and index->stds. Our C++ iSAXIndex no longer
         // has these fields and znorm is handled externally, so this block is
         // intentionally omitted.
 
-        dinoLib::timer_start(timer_manager, "BUFFER");
+        ::dinoLib::timer_start(timer_manager, "BUFFER");
         // TODO: initialize_pRecBuf_ekosmas is DECLARED in iSAXIndex.hpp but not
         // yet IMPLEMENTED. It should allocate and initialize a
         // parallel_first_buffer_layer_ekosmas and assign it to index->fbl.
@@ -363,7 +363,7 @@ namespace diNoLib
                     DISK_BUFFER_SIZE * (PROGRESS_CALCULATE_THREAD_NUMBER - 1),
                 index,
                 index_threads));
-        dinoLib::timer_stop(timer_manager, "BUFFER");
+        ::dinoLib::timer_stop(timer_manager, "BUFFER");
 
         // Thread array for index creation
         std::vector<pthread_t> threadid(static_cast<size_t>(index_threads));
@@ -424,7 +424,7 @@ namespace diNoLib
             data.my_rank = my_rank;
             data.comm_sz = this->comm_sz;
             data.replication_data = replication_data;
-            data.timer_manager = timer_manager;
+            data.timer_manager = reinterpret_cast<::dinoLib::TimerManager*>(timer_manager);
         }
 
         // Create worker threads
@@ -461,7 +461,7 @@ namespace diNoLib
         std::free(input_data);
         std::free(const_cast<unsigned long *>(next_iSAX_group));
 
-        dinoLib::timer_stop(timer_manager, "TOTAL_INDEX_BUFFER");
+        ::dinoLib::timer_stop(timer_manager, "TOTAL_INDEX_BUFFER");
 
         // Synchronize MPI processes before moving on
         #if ODYSSEY_MPI

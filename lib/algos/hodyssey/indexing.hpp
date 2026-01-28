@@ -157,7 +157,7 @@ namespace diNoLib
         int comm_sz;                                 // MPI world size
 
         ReplicationData *replication_data;           // replication information
-        dinoLib::TimerManager *timer_manager;       // timer manager for profiling
+        ::dinoLib::TimerManager *timer_manager;     // timer manager for profiling
     };
 
     // Index creation functions (only sequence similarity, no subsequence)

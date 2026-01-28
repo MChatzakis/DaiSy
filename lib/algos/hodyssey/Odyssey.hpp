@@ -103,7 +103,7 @@ namespace diNoLib
         ReplicationData replication_data;//HERE
 
         // Timer manager
-        dinoLib::TimerManager timer_manager;//HERE
+        ::dinoLib::TimerManager timer_manager;//HERE
 
         // Query results
         query_result *results = nullptr;//HERE
@@ -156,10 +156,11 @@ namespace diNoLib
     //   typedef query_result* (*qa_sched_func_type)(Odyssey_t *odyssey, qa_func_type search_function, ws_func_type ws_search_function);
     // Note: query_result is a typedef struct defined in iSAXIndex.hpp which is included via query_answering.hpp
     // We're already in diNoLib namespace, so query_result should be available without qualification
+    // However, we need to explicitly qualify it to avoid lookup issues
     using index_func_type = ts_type* (*)(Odyssey*);  // Build index function: returns rawfile pointer
-    using qa_func_type = query_result (*)(SearchFunctionParams);  // Query answering function
-    using ws_func_type = query_result (*)(WsSearchFunctionParams);  // Work stealing search function
-    using qa_sched_func_type = query_result* (*)(Odyssey*, qa_func_type, ws_func_type);  // Query scheduling function
+    using qa_func_type = diNoLib::query_result (*)(SearchFunctionParams);  // Query answering function
+    using ws_func_type = diNoLib::query_result (*)(WsSearchFunctionParams);  // Work stealing search function
+    using qa_sched_func_type = diNoLib::query_result* (*)(Odyssey*, qa_func_type, ws_func_type);  // Query scheduling function
 
     // Query management functions
     // Note: OdysseyQuery, ReplicationData, etc. are defined in query_answering.hpp which is included above

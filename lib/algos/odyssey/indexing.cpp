@@ -34,7 +34,7 @@ namespace diNoLib
         buffer_data_inmemory_ekosmas *input_data =
             static_cast<buffer_data_inmemory_ekosmas *>(transferdata);
 
-        dinoLib::TimerManager *timer_manager = input_data->timer_manager;
+        ::dinoLib::TimerManager *timer_manager = input_data->timer_manager;
         float *rawfile = input_data->rawfile;
 
         unsigned long ts_num = static_cast<unsigned long>(input_data->ts_num);
@@ -64,7 +64,7 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            dinoLib::timer_start(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
+            ::dinoLib::timer_start(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
         }
 
         unsigned long i, block_num, my_ts_start, my_ts_end;
@@ -139,8 +139,8 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            dinoLib::timer_stop(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
-            dinoLib::timer_start(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "INDEX");
+            ::dinoLib::timer_stop(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
+            ::dinoLib::timer_start(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "INDEX");
         }
 
         // Process the populated buffers to build the iSAX tree
@@ -148,7 +148,7 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            dinoLib::timer_stop(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "INDEX");
+            ::dinoLib::timer_stop(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "INDEX");
         }
 
         return nullptr;
