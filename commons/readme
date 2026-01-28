@@ -12,9 +12,7 @@ Provides comprehensive data loading capabilities for time series datasets:
 
 - **`loadBinData()`**: Loads time series data from binary files
 
-- **`z_normalize()`**: Applies z-normalization to time series data
-
-- **`loadRandomData()`**: Generates synthetic time series data
+- **`loadRandomData()`**: Generates synthetic time series data (automatically z-normalized)
 
 ### Parameter Management (`paramSetup.hpp/cpp`)
 

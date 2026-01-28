@@ -17,8 +17,8 @@ int main(int argc, char *argv[]){ // main function needs argc and argv for MPI_I
     diNoLib::idx_t k = 5;
 
     // 1. Generate random data and queries
-    float *database = loadRandomData(n_database, dim, true, 100);
-    float *query = loadRandomData(n_query, dim, true, 50);
+    float *database = loadRandomData(n_database, dim, 100);
+    float *query = loadRandomData(n_query, dim, 50);
 
     // Get MPI rank and size for informative output
     int rank, size;

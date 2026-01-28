@@ -63,7 +63,7 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            dinoLib::timer_start(timer_manager, "BUFFER");
+            dinoLib::timer_start(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
         }
 
         unsigned long i, block_num, my_ts_start, my_ts_end;
@@ -138,8 +138,8 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            dinoLib::timer_stop(timer_manager, "BUFFER");
-            dinoLib::timer_start(timer_manager, "INDEX");
+            dinoLib::timer_stop(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
+            dinoLib::timer_start(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "INDEX");
         }
 
         // Process the populated buffers to build the iSAX tree
@@ -147,7 +147,7 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            dinoLib::timer_stop(timer_manager, "INDEX");
+            dinoLib::timer_stop(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "INDEX");
         }
 
         return nullptr;
@@ -190,7 +190,7 @@ namespace diNoLib
             }
 
             parallel_first_buffer_layer_ekosmas *p_fbl =
-                static_cast<parallel_first_buffer_layer_ekosmas *>(index->fbl);
+                reinterpret_cast<parallel_first_buffer_layer_ekosmas *>(index->fbl);
             parallel_fbl_soft_buffer_ekosmas *current_fbl_node = &(p_fbl->soft_buffers[j]);
 
             if (!current_fbl_node->initialized)

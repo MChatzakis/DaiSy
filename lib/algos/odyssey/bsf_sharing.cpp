@@ -97,19 +97,19 @@ namespace diNoLib
         MPI_Type_free(&bsf_msg_type);
     }
 
-    void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, query_result *bsf_result, 
+    void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                                 int workernumber, int my_rank, int query_counter, 
-                                TimerManager *timer_manager)
+                                dinoLib::timer_manager_t *timer_manager)
     {
-        if (!bsf_sharing_data.bsf_sharing_enabled || workernumber != 0)
+        if (!bsf_sharing_data.bsf_sharing_enabled || workernumber != 0 || pq_bsf == nullptr)
         {
             return;
         }
 
         static bool first_time = true;
 
-        float current_BSF = bsf_result->pq_bsf->knn[bsf_result->pq_bsf->k - 1];
-        file_position_type position = bsf_result->pq_bsf->position[bsf_result->pq_bsf->k - 1];
+        float current_BSF = pq_bsf->knn[pq_bsf->k - 1];
+        file_position_type position = pq_bsf->position[pq_bsf->k - 1];
         int query_id = query_counter;
 
         if (first_time)
@@ -238,11 +238,11 @@ namespace diNoLib
 
                 float new_bsf = bsf_sharing_data.shared_bsfs[my_rank].bsf;
                 file_position_type new_position = bsf_sharing_data.shared_bsfs[my_rank].position;
-                if (new_bsf < bsf_result->pq_bsf->knn[bsf_result->pq_bsf->k - 1])
+                if (new_bsf < pq_bsf->knn[pq_bsf->k - 1])
                 {
                     bsf_sharing_data.bsf_correct_receives_counter++;
                     pthread_mutex_lock(lock_bsf);
-                    pqueue_bsf_insert_invalidate_worse_entries(bsf_result->pq_bsf, new_bsf, new_position, nullptr);
+                    pqueue_bsf_insert_invalidate_worse_entries(pq_bsf, new_bsf, new_position, nullptr);
                     pthread_mutex_unlock(lock_bsf);
                 }
             }
@@ -250,11 +250,11 @@ namespace diNoLib
     }
 
     void bsf_sharing_update_from_bookkeeping(BsfSharingData &bsf_sharing_data, 
-                                              query_result *bsf_result, 
+                                              pqueue_bsf *pq_bsf, 
                                               std::vector<BsfMessage> &shared_bsf_results, 
                                               int query_counter)
     {
-        if (!bsf_sharing_data.bsf_sharing_enabled)
+        if (!bsf_sharing_data.bsf_sharing_enabled || pq_bsf == nullptr)
         {
             return;
         }
@@ -264,12 +264,12 @@ namespace diNoLib
             return;
         }
 
-        float last_bsf = bsf_result->pq_bsf->knn[bsf_result->pq_bsf->k - 1];
-        file_position_type last_position = bsf_result->pq_bsf->position[bsf_result->pq_bsf->k - 1];
+        float last_bsf = pq_bsf->knn[pq_bsf->k - 1];
+        file_position_type last_position = pq_bsf->position[pq_bsf->k - 1];
 
         if (shared_bsf_results[query_counter].bsf < last_bsf)
         {
-            pqueue_bsf_insert_invalidate_worse_entries(bsf_result->pq_bsf, shared_bsf_results[query_counter].bsf, 
+            pqueue_bsf_insert_invalidate_worse_entries(pq_bsf, shared_bsf_results[query_counter].bsf, 
                                                       shared_bsf_results[query_counter].position, nullptr);
         }
         else if (shared_bsf_results[query_counter].bsf > last_bsf)

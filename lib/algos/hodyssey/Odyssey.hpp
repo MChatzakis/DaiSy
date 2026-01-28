@@ -18,6 +18,9 @@
 
 namespace diNoLib
 {
+    // Forward declarations
+    struct query_result;  // Defined in iSAXIndex.hpp
+    
     struct OdysseyConfig
     {
         int search_workers = 1;
@@ -31,6 +34,14 @@ namespace diNoLib
     
     class Odyssey : public SimilaritySearchAlgorithm
     {
+        // Friend declarations for helper functions that need access to private members
+        friend void odyssey_optimize_params(Odyssey *odyssey);
+        friend void odyssey_log_parameters(Odyssey *odyssey);
+        friend void odyssey_prepare_structures(Odyssey *odyssey, const char *raw_filename);
+        friend void print_index_stats(isax_index *index, int my_rank);
+        friend void* index_creation_sequence_worker(void *transferdata);
+        friend void tree_index_creation_from_pRecBuf_fai_blocking(void *transferdata);
+        
     private:
         // Configurable via OdysseyConfig
         int search_workers = 1;

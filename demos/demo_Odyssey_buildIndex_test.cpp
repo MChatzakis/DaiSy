@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
     if (rank == 0)
     {
         printf("\n[Node 0] Generating random data...\n");
-        float *database = loadRandomData(n_database, dim, true, 100); // z-normalized
+        float *database = loadRandomData(n_database, dim, 100); // z-normalized
 
         printf("[Node 0] Writing database to file...\n");
         FILE *fp = fopen(temp_db_file.c_str(), "wb");

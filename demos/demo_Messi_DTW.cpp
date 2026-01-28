@@ -11,8 +11,8 @@ int main(){
     diNoLib::idx_t k = 5;
 
     // 1. Generate random data and queries
-    float *database = loadRandomData(n_database, dim, true, 100);
-    float *query = loadRandomData(n_query, dim, true, 50);
+    float *database = loadRandomData(n_database, dim, 100);
+    float *query = loadRandomData(n_query, dim, 50);
 
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 

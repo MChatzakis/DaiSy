@@ -52,8 +52,8 @@ TEST(BruteforceDTWManualTests, BasicDTWFunctionality)
         unsigned long long n_query = 1;
         diNoLib::idx_t k = 3;
 
-        float *database = loadRandomData(n_database, dim, true, 42);
-        float *query = loadRandomData(n_query, dim, true, 24);
+        float *database = loadRandomData(n_database, dim, 42);
+        float *query = loadRandomData(n_query, dim, 24);
 
         diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
         diNoLib::InMemoryDataSource data_source(database, n_database, dim);
@@ -92,8 +92,8 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
         unsigned long long n_query = 1;
         diNoLib::idx_t k = 5;
 
-        float *database = loadRandomData(n_database, dim, true, 100);
-        float *query = loadRandomData(n_query, dim, true, 50);
+        float *database = loadRandomData(n_database, dim, 100);
+        float *query = loadRandomData(n_query, dim, 50);
 
         // DTW search
         diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
@@ -143,8 +143,8 @@ TEST(BruteforceDTWManualTests, DTWMultiThreading)
         unsigned long long n_query = 5;
         diNoLib::idx_t k = 3;
 
-        float *database = loadRandomData(n_database, dim, true, 200);
-        float *query = loadRandomData(n_query, dim, true, 150);
+        float *database = loadRandomData(n_database, dim, 200);
+        float *query = loadRandomData(n_query, dim, 150);
 
         diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
         bf_search_dtw.setNumThreads(4);

@@ -25,7 +25,8 @@ float *loadBinData(const char *filename, unsigned long long n, unsigned long lon
     return data;
 }
 
-float *z_normalize(const float *data, unsigned long long n, unsigned long long dim)
+// Private helper function for z-normalization
+static float *z_normalize(const float *data, unsigned long long n, unsigned long long dim)
 {
     float *normalized_data = new float[n * dim];
     for (unsigned long long i = 0; i < n; i++)
@@ -52,7 +53,7 @@ float *z_normalize(const float *data, unsigned long long n, unsigned long long d
     return normalized_data;
 }
 
-float *loadRandomData(unsigned long long n, unsigned long long dim, bool z_norm, int seed)
+float *loadRandomData(unsigned long long n, unsigned long long dim, int seed)
 {
     if (seed != 0)
     {
@@ -72,12 +73,8 @@ float *loadRandomData(unsigned long long n, unsigned long long dim, bool z_norm,
         }
     }
 
-    if (z_norm)
-    {
-        float *normalized_data = z_normalize(data, n, dim);
-        delete[] data;
-        return normalized_data;
-    }
-
-    return data;
+    // Always z-normalize the data
+    float *normalized_data = z_normalize(data, n, dim);
+    delete[] data;
+    return normalized_data;
 }

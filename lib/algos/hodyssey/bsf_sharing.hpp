@@ -44,16 +44,16 @@ namespace diNoLib
     
     void bsf_sharing_destroy(BsfSharingData &bsf_sharing_data, int comm_sz);
     
-    void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, query_result *bsf_result, 
+    void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                                 int workernumber, int my_rank, int query_counter, 
-                                TimerManager *timer_manager);
+                                dinoLib::timer_manager_t *timer_manager);
     
-    void bsf_sharing_recv_bsf(BsfSharingData &bsf_sharing_data, query_result *bsf_result, 
+    void bsf_sharing_recv_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                               int workernumber, std::vector<BsfMessage> &shared_bsf_results, 
                               pthread_mutex_t *lock_bsf, int my_rank, int comm_sz, int query_counter);
     
     void bsf_sharing_update_from_bookkeeping(BsfSharingData &bsf_sharing_data, 
-                                              query_result *bsf_result, 
+                                              pqueue_bsf *pq_bsf, 
                                               std::vector<BsfMessage> &shared_bsf_results, 
                                               int query_counter);
 
