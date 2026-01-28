@@ -466,6 +466,7 @@ namespace diNoLib
         }
 
         // Join worker threads
+        printf("[Node %d] DEBUG: Waiting for all worker threads to complete...\n", my_rank);
         for (int i = 0; i < index_threads; i++)
         {
             if (pthread_join(threadid[static_cast<size_t>(i)], nullptr) != 0)
@@ -478,11 +479,39 @@ namespace diNoLib
                 std::exit(EXIT_FAILURE);
             }
         }
+        printf("[Node %d] DEBUG: All worker threads completed\n", my_rank);
 
         std::free(input_data);
         std::free(const_cast<unsigned long *>(next_iSAX_group));
 
         // ::dinoLib::timer_stop(timer_manager, "TOTAL_INDEX_BUFFER");  // Commented out - only for profiling
+
+        // DEBUG: Check index state after construction
+        printf("[Node %d] DEBUG: Index state after construction:\n", my_rank);
+        printf("  - index->first_node: %p\n", static_cast<void*>(index->first_node));
+        printf("  - index->root_nodes: %llu\n", static_cast<unsigned long long>(index->root_nodes));
+        
+        // Check FBL state
+        if (index->fbl != nullptr)
+        {
+            parallel_first_buffer_layer_ekosmas *p_fbl =
+                reinterpret_cast<parallel_first_buffer_layer_ekosmas *>(index->fbl);
+            int initialized_buffers = 0;
+            int buffers_with_nodes = 0;
+            for (int i = 0; i < p_fbl->number_of_buffers; i++)
+            {
+                if (p_fbl->soft_buffers[i].initialized)
+                {
+                    initialized_buffers++;
+                    if (p_fbl->soft_buffers[i].node != nullptr)
+                    {
+                        buffers_with_nodes++;
+                    }
+                }
+            }
+            printf("  - FBL initialized buffers: %d / %d\n", initialized_buffers, p_fbl->number_of_buffers);
+            printf("  - FBL buffers with nodes: %d\n", buffers_with_nodes);
+        }
 
         // Synchronize MPI processes before moving on
         #if ODYSSEY_MPI
