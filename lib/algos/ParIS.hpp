@@ -102,6 +102,11 @@ namespace diNoLib
 
         void setWarpingWindow(int warping_window) { this->warping_window = warping_window; }
         int getWarpingWindow() const { return this->warping_window; }
+        
+        // Getters and setters for Python bindings
+        int getNumThreads() const { return num_threads; }
+        void setNumThreads(int n) { num_threads = n; }
+        
         // Bring base class buildIndex overloads into scope
         using SimilaritySearchAlgorithm::buildIndex;
         

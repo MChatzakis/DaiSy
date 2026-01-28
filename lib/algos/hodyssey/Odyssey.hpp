@@ -116,7 +116,11 @@ namespace diNoLib
         float *buildIndexSequence();  // Internal build index for sequence similarity
                 
     public:
+        // Constructor for Python bindings (no MPI args needed)
+        Odyssey(DistanceType distance_type);
+        // Constructor with MPI args (for C++ usage)
         Odyssey(DistanceType distance_type, int argc, char **argv);
+        // Constructor with config and MPI args
         Odyssey(const OdysseyConfig &config, DistanceType distance_type, int argc, char **argv);
         void setNumThreads(int num_threads);
         int getNumThreads() const;

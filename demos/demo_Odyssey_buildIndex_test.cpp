@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
         printf("\n[Node %d] Verifying index structure...\n", rank);
 
         // Verifica che l'indice sia stato creato
-        if (odyssey.index == nullptr)
+        if (odyssey.getIndex() == nullptr)
         {
             fprintf(stderr, "[Node %d] ERROR: index is NULL!\n", rank);
             return 1;
@@ -136,15 +136,15 @@ int main(int argc, char *argv[])
         printf("[Node %d] ✓ Index pointer is valid\n", rank);
 
         // Verifica che index_settings sia stato inizializzato
-        if (odyssey.index->settings == nullptr)
+        if (odyssey.getIndex()->settings == nullptr)
         {
             fprintf(stderr, "[Node %d] ERROR: index->settings is NULL!\n", rank);
             return 1;
         }
         printf("[Node %d] ✓ Index settings initialized\n", rank);
-        printf("  - Time series size: %d\n", odyssey.index->settings->timeseries_size);
-        printf("  - PAA segments: %d\n", odyssey.index->settings->paa_segments);
-        printf("  - Leaf size: %d\n", odyssey.index->settings->max_leaf_size);
+        printf("  - Time series size: %d\n", odyssey.getIndex()->settings->timeseries_size);
+        printf("  - PAA segments: %d\n", odyssey.getIndex()->settings->paa_segments);
+        printf("  - Leaf size: %d\n", odyssey.getIndex()->settings->max_leaf_size);
 
         // Verifica che fbl (parallel_first_buffer_layer_ekosmas) sia stato inizializzato
         if (odyssey.index->fbl == nullptr)
@@ -153,11 +153,11 @@ int main(int argc, char *argv[])
             return 1;
         }
         printf("[Node %d] ✓ FBL (parallel_first_buffer_layer_ekosmas) initialized\n", rank);
-        printf("  - Number of buffers: %d\n", odyssey.index->fbl->number_of_buffers);
-        printf("  - Max total size: %d\n", odyssey.index->fbl->max_total_size);
+        printf("  - Number of buffers: %d\n", odyssey.getIndex()->fbl->number_of_buffers);
+        printf("  - Max total size: %d\n", odyssey.getIndex()->fbl->max_total_size);
 
         // Verifica che first_node sia stato inizializzato (se ci sono dati)
-        if (odyssey.index->first_node != nullptr)
+        if (odyssey.getIndex()->first_node != nullptr)
         {
             printf("[Node %d] ✓ First node created (tree structure exists)\n", rank);
         }
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
 
         // Verifica che root_nodes sia stato inizializzato
         printf("[Node %d] ✓ Root nodes count: %llu\n", rank, 
-               static_cast<unsigned long long>(odyssey.index->root_nodes));
+               static_cast<unsigned long long>(odyssey.getIndex()->root_nodes));
 
         // Note: rawfile, replication_data, workstealing_data, bsf_sharing_data
         // sono membri privati e non accessibili direttamente.

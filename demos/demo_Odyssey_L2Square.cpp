@@ -30,8 +30,8 @@ int main(int argc, char *argv[]){ // main function needs argc and argv for MPI_I
         printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
     }
 
-    // 2. Create a brute-force search object
-    diNoLib::Odyssey bf_search(diNoLib::DistanceType::L2_SQUARED);
+    // 2. Create an Odyssey search object (requires argc and argv for MPI initialization)
+    diNoLib::Odyssey bf_search(diNoLib::DistanceType::L2_SQUARED, argc, argv);
 
     // 3. Build the index
     diNoLib::InMemoryDataSource data_source(database, n_database, dim);

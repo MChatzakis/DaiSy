@@ -27,6 +27,27 @@ namespace diNoLib
 #endif
     }
 
+    Odyssey::Odyssey(DistanceType distance_type)
+        : SimilaritySearchAlgorithm(distance_type)
+    {
+        // For Python bindings: initialize MPI with dummy args
+        int argc = 0;
+        char **argv = nullptr;
+        initializeMPI(argc, argv);
+        // ::dinoLib::timer_init(&this->timer_manager);  // Commented out - only for profiling
+
+        if (this->time_series_size % 8 != 0)
+        {
+            if (this->my_rank == 0)
+            {
+                std::cerr << "[Node " << this->my_rank
+                          << "]: Error: SIMD calculations require query length to be a multiple of 8. Current value is "
+                          << this->time_series_size << "\n";
+            }
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
     Odyssey::Odyssey(DistanceType distance_type, int argc, char **argv)
         : SimilaritySearchAlgorithm(distance_type)
     {

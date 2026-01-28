@@ -51,6 +51,7 @@ namespace diNoLib
         float *getDatabase() const { return database; }
         idx_t getNDatabase() const { return n_database; }
         idx_t getDim() const { return dim; }
+        isax_index* getIndex() const { return index; }  // Getter for index (needed by demos/tests)
 
         /**
          * @brief Build index from a DataSource (advanced usage)

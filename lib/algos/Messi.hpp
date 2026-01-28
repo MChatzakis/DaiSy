@@ -118,6 +118,35 @@ namespace diNoLib
         
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
+        // Getters and setters for Python bindings
+        int getNumThreads() const { return SimilaritySearchAlgorithm::num_threads; }
+        void setNumThreads(int n) { SimilaritySearchAlgorithm::num_threads = n; }
+        int getPaaSegments() const { return paa_segments; }
+        void setPaaSegments(int n) { paa_segments = n; }
+        int getSaxCardinality() const { return sax_cardinality; }
+        void setSaxCardinality(int n) { sax_cardinality = n; }
+        int getLeafSize() const { return leaf_size; }
+        void setLeafSize(int n) { leaf_size = n; }
+        int getMinLeafSize() const { return min_leaf_size; }
+        void setMinLeafSize(int n) { min_leaf_size = n; }
+        int getInitialLblSize() const { return initial_lbl_size; }
+        void setInitialLblSize(int n) { initial_lbl_size = n; }
+        int getFlushLimit() const { return flush_limit; }
+        void setFlushLimit(int n) { flush_limit = n; }
+        int getInitialFblSize() const { return initial_fbl_size; }
+        void setInitialFblSize(int n) { initial_fbl_size = n; }
+        int getTotalLoadedLeaves() const { return total_loaded_leaves; }
+        void setTotalLoadedLeaves(int n) { total_loaded_leaves = n; }
+        int getTightBound() const { return tight_bound; }
+        void setTightBound(int n) { tight_bound = n; }
+        int getSearchWorkers() const { return search_workers; }
+        void setSearchWorkers(int n) { search_workers = n; }
+        int getIndexWorkers() const { return index_workers; }
+        void setIndexWorkers(int n) { index_workers = n; }
+        int getReadBlockLength() const { return read_block_length; }
+        void setReadBlockLength(int n) { read_block_length = n; }
+        int getWarpingWindow() const { return warping_window; }
+
         ~Messi();
     };
 
