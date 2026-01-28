@@ -723,6 +723,19 @@ namespace diNoLib
         bsf_sharing_init(odyssey->bsf_sharing_data, odyssey->my_rank, odyssey->comm_sz);
 
         // Initialize replication data structure
+        // Set total_groups from odyssey->replication_groups
+        // If replication_groups == 0, auto-calculate: set to comm_sz for distributed (no replication)
+        if (odyssey->replication_groups == 0)
+        {
+            // Auto-calculate: for distributed indexing, each process gets its own chunk
+            // Set total_groups = comm_sz so each process is in its own group
+            odyssey->replication_data.total_groups = odyssey->comm_sz;
+        }
+        else
+        {
+            odyssey->replication_data.total_groups = odyssey->replication_groups;
+        }
+        
         // Note: index_threads and query_threads are passed by reference and may be modified
         // if a configuration file specifies different values for the current node
         rep_init(odyssey->replication_data, odyssey->dataset_size, odyssey->my_rank, 
