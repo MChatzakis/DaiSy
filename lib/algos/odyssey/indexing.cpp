@@ -136,14 +136,8 @@ namespace diNoLib
 
         std::free(sax);
 
-        printf("[Node %d] DEBUG: Worker %d finished populating buffers, waiting at barrier...\n",
-               input_data->my_rank, input_data->workernumber);
-
         // Wait for all workers to finish populating buffers before processing
         pthread_barrier_wait(input_data->wait_summaries_to_compute);
-
-        printf("[Node %d] DEBUG: Worker %d passed barrier, starting tree construction...\n",
-               input_data->my_rank, input_data->workernumber);
 
         // Timer calls commented out - only for profiling
         // if (input_data->workernumber == 0)
@@ -154,9 +148,6 @@ namespace diNoLib
 
         // Process the populated buffers to build the iSAX tree
         tree_index_creation_from_pRecBuf_fai_blocking(transferdata);
-
-        printf("[Node %d] DEBUG: Worker %d completed tree construction\n",
-               input_data->my_rank, input_data->workernumber);
 
         // Timer calls commented out - only for profiling
         // if (input_data->workernumber == 0)
@@ -193,15 +184,7 @@ namespace diNoLib
             std::exit(EXIT_FAILURE);
         }
 
-        printf("[Node %d] DEBUG: tree_index_creation_from_pRecBuf_fai_blocking started (Worker %d)\n",
-               input_data->my_rank, input_data->workernumber);
-        printf("[Node %d] DEBUG: Total buffers to check: %d\n",
-               input_data->my_rank, index->fbl->number_of_buffers);
-
         idx_t worker_inserts = 0;
-        int buffers_processed = 0;
-        int buffers_initialized = 0;
-        int buffers_empty = 0;
         
         while (true)
         {
@@ -212,25 +195,18 @@ namespace diNoLib
                 break;
             }
 
-            buffers_processed++;
             parallel_first_buffer_layer_ekosmas *p_fbl =
                 reinterpret_cast<parallel_first_buffer_layer_ekosmas *>(index->fbl);
             parallel_fbl_soft_buffer_ekosmas *current_fbl_node = &(p_fbl->soft_buffers[j]);
 
             if (!current_fbl_node->initialized)
             {
-                buffers_empty++;
                 continue;
             }
-
-            buffers_initialized++;
-            int total_records_in_buffer = 0;
 
             // Process all records from all workers for this buffer
             for (int k = 0; k < input_data->index_threads; k++)
             {
-                total_records_in_buffer += current_fbl_node->buffer_size[k];
-                
                 for (int i = 0; i < current_fbl_node->buffer_size[k]; i++)
                 {
                     // Set up record structure pointing to SAX and position in buffer
@@ -243,23 +219,11 @@ namespace diNoLib
                     // Add record to index tree using in-memory version (no disk files)
                     worker_inserts++;
                     
-                    // DEBUG: Check if node exists before insertion
+                    // Check if node exists before insertion
                     if (current_fbl_node->node == nullptr)
                     {
-                        printf("[Node %d] DEBUG: ERROR - Buffer[%d] node is NULL before insertion! "
-                               "This should not happen - node should be created by insert_to_pRecBuf_ekosmas\n",
-                               input_data->my_rank, j);
                         // Skip this record - cannot insert without a root node
                         continue;
-                    }
-                    
-                    // DEBUG: Verify node structure
-                    if (current_fbl_node->node->is_leaf == 0 && 
-                        (current_fbl_node->node->left_child == nullptr || 
-                         current_fbl_node->node->right_child == nullptr))
-                    {
-                        printf("[Node %d] DEBUG: WARNING - Buffer[%d] node structure may be invalid\n",
-                               input_data->my_rank, j);
                     }
                     
                     isax_node *result_node = add_record_to_node_inmemory(
@@ -268,41 +232,16 @@ namespace diNoLib
                         r, 
                         1);
                     
-                    // DEBUG: Verify node was created/updated
+                    // Verify node was created/updated
                     if (result_node == nullptr)
                     {
-                        printf("[Node %d] DEBUG: ERROR - add_record_to_node_inmemory returned NULL for buffer[%d]\n",
-                               input_data->my_rank, j);
                         continue; // Skip this record
-                    }
-                    
-                    // The node pointer should remain the same (it's the root of the subtree)
-                    // But verify it's still valid
-                    if (current_fbl_node->node != result_node && 
-                        current_fbl_node->node != nullptr)
-                    {
-                        // This is normal - result_node is the leaf where the record was inserted
-                        // The root node (current_fbl_node->node) should remain unchanged
                     }
                 }
             }
-            
-            if (total_records_in_buffer > 0)
-            {
-                printf("[Node %d] DEBUG: Buffer[%d] processed: %d records, node=%p\n",
-                       input_data->my_rank, j, total_records_in_buffer, 
-                       static_cast<void*>(current_fbl_node->node));
-            }
         }
 
-        printf("[Node %d] DEBUG: Worker %d tree construction summary:\n",
-               input_data->my_rank, input_data->workernumber);
-        printf("  - Buffers processed: %d\n", buffers_processed);
-        printf("  - Buffers initialized: %d\n", buffers_initialized);
-        printf("  - Buffers empty: %d\n", buffers_empty);
-        printf("  - Records inserted into tree: %llu\n",
-               static_cast<unsigned long long>(worker_inserts));
-        printf("[Node %d] Worker %d inserted %llu records into tree\n",
+        printf("[Node %d] Worker %d inserted %llu records\n",
                input_data->my_rank,
                input_data->workernumber,
                static_cast<unsigned long long>(worker_inserts));
