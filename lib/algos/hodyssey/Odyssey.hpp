@@ -6,6 +6,7 @@
 #include "workstealing.hpp"
 #include "replication.hpp"
 #include "../../utils/TimerManager.hpp"
+#include "query_answering.hpp"  // brings SearchFunctionParams, WsSearchFunctionParams, OdysseyQuery, NodeList
 
 #include <queue>
 #include <cfloat>
@@ -135,18 +136,7 @@ namespace diNoLib
         ~Odyssey();
 
     };
-    
-    // Forward declaration for query_result (defined in iSAXIndex.hpp)
-    struct query_result;
-    
-    // Include query_answering.hpp for SearchFunctionParams and WsSearchFunctionParams definitions
-    // (included after Odyssey class definition to avoid circular dependency)
-    // Note: query_answering.hpp includes iSAXIndex.hpp which defines query_result and node_list
-    #include "query_answering.hpp"
-    
-    // Define NodeList as alias for node_list (node_list is defined in iSAXIndex.hpp included via query_answering.hpp)
-    typedef node_list NodeList;
-    
+
     // Function pointer type definitions (using C++11 'using' syntax)
     // These match the original C typedefs from odyssey.h, but use C++ types:
     //   typedef ts_type *(*index_func_type)(Odyssey_t *odyssey);
@@ -186,7 +176,7 @@ namespace diNoLib
                                                         ReplicationData *replication_data, int my_rank, int comm_sz,
                                                         /* ::dinoLib::TimerManager *timer_manager, */ bool verbose);
 
-    // Note: NodeList is already defined above as typedef node_list NodeList;
+    // NodeList comes from indexing.hpp (included via query_answering.hpp)
     NodeList initialize_node_list(isax_index *index, int my_rank);
 
     // Odyssey API functions (converted from C Odyssey_t* to C++ Odyssey*)

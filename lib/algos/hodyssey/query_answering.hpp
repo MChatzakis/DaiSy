@@ -24,6 +24,8 @@
 
 namespace diNoLib
 {
+    // Bring profiling timer type from utils into this namespace when needed
+    using ::dinoLib::TimerManager;
     // Forward declaration
     class Odyssey;
 
