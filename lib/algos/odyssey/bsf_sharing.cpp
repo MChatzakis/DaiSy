@@ -138,9 +138,9 @@ namespace diNoLib
         }
 
         int ready;
-        ::::dinoLib::timer_start(timer_manager, "COMM");
+        ::dinoLib::timer_start(timer_manager, "COMM");
         MPI_Test(&bsf_sharing_data.requests[my_rank], &ready, MPI_STATUS_IGNORE);
-        ::::dinoLib::timer_stop(timer_manager, "COMM");
+        ::dinoLib::timer_stop(timer_manager, "COMM");
 
         if (!ready)
         {

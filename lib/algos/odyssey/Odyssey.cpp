@@ -135,14 +135,12 @@ namespace diNoLib
         odyssey_log_parameters(this);
 
         // Step 4: Build the index sequence
-        // NOTE: buildIndexSequence() is declared as a private method and will be
-        //       implemented to perform the actual disk-based, distributed index build.
         this->rawfile = this->buildIndexSequence();
 
         // Step 5: Print index statistics (if verbose)
         if (this->verbose)
         {
-            print_index_stats(this->index, this->my_rank);
+            diNoLib::print_index_stats(this->index, this->my_rank);
         }
 
         // Step 6: Synchronize all MPI processes before moving to query answering
@@ -263,8 +261,7 @@ namespace diNoLib
         idx_t my_time_series = rep_get_time_series_of_group(*replication_data, my_rank);
 
         // Total records in file (in time-series units)
-        file_position_type total_records =
-            sz / static_cast<file_position_type>(index->settings->ts_byte_size);
+        file_position_type total_records = sz / static_cast<file_position_type>(index->settings->ts_byte_size);
 
         if (total_records < static_cast<file_position_type>(total_samples))
         {
@@ -372,9 +369,9 @@ namespace diNoLib
         std::vector<pthread_t> threadid(static_cast<size_t>(index_threads));
 
         // Allocate worker input structures (one per index thread)
-        buffer_data_inmemory_ekosmas *input_data =
-            static_cast<buffer_data_inmemory_ekosmas *>(
-                std::malloc(sizeof(buffer_data_inmemory_ekosmas) *
+        diNoLib::buffer_data_inmemory_ekosmas *input_data =
+            static_cast<diNoLib::buffer_data_inmemory_ekosmas *>(
+                std::malloc(sizeof(diNoLib::buffer_data_inmemory_ekosmas) *
                             static_cast<size_t>(index_threads)));
         if (input_data == nullptr)
         {
@@ -410,7 +407,7 @@ namespace diNoLib
 
         for (int i = 0; i < index_threads; i++)
         {
-            buffer_data_inmemory_ekosmas &data = input_data[i];
+            diNoLib::buffer_data_inmemory_ekosmas &data = input_data[i];
             data.index = index;
             data.lock_firstnode = &lock_firstnode; // subtree root node initialization
             data.workernumber = i;
@@ -435,7 +432,7 @@ namespace diNoLib
         {
             if (pthread_create(&threadid[static_cast<size_t>(i)],
                                nullptr,
-                               index_creation_sequence_worker,
+                               diNoLib::index_creation_sequence_worker,
                                static_cast<void *>(&input_data[i])) != 0)
             {
                 fprintf(stderr,
@@ -467,9 +464,9 @@ namespace diNoLib
         dinoLib::timer_stop(timer_manager, "TOTAL_INDEX_BUFFER");
 
         // Synchronize MPI processes before moving on
-#if ODYSSEY_MPI
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
+        #if ODYSSEY_MPI
+                MPI_Barrier(MPI_COMM_WORLD);
+        #endif
 
         return rawfile;
     }
