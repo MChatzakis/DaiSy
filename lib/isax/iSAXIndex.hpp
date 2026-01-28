@@ -186,6 +186,27 @@ namespace diNoLib
         int total_worker_number;
     } parallel_first_buffer_layer;
 
+    // EKOSMAS version: simplified parallel_first_buffer_layer without hard_buffer and total_worker_number
+    typedef struct parallel_fbl_soft_buffer_ekosmas
+    {
+        isax_node *volatile node;  // EKOSMAS: ADDED 'volatile' for thread-safety
+        sax_type **sax_records;
+        file_position_type **pos_records;
+        volatile int initialized;  // EKOSMAS: ADDED 'volatile'
+        int *max_buffer_size;
+        int *buffer_size;
+        volatile int finished;     // EKOSMAS: ADDED 'volatile'
+    } parallel_fbl_soft_buffer_ekosmas;
+
+    typedef struct parallel_first_buffer_layer_ekosmas
+    {
+        int number_of_buffers;
+        int initial_buffer_size;
+        int max_total_size;
+        int current_record_index;
+        parallel_fbl_soft_buffer_ekosmas *soft_buffers;
+    } parallel_first_buffer_layer_ekosmas;
+
     typedef struct
     {
         meminfo memory_info;
@@ -314,7 +335,16 @@ namespace diNoLib
 
     parallel_first_buffer_layer *initialize_pRecBuf(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index, int total_workers);
 
+    // EKOSMAS-specific parallel buffer initialization (to be implemented)
+    // Returns a parallel_first_buffer_layer_ekosmas used by Odyssey's EKOSMAS index build.
+    parallel_first_buffer_layer_ekosmas *initialize_pRecBuf_ekosmas(int initial_buffer_size,
+                                                                     int number_of_buffers,
+                                                                     int max_total_buffers_size,
+                                                                     isax_index *index,
+                                                                     int total_workers);
+
     isax_index *isax_index_init_inmemory(isax_index_settings *settings);
+    isax_index *isax_index_init_inmemory_ekosmas(isax_index_settings *settings);  // EKOSMAS version for Odyssey
     isax_index *isax_index_init(isax_index_settings *settings);
 
     isax_node_buffer *init_node_buffer(int initial_buffer_size);
@@ -322,9 +352,33 @@ namespace diNoLib
     isax_node *isax_leaf_node_init(int initial_buffer_size);
     isax_node *isax_root_node_init(root_mask_type mask, int initial_buffer_size);
     isax_node *insert_to_pRecBuf(parallel_first_buffer_layer *fbl, sax_type *sax, file_position_type *pos, root_mask_type mask, isax_index *index, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber);
+    
+    // EKOSMAS-specific versions for Odyssey
+    isax_node *insert_to_pRecBuf_ekosmas(parallel_first_buffer_layer_ekosmas *fbl, sax_type *sax,
+                                         file_position_type *pos, root_mask_type mask,
+                                         isax_index *index, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber);
+    
     isax_node *add_record_to_node(isax_index *index, isax_node *tree_node, isax_node_record *record, const char leaf_size_check);
+    
+    // EKOSMAS-specific in-memory version (no disk files)
+    isax_node *add_record_to_node_inmemory(isax_index *index,
+                                            isax_node *tree_node,
+                                            isax_node_record *record,
+                                            const char leaf_size_check);
+    
+    enum response initialize_isax_values_and_cardinalities(isax_index *index,
+                                                           isax_node *node,
+                                                           sax_type *sax);
 
     root_mask_type isax_pRecBuf_index_insert_inmemory(isax_index *index, sax_type *sax, file_position_type *pos, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber);
+    
+    // EKOSMAS-specific version for Odyssey
+    root_mask_type isax_pRecBuf_index_insert_inmemory_ekosmas(isax_index *index,
+                                                               sax_type *sax,
+                                                               file_position_type *pos,
+                                                               pthread_mutex_t *lock_firstnode,
+                                                               int workernumber,
+                                                               int total_workernumber);
 
     void destroy_fbl(first_buffer_layer *fbl);
     void destroy_parallel_fbl(parallel_first_buffer_layer *fbl);

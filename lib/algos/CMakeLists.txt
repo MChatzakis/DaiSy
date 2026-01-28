@@ -89,12 +89,16 @@ endif()
 if(DEBUG_MSG)
     message(STATUS "Adding Odyssey.cpp to dino_lib sources.")
 endif()
-target_sources(dino_lib
+    target_sources(dino_lib
     PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/Odyssey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/Odyssey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/bsf_sharing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/replication.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/workstealing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/indexing.cpp
 )
 if(DEBUG_MSG)
-    message(STATUS "Odyssey.cpp added.")
+    message(STATUS "Odyssey.cpp, bsf_sharing.cpp, replication.cpp, workstealing.cpp, and indexing.cpp added.")
 endif()
 
 # ////// PARIS //////

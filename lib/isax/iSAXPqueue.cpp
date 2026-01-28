@@ -455,4 +455,18 @@ namespace diNoLib
         q->nowk++;
     }
 
+    void pqueue_bsf_insert_invalidate_worse_entries(pqueue_bsf *q, float data, file_position_type position, isax_node *node)
+    {
+        int i;
+
+        for (i = 0; i < q->k; i++)
+        {
+            if (data <= q->knn[i])
+            {
+                q->knn[i] = data;
+                q->position[i] = position;
+            }
+        }
+    }
+
 }

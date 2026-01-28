@@ -12,7 +12,8 @@ add_library(
     isax/SAX.cpp
     isax/iSAXIndex.cpp
     isax/iSAXPqueue.cpp
-    algos/Odyssey.cpp
+    utils/TimerManager.cpp
+    # Note: Odyssey.cpp and related files are added via target_sources in algos/CMakeLists.txt
 )
 if(DEBUG_MSG)
     message(STATUS "Library dino_lib added.")

@@ -178,6 +178,7 @@ namespace diNoLib
     void pqueue_bsf_free(pqueue_bsf *q);
     void pqueue_bsf_insert(pqueue_bsf *q, float data, long int position, isax_node *node);
     void pqueue_bsfre_insert(pqueue_bsf *q, float data, long int position, isax_node *node);
+    void pqueue_bsf_insert_invalidate_worse_entries(pqueue_bsf *q, float data, file_position_type position, isax_node *node);
 
 }
 

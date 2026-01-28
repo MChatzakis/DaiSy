@@ -11,35 +11,20 @@ namespace diNoLib
 {
 
     ParIS::ParIS(DistanceType distance_type)
+        : ParIS(distance_type, ParISConfig{})
+    {
+    }
+
+    ParIS::ParIS(DistanceType distance_type, const ParISConfig &config)
         : SimilaritySearchAlgorithm(distance_type)
     {
+        this->search_workers = config.search_workers;
+        this->index_workers = config.index_workers;
+        this->warping_window = config.warping_window;
+        this->leaf_size = config.leaf_size;
+        this->paa_segments = config.paa_segments;
     }
 
-    void ParIS::setNumThreads(int num_threads)
-    {
-        int max_threads = omp_get_max_threads();
-
-        if (num_threads > max_threads)
-        {
-            std::cerr << "[Warning] " << num_threads
-                      << " threads exceeds max available " << max_threads << " Using the max threads available.\n";
-            this->num_threads = max_threads;
-        }
-        else if (num_threads < 1)
-        {
-            std::cerr << "[Warning] Thread count must be >= 1. Using 1.\n";
-            this->num_threads = 1;
-        }
-        else
-        {
-            this->num_threads = num_threads;
-        }
-    }
-
-    int ParIS::getNumThreads() const
-    {
-        return this->num_threads;
-    }
 
     void ParIS::buildIndex(DataSource *data_source)
     {

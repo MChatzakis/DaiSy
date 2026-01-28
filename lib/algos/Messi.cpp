@@ -485,8 +485,18 @@ namespace diNoLib
     }
 
     Messi::Messi(DistanceType distance_type)
+        : Messi(distance_type, MessiConfig{})
+    {
+    }
+
+    Messi::Messi(DistanceType distance_type, const MessiConfig &config)
         : SimilaritySearchAlgorithm(distance_type)
     {
+        this->search_workers = config.search_workers;
+        this->index_workers = config.index_workers;
+        this->warping_window = config.warping_window;
+        this->leaf_size = config.leaf_size;
+        this->paa_segments = config.paa_segments;
     }
 
     void *indexCreationWorker(void *transferdata)
