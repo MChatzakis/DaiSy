@@ -6,8 +6,8 @@
 #include <mpi.h>
 #include <pthread.h>
 
-#include "../isax/iSAXIndex.hpp"
-#include "../isax/iSAXPqueue.hpp"
+#include "../../isax/iSAXIndex.hpp"
+#include "../../isax/iSAXPqueue.hpp"
 #include "replication.hpp"
 
 namespace diNoLib

@@ -136,17 +136,16 @@ namespace diNoLib
 
     };
     
-    // Include iSAXIndex.hpp first to get node_list and query_result definitions
-    // (needed before query_answering.hpp which uses NodeList)
-    #include "../isax/iSAXIndex.hpp"
-    
-    // Define NodeList as alias for node_list (used in query_answering.hpp)
-    typedef node_list NodeList;
+    // Forward declaration for query_result (defined in iSAXIndex.hpp)
+    struct query_result;
     
     // Include query_answering.hpp for SearchFunctionParams and WsSearchFunctionParams definitions
     // (included after Odyssey class definition to avoid circular dependency)
-    // Note: query_answering.hpp also includes iSAXIndex.hpp, but it's protected by include guards
+    // Note: query_answering.hpp includes iSAXIndex.hpp which defines query_result and node_list
     #include "query_answering.hpp"
+    
+    // Define NodeList as alias for node_list (node_list is defined in iSAXIndex.hpp included via query_answering.hpp)
+    typedef node_list NodeList;
     
     // Function pointer type definitions (using C++11 'using' syntax)
     // These match the original C typedefs from odyssey.h, but use C++ types:
@@ -155,7 +154,6 @@ namespace diNoLib
     //   typedef query_result (*ws_func_type)(ws_search_function_params);
     //   typedef query_result* (*qa_sched_func_type)(Odyssey_t *odyssey, qa_func_type search_function, ws_func_type ws_search_function);
     // Note: query_result is a typedef struct defined in iSAXIndex.hpp which is included via query_answering.hpp
-    // We're already in diNoLib namespace, so query_result should be available without qualification
     // We're already in diNoLib namespace, so query_result should be available without qualification
     using index_func_type = ts_type* (*)(Odyssey*);  // Build index function: returns rawfile pointer
     using qa_func_type = query_result (*)(SearchFunctionParams);  // Query answering function

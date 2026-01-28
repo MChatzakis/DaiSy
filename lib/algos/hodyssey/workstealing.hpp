@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <mpi.h>
-#include "../isax/iSAXIndex.hpp"
+#include "../../isax/iSAXIndex.hpp"
 
 namespace diNoLib
 {

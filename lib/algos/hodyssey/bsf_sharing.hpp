@@ -1,9 +1,9 @@
 #ifndef BSF_SHARING_HPP
 #define BSF_SHARING_HPP
 
-#include "../isax/iSAXTypes.hpp"
-#include "../isax/iSAXIndex.hpp"
-#include "../isax/iSAXPqueue.hpp"
+#include "../../isax/iSAXTypes.hpp"
+#include "../../isax/iSAXIndex.hpp"
+#include "../../isax/iSAXPqueue.hpp"
 #include "../../utils/TimerManager.hpp"
 #include <vector>
 #include <memory>

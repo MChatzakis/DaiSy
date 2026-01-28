@@ -13,9 +13,9 @@
 #include <mpi.h>
 #endif
 
-#include "../isax/iSAXTypes.hpp"
-#include "../isax/iSAXIndex.hpp"
-#include "../isax/iSAXPqueue.hpp"
+#include "../../isax/iSAXTypes.hpp"
+#include "../../isax/iSAXIndex.hpp"
+#include "../../isax/iSAXPqueue.hpp"
 #include "../../utils/TimerManager.hpp"
 #include "workstealing.hpp"
 #include "replication.hpp"
@@ -88,7 +88,7 @@ namespace diNoLib
         int pq_th_div_factor;
         float corr_threshold;
 
-        TimerManager *timer_manager;  // Changed from timer_manager_t to TimerManager
+        // TimerManager *timer_manager;  // Commented out - only for profiling
         BsfSharingData *bsf_sharing_data;  // Changed from bsf_sharing_data_t to BsfSharingData
         WorkstealingData *workstealing_data;  // Changed from workstealing_data_t to WorkstealingData
         ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
@@ -126,7 +126,7 @@ namespace diNoLib
         int pq_th_div_factor;
         float corr_threshold;
 
-        TimerManager *timer_manager;  // Changed from timer_manager_t to TimerManager
+        // TimerManager *timer_manager;  // Commented out - only for profiling
         BsfSharingData *bsf_sharing_data;  // Changed from bsf_sharing_data_t to BsfSharingData
         WorkstealingData *workstealing_data;  // Changed from workstealing_data_t to WorkstealingData
         ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
@@ -183,7 +183,7 @@ namespace diNoLib
         ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
         WorkstealingData *workstealing_data;  // Changed from workstealing_data_t to WorkstealingData
         BsfSharingData *bsf_sharing_data;  // Changed from bsf_sharing_data_t to BsfSharingData
-        TimerManager *timer_manager;  // Changed from timer_manager_t to TimerManager
+        // TimerManager *timer_manager;  // Commented out - only for profiling
 
         std::string output_file;  // Changed from char* to std::string
     };
@@ -230,7 +230,7 @@ namespace diNoLib
         ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
         WorkstealingData *workstealing_data;  // Changed from workstealing_data_t to WorkstealingData
         BsfSharingData *bsf_sharing_data;  // Changed from bsf_sharing_data_t to BsfSharingData
-        TimerManager *timer_manager;  // Changed from timer_manager_t to TimerManager
+        // TimerManager *timer_manager;  // Commented out - only for profiling
 
         std::string output_file;  // Changed from char* to std::string
     };
