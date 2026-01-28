@@ -648,6 +648,22 @@ namespace diNoLib
                 current_buffer->node = isax_root_node_init(mask, index->settings->initial_leaf_buffer_size);
                 current_buffer->node->is_leaf = 1;
                 current_buffer->initialized = 1;
+                
+                // EKOSMAS: Set index->first_node and increment root_nodes (same as insert_to_pRecBuf)
+                if (index->first_node == NULL)
+                {
+                    index->first_node = current_buffer->node;
+                    current_buffer->node->next = NULL;
+                    current_buffer->node->previous = NULL;
+                }
+                else
+                {
+                    isax_node *prev_first = index->first_node;
+                    index->first_node = current_buffer->node;
+                    index->first_node->next = prev_first;
+                    prev_first->previous = current_buffer->node;
+                }
+                __sync_fetch_and_add(&(index->root_nodes), 1);
             }
             pthread_mutex_unlock(lock_firstnode);
         }
