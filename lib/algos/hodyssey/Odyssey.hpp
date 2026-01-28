@@ -136,6 +136,17 @@ namespace diNoLib
         ~Odyssey();
 
     };
+    
+    // Include iSAXIndex.hpp first to get query_result definition (it's a typedef, not a struct)
+    #include "../isax/iSAXIndex.hpp"
+    
+    // Include query_answering.hpp for SearchFunctionParams and WsSearchFunctionParams definitions
+    // (included after Odyssey class definition to avoid circular dependency)
+    // Note: query_answering.hpp also includes iSAXIndex.hpp, but it's protected by include guards
+    #include "query_answering.hpp"
+    
+    // Define NodeList as alias for node_list (node_list is defined in iSAXIndex.hpp)
+    typedef node_list NodeList;
 
     // Function pointer type definitions (using C++11 'using' syntax)
     // These match the original C typedefs from odyssey.h, but use C++ types:
@@ -168,8 +179,7 @@ namespace diNoLib
                                                                  int **process_buffer_initial,  // Changed from VLA to int**
                                                                  int *rec_message, MPI_Request *request, MPI_Request *send_request,
                                                                  int q_num, int *termination_message_id,
-                                                                 ReplicationData *replication_data, 
-                                                                 /* ::dinoLib::TimerManager *timer_manager */);
+                                                                 ReplicationData *replication_data);
 
     int send_queries_module_coordinator_async_chatzakis(int *q_loaded, int q_num, int *process_buffer, MPI_Request *request, int *rec_message,
                                                         MPI_Request *send_request, int *termination_message_id,
