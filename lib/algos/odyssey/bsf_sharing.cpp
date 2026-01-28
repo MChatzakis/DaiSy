@@ -99,7 +99,7 @@ namespace diNoLib
 
     void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                                 int workernumber, int my_rank, int query_counter, 
-                                dinoLib::timer_manager_t *timer_manager)
+                                ::dinoLib::timer_manager_t *timer_manager)
     {
         if (!bsf_sharing_data.bsf_sharing_enabled || workernumber != 0 || pq_bsf == nullptr)
         {
@@ -128,19 +128,19 @@ namespace diNoLib
 
             bsf_sharing_data.bsf_broadcasts_counter++;
 
-            dinoLib::timer_start(timer_manager, "COMM");
+            ::dinoLib::timer_start(timer_manager, "COMM");
             MPI_Ibcast(&bsf_sharing_data.shared_bsfs[my_rank], 1, bsf_msg_type, my_rank, 
                       bsf_sharing_data.communicators[my_rank], &bsf_sharing_data.requests[my_rank]);
-            dinoLib::timer_stop(timer_manager, "COMM");
+            ::dinoLib::timer_stop(timer_manager, "COMM");
 
             first_time = false;
             return;
         }
 
         int ready;
-        dinoLib::timer_start(timer_manager, "COMM");
+        ::::dinoLib::timer_start(timer_manager, "COMM");
         MPI_Test(&bsf_sharing_data.requests[my_rank], &ready, MPI_STATUS_IGNORE);
-        dinoLib::timer_stop(timer_manager, "COMM");
+        ::::dinoLib::timer_stop(timer_manager, "COMM");
 
         if (!ready)
         {
@@ -165,18 +165,18 @@ namespace diNoLib
                        bsf_sharing_data.shared_bsfs[my_rank].bsf);
             }
 
-            dinoLib::timer_start(timer_manager, "COMM");
+            ::dinoLib::timer_start(timer_manager, "COMM");
             MPI_Ibcast(&bsf_sharing_data.shared_bsfs[my_rank], 1, bsf_msg_type, my_rank, 
                       bsf_sharing_data.communicators[my_rank], &bsf_sharing_data.requests[my_rank]);
-            dinoLib::timer_stop(timer_manager, "COMM");
+            ::dinoLib::timer_stop(timer_manager, "COMM");
         }
     }
 
-    void bsf_sharing_recv_bsf(BsfSharingData &bsf_sharing_data, query_result *bsf_result, 
+    void bsf_sharing_recv_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                               int workernumber, std::vector<BsfMessage> &shared_bsf_results, 
                               pthread_mutex_t *lock_bsf, int my_rank, int comm_sz, int query_counter)
     {
-        if (workernumber != 0 || !bsf_sharing_data.bsf_sharing_enabled)
+        if (workernumber != 0 || !bsf_sharing_data.bsf_sharing_enabled || pq_bsf == nullptr)
         {
             return;
         }
@@ -198,7 +198,7 @@ namespace diNoLib
                     file_position_type position_received = bsf_sharing_data.shared_bsfs[process_rank].position;
 
                     float current_bsf_shared = bsf_sharing_data.shared_bsfs[my_rank].bsf;
-                    float current_bsf_local = bsf_result->pq_bsf->knn[bsf_result->pq_bsf->k - 1];
+                    float current_bsf_local = pq_bsf->knn[pq_bsf->k - 1];
 
                     // Bookkeeping: update shared_bsf_results if received BSF is better
                     if (query_id_received >= 0 && query_id_received < (int)shared_bsf_results.size() &&

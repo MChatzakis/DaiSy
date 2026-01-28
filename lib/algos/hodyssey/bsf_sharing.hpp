@@ -3,6 +3,8 @@
 
 #include "../isax/iSAXTypes.hpp"
 #include "../isax/iSAXIndex.hpp"
+#include "../isax/iSAXPqueue.hpp"
+#include "../../utils/TimerManager.hpp"
 #include <vector>
 #include <memory>
 #include <mutex>
@@ -11,9 +13,6 @@
 
 namespace diNoLib
 {
-    // Forward declaration for timer_manager_t if needed
-    // For now, using void* or we can create a proper TimerManager class later
-    struct TimerManager;
 
     // MPI Datatype for BSF message (needs to be initialized)
     extern MPI_Datatype bsf_msg_type;
@@ -46,7 +45,7 @@ namespace diNoLib
     
     void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                                 int workernumber, int my_rank, int query_counter, 
-                                dinoLib::timer_manager_t *timer_manager);
+                                ::dinoLib::timer_manager_t *timer_manager);
     
     void bsf_sharing_recv_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                               int workernumber, std::vector<BsfMessage> &shared_bsf_results, 
