@@ -64,7 +64,7 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            ::dinoLib::timer_start(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
+            dinoLib::timer_start(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
         }
 
         unsigned long i, block_num, my_ts_start, my_ts_end;
@@ -139,8 +139,8 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            ::dinoLib::timer_stop(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
-            ::dinoLib::timer_start(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "INDEX");
+            dinoLib::timer_stop(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
+            dinoLib::timer_start(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "INDEX");
         }
 
         // Process the populated buffers to build the iSAX tree
@@ -148,7 +148,7 @@ namespace diNoLib
 
         if (input_data->workernumber == 0)
         {
-            ::dinoLib::timer_stop(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "INDEX");
+            dinoLib::timer_stop(reinterpret_cast<dinoLib::timer_manager_t*>(timer_manager), "INDEX");
         }
 
         return nullptr;
