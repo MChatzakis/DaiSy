@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
         printf("  - Leaf size: %d\n", odyssey.getIndex()->settings->max_leaf_size);
 
         // Verifica che fbl (parallel_first_buffer_layer_ekosmas) sia stato inizializzato
-        if (odyssey.index->fbl == nullptr)
+        if (odyssey.getIndex()->fbl == nullptr)
         {
             fprintf(stderr, "[Node %d] ERROR: index->fbl is NULL!\n", rank);
             return 1;
