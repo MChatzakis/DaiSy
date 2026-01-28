@@ -103,7 +103,7 @@ namespace diNoLib
         ReplicationData replication_data;//HERE
 
         // Timer manager
-        dinoLib::TimerManager timer_manager;//HERE
+        ::dinoLib::TimerManager timer_manager;//HERE
 
         // Query results
         query_result *results = nullptr;//HERE
@@ -136,6 +136,12 @@ namespace diNoLib
 
     };
     
+    // Include iSAXIndex.hpp first to ensure query_result and node_list are available
+    #include "../isax/iSAXIndex.hpp"
+    
+    // Define NodeList as alias for node_list (used in query_answering.hpp)
+    typedef node_list NodeList;
+    
     // Include query_answering.hpp for SearchFunctionParams and WsSearchFunctionParams definitions
     // (included after Odyssey class definition to avoid circular dependency)
     #include "query_answering.hpp"
@@ -146,8 +152,9 @@ namespace diNoLib
     //   typedef query_result (*qa_func_type)(search_function_params);
     //   typedef query_result (*ws_func_type)(ws_search_function_params);
     //   typedef query_result* (*qa_sched_func_type)(Odyssey_t *odyssey, qa_func_type search_function, ws_func_type ws_search_function);
-    // Note: query_result is defined in iSAXIndex.hpp which is included via query_answering.hpp
+    // Note: query_result is a typedef struct defined in iSAXIndex.hpp which is now included above
     // We're already in diNoLib namespace, so query_result should be available without qualification
+    // query_result is now available from iSAXIndex.hpp included above
     using index_func_type = ts_type* (*)(Odyssey*);  // Build index function: returns rawfile pointer
     using qa_func_type = query_result (*)(SearchFunctionParams);  // Query answering function
     using ws_func_type = query_result (*)(WsSearchFunctionParams);  // Work stealing search function
@@ -179,8 +186,7 @@ namespace diNoLib
                                                         ReplicationData *replication_data, int my_rank, int comm_sz,
                                                         ::dinoLib::TimerManager *timer_manager, bool verbose);
 
-    // Note: NodeList is a typedef for node_list defined in iSAXIndex.hpp
-    typedef node_list NodeList;
+    // Note: NodeList is already defined above as typedef node_list NodeList;
     NodeList initialize_node_list(isax_index *index, int my_rank);
 
     // Odyssey API functions (converted from C Odyssey_t* to C++ Odyssey*)
