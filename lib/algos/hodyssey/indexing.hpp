@@ -13,10 +13,11 @@
 namespace diNoLib
 {
     // Forward declaration for TimerManager (namespace dinoLib in TimerManager.hpp)
+    // Note: We use ::dinoLib:: to force global namespace lookup, avoiding diNoLib::dinoLib:: resolution
     namespace dinoLib {
         class TimerManager;
     }
-    using TimerManager = dinoLib::TimerManager;
+    using TimerManager = ::dinoLib::TimerManager;
 
     constexpr int MAX_PQs_WORKSTEALING = 2000;
 
