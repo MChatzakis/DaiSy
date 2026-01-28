@@ -142,11 +142,8 @@ namespace diNoLib
     
     // Include query_answering.hpp for SearchFunctionParams and WsSearchFunctionParams definitions
     // (included after Odyssey class definition to avoid circular dependency)
-    // Note: query_answering.hpp also includes iSAXIndex.hpp, but it's protected by include guards
+    // Note: query_answering.hpp includes indexing.hpp which defines NodeList, and iSAXIndex.hpp which defines query_result
     #include "query_answering.hpp"
-    
-    // Define NodeList as alias for node_list (node_list is defined in iSAXIndex.hpp)
-    typedef node_list NodeList;
 
     // Function pointer type definitions (using C++11 'using' syntax)
     // These match the original C typedefs from odyssey.h, but use C++ types:
