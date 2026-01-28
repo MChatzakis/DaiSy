@@ -103,7 +103,7 @@ namespace diNoLib
         ReplicationData replication_data;//HERE
 
         // Timer manager
-        ::dinoLib::TimerManager timer_manager;//HERE
+        // ::dinoLib::TimerManager timer_manager;//HERE  // Commented out - only for profiling
 
         // Query results
         query_result *results = nullptr;//HERE
@@ -156,11 +156,11 @@ namespace diNoLib
     //   typedef query_result* (*qa_sched_func_type)(Odyssey_t *odyssey, qa_func_type search_function, ws_func_type ws_search_function);
     // Note: query_result is a typedef struct defined in iSAXIndex.hpp which is included via query_answering.hpp
     // We're already in diNoLib namespace, so query_result should be available without qualification
-    // However, we need to explicitly qualify it to avoid lookup issues
+    // We're already in diNoLib namespace, so query_result should be available without qualification
     using index_func_type = ts_type* (*)(Odyssey*);  // Build index function: returns rawfile pointer
-    using qa_func_type = diNoLib::query_result (*)(SearchFunctionParams);  // Query answering function
-    using ws_func_type = diNoLib::query_result (*)(WsSearchFunctionParams);  // Work stealing search function
-    using qa_sched_func_type = diNoLib::query_result* (*)(Odyssey*, qa_func_type, ws_func_type);  // Query scheduling function
+    using qa_func_type = query_result (*)(SearchFunctionParams);  // Query answering function
+    using ws_func_type = query_result (*)(WsSearchFunctionParams);  // Work stealing search function
+    using qa_sched_func_type = query_result* (*)(Odyssey*, qa_func_type, ws_func_type);  // Query scheduling function
 
     // Query management functions
     // Note: OdysseyQuery, ReplicationData, etc. are defined in query_answering.hpp which is included above
@@ -181,12 +181,12 @@ namespace diNoLib
                                                                  int *rec_message, MPI_Request *request, MPI_Request *send_request,
                                                                  int q_num, int *termination_message_id,
                                                                  ReplicationData *replication_data, 
-                                                                 ::dinoLib::TimerManager *timer_manager);
+                                                                 /* ::dinoLib::TimerManager *timer_manager */);
 
     int send_queries_module_coordinator_async_chatzakis(int *q_loaded, int q_num, int *process_buffer, MPI_Request *request, int *rec_message,
                                                         MPI_Request *send_request, int *termination_message_id,
                                                         ReplicationData *replication_data, int my_rank, int comm_sz,
-                                                        ::dinoLib::TimerManager *timer_manager, bool verbose);
+                                                        /* ::dinoLib::TimerManager *timer_manager, */ bool verbose);
 
     // Note: NodeList is already defined above as typedef node_list NodeList;
     NodeList initialize_node_list(isax_index *index, int my_rank);

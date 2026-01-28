@@ -12,12 +12,11 @@
 
 namespace diNoLib
 {
-    // Forward declaration for TimerManager (namespace dinoLib in TimerManager.hpp)
-    // Note: We use ::dinoLib:: to force global namespace lookup, avoiding diNoLib::dinoLib:: resolution
-    namespace dinoLib {
-        class TimerManager;
-    }
-    using TimerManager = ::dinoLib::TimerManager;
+    // TimerManager commented out - only used for profiling, not needed for functionality
+    // namespace dinoLib {
+    //     class TimerManager;
+    // }
+    // using TimerManager = ::dinoLib::TimerManager;
 
     constexpr int MAX_PQs_WORKSTEALING = 2000;
 
@@ -78,7 +77,7 @@ namespace diNoLib
                                              MPI_Request *request, int *rec_message,
                                              MPI_Request *send_request, int *termination_message_id,
                                              ReplicationData *replication_data, int my_rank, int comm_sz,
-                                             TimerManager *timer_manager, bool verbose);
+                                             /* TimerManager *timer_manager, */ bool verbose);
 
     struct CommunicationModuleData
     {
@@ -91,7 +90,7 @@ namespace diNoLib
         ReplicationData *replication_data;
         int my_rank;
         int comm_sz;
-        TimerManager *timer_manager;
+        // TimerManager *timer_manager;  // Commented out - only for profiling
         bool verbose;
 
         DynamicSchedulingMode mode;
@@ -110,7 +109,7 @@ namespace diNoLib
                                         comm_data->rec_message, comm_data->send_request,
                                         comm_data->termination_message_id, 
                                         comm_data->replication_data, comm_data->my_rank, comm_data->comm_sz,
-                                        comm_data->timer_manager, comm_data->verbose);
+                                        /* comm_data->timer_manager, */ comm_data->verbose);
     }
 
     // Batch creation and tree analysis functions
@@ -158,7 +157,7 @@ namespace diNoLib
         int comm_sz;                                 // MPI world size
 
         ReplicationData *replication_data;           // replication information
-        ::dinoLib::TimerManager *timer_manager;     // timer manager for profiling
+        // ::dinoLib::TimerManager *timer_manager;     // Commented out - only for profiling
     };
 
     // Index creation functions (only sequence similarity, no subsequence)
