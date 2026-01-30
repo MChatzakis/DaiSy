@@ -132,8 +132,8 @@ namespace diNoLib
                            double (*basis_func)(double));
 
     protected:
-        // Odyssey uses index/rawfile, not database; override to check getIndex() instead
-        bool validateSearchParams(const idx_t k, const idx_t n_query) const override;
+        // Odyssey uses index/rawfile, not database; custom version checks getIndex() instead of database
+        bool validateSearchParams(const idx_t k, const idx_t n_query) const;
 
     public:
         // Constructor for Python bindings (no MPI args needed)
