@@ -2387,6 +2387,23 @@ namespace diNoLib
                                          basis_func, results, shared_bsf_results);
         }
 
+        // DEBUG: print raw results (query_result) before copy to I,D. Enable with -DODYSSEY_DEBUG_RESULTS=1
+#if defined(ODYSSEY_DEBUG_RESULTS) && ODYSSEY_DEBUG_RESULTS
+        for (int i = 0; i < q_num; i++)
+        {
+            if (results[i].pq_bsf != nullptr)
+            {
+                printf("[Node %d] DEBUG results[%d]: ", my_rank, i);
+                for (int j = 0; j < topk; j++)
+                    printf("(pos=%llu dist=%.4f) ", (unsigned long long)results[i].pq_bsf->position[j], results[i].pq_bsf->knn[j]);
+                printf("\n");
+            }
+            else
+                printf("[Node %d] DEBUG results[%d]: pq_bsf is NULL\n", my_rank, i);
+        }
+        fflush(stdout);
+#endif
+
         if (comm_sz > 1)
         {
             std::memset(I, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(idx_t));
@@ -2653,6 +2670,22 @@ namespace diNoLib
                                          &qa_exact_search_odyssey_knn_workstealing,
                                          basis_func, results, shared_bsf_results);
         }
+
+#if defined(ODYSSEY_DEBUG_RESULTS) && ODYSSEY_DEBUG_RESULTS
+        for (int i = 0; i < q_num; i++)
+        {
+            if (results[i].pq_bsf != nullptr)
+            {
+                printf("[Node %d] DEBUG DTW results[%d]: ", my_rank, i);
+                for (int j = 0; j < topk; j++)
+                    printf("(pos=%llu dist=%.4f) ", (unsigned long long)results[i].pq_bsf->position[j], results[i].pq_bsf->knn[j]);
+                printf("\n");
+            }
+            else
+                printf("[Node %d] DEBUG DTW results[%d]: pq_bsf is NULL\n", my_rank, i);
+        }
+        fflush(stdout);
+#endif
 
         if (comm_sz > 1)
         {
