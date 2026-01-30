@@ -3,9 +3,10 @@
 #include "../hodyssey/query_answering.hpp"  // for qa_exact_search_odyssey_knn
 #include "../hodyssey/replication.hpp"      // for rep_find_coordinator_node_rank, rep_get_repgroup_nodes
 #include "../hodyssey/workstealing.hpp"     // for ws_locate_node, WORKSTEALING_* tags
-#include "../../isax/iSAXSearch.hpp"  // for approximate_topk_inmemory, refine_topk_answer_inmemory, calculate_node_topk_inmemory
+#include "../../isax/iSAXSearch.hpp"  // for approximate_topk_inmemory, refine_topk_answer_inmemory, calculate_node_topk_inmemory, approximate_DTWtopk_inmemory, calculate_node_DTWknn_inmemory, dtw
+#include "../../isax/iSAXIndex.hpp"   // for lower_upper_lemire
 #include "../../isax/iSAXPqueue.hpp"   // for pqueue_bsf_insert, pqueue_bsf_destroy, pqueue_init, pqueue_free, pqueue_pop, pqueue_insert, pqueue_peek, pqueue_size
-#include "../../isax/SAX.hpp"        // for paa_from_ts, minidist_paa_to_isax
+#include "../../isax/SAX.hpp"        // for paa_from_ts, minidist_paa_to_isax, minidist_paa_to_isax_DTW, minidist_paa_to_isax_raw_DTW_SIMD
 #include "../../isax/iSAXTypes.hpp"   // for MINVAL, MAXVAL
 #include "../hodyssey/bsf_sharing.hpp" // for bsf_sharing_recv_bsf, bsf_sharing_bcast_bsf
 #include "common.hpp"
@@ -148,26 +149,149 @@ namespace diNoLib
 
     void refine_topk_answer_inmemory_dtw(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, isax_index *index, int warp_window, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, int merge_offset)
     {
-        (void)ts;
         (void)paa;
-        (void)paaU;
-        (void)paaL;
-        (void)index;
-        (void)warp_window;
-        (void)pq_bsf;
-        (void)minimum_distance;
         (void)limit;
-        (void)rawfile;
         (void)merge_offset;
-        // TODO: implement
+
+        int aggressive_check = index->settings->aggressive_check;
+        pqueue_t *pq = pqueue_init(index->settings->root_nodes_size, cmp_pri, get_pri, set_pri, get_pos, set_pos);
+
+        isax_node *current_root_node = index->first_node;
+        while (current_root_node != nullptr)
+        {
+            if (current_root_node->isax_values == nullptr || current_root_node->isax_cardinalities == nullptr)
+            {
+                current_root_node = current_root_node->next;
+                continue;
+            }
+            query_result *mindist_result = static_cast<query_result *>(std::malloc(sizeof(query_result)));
+            if (!mindist_result) { pqueue_free(pq); return; }
+            mindist_result->distance = minidist_paa_to_isax_DTW(paaU, paaL, current_root_node->isax_values,
+                                                                current_root_node->isax_cardinalities,
+                                                                index->settings->sax_bit_cardinality,
+                                                                index->settings->sax_alphabet_cardinality,
+                                                                index->settings->paa_segments,
+                                                                MINVAL, MAXVAL,
+                                                                index->settings->mindist_sqrt);
+            mindist_result->node = current_root_node;
+            pqueue_insert(pq, mindist_result);
+            current_root_node = current_root_node->next;
+        }
+
+        query_result *n;
+        while ((n = static_cast<query_result *>(pqueue_pop(pq))) != nullptr)
+        {
+            if (!n->node) { std::free(n); continue; }
+            if (n->node->isax_values == nullptr || n->node->isax_cardinalities == nullptr) { std::free(n); continue; }
+            if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
+            {
+                pqueue_insert(pq, n);
+                break;
+            }
+            if (n->node->is_leaf)
+            {
+                if (!n->node->has_full_data_file &&
+                    (n->node->leaf_size > index->settings->min_leaf_size) &&
+                    n->node->buffer != nullptr)
+                {
+                    split_node(index, n->node);
+                    if (!n->node->is_leaf)
+                    {
+                        pqueue_insert(pq, n);
+                        continue;
+                    }
+                }
+                calculate_node_DTWknn_inmemory(index, n->node, ts, warp_window, pq_bsf, rawfile);
+                if (pq_bsf->knn[pq_bsf->k - 1] < FLT_MAX)
+                {
+                    pqueue_insert(pq, n);
+                    break;
+                }
+            }
+            else
+            {
+                if (n->node->left_child != nullptr && n->node->left_child->isax_values != nullptr && n->node->left_child->isax_cardinalities != nullptr)
+                {
+                    if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
+                        calculate_node_DTWknn_inmemory(index, n->node->left_child, ts, warp_window, pq_bsf, rawfile);
+                    else
+                    {
+                        query_result *mindist_result = static_cast<query_result *>(std::malloc(sizeof(query_result)));
+                        if (mindist_result)
+                        {
+                            mindist_result->distance = minidist_paa_to_isax_DTW(paaU, paaL, n->node->left_child->isax_values,
+                                                                                n->node->left_child->isax_cardinalities,
+                                                                                index->settings->sax_bit_cardinality,
+                                                                                index->settings->sax_alphabet_cardinality,
+                                                                                index->settings->paa_segments,
+                                                                                MINVAL, MAXVAL,
+                                                                                index->settings->mindist_sqrt);
+                            mindist_result->node = n->node->left_child;
+                            pqueue_insert(pq, mindist_result);
+                        }
+                    }
+                }
+                if (n->node->right_child != nullptr && n->node->right_child->isax_values != nullptr && n->node->right_child->isax_cardinalities != nullptr)
+                {
+                    if (n->node->right_child->is_leaf && !n->node->right_child->has_partial_data_file && aggressive_check)
+                        calculate_node_DTWknn_inmemory(index, n->node->right_child, ts, warp_window, pq_bsf, rawfile);
+                    else
+                    {
+                        query_result *mindist_result = static_cast<query_result *>(std::malloc(sizeof(query_result)));
+                        if (mindist_result)
+                        {
+                            mindist_result->distance = minidist_paa_to_isax_DTW(paaU, paaL, n->node->right_child->isax_values,
+                                                                                n->node->right_child->isax_cardinalities,
+                                                                                index->settings->sax_bit_cardinality,
+                                                                                index->settings->sax_alphabet_cardinality,
+                                                                                index->settings->paa_segments,
+                                                                                MINVAL, MAXVAL,
+                                                                                index->settings->mindist_sqrt);
+                            mindist_result->node = n->node->right_child;
+                            pqueue_insert(pq, mindist_result);
+                        }
+                    }
+                }
+            }
+            std::free(n);
+        }
+        while ((n = static_cast<query_result *>(pqueue_pop(pq))) != nullptr)
+            std::free(n);
+        for (int i = 0; i < pq_bsf->k - 1; ++i)
+            pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
+        pqueue_free(pq);
     }
 
-    void odyssey_compute_query_envelopes_dtw(OdysseyQuery *query, int ts_len, int warping_window)
+    void odyssey_compute_query_envelopes_dtw(OdysseyQuery *query, isax_index *index, int warping_window)
     {
-        (void)query;
-        (void)ts_len;
-        (void)warping_window;
-        // TODO: allocate paaU, paaL and fill with Lemire envelope PAA
+        const int ts_len = index->settings->timeseries_size;
+        const int paa_segments = index->settings->paa_segments;
+        const int ts_values_per_paa_segment = index->settings->ts_values_per_paa_segment;
+
+        ts_type *upper_lemire = static_cast<ts_type *>(std::malloc(sizeof(ts_type) * static_cast<size_t>(ts_len)));
+        ts_type *lower_lemire = static_cast<ts_type *>(std::malloc(sizeof(ts_type) * static_cast<size_t>(ts_len)));
+        if (!upper_lemire || !lower_lemire)
+        {
+            if (upper_lemire) std::free(upper_lemire);
+            if (lower_lemire) std::free(lower_lemire);
+            return;
+        }
+        lower_upper_lemire(query->query, ts_len, warping_window, lower_lemire, upper_lemire);
+
+        query->paaU = static_cast<ts_type *>(std::malloc(sizeof(ts_type) * static_cast<size_t>(paa_segments)));
+        query->paaL = static_cast<ts_type *>(std::malloc(sizeof(ts_type) * static_cast<size_t>(paa_segments)));
+        if (!query->paaU || !query->paaL)
+        {
+            std::free(upper_lemire);
+            std::free(lower_lemire);
+            if (query->paaU) { std::free(query->paaU); query->paaU = nullptr; }
+            if (query->paaL) { std::free(query->paaL); query->paaL = nullptr; }
+            return;
+        }
+        paa_from_ts(upper_lemire, query->paaU, paa_segments, ts_values_per_paa_segment);
+        paa_from_ts(lower_lemire, query->paaL, paa_segments, ts_values_per_paa_segment);
+        std::free(upper_lemire);
+        std::free(lower_lemire);
     }
 
     void odyssey_preprocess_and_sort_queries(Odyssey *odyssey, OdysseyQuery *queries, int q_num, bool apply_sort)
@@ -204,7 +328,7 @@ namespace diNoLib
             else
             {
                 /* DTW path */
-                odyssey_compute_query_envelopes_dtw(&queries[i], index->settings->timeseries_size, odyssey->warping_window);
+                odyssey_compute_query_envelopes_dtw(&queries[i], index, odyssey->warping_window);
 
                 queries[i].initial_pq_bsfs = pqueue_bsf_init(topk);
                 approximate_DTWtopk_inmemory(queries[i].query, queries[i].paa, index, odyssey->warping_window, queries[i].initial_pq_bsfs, rawfile);
@@ -592,9 +716,9 @@ namespace diNoLib
                             ws_params.pq_th_div_factor = odyssey->pq_th_div_factor;
                             ws_params.merge_offset = odyssey->merge_offset;
                             ws_params.query_counter = query_num;
-                            ws_params.warp_window = 0;
-                            ws_params.paaU = nullptr;
-                            ws_params.paaL = nullptr;
+                            ws_params.warp_window = (odyssey->distance_type == DistanceType::DTW) ? odyssey->warping_window : 0;
+                            ws_params.paaU = (odyssey->distance_type == DistanceType::DTW) ? queries[query_num].paaU : nullptr;
+                            ws_params.paaL = (odyssey->distance_type == DistanceType::DTW) ? queries[query_num].paaL : nullptr;
 
                             query_result result = ws_func(ws_params);
 
@@ -755,14 +879,20 @@ namespace diNoLib
         return 0;
     }
 
-    void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index)
+    void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index, int warp_window, ts_type *paaU, ts_type *paaL)
     {
         if (subtree_node == nullptr || subtree_node->isax_values == nullptr || subtree_node->isax_cardinalities == nullptr)
             return;
 
-        float distance = minidist_paa_to_isax(paa, subtree_node->isax_values, subtree_node->isax_cardinalities,
-                                              index->settings->sax_bit_cardinality, index->settings->sax_alphabet_cardinality,
-                                              index->settings->paa_segments, MINVAL, MAXVAL, index->settings->mindist_sqrt);
+        float distance;
+        if (warp_window > 0 && paaU != nullptr && paaL != nullptr)
+            distance = minidist_paa_to_isax_DTW(paaU, paaL, subtree_node->isax_values, subtree_node->isax_cardinalities,
+                                                 index->settings->sax_bit_cardinality, index->settings->sax_alphabet_cardinality,
+                                                 index->settings->paa_segments, MINVAL, MAXVAL, index->settings->mindist_sqrt);
+        else
+            distance = minidist_paa_to_isax(paa, subtree_node->isax_values, subtree_node->isax_cardinalities,
+                                            index->settings->sax_bit_cardinality, index->settings->sax_alphabet_cardinality,
+                                            index->settings->paa_segments, MINVAL, MAXVAL, index->settings->mindist_sqrt);
 
         if (distance >= bsf_distance)
             return;
@@ -823,12 +953,12 @@ namespace diNoLib
         }
         else
         {
-            generate_pqs_of_rs_batch(subtree_node->right_child, batch, bsf_distance, paa, index);
-            generate_pqs_of_rs_batch(subtree_node->left_child, batch, bsf_distance, paa, index);
+            generate_pqs_of_rs_batch(subtree_node->right_child, batch, bsf_distance, paa, index, warp_window, paaU, paaL);
+            generate_pqs_of_rs_batch(subtree_node->left_child, batch, bsf_distance, paa, index, warp_window, paaU, paaL);
         }
     }
 
-    void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa)
+    void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa, int warp_window, ts_type *paaU, ts_type *paaL)
     {
         while (1)
         {
@@ -838,7 +968,7 @@ namespace diNoLib
                 break;
 
             isax_node *subtree_node = (batches[batch_index].nodelist->nlist)[static_cast<size_t>(subtree_index + batches[batch_index].from)];
-            generate_pqs_of_rs_batch(subtree_node, &batches[batch_index], bsf_distance, paa, index);
+            generate_pqs_of_rs_batch(subtree_node, &batches[batch_index], bsf_distance, paa, index, warp_window, paaU, paaL);
         }
     }
 
@@ -930,11 +1060,15 @@ namespace diNoLib
             isax_index *index = input_data->index;
             ts_type *query = input_data->ts;
             ts_type *paa = input_data->paa;
+            ts_type *paaU = input_data->paaU;
+            ts_type *paaL = input_data->paaL;
+            int warp_window = input_data->warp_window;
             float *rawfile = input_data->rawfile;
             isax_node *node = n->node;
             int my_rank = input_data->my_rank;
             ReplicationData *replication_data = input_data->replication_data;
             int merge_offset = input_data->merge_offset;
+            const int ts_size = index->settings->timeseries_size;
 
             if (node->buffer != nullptr)
             {
@@ -943,26 +1077,49 @@ namespace diNoLib
                     if (node->buffer->partial_position_buffer[i] == nullptr)
                         continue;
 
-                    float distmin = minidist_paa_to_isax_rawa_SIMD(
-                        paa, node->buffer->partial_sax_buffer[i],
-                        index->settings->max_sax_cardinalities,
-                        index->settings->sax_bit_cardinality,
-                        index->settings->sax_alphabet_cardinality,
-                        index->settings->paa_segments, MINVAL, MAXVAL,
-                        index->settings->mindist_sqrt);
+                    float distmin;
+                    if (warp_window > 0 && paaU != nullptr && paaL != nullptr)
+                        distmin = minidist_paa_to_isax_raw_DTW_SIMD(
+                            paaU, paaL, node->buffer->partial_sax_buffer[i],
+                            index->settings->max_sax_cardinalities,
+                            index->settings->sax_bit_cardinality,
+                            index->settings->sax_alphabet_cardinality,
+                            index->settings->paa_segments, MINVAL, MAXVAL,
+                            index->settings->mindist_sqrt);
+                    else
+                        distmin = minidist_paa_to_isax_rawa_SIMD(
+                            paa, node->buffer->partial_sax_buffer[i],
+                            index->settings->max_sax_cardinalities,
+                            index->settings->sax_bit_cardinality,
+                            index->settings->sax_alphabet_cardinality,
+                            index->settings->paa_segments, MINVAL, MAXVAL,
+                            index->settings->mindist_sqrt);
 
                     if (distmin <= bsf)
                     {
                         file_position_type pos = *node->buffer->partial_position_buffer[i];
-                        float dist = ts_euclidean_distance_SIMD(
-                            query, &rawfile[pos],
-                            index->settings->timeseries_size,
-                            pq_bsf->knn[pq_bsf->k - 1]);
+                        float dist;
+                        if (warp_window > 0)
+                        {
+                            float *cb = static_cast<float *>(std::calloc(static_cast<size_t>(ts_size), sizeof(float)));
+                            if (cb)
+                            {
+                                dist = dtw(query, &rawfile[pos], cb, ts_size, warp_window, pq_bsf->knn[pq_bsf->k - 1]);
+                                std::free(cb);
+                            }
+                            else
+                                dist = FLT_MAX;
+                        }
+                        else
+                            dist = ts_euclidean_distance_SIMD(
+                                query, &rawfile[pos],
+                                ts_size,
+                                pq_bsf->knn[pq_bsf->k - 1]);
 
                         if (dist < pq_bsf->knn[pq_bsf->k - 1])
                         {
                             pthread_mutex_lock(input_data->bsf_lock);
-                            file_position_type local_ts_index = pos / static_cast<file_position_type>(index->settings->timeseries_size);
+                            file_position_type local_ts_index = pos / static_cast<file_position_type>(ts_size);
                             file_position_type global_pos = local_ts_index + static_cast<file_position_type>(rep_get_time_series_offset(*replication_data, my_rank));
                             pqueue_bsf_insert_offset(pq_bsf, dist, global_pos, node, merge_offset);
                             pthread_mutex_unlock(input_data->bsf_lock);
@@ -1002,7 +1159,7 @@ namespace diNoLib
             }
 
             float bsf = in_data->bsf_result->pq_bsf->knn[k - 1];
-            process_rs_batch(current_batch_index, in_data->batches, bsf, in_data->index, in_data->paa);
+            process_rs_batch(current_batch_index, in_data->batches, bsf, in_data->index, in_data->paa, in_data->warp_window, in_data->paaU, in_data->paaL);
             in_data->batches[current_batch_index].processed_phase_1 = 1;
             bsf_sharing_recv_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, *in_data->shared_bsf_results, in_data->bsf_lock, my_rank, comm_sz, query_counter);
         }
@@ -1013,7 +1170,7 @@ namespace diNoLib
             {
                 in_data->batches[i].is_getting_help_phase1 = 1;
                 int k_help = in_data->bsf_result->pq_bsf->k;
-                process_rs_batch(i, in_data->batches, in_data->bsf_result->pq_bsf->knn[k_help - 1], in_data->index, in_data->paa);
+                process_rs_batch(i, in_data->batches, in_data->bsf_result->pq_bsf->knn[k_help - 1], in_data->index, in_data->paa, in_data->warp_window, in_data->paaU, in_data->paaL);
                 bsf_sharing_recv_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, *in_data->shared_bsf_results, in_data->bsf_lock, my_rank, comm_sz, query_counter);
             }
         }
@@ -1094,12 +1251,23 @@ namespace diNoLib
         if (!precomputed_bsfs)
         {
             bsf_result.pq_bsf = pqueue_bsf_init(k);
-            approximate_topk_inmemory(ts, paa, index, bsf_result.pq_bsf, rawfile);
-
-            if (bsf_result.pq_bsf->knn[k - 1] == FLT_MAX)
+            if (args.warp_window > 0 && args.paaU != nullptr && args.paaL != nullptr)
             {
-                int min_checked_leaves = -1;
-                refine_topk_answer_inmemory(ts, paa, index, bsf_result.pq_bsf, minimum_distance, min_checked_leaves, rawfile);
+                approximate_DTWtopk_inmemory(ts, paa, index, args.warp_window, bsf_result.pq_bsf, rawfile);
+                if (bsf_result.pq_bsf->knn[k - 1] == FLT_MAX)
+                {
+                    int min_checked_leaves = -1;
+                    refine_topk_answer_inmemory_dtw(ts, paa, args.paaU, args.paaL, index, args.warp_window, bsf_result.pq_bsf, minimum_distance, min_checked_leaves, rawfile, args.merge_offset);
+                }
+            }
+            else
+            {
+                approximate_topk_inmemory(ts, paa, index, bsf_result.pq_bsf, rawfile);
+                if (bsf_result.pq_bsf->knn[k - 1] == FLT_MAX)
+                {
+                    int min_checked_leaves = -1;
+                    refine_topk_answer_inmemory(ts, paa, index, bsf_result.pq_bsf, minimum_distance, min_checked_leaves, rawfile);
+                }
             }
         }
         else
@@ -1184,6 +1352,9 @@ namespace diNoLib
             workerdata[static_cast<size_t>(i)].corr_threshold = args.corr_threshold;
             workerdata[static_cast<size_t>(i)].verbose = args.verbose;
             workerdata[static_cast<size_t>(i)].output_file = args.output_file;
+            workerdata[static_cast<size_t>(i)].warp_window = args.warp_window;
+            workerdata[static_cast<size_t>(i)].paaU = args.paaU;
+            workerdata[static_cast<size_t>(i)].paaL = args.paaL;
 
             if (pthread_create(&threadid[static_cast<size_t>(i)], nullptr, qa_exact_search_odyssey_worker, (void *)&workerdata[static_cast<size_t>(i)]) != 0)
             {
@@ -1409,6 +1580,9 @@ namespace diNoLib
             workerdata[static_cast<size_t>(i)].pq_th_div_factor = pq_th_div_factor;
             workerdata[static_cast<size_t>(i)].verbose = ws_args.verbose;
             workerdata[static_cast<size_t>(i)].output_file = ws_args.output_file;
+            workerdata[static_cast<size_t>(i)].warp_window = ws_args.warp_window;
+            workerdata[static_cast<size_t>(i)].paaU = ws_args.paaU;
+            workerdata[static_cast<size_t>(i)].paaL = ws_args.paaL;
 
             if (pthread_create(&threadid[static_cast<size_t>(i)], nullptr, qa_exact_search_odyssey_worker, (void *)&workerdata[static_cast<size_t>(i)]) != 0)
             {
@@ -1938,16 +2112,250 @@ namespace diNoLib
                                  NodeList &nodelist, idx_t *I, float *D,
                                  double (*basis_func)(double))
     {
-        (void)queries;
-        (void)q_num;
-        (void)topk;
-        (void)results;
-        (void)shared_bsf_results;
-        (void)nodelist;
-        (void)I;
-        (void)D;
-        (void)basis_func;
-        // TODO: implement DTW variant (same flow with qa_exact_search_odyssey_knn_dtw and ws_dtw)
+        constexpr bool ENABLE_PRINTS_PER_QUERY = false;
+        const float minimum_distance = FLT_MAX;
+        const int warp_window = this->warping_window;
+        isax_index *index = this->index;
+        ReplicationData &replication_data = this->replication_data;
+        WorkstealingData *workstealing_data = &this->workstealing_data;
+        const DynamicSchedulingMode mode = static_cast<DynamicSchedulingMode>(this->dynamic_scheduling_mode);
+
+#if ODYSSEY_MPI
+        std::vector<MPI_Request> request(static_cast<size_t>(comm_sz));
+        std::vector<MPI_Request> send_request(static_cast<size_t>(comm_sz));
+        const int distributed_queries_initial_burst = 1;
+        std::vector<int*> process_buffer_initial(static_cast<size_t>(comm_sz));
+        for (int i = 0; i < comm_sz; i++)
+        {
+            process_buffer_initial[static_cast<size_t>(i)] = (int *)malloc(sizeof(int) * static_cast<size_t>(distributed_queries_initial_burst));
+            CHECK_ALLOC(process_buffer_initial[static_cast<size_t>(i)], my_rank);
+        }
+        std::vector<int> process_buffer(static_cast<size_t>(comm_sz), 0);
+        int rec_message = 0;
+        int buffer_sent = 0;
+        int termination_message_id = -1;
+        int q_loaded = 0;
+
+        const int DISTRIBUTED_QUERIES_SEND_QUERY = 800;
+        const int DISTRIBUTED_QUERIES_REQUEST_QUERY = 801;
+
+        if (my_rank == rep_find_coordinator_node_rank(replication_data, my_rank))
+        {
+            send_initial_queries_module_coordinator_async_chatzakis(&q_loaded, my_rank, comm_sz,
+                                                                  distributed_queries_initial_burst,
+                                                                  process_buffer_initial.data(),
+                                                                  &rec_message, request.data(), send_request.data(),
+                                                                  q_num, &termination_message_id,
+                                                                  &replication_data);
+        }
+
+        while (1)
+        {
+            if (my_rank == rep_find_coordinator_node_rank(replication_data, my_rank))
+            {
+                if (mode == DynamicSchedulingMode::PERIODIC_CHECK || mode == DynamicSchedulingMode::STANDALONE_THREAD)
+                {
+                    if (q_loaded >= q_num || q_loaded == -1)
+                    {
+                        if (verbose)
+                            printf("[Node %d]: Exiting the dynamic loop (DTW)\n", my_rank);
+                        break;
+                    }
+
+                    int query_to_keep_stats = q_loaded;
+                    q_loaded++;
+
+                    CommunicationModuleData comm_data;
+                    comm_data.module_func = &send_queries_module_coordinator_async_chatzakis;
+                    comm_data.q_loaded = &q_loaded;
+                    comm_data.rec_message = &rec_message;
+                    comm_data.termination_message_id = &termination_message_id;
+                    comm_data.q_num = q_num;
+                    comm_data.request = request.data();
+                    comm_data.send_request = send_request.data();
+                    comm_data.process_buffer = process_buffer.data();
+                    comm_data.mode = mode;
+                    comm_data.my_rank = my_rank;
+                    comm_data.comm_sz = comm_sz;
+                    comm_data.replication_data = &replication_data;
+                    comm_data.verbose = verbose;
+
+                    SearchFunctionParams args;
+                    args.query_id = query_to_keep_stats;
+                    args.ts = queries[query_to_keep_stats].query;
+                    args.paa = queries[query_to_keep_stats].paa;
+                    args.index = index;
+                    args.nodelist = &nodelist;
+                    args.minimum_distance = minimum_distance;
+                    args.comm_data = &comm_data;
+                    args.estimation_func = basis_func;
+                    args.shared_bsf_results = shared_bsf_results;
+                    args.k = topk;
+                    args.precomputed_bsfs = queries[query_to_keep_stats].initial_pq_bsfs;
+                    args.query_threads = query_threads;
+                    args.my_rank = my_rank;
+                    args.comm_sz = comm_sz;
+                    args.verbose = verbose;
+                    args.rawfile = rawfile;
+                    args.replication_data = &replication_data;
+                    args.output_file = output_file;
+                    args.corr_threshold = corr_threshold;
+                    args.bsf_sharing_data = &bsf_sharing_data;
+                    args.workstealing_data = workstealing_data;
+                    args.pq_th_div_factor = pq_th_div_factor;
+                    args.merge_offset = merge_offset;
+                    args.query_counter = query_to_keep_stats;
+                    args.warp_window = warp_window;
+                    args.paaU = queries[query_to_keep_stats].paaU;
+                    args.paaL = queries[query_to_keep_stats].paaL;
+
+                    query_result result = qa_exact_search_odyssey_knn(args);
+                    result.total_time = 0.0;
+
+                    int query_id = queries[query_to_keep_stats].id;
+                    results[query_id] = result;
+
+                    if (ENABLE_PRINTS_PER_QUERY && verbose && results[query_id].pq_bsf != nullptr)
+                    {
+                        printf("[Node %d]: Processed query %d (id %d) => (1-nn=%f, pos=%llu)\n",
+                               my_rank, query_to_keep_stats, query_id,
+                               results[query_id].pq_bsf->knn[0],
+                               (unsigned long long)results[query_id].pq_bsf->position[0]);
+                    }
+                }
+
+                if (!send_queries_module_coordinator_async_chatzakis(&q_loaded, q_num, process_buffer.data(),
+                                                                     request.data(), &rec_message, send_request.data(),
+                                                                     &termination_message_id,
+                                                                     &replication_data, my_rank, comm_sz, verbose))
+                {
+                    break;
+                }
+            }
+            else
+            {
+                MPI_Recv(&q_loaded, 1, MPI_INT, rep_find_coordinator_node_rank(replication_data, my_rank),
+                         DISTRIBUTED_QUERIES_SEND_QUERY, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                if (q_loaded >= q_num || q_loaded == -1)
+                {
+                    break;
+                }
+
+                SearchFunctionParams args;
+                args.query_id = q_loaded;
+                args.ts = queries[q_loaded].query;
+                args.paa = queries[q_loaded].paa;
+                args.index = index;
+                args.nodelist = &nodelist;
+                args.minimum_distance = minimum_distance;
+                args.comm_data = nullptr;
+                args.estimation_func = basis_func;
+                args.shared_bsf_results = shared_bsf_results;
+                args.k = topk;
+                args.precomputed_bsfs = queries[q_loaded].initial_pq_bsfs;
+                args.query_threads = query_threads;
+                args.my_rank = my_rank;
+                args.comm_sz = comm_sz;
+                args.verbose = verbose;
+                args.rawfile = rawfile;
+                args.replication_data = &replication_data;
+                args.output_file = output_file;
+                args.corr_threshold = corr_threshold;
+                args.bsf_sharing_data = &bsf_sharing_data;
+                args.workstealing_data = workstealing_data;
+                args.pq_th_div_factor = pq_th_div_factor;
+                args.merge_offset = merge_offset;
+                args.query_counter = q_loaded;
+                args.warp_window = warp_window;
+                args.paaU = queries[q_loaded].paaU;
+                args.paaL = queries[q_loaded].paaL;
+
+                query_result result = qa_exact_search_odyssey_knn(args);
+                result.total_time = 0.0;
+
+                int query_id = queries[q_loaded].id;
+                results[query_id] = result;
+
+                if (ENABLE_PRINTS_PER_QUERY && verbose && results[query_id].pq_bsf != nullptr)
+                {
+                    printf("[Node %d]: Processed query %d (id %d) => (1-nn=%f, pos=%llu)\n",
+                           my_rank, q_loaded, query_id,
+                           results[query_id].pq_bsf->knn[0],
+                           (unsigned long long)results[query_id].pq_bsf->position[0]);
+                }
+
+                if (q_loaded == q_num - 1)
+                {
+                    break;
+                }
+
+                MPI_Isend(&buffer_sent, 1, MPI_INT, rep_find_coordinator_node_rank(replication_data, my_rank),
+                         DISTRIBUTED_QUERIES_REQUEST_QUERY, MPI_COMM_WORLD,
+                         &send_request[static_cast<size_t>(rep_find_coordinator_node_rank(replication_data, my_rank))]);
+            }
+        }
+
+        for (size_t i = 0; i < static_cast<size_t>(comm_sz); i++)
+            free(process_buffer_initial[i]);
+#else
+        (void)mode;
+        (void)workstealing_data;
+        for (int q_loaded = 0; q_loaded < q_num; q_loaded++)
+        {
+            SearchFunctionParams args;
+            args.query_id = q_loaded;
+            args.ts = queries[q_loaded].query;
+            args.paa = queries[q_loaded].paa;
+            args.index = index;
+            args.nodelist = &nodelist;
+            args.minimum_distance = minimum_distance;
+            args.comm_data = nullptr;
+            args.estimation_func = basis_func;
+            args.shared_bsf_results = shared_bsf_results;
+            args.k = topk;
+            args.precomputed_bsfs = queries[q_loaded].initial_pq_bsfs;
+            args.query_threads = query_threads;
+            args.my_rank = my_rank;
+            args.comm_sz = comm_sz;
+            args.verbose = verbose;
+            args.rawfile = rawfile;
+            args.replication_data = &replication_data;
+            args.output_file = output_file;
+            args.corr_threshold = corr_threshold;
+            args.bsf_sharing_data = &bsf_sharing_data;
+            args.workstealing_data = &workstealing_data;
+            args.pq_th_div_factor = pq_th_div_factor;
+            args.merge_offset = merge_offset;
+            args.query_counter = q_loaded;
+            args.warp_window = warp_window;
+            args.paaU = queries[q_loaded].paaU;
+            args.paaL = queries[q_loaded].paaL;
+
+            query_result result = qa_exact_search_odyssey_knn(args);
+            results[queries[q_loaded].id] = result;
+        }
+#endif
+
+        if (comm_sz > 1 && workstealing_data->ws_type != WorkstealingType::DISABLED)
+        {
+            odyssey_perform_workstealing(this, queries, nodelist,
+                                         &qa_exact_search_odyssey_knn_workstealing,
+                                         basis_func, results, shared_bsf_results);
+        }
+
+        for (int i = 0; i < q_num; i++)
+        {
+            if (results[i].pq_bsf != nullptr)
+            {
+                for (int j = 0; j < topk; j++)
+                {
+                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = static_cast<idx_t>(results[i].pq_bsf->position[j]);
+                    D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
+                }
+            }
+        }
+
         free(nodelist.nlist);
         free_queries(queries, q_num);
     }

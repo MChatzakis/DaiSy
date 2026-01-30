@@ -201,6 +201,11 @@ namespace diNoLib
         // TimerManager *timer_manager;  // Commented out - only for profiling
 
         std::string output_file;  // Changed from char* to std::string
+
+        // DTW-only (0 and nullptr for L2)
+        int warp_window;
+        ts_type *paaU;
+        ts_type *paaL;
     };
 
     constexpr double ERROR_THRESHOLD = 0.00001;
@@ -254,7 +259,7 @@ namespace diNoLib
     // L2/DTW approximate/refine/node functions are declared in iSAXSearch.hpp (general, used by all systems).
     float calculate_minimum_distance_inmemory(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
     void refine_topk_answer_inmemory_dtw(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, isax_index *index, int warp_window, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, int merge_offset);
-    void odyssey_compute_query_envelopes_dtw(OdysseyQuery *query, int ts_len, int warping_window);
+    void odyssey_compute_query_envelopes_dtw(OdysseyQuery *query, isax_index *index, int warping_window);
 
     // Management Functions
     int process_pq_of_batch_chatzakis(int current_pq_index, QaWorkerData *input_data);
@@ -262,8 +267,8 @@ namespace diNoLib
     int estimate_th(double x, double (*estimation_func)(double));
     // COMMENTED: Threshold search not supported - only KNN queries supported
     // int process_pq_of_batch_threshold(int current_pq_index, QaWorkerData *input_data);
-    void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa);  // Changed subtree_batch to SubtreeBatch
-    void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index);  // Changed subtree_batch to SubtreeBatch
+    void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa, int warp_window = 0, ts_type *paaU = nullptr, ts_type *paaL = nullptr);
+    void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index, int warp_window = 0, ts_type *paaU = nullptr, ts_type *paaL = nullptr);
 
     // Thread workers: Prototypes: void * func(void * args)
     void *workstealing_manager(void *rfdata);
