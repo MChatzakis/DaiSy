@@ -86,6 +86,13 @@ else()
     target_compile_definitions(dino_lib PUBLIC ODYSSEY_MPI=0)
 endif()
 
+if(ODYSSEY_DEBUG_RESULTS)
+    target_compile_definitions(dino_lib PRIVATE ODYSSEY_DEBUG_RESULTS=1)
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_DEBUG_RESULTS enabled: Odyssey will print raw results before copy to I,D.")
+    endif()
+endif()
+
 if(DEBUG_MSG)
     message(STATUS "Adding Odyssey.cpp to dino_lib sources.")
 endif()

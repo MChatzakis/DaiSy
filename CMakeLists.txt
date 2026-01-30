@@ -35,6 +35,7 @@ option(BUILD_BENCHMARK "Build benchmark executables" ON)
 option(BUILD_DEMO "Build the demo folder" ON)
 option(BUILD_TESTS "Build test executables" ON)
 option(ODYSSEY_MPI "Build Odyssey components with MPI support" ON)
+option(ODYSSEY_DEBUG_RESULTS "Print Odyssey search results (query_result) for debug before copy to I,D" OFF)
 option(SING_CUDA "Enable CUDA support" ON)
 
 message(STATUS "  DEBUG_MSG: ${DEBUG_MSG}")
@@ -44,7 +45,13 @@ message(STATUS "  BUILD_BENCHMARK: ${BUILD_BENCHMARK}")
 message(STATUS "  BUILD_DEMO: ${BUILD_DEMO}")
 message(STATUS "  BUILD_TESTS: ${BUILD_TESTS}")
 message(STATUS "  ODYSSEY_MPI: ${ODYSSEY_MPI}")
+message(STATUS "  ODYSSEY_DEBUG_RESULTS: ${ODYSSEY_DEBUG_RESULTS}")
 message(STATUS "  SING_CUDA: ${SING_CUDA}")
+
+# Use ODYSSEY_DEBUG_RESULTS so CMake does not warn "variable not used", and propagate to C++
+if(ODYSSEY_DEBUG_RESULTS)
+    add_compile_definitions(ODYSSEY_DEBUG_RESULTS=1)
+endif()
 
 # Initialize ODYSSEY_MPI_AVAILABLE to FALSE by default.
 # It's kept as CACHE INTERNAL for user persistency, but its value will be updated.
