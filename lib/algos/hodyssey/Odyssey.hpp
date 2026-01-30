@@ -69,15 +69,14 @@ namespace diNoLib
         std::string output_file;//HERE
         bool bsf_sharing = false;
         std::string replication_groups_file;
-        int workstealing_mode = 1;       // 0: disabled, 1: S-WS, 2: P-WS
+        int workstealing_mode = 1;       // 0: disabled, 1: S-WS (only KNN + S-WS supported)
         int ws_items_to_send = 0;
         std::string query_time_predictions_file;
         int mode = 1;      //HERE                // 0: subsequence-similarity-search, 1: sequence-similarity-search
         int query_scheduling = 3;//HERE        // 0: single-node, 1: static, 2: static-pred-based, 3: dynamic-pred-based
         int merge_offset = 0;//HERE
         float corr_threshold = 0.2f;//HERE
-        bool verbose = false; //HERE  
-        int qa_method = 0;     //HERE          // 0: odyssey knn, 1: odyssey threshold
+        bool verbose = false; //HERE
         int dynamic_scheduling_mode = 2;//HERE // 0: coordinator-idle, 1: periodic-check, 2: standalone-thread
         int top_k = 1;//HERE
 
@@ -114,6 +113,16 @@ namespace diNoLib
         
         // Private index building method (internal implementation)
         float *buildIndexSequence();  // Internal build index for sequence similarity
+
+        // Query answering: L2 vs DTW (called from searchIndex after common setup)
+        void searchIndexL2Squared(OdysseyQuery *queries, int q_num, int topk,
+                                  query_result *results, std::vector<BsfMessage> *shared_bsf_results,
+                                  NodeList &nodelist, idx_t *I, float *D,
+                                  double (*basis_func)(double));
+        void searchIndexDTW(OdysseyQuery *queries, int q_num, int topk,
+                           query_result *results, std::vector<BsfMessage> *shared_bsf_results,
+                           NodeList &nodelist, idx_t *I, float *D,
+                           double (*basis_func)(double));
                 
     public:
         // Constructor for Python bindings (no MPI args needed)
@@ -168,7 +177,7 @@ namespace diNoLib
 
     // Query management functions
     // Note: OdysseyQuery, ReplicationData, etc. are defined in query_answering.hpp which is included above
-    OdysseyQuery* load_queries_inmemory(const char *ifilename, int q_num, isax_index *index, int my_rank);
+    OdysseyQuery* load_queries_from_buffer(const float *query_buf, int q_num, isax_index *index, int my_rank);
     void free_queries(OdysseyQuery *queries, int q_num);
     double predict_exec_time(float bsf, const char *dataset_type);  // Changed char* to const char*
     int cmp_query(const void *a, const void *b);
@@ -204,7 +213,7 @@ namespace diNoLib
     void odyssey_prepare_structures(Odyssey *odyssey, const char *raw_filename);
     // NOTE: odyssey_build_index_sequence moved to private method buildIndexSequence()
     // NOTE: odyssey_build_index removed - it coincides with buildIndex() method from SimilaritySearchAlgorithm
-    void odyssey_preprocess_and_sort_queries(Odyssey *odyssey, OdysseyQuery *queries, bool apply_sort);
+    void odyssey_preprocess_and_sort_queries(Odyssey *odyssey, OdysseyQuery *queries, int q_num, bool apply_sort);
     void odyssey_perform_workstealing(Odyssey *odyssey, OdysseyQuery *queries, NodeList nodelist, 
                                       ws_func_type ws_func, double (*estimation_func)(double), 
                                       query_result *results, std::vector<BsfMessage> *shared_bsf_results);  // Changed bsf_msg* to std::vector<BsfMessage>*

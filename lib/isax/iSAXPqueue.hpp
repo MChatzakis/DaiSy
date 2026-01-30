@@ -51,6 +51,13 @@ namespace diNoLib
         pqueue_get_pos_f getpos;
         pqueue_set_pos_f setpos;
         void **d;
+        int is_stolen;   /* Odyssey workstealing: 1 if this PQ was stolen by another node */
+        int is_processed; /* Odyssey workstealing: 1 if this PQ has been processed */
+        /* Odyssey-only: extra fields for gather_sort_pqueues and workstealing (Messi/ParIS do not use these) */
+        int batch_id;
+        isax_node *starting_node;
+        isax_node *ending_node;
+        isax_node *lca_node;
     } pqueue_t;
 
     /**
@@ -175,8 +182,12 @@ namespace diNoLib
     } pqueue_bsf;
 
     pqueue_bsf *pqueue_bsf_init(int k);
+    pqueue_bsf *pqueue_bsf_init_from_src(int k, pqueue_bsf *src);
+    pqueue_bsf *pqueue_bsf_init_from_val(int k, float bsf, file_position_type pos);
     void pqueue_bsf_free(pqueue_bsf *q);
+    void pqueue_bsf_destroy(pqueue_bsf *q);  // frees position, knn, node, and q (original Odyssey name)
     void pqueue_bsf_insert(pqueue_bsf *q, float data, long int position, isax_node *node);
+    void pqueue_bsf_insert_offset(pqueue_bsf *q, float data, file_position_type position, isax_node *node, int merge_offset);
     void pqueue_bsfre_insert(pqueue_bsf *q, float data, long int position, isax_node *node);
     void pqueue_bsf_insert_invalidate_worse_entries(pqueue_bsf *q, float data, file_position_type position, isax_node *node);
 

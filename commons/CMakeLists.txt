@@ -10,6 +10,7 @@ add_library(commons_lib
     dataloaders.cpp
     test_bm_utils.cpp
     paramSetup.cpp
+    common.cpp
 )
 if(DEBUG_MSG)
     message(STATUS "Library commons_lib added.")

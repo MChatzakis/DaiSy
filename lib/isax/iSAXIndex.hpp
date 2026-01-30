@@ -310,11 +310,14 @@ namespace diNoLib
         int node_amount;
     } node_list;
 
+    struct pqueue_bsf;  // forward declaration (defined in iSAXPqueue.hpp)
     typedef struct query_result
     {
         float distance;
         isax_node *node;
         size_t pqueue_position;
+        pqueue_bsf *pq_bsf;  // for K-NN results (top-k distances and positions)
+        float total_time;    // for timing (microseconds or same unit as timer)
     } query_result;
 
     typedef struct deque

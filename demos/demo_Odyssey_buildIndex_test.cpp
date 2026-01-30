@@ -11,14 +11,17 @@
 #endif
 
 /**
- * Test minimale per verificare la fase di costruzione dell'indice Odyssey.
- * 
- * Questo test:
+ * Demo Odyssey: build index + search (L2 squared).
+ *
+ * Ispirata alla demo Messi L2Square: dopo la costruzione dell'indice
+ * esegue anche searchIndex per verificare l'intero flusso.
+ *
  * 1. Genera dati random e li scrive su file
- * 2. Crea un oggetto Odyssey con configurazione base
+ * 2. Crea un oggetto Odyssey con configurazione base (L2_SQUARED)
  * 3. Chiama buildIndex() per costruire l'indice distribuito
  * 4. Verifica che l'indice sia stato costruito correttamente
- * 5. Stampa statistiche per debug
+ * 5. Genera query random e chiama searchIndex() (L2 squared, top-k)
+ * 6. Stampa risultati (indici e distanze) e cleanup
  */
 int main(int argc, char *argv[])
 {
@@ -27,6 +30,8 @@ int main(int argc, char *argv[])
     // ========================================================================
     diNoLib::idx_t n_database = 10000;  // Dataset piccolo per test rapido
     unsigned long long dim = 256;       // Dimensione time series (deve essere multiplo di 8 per SIMD)
+    unsigned long long n_query = 10;   // Numero di query per la ricerca
+    diNoLib::idx_t k = 5;               // Top-k per ogni query (L2 squared)
     std::string temp_db_file = "/tmp/odyssey_test_db.bin";
 
     // ========================================================================
@@ -164,6 +169,49 @@ int main(int argc, char *argv[])
             // Se buildIndex() completa senza errori, significa che sono stati inizializzati correttamente.
 
             printf("\n[Node %d] >>> All checks passed! Index built successfully.\n", rank);
+
+            // ========================================================================
+            // 6. RICERCA L2 SQUARED (come in demo Messi L2Square)
+            // ========================================================================
+            printf("\n[Node %d] Preparing queries and running searchIndex (L2 squared, k=%llu)...\n", rank, static_cast<unsigned long long>(k));
+
+            float *query = loadRandomData(n_query, dim, 50);
+            if (query == nullptr)
+            {
+                fprintf(stderr, "[Node %d] Error: Could not allocate/generate query data\n", rank);
+                return 1;
+            }
+
+            diNoLib::idx_t *I = static_cast<diNoLib::idx_t *>(std::malloc(sizeof(diNoLib::idx_t) * static_cast<size_t>(n_query * k)));
+            float *D = static_cast<float *>(std::malloc(sizeof(float) * static_cast<size_t>(n_query * k)));
+            if (I == nullptr || D == nullptr)
+            {
+                fprintf(stderr, "[Node %d] Error: Could not allocate I or D\n", rank);
+                delete[] query;
+                return 1;
+            }
+
+            odyssey.searchIndex(query, n_query, k, I, D);
+
+            printf("[Node %d] >>> searchIndex completed.\n", rank);
+
+            if (rank == 0)
+            {
+                printf("\n[Node 0] Search results (indices and distances):\n");
+                for (unsigned long long i = 0; i < n_query; i++)
+                {
+                    printf("  Query %llu: ", i);
+                    for (diNoLib::idx_t j = 0; j < k; j++)
+                    {
+                        printf("(idx=%llu dist=%.4f) ", static_cast<unsigned long long>(I[i * k + j]), D[i * k + j]);
+                    }
+                    printf("\n");
+                }
+            }
+
+            std::free(I);
+            std::free(D);
+            delete[] query;
         }
         catch (const std::exception &e)
         {

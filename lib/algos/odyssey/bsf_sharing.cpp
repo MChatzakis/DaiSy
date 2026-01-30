@@ -128,19 +128,23 @@ namespace diNoLib
 
             bsf_sharing_data.bsf_broadcasts_counter++;
 
-            ::dinoLib::timer_start(timer_manager, "COMM");
+            if (timer_manager)
+                ::dinoLib::timer_start(timer_manager, "COMM");
             MPI_Ibcast(&bsf_sharing_data.shared_bsfs[my_rank], 1, bsf_msg_type, my_rank, 
                       bsf_sharing_data.communicators[my_rank], &bsf_sharing_data.requests[my_rank]);
-            ::dinoLib::timer_stop(timer_manager, "COMM");
+            if (timer_manager)
+                ::dinoLib::timer_stop(timer_manager, "COMM");
 
             first_time = false;
             return;
         }
 
         int ready;
-        ::dinoLib::timer_start(timer_manager, "COMM");
+        if (timer_manager)
+            ::dinoLib::timer_start(timer_manager, "COMM");
         MPI_Test(&bsf_sharing_data.requests[my_rank], &ready, MPI_STATUS_IGNORE);
-        ::dinoLib::timer_stop(timer_manager, "COMM");
+        if (timer_manager)
+            ::dinoLib::timer_stop(timer_manager, "COMM");
 
         if (!ready)
         {
@@ -165,10 +169,12 @@ namespace diNoLib
                        bsf_sharing_data.shared_bsfs[my_rank].bsf);
             }
 
-            ::dinoLib::timer_start(timer_manager, "COMM");
+            if (timer_manager)
+                ::dinoLib::timer_start(timer_manager, "COMM");
             MPI_Ibcast(&bsf_sharing_data.shared_bsfs[my_rank], 1, bsf_msg_type, my_rank, 
                       bsf_sharing_data.communicators[my_rank], &bsf_sharing_data.requests[my_rank]);
-            ::dinoLib::timer_stop(timer_manager, "COMM");
+            if (timer_manager)
+                ::dinoLib::timer_stop(timer_manager, "COMM");
         }
     }
 

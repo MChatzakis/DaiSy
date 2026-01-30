@@ -57,6 +57,12 @@ namespace diNoLib
         q->getpri = getpri;
         q->getpos = getpos;
         q->setpos = setpos;
+        q->is_stolen = 0;
+        q->is_processed = 0;
+        q->batch_id = 0;
+        q->starting_node = NULL;
+        q->ending_node = NULL;
+        q->lca_node = NULL;
 
         return q;
     }
@@ -347,6 +353,76 @@ namespace diNoLib
         return q;
     }
 
+    pqueue_bsf *pqueue_bsf_init_from_src(int k, pqueue_bsf *copy_src)
+    {
+        if (!copy_src || k <= 0)
+            return nullptr;
+        pqueue_bsf *q = (pqueue_bsf *)malloc(sizeof(pqueue_bsf));
+        if (!q)
+            return nullptr;
+        if (!(q->position = (long int *)malloc(sizeof(file_position_type) * static_cast<size_t>(k))))
+        {
+            free(q);
+            return nullptr;
+        }
+        if (!(q->knn = (float *)malloc(sizeof(float) * static_cast<size_t>(k))))
+        {
+            free(q->position);
+            free(q);
+            return nullptr;
+        }
+        if (!(q->node = (isax_node **)malloc(sizeof(isax_node *) * static_cast<size_t>(k))))
+        {
+            free(q->knn);
+            free(q->position);
+            free(q);
+            return nullptr;
+        }
+        for (int i = 0; i < k; i++)
+        {
+            q->knn[i] = copy_src->knn[i];
+            q->position[i] = copy_src->position[i];
+        }
+        q->k = k;
+        q->nowk = k;
+        return q;
+    }
+
+    pqueue_bsf *pqueue_bsf_init_from_val(int k, float bsf, file_position_type pos)
+    {
+        pqueue_bsf *q;
+
+        if (!(q = (pqueue_bsf *)malloc(sizeof(pqueue_bsf))))
+            return NULL;
+        if (!(q->position = (long int *)malloc(sizeof(file_position_type) * static_cast<size_t>(k))))
+        {
+            free(q);
+            return NULL;
+        }
+        if (!(q->knn = (float *)malloc(sizeof(float) * static_cast<size_t>(k))))
+        {
+            free(q->position);
+            free(q);
+            return NULL;
+        }
+        if (!(q->node = (isax_node **)malloc(sizeof(isax_node *) * static_cast<size_t>(k))))
+        {
+            free(q->knn);
+            free(q->position);
+            free(q);
+            return NULL;
+        }
+
+        for (int i = 0; i < k; ++i)
+        {
+            q->knn[i] = bsf;
+            q->position[i] = static_cast<long int>(pos);
+        }
+
+        q->k = k;
+        return q;
+    }
+
     void pqueue_bsf_free(pqueue_bsf *q)
     {
         if (q == NULL) {
@@ -371,9 +447,25 @@ namespace diNoLib
         free(q);
     }
 
+    void pqueue_bsf_destroy(pqueue_bsf *q)
+    {
+        if (q == NULL)
+            return;
+        free(q->position);
+        free(q->knn);
+        free(q->node);
+        free(q);
+    }
+
     /* Function to insert value into priority queue */
 
     /* Function to check priority and place element */
+
+    void pqueue_bsf_insert_offset(pqueue_bsf *q, float data, file_position_type position, isax_node *node, int merge_offset)
+    {
+        (void)merge_offset;
+        pqueue_bsf_insert_invalidate_worse_entries(q, data, position, node);
+    }
 
     void pqueue_bsf_insert(pqueue_bsf *q, float data, long int position, isax_node *node)
     {

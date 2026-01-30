@@ -62,6 +62,9 @@ namespace diNoLib
         ts_type *paa;
         double initial_estimation;
         pqueue_bsf *initial_pq_bsfs;
+        // DTW-only: upper/lower envelope PAA (NULL for L2)
+        ts_type *paaU;
+        ts_type *paaL;
     };
 
     struct SearchFunctionParams
@@ -96,6 +99,11 @@ namespace diNoLib
         ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
 
         std::string output_file;  // Changed from char* to std::string
+
+        // DTW-only (ignored for L2)
+        int warp_window;
+        ts_type *paaU;
+        ts_type *paaL;
     };
 
     struct WsSearchFunctionParams
@@ -134,6 +142,11 @@ namespace diNoLib
         ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
 
         std::string output_file;  // Changed from char* to std::string
+
+        // DTW-only (ignored for L2)
+        int warp_window;
+        ts_type *paaU;
+        ts_type *paaL;
     };
 
     struct QaWorkerData
@@ -238,10 +251,10 @@ namespace diNoLib
     };
 
     // Search functions (moved from indexing.h)
+    // L2/DTW approximate/refine/node functions are declared in iSAXSearch.hpp (general, used by all systems).
     float calculate_minimum_distance_inmemory(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
-    void approximate_topk_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float *rawfile, int merge_offset);
-    void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, int merge_offset);
-    void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile, int merge_offset);
+    void refine_topk_answer_inmemory_dtw(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, isax_index *index, int warp_window, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, int merge_offset);
+    void odyssey_compute_query_envelopes_dtw(OdysseyQuery *query, int ts_len, int warping_window);
 
     // Management Functions
     int process_pq_of_batch_chatzakis(int current_pq_index, QaWorkerData *input_data);
