@@ -18,6 +18,8 @@
 #include <cmath>
 #include <algorithm>
 #include <random>
+#include <thread>
+#include <chrono>
 #if ODYSSEY_MPI
 #include <mpi.h>
 #endif
@@ -1134,6 +1136,277 @@ namespace diNoLib
 
         std::free(n);
         return 1;
+    }
+
+    void *workstealing_manager(void *rfdata)
+    {
+        WorkstealingThreadData *data = static_cast<WorkstealingThreadData *>(rfdata);
+        volatile char *threads_finished = data->query_workers_finished;
+        static bool first_time = true;
+
+        ReplicationData *replication_data = data->replication_data;
+        WorkstealingData *workstealing_data = data->workstealing_data;
+        int my_rank = data->my_rank;
+        int query_counter = data->query_counter;
+
+        int recv_message = 0;
+        int ready = 0;
+
+        pqueue_t **final_pq_list = *(data->final_pq_list);
+        int final_pq_list_size = *(data->final_pq_list_size);
+        int local_pqs_stolen = 0;
+        int local_ws_times = 0;
+
+        int coordinator_of_current_group_rank = rep_find_coordinator_node_rank(*replication_data, my_rank);
+        int repgroup_nodes = rep_get_repgroup_nodes(*replication_data, my_rank);
+
+        if (first_time)
+        {
+            for (int rank = coordinator_of_current_group_rank; rank < (coordinator_of_current_group_rank + repgroup_nodes); rank++)
+            {
+                if (rank == my_rank)
+                    continue;
+                if (rank >= 0 && rank < static_cast<int>(workstealing_data->global_helper_requests.size()))
+                {
+                    MPI_Irecv(&recv_message, 1, MPI_INT, rank, WORKSTEALING_INFORM_AVAILABILITY, MPI_COMM_WORLD, &workstealing_data->global_helper_requests[static_cast<size_t>(rank)]);
+                }
+            }
+            first_time = false;
+        }
+
+        while (*threads_finished == 0)
+        {
+            for (int rank = coordinator_of_current_group_rank; rank < (coordinator_of_current_group_rank + repgroup_nodes); rank++)
+            {
+                if (rank == my_rank)
+                    continue;
+
+                if (rank < 0 || rank >= static_cast<int>(workstealing_data->global_helper_requests.size()))
+                    continue;
+
+                MPI_Test(&workstealing_data->global_helper_requests[static_cast<size_t>(rank)], &ready, MPI_STATUS_IGNORE);
+
+                if (ready)
+                {
+                    if (ENABLE_PRINTS_WORKSTEALING)
+                    {
+                        printf("[WORKSTEALING MAIN - Node %d] - Workstealing thread found that node %d can help!\n", my_rank, rank);
+                    }
+
+                    *(data->receiving_workstealing) = 1;
+
+                    while (!(*data->priority_queues_filled))
+                    {
+                        /* busy wait if the pqs are not yet filled */
+                    }
+
+                    if (workstealing_data->ws_type == WorkstealingType::S_WS)
+                    {
+                        std::vector<int> batch_ids_to_send(static_cast<size_t>(workstealing_data->items_to_send));
+                        bool are_batches_available = true;
+
+                        for (int i = 0; i < workstealing_data->items_to_send; i++)
+                        {
+                            int selected_batch_id = -1;
+                            int farest_min = 0;
+                            for (int b = 0; b < data->batchlist->batch_amount; b++)
+                            {
+                                if (data->batchlist->batches[b].is_stolen || data->batchlist->batches[b].pq[0] == nullptr)
+                                    continue;
+
+                                int current_min = data->batchlist->batches[b].min_pq_index;
+                                if (current_min >= farest_min)
+                                {
+                                    farest_min = current_min;
+                                    selected_batch_id = b;
+                                }
+                            }
+
+                            if (selected_batch_id == -1)
+                            {
+                                are_batches_available = false;
+                                break;
+                            }
+                            batch_ids_to_send[static_cast<size_t>(i)] = selected_batch_id;
+                            data->batchlist->batches[selected_batch_id].is_stolen = 1;
+                        }
+
+                        if (are_batches_available)
+                        {
+                            for (int id = 0; id < workstealing_data->items_to_send; id++)
+                            {
+                                int bid = batch_ids_to_send[static_cast<size_t>(id)];
+                                for (int i = 0; i < data->batchlist->batches[bid].pq_amount + 1; i++)
+                                {
+                                    if (data->batchlist->batches[bid].pq[i] != nullptr && data->batchlist->batches[bid].pq[i]->size > 1)
+                                    {
+                                        data->batchlist->batches[bid].pq[i]->is_stolen = 1;
+                                        local_pqs_stolen++;
+                                        data->batchlist->batches[bid].pq[i]->is_processed = 1;
+                                    }
+                                }
+                            }
+
+                            local_ws_times++;
+
+                            float bsf_val = 0.0f;
+                            file_position_type pos_val = 0;
+                            if (data->bsf_result->pq_bsf != nullptr)
+                            {
+                                bsf_val = data->bsf_result->pq_bsf->knn[data->bsf_result->pq_bsf->k - 1];
+                                pos_val = data->bsf_result->pq_bsf->position[data->bsf_result->pq_bsf->k - 1];
+                            }
+
+                            std::vector<unsigned long long> datas(static_cast<size_t>(3 + workstealing_data->items_to_send));
+                            datas[0] = static_cast<unsigned long long>(query_counter);
+                            union { float f; unsigned long long u; } u;
+                            u.f = bsf_val;
+                            datas[1] = u.u;
+                            datas[2] = static_cast<unsigned long long>(pos_val);
+                            for (int i = 0; i < workstealing_data->items_to_send; i++)
+                                datas[static_cast<size_t>(3 + i)] = static_cast<unsigned long long>(batch_ids_to_send[static_cast<size_t>(i)]);
+
+                            if (ENABLE_PRINTS_WORKSTEALING)
+                            {
+                                printf("[WORKSTEALING MAIN NODE - Node %d]: Sending message to node %d :  [ %d, %f, %llu, ", my_rank, rank, (int)datas[0], bsf_val, (unsigned long long)datas[2]);
+                                for (int t = 0; t < workstealing_data->items_to_send; t++)
+                                    printf("%d ", (int)datas[static_cast<size_t>(t + 3)]);
+                                printf("]\n");
+                            }
+
+                            MPI_Send(datas.data(), 3 + workstealing_data->items_to_send, MPI_UNSIGNED_LONG_LONG, rank, WORKSTEALING_DATA_SEND, MPI_COMM_WORLD);
+                        }
+                        else
+                        {
+                            std::vector<unsigned long long> datas(static_cast<size_t>(3 + workstealing_data->items_to_send));
+                            datas[0] = static_cast<unsigned long long>(-1);
+                            datas[1] = 0;
+                            datas[2] = 0;
+                            MPI_Send(datas.data(), 3 + workstealing_data->items_to_send, MPI_UNSIGNED_LONG_LONG, rank, WORKSTEALING_DATA_SEND, MPI_COMM_WORLD);
+                        }
+                    }
+                    else if (workstealing_data->ws_type == WorkstealingType::P_WS)
+                    {
+                        final_pq_list_size = *(data->final_pq_list_size);
+                        final_pq_list = *(data->final_pq_list);
+
+                        std::vector<pqueue_t *> pq_candidates(static_cast<size_t>(workstealing_data->items_to_send));
+                        int pq_candidates_size = 0;
+
+                        if (ENABLE_PRINTS_WORKSTEALING)
+                        {
+                            printf("[WORKSTEALING MAIN NODE %d]: Total priority queue size: %d\n", my_rank, final_pq_list_size);
+                        }
+
+                        int segments = data->index->settings->paa_segments;
+                        for (int pqindex = final_pq_list_size - local_pqs_stolen - 1; pqindex >= 0; pqindex--)
+                        {
+                            if (final_pq_list[pqindex]->is_stolen || final_pq_list[pqindex]->is_processed)
+                                continue;
+
+                            if (pq_candidates_size == workstealing_data->items_to_send)
+                                break;
+
+                            local_pqs_stolen++;
+                            local_ws_times++;
+
+                            final_pq_list[pqindex]->is_stolen = 1;
+                            final_pq_list[pqindex]->is_processed = 1;
+
+                            pq_candidates[static_cast<size_t>(pq_candidates_size)] = final_pq_list[pqindex];
+                            pq_candidates_size++;
+                        }
+
+                        if (pq_candidates_size == 0)
+                        {
+                            int data_size = 2 + pq_candidates_size * (segments * 2);
+                            std::vector<float> send_datas(static_cast<size_t>(data_size > 0 ? data_size : 1));
+                            send_datas[0] = -1.0f;
+
+                            if (ENABLE_PRINTS_WORKSTEALING)
+                            {
+                                printf("[WORKSTEALING MAIN NODE %d]: Nothing to send to node %d\n", my_rank, rank);
+                            }
+                            MPI_Send(send_datas.data(), data_size, MPI_FLOAT, rank, WORKSTEALING_DATA_SEND, MPI_COMM_WORLD);
+                        }
+                        else
+                        {
+                            int data_size = 2 + 1 + workstealing_data->items_to_send * (segments * 2);
+                            std::vector<float> send_datas(static_cast<size_t>(data_size));
+
+                            send_datas[0] = static_cast<float>(query_counter);
+                            float bsf_for_pws = 0.0f;
+                            if (data->bsf_result->pq_bsf != nullptr)
+                                bsf_for_pws = data->bsf_result->pq_bsf->knn[data->bsf_result->pq_bsf->k - 1];
+                            send_datas[1] = bsf_for_pws;
+                            send_datas[2] = static_cast<float>(pq_candidates_size);
+
+                            isax_index *data_index = data->index;
+
+                            for (int pqindex = 0; pqindex < pq_candidates_size; pqindex++)
+                            {
+                                pqueue_t *pq = pq_candidates[static_cast<size_t>(pqindex)];
+
+                                isax_node *starting_node = pq->starting_node;
+                                isax_node *ending_node = pq->ending_node;
+                                if (starting_node == nullptr || ending_node == nullptr)
+                                {
+                                    printf("ERROR: Starting or ending node is NULL\n");
+                                    std::exit(EXIT_FAILURE);
+                                }
+
+                                isax_node *lca_node = ws_compute_lca(data_index, starting_node, ending_node);
+                                if (lca_node == nullptr)
+                                {
+                                    printf("ERROR: LCA node is NULL\n");
+                                    std::exit(EXIT_FAILURE);
+                                }
+
+                                for (int seg = 0; seg < segments; seg++)
+                                {
+                                    send_datas[static_cast<size_t>(3 + (pqindex * (segments * 2)) + seg)] = static_cast<float>(lca_node->isax_values[seg]);
+                                    send_datas[static_cast<size_t>(3 + (pqindex * (segments * 2)) + (segments + seg))] = static_cast<float>(lca_node->isax_cardinalities[seg]);
+                                }
+                            }
+
+                            if (ENABLE_PRINTS_WORKSTEALING)
+                            {
+                                printf("[WORKSTEALING MAIN NODE %d]: Sending %d priority queues to node %d\n", my_rank, pq_candidates_size, rank);
+                            }
+
+                            MPI_Send(send_datas.data(), data_size, MPI_FLOAT, rank, WORKSTEALING_DATA_SEND, MPI_COMM_WORLD);
+                        }
+                    }
+
+                    MPI_Irecv(&recv_message, 1, MPI_INT, rank, WORKSTEALING_INFORM_AVAILABILITY, MPI_COMM_WORLD, &workstealing_data->global_helper_requests[static_cast<size_t>(rank)]);
+                }
+            }
+        }
+
+        *(data->pqs_stolen) += local_pqs_stolen;
+        *(data->workstealing_times) += local_ws_times;
+
+        pthread_exit(nullptr);
+        return nullptr;
+    }
+
+    void *dynamic_query_scheduler(void *rfdata)
+    {
+        CoordinatorData *data = static_cast<CoordinatorData *>(rfdata);
+
+        CommunicationModuleData *comm_data = data->comm_data;
+        volatile char *threads_finished = data->threads_finished;
+
+        while (!(*threads_finished))
+        {
+            if (comm_data != nullptr)
+            {
+                call_module(comm_data);
+            }
+        }
+
+        pthread_exit(nullptr);
+        return nullptr;
     }
 
     void *qa_exact_search_odyssey_worker(void *rfdata)
