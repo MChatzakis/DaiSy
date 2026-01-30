@@ -130,7 +130,11 @@ namespace diNoLib
                            query_result *results, std::vector<BsfMessage> *shared_bsf_results,
                            NodeList &nodelist, idx_t *I, float *D,
                            double (*basis_func)(double));
-                
+
+    protected:
+        // Odyssey uses index/rawfile, not database; override to check getIndex() instead
+        bool validateSearchParams(const idx_t k, const idx_t n_query) const override;
+
     public:
         // Constructor for Python bindings (no MPI args needed)
         Odyssey(DistanceType distance_type);

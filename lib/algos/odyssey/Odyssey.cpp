@@ -2061,15 +2061,35 @@ namespace diNoLib
         #endif
     }
     
+    bool Odyssey::validateSearchParams(const idx_t k, const idx_t n_query) const
+    {
+        if (k == 0)
+        {
+            std::cerr << "[Error] k must be greater than 0\n";
+            return false;
+        }
+        if (k > n_database)
+        {
+            std::cerr << "[Error] k (" << k << ") cannot be greater than database size (" << n_database << ")\n";
+            return false;
+        }
+        if (n_query == 0)
+        {
+            std::cerr << "[Error] n_query must be greater than 0\n";
+            return false;
+        }
+        if (getIndex() == nullptr)
+        {
+            std::cerr << "[Error] [Node " << getMyRank() << "] Index must be built before searching.\n";
+            return false;
+        }
+        return true;
+    }
+
     void Odyssey::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         if (!validateSearchParams(k, n_query))
             return;
-        if (getIndex() == nullptr)
-        {
-            std::cerr << "[Error] [Node " << getMyRank() << "] Index must be built before searching.\n";
-            return;
-        }
 
         const int q_num = static_cast<int>(n_query);
         const int topk = static_cast<int>(k);
