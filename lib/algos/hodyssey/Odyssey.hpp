@@ -39,6 +39,10 @@ namespace diNoLib
         friend void print_index_stats(isax_index *index, int my_rank);
         friend void* index_creation_sequence_worker(void *transferdata);
         friend void tree_index_creation_from_pRecBuf_fai_blocking(void *transferdata);
+        friend void odyssey_preprocess_and_sort_queries(Odyssey *odyssey, OdysseyQuery *queries, int q_num, bool apply_sort);
+        friend void odyssey_perform_workstealing(Odyssey *odyssey, OdysseyQuery *queries, NodeList nodelist,
+                                                  ws_func_type ws_func, double (*estimation_func)(double),
+                                                  query_result *results, std::vector<BsfMessage> *shared_bsf_results);
         
     private:
         // Configurable via OdysseyConfig

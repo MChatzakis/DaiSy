@@ -962,7 +962,7 @@ namespace diNoLib
     {
         while (1)
         {
-            int subtree_index = static_cast<int>(__sync_fetch_and_add(reinterpret_cast<int *>(&batches[batch_index].current_subtree_to_process), 1));
+            int subtree_index = static_cast<int>(__atomic_fetch_add(reinterpret_cast<volatile int *>(&batches[batch_index].current_subtree_to_process), 1, __ATOMIC_SEQ_CST));
 
             if (subtree_index >= batches[batch_index].size)
                 break;
