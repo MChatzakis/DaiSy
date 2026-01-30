@@ -16,6 +16,9 @@ if(DEBUG_MSG)
     message(STATUS "Library commons_lib added.")
 endif()
 
+# Required when this library is linked into a shared object (e.g. Python extension)
+set_target_properties(commons_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Make its headers visible to whoever links it
 if(DEBUG_MSG)
     message(STATUS "Setting public include directories for commons_lib...")
