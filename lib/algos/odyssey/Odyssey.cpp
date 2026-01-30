@@ -2065,9 +2065,9 @@ namespace diNoLib
     {
         if (!validateSearchParams(k, n_query))
             return;
-        if (index == nullptr)
+        if (getIndex() == nullptr)
         {
-            std::cerr << "[Error] Index must be built before searching.\n";
+            std::cerr << "[Error] [Node " << getMyRank() << "] Index must be built before searching.\n";
             return;
         }
 
@@ -2364,6 +2364,12 @@ namespace diNoLib
                                          basis_func, results, shared_bsf_results);
         }
 
+        if (comm_sz > 1)
+        {
+            std::memset(I, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(idx_t));
+            std::memset(D, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(float));
+        }
+
         for (int i = 0; i < q_num; i++)
         {
             if (results[i].pq_bsf != nullptr)
@@ -2375,6 +2381,14 @@ namespace diNoLib
                 }
             }
         }
+
+#if ODYSSEY_MPI
+        if (comm_sz > 1)
+        {
+            MPI_Reduce(my_rank == 0 ? MPI_IN_PLACE : I, I, q_num * topk, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+            MPI_Reduce(my_rank == 0 ? MPI_IN_PLACE : D, D, q_num * topk, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+        }
+#endif
 
         free(nodelist.nlist);
         free_queries(queries, q_num);
@@ -2617,6 +2631,12 @@ namespace diNoLib
                                          basis_func, results, shared_bsf_results);
         }
 
+        if (comm_sz > 1)
+        {
+            std::memset(I, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(idx_t));
+            std::memset(D, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(float));
+        }
+
         for (int i = 0; i < q_num; i++)
         {
             if (results[i].pq_bsf != nullptr)
@@ -2628,6 +2648,14 @@ namespace diNoLib
                 }
             }
         }
+
+#if ODYSSEY_MPI
+        if (comm_sz > 1)
+        {
+            MPI_Reduce(my_rank == 0 ? MPI_IN_PLACE : I, I, q_num * topk, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+            MPI_Reduce(my_rank == 0 ? MPI_IN_PLACE : D, D, q_num * topk, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+        }
+#endif
 
         free(nodelist.nlist);
         free_queries(queries, q_num);

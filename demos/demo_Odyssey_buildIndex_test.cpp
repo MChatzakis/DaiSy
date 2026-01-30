@@ -190,6 +190,8 @@ int main(int argc, char *argv[])
                 delete[] query;
                 return 1;
             }
+            std::memset(I, 0, sizeof(diNoLib::idx_t) * static_cast<size_t>(n_query * k));
+            std::memset(D, 0, sizeof(float) * static_cast<size_t>(n_query * k));
 
             odyssey.searchIndex(query, n_query, k, I, D);
 
