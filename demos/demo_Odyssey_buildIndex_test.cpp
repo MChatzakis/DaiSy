@@ -1,5 +1,5 @@
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/Odyssey.hpp"
+#include "../lib/algos/hodyssey/Odyssey.hpp"
 #include "../lib/algos/DataSource.hpp"
 #include <cstdio>
 #include <cstring>

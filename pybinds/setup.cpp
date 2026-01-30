@@ -6,7 +6,7 @@
 #include "../lib/algos/Bruteforce.hpp"
 #include "../lib/algos/LbBruteforce.hpp"
 #include "../lib/algos/Messi.hpp"
-#include "../lib/algos/Odyssey.hpp"
+#include "../lib/algos/hodyssey/Odyssey.hpp"
 #include "../lib/algos/ParIS.hpp"
 #ifdef SING_CUDA_ENABLED
     #if SING_CUDA_ENABLED != 0
