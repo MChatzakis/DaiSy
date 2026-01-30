@@ -147,11 +147,11 @@ namespace diNoLib
         }
     }
 
-    void refine_topk_answer_inmemory_dtw(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, isax_index *index, int warp_window, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, int merge_offsett)
+    void refine_topk_answer_inmemory_dtw(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, isax_index *index, int warp_window, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, int merge_offset)
     {
         (void)paa;
         (void)limit;
-        (void)merge_offsett;
+        (void)merge_offset;
 
         int aggressive_check = index->settings->aggressive_check;
         pqueue_t *pq = pqueue_init(index->settings->root_nodes_size, cmp_pri, get_pri, set_pri, get_pos, set_pos);
@@ -336,7 +336,7 @@ namespace diNoLib
                 if (queries[i].initial_pq_bsfs->knn[topk - 1] == FLT_MAX)
                 {
                     int min_checked_leaves = -1;
-                    refine_topk_answer_inmemory_dtw(queries[i].query, queries[i].paa, queries[i].paaU, queries[i].paaL, index, odyssey->warping_window, queries[i].initial_pq_bsfs, FLT_MAX, min_checked_leaves, rawfile, odyssey->merge_offsett);
+                    refine_topk_answer_inmemory_dtw(queries[i].query, queries[i].paa, queries[i].paaU, queries[i].paaL, index, odyssey->warping_window, queries[i].initial_pq_bsfs, FLT_MAX, min_checked_leaves, rawfile, odyssey->merge_offset);
                 }
             }
         }
@@ -396,7 +396,7 @@ namespace diNoLib
 
                             if (current_k_bsf < queries[j].initial_pq_bsfs->knn[topk - 1])
                             {
-                                pqueue_bsf_insert_offset(queries[j].initial_pq_bsfs, current_k_bsf, current_k_pos, nullptr, odyssey->merge_offsett);
+                                pqueue_bsf_insert_offset(queries[j].initial_pq_bsfs, current_k_bsf, current_k_pos, nullptr, odyssey->merge_offset);
                             }
                         }
                     }
@@ -714,7 +714,7 @@ namespace diNoLib
                             ws_params.bsf_sharing_data = &odyssey->bsf_sharing_data;
                             ws_params.workstealing_data = workstealing_data;
                             ws_params.pq_th_div_factor = odyssey->pq_th_div_factor;
-                            ws_params.merge_offsett = odyssey->merge_offsett;
+                            ws_params.merge_offset = odyssey->merge_offset;
                             ws_params.query_counter = query_num;
                             ws_params.warp_window = (odyssey->distance_type == DistanceType::DTW) ? odyssey->warping_window : 0;
                             ws_params.paaU = (odyssey->distance_type == DistanceType::DTW) ? queries[query_num].paaU : nullptr;
@@ -1067,7 +1067,7 @@ namespace diNoLib
             isax_node *node = n->node;
             int my_rank = input_data->my_rank;
             ReplicationData *replication_data = input_data->replication_data;
-            int merge_offsett = input_data->merge_offsett;
+            int merge_offset = input_data->merge_offset;
             const int ts_size = index->settings->timeseries_size;
 
             if (node->buffer != nullptr)
@@ -1121,7 +1121,7 @@ namespace diNoLib
                             pthread_mutex_lock(input_data->bsf_lock);
                             file_position_type local_ts_index = pos / static_cast<file_position_type>(ts_size);
                             file_position_type global_pos = local_ts_index + static_cast<file_position_type>(rep_get_time_series_offset(*replication_data, my_rank));
-                            pqueue_bsf_insert_offset(pq_bsf, dist, global_pos, node, merge_offsett);
+                            pqueue_bsf_insert_offset(pq_bsf, dist, global_pos, node, merge_offset);
                             pthread_mutex_unlock(input_data->bsf_lock);
 
                             bsf_sharing_recv_bsf(*input_data->bsf_sharing_data, pq_bsf, input_data->workernumber, *input_data->shared_bsf_results, input_data->bsf_lock, my_rank, input_data->comm_sz, input_data->query_counter);
@@ -1227,7 +1227,7 @@ namespace diNoLib
         pqueue_bsf *precomputed_bsfs = args.precomputed_bsfs;
 
         float *rawfile = args.rawfile;
-        int merge_offsett = args.merge_offsett;
+        int merge_offset = args.merge_offset;
         int my_rank = args.my_rank;
         int query_threads = args.query_threads;
         int pq_th_div_factor = args.pq_th_div_factor;
@@ -1257,7 +1257,7 @@ namespace diNoLib
                 if (bsf_result.pq_bsf->knn[k - 1] == FLT_MAX)
                 {
                     int min_checked_leaves = -1;
-                    refine_topk_answer_inmemory_dtw(ts, paa, args.paaU, args.paaL, index, args.warp_window, bsf_result.pq_bsf, minimum_distance, min_checked_leaves, rawfile, args.merge_offsett);
+                    refine_topk_answer_inmemory_dtw(ts, paa, args.paaU, args.paaL, index, args.warp_window, bsf_result.pq_bsf, minimum_distance, min_checked_leaves, rawfile, args.merge_offset);
                 }
             }
             else
@@ -1345,7 +1345,7 @@ namespace diNoLib
             workerdata[static_cast<size_t>(i)].query_threads = query_threads;
             workerdata[static_cast<size_t>(i)].comm_sz = comm_sz;
             workerdata[static_cast<size_t>(i)].my_rank = my_rank;
-            workerdata[static_cast<size_t>(i)].merge_offsett = merge_offsett;
+            workerdata[static_cast<size_t>(i)].merge_offset = merge_offset;
             workerdata[static_cast<size_t>(i)].bsf_sharing_data = bsf_sharing_data;
             workerdata[static_cast<size_t>(i)].rawfile = rawfile;
             workerdata[static_cast<size_t>(i)].pq_th_div_factor = pq_th_div_factor;
@@ -1383,7 +1383,7 @@ namespace diNoLib
             ws_th_data.comm_sz = comm_sz;
             ws_th_data.rawfile = rawfile;
             ws_th_data.query_counter = query_counter;
-            ws_th_data.merge_offsett = merge_offsett;
+            ws_th_data.merge_offset = merge_offset;
             ws_th_data.replication_data = replication_data;
             ws_th_data.workstealing_data = workstealing_data;
             ws_th_data.bsf_sharing_data = bsf_sharing_data;
@@ -1474,7 +1474,7 @@ namespace diNoLib
         int *batches_to_create = ws_args.batch_ids;
         std::vector<BsfMessage> *shared_bsf_results = ws_args.shared_bsf_results;
         int top_k = ws_args.k;
-        int merge_offsett = ws_args.merge_offsett;
+        int merge_offset = ws_args.merge_offset;
         int my_rank = ws_args.my_rank;
         int query_threads = ws_args.query_threads;
         int pq_th_div_factor = ws_args.pq_th_div_factor;
@@ -1573,7 +1573,7 @@ namespace diNoLib
             workerdata[static_cast<size_t>(i)].query_threads = query_threads;
             workerdata[static_cast<size_t>(i)].comm_sz = comm_sz;
             workerdata[static_cast<size_t>(i)].my_rank = my_rank;
-            workerdata[static_cast<size_t>(i)].merge_offsett = merge_offsett;
+            workerdata[static_cast<size_t>(i)].merge_offset = merge_offset;
             workerdata[static_cast<size_t>(i)].corr_threshold = ws_args.corr_threshold;
             workerdata[static_cast<size_t>(i)].rawfile = rawfile;
             workerdata[static_cast<size_t>(i)].bsf_sharing_data = bsf_sharing_data;
@@ -1950,7 +1950,7 @@ namespace diNoLib
                     args.bsf_sharing_data = &bsf_sharing_data;
                     args.workstealing_data = workstealing_data;
                     args.pq_th_div_factor = pq_th_div_factor;
-                    args.merge_offsett = merge_offsett;
+                    args.merge_offset = merge_offset;
                     args.query_counter = query_to_keep_stats;
                     args.warp_window = 0;
                     args.paaU = nullptr;
@@ -2012,7 +2012,7 @@ namespace diNoLib
                 args.bsf_sharing_data = &bsf_sharing_data;
                 args.workstealing_data = workstealing_data;
                 args.pq_th_div_factor = pq_th_div_factor;
-                args.merge_offsett = merge_offsett;
+                args.merge_offset = merge_offset;
                 args.query_counter = q_loaded;
                 args.warp_window = 0;
                 args.paaU = nullptr;
@@ -2073,7 +2073,7 @@ namespace diNoLib
             args.bsf_sharing_data = &bsf_sharing_data;
             args.workstealing_data = &workstealing_data;
             args.pq_th_div_factor = pq_th_div_factor;
-            args.merge_offsett = merge_offsett;
+            args.merge_offset = merge_offset;
             args.query_counter = q_loaded;
             args.warp_window = 0;
             args.paaU = nullptr;
@@ -2203,7 +2203,7 @@ namespace diNoLib
                     args.bsf_sharing_data = &bsf_sharing_data;
                     args.workstealing_data = workstealing_data;
                     args.pq_th_div_factor = pq_th_div_factor;
-                    args.merge_offsett = merge_offsett;
+                    args.merge_offset = merge_offset;
                     args.query_counter = query_to_keep_stats;
                     args.warp_window = warp_window;
                     args.paaU = queries[query_to_keep_stats].paaU;
@@ -2265,7 +2265,7 @@ namespace diNoLib
                 args.bsf_sharing_data = &bsf_sharing_data;
                 args.workstealing_data = workstealing_data;
                 args.pq_th_div_factor = pq_th_div_factor;
-                args.merge_offsett = merge_offsett;
+                args.merge_offset = merge_offset;
                 args.query_counter = q_loaded;
                 args.warp_window = warp_window;
                 args.paaU = queries[q_loaded].paaU;
@@ -2326,7 +2326,7 @@ namespace diNoLib
             args.bsf_sharing_data = &bsf_sharing_data;
             args.workstealing_data = &workstealing_data;
             args.pq_th_div_factor = pq_th_div_factor;
-            args.merge_offsett = merge_offsett;
+            args.merge_offset = merge_offset;
             args.query_counter = q_loaded;
             args.warp_window = warp_window;
             args.paaU = queries[q_loaded].paaU;
@@ -2919,7 +2919,7 @@ namespace diNoLib
 
             if (odyssey->mode == 0)  // SUBSEQUENCE_SIMILARITY_SEARCH = 0 (not supported, but log if set)
             {
-                printf("Merge Offset: [%d]\n", odyssey->merge_offsett);
+                printf("Merge Offset: [%d]\n", odyssey->merge_offset);
             }
 
             printf("TH Division Factor: [%d]\n", odyssey->pq_th_div_factor);

@@ -29,6 +29,9 @@ namespace diNoLib
         int replication_groups = 0;
         int query_threads = 1;
     };
+
+    // Forward declare type used in friend declaration (full definition repeated later)
+    using ws_func_type = query_result (*)(WsSearchFunctionParams);
     
     class Odyssey : public SimilaritySearchAlgorithm
     {
@@ -176,7 +179,7 @@ namespace diNoLib
     // We're already in diNoLib namespace, so query_result should be available without qualification
     using index_func_type = ts_type* (*)(Odyssey*);  // Build index function: returns rawfile pointer
     using qa_func_type = query_result (*)(SearchFunctionParams);  // Query answering function
-    using ws_func_type = query_result (*)(WsSearchFunctionParams);  // Work stealing search function
+    // ws_func_type already declared before class for friend declaration
     using qa_sched_func_type = query_result* (*)(Odyssey*, qa_func_type, ws_func_type);  // Query scheduling function
 
     // Query management functions
