@@ -198,12 +198,16 @@ namespace diNoLib
         volatile int finished;     // EKOSMAS: ADDED 'volatile'
     } parallel_fbl_soft_buffer_ekosmas;
 
+    // Layout must match parallel_first_buffer_layer up to and including soft_buffers offset,
+    // so that iSAXSearch.cpp's cast (parallel_first_buffer_layer *)(index->fbl) and ->soft_buffers access work.
     typedef struct parallel_first_buffer_layer_ekosmas
     {
         int number_of_buffers;
         int initial_buffer_size;
         int max_total_size;
         int current_record_index;
+        char *current_record;   // padding for layout compatibility with parallel_first_buffer_layer
+        char *hard_buffer;      // padding for layout compatibility with parallel_first_buffer_layer
         parallel_fbl_soft_buffer_ekosmas *soft_buffers;
     } parallel_first_buffer_layer_ekosmas;
 

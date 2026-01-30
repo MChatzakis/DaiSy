@@ -286,6 +286,8 @@ namespace diNoLib
         fbl->initial_buffer_size = initial_buffer_size;
         fbl->number_of_buffers = number_of_buffers;
         fbl->current_record_index = 0;
+        fbl->current_record = NULL;  // layout compatibility with parallel_first_buffer_layer
+        fbl->hard_buffer = NULL;      // layout compatibility with parallel_first_buffer_layer
 
         // Allocate a set of soft buffers
         fbl->soft_buffers = (parallel_fbl_soft_buffer_ekosmas *)malloc(
