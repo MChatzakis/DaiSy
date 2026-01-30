@@ -2091,6 +2091,9 @@ namespace diNoLib
         if (!validateSearchParams(k, n_query))
             return;
 
+        // Use the search k for preprocess and QA (top_k is used by odyssey_preprocess_and_sort_queries and downstream)
+        this->top_k = static_cast<int>(k);
+
         const int q_num = static_cast<int>(n_query);
         const int topk = static_cast<int>(k);
         isax_index *idx = this->index;
