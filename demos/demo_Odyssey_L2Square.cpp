@@ -44,6 +44,7 @@ int main(int argc, char *argv[])
     float *database = nullptr;
     if (rank == 0)
     {
+        remove(temp_db_file.c_str());  // evita file residui da run precedenti
         database = loadRandomData(n_database, dim, 100);
         printf("Loaded %llu database points with dimension %llu\n", n_database, dim);
     }
@@ -62,10 +63,16 @@ int main(int argc, char *argv[])
             delete[] database;
             return 1;
         }
-        fwrite(database, sizeof(float), n_database * dim, fp);
+        size_t to_write = static_cast<size_t>(n_database) * static_cast<size_t>(dim);
+        size_t written = fwrite(database, sizeof(float), to_write, fp);
         fclose(fp);
         delete[] database;
         database = nullptr;
+        if (written != to_write)
+        {
+            fprintf(stderr, "Error: wrote only %zu floats (expected %zu)\n", written, to_write);
+            return 1;
+        }
     }
 
 #if ODYSSEY_MPI
