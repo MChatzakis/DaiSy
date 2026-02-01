@@ -347,6 +347,8 @@ namespace diNoLib
         for (int i = 0; i < k; ++i)
         {
             q->knn[i] = FLT_MAX;
+            q->position[i] = -1;   // initialize to invalid to avoid duplicate detection issues
+            q->node[i] = nullptr;
         }
         q->k = k;
         q->nowk = 0;
@@ -506,9 +508,16 @@ namespace diNoLib
     {
         int i, j;
 
+        // Fast duplicate check: if position already present, skip
         for (i = 0; i < q->k; i++)
         {
-            if (data <= q->knn[i] && q->position[i] != position)
+            if (q->position[i] == position)
+                return;
+        }
+
+        for (i = 0; i < q->k; i++)
+        {
+            if (data <= q->knn[i])
             {
                 for (j = q->k - 1; j > i; j--)
                 {
