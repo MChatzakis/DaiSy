@@ -18,6 +18,7 @@
 #include <cmath>
 #include <algorithm>
 #include <random>
+#include <unordered_set>
 #include <thread>
 #include <chrono>
 #if ODYSSEY_MPI
@@ -36,6 +37,65 @@
 
 namespace diNoLib
 {
+#if ODYSSEY_MPI
+    /** Gather k-NN results from all MPI ranks and merge into global top-k per query (rank 0 only). */
+    static void odyssey_merge_knn_results_mpi(int my_rank, int comm_sz, int q_num, int topk, idx_t *I, float *D)
+    {
+        if (comm_sz <= 1)
+            return;
+        const size_t per_rank = static_cast<size_t>(q_num) * static_cast<size_t>(topk);
+        idx_t *all_I = nullptr;
+        float *all_D = nullptr;
+        if (my_rank == 0)
+        {
+            all_I = static_cast<idx_t *>(std::malloc(per_rank * static_cast<size_t>(comm_sz) * sizeof(idx_t)));
+            all_D = static_cast<float *>(std::malloc(per_rank * static_cast<size_t>(comm_sz) * sizeof(float)));
+            CHECK_ALLOC(all_I, my_rank);
+            CHECK_ALLOC(all_D, my_rank);
+        }
+        MPI_Gather(I, static_cast<int>(per_rank), MPI_UNSIGNED_LONG_LONG,
+                   all_I, static_cast<int>(per_rank), MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+        MPI_Gather(D, static_cast<int>(per_rank), MPI_FLOAT,
+                   all_D, static_cast<int>(per_rank), MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (my_rank == 0)
+        {
+            std::vector<std::pair<float, idx_t>> merged;
+            merged.reserve(static_cast<size_t>(comm_sz) * static_cast<size_t>(topk));
+            for (int q = 0; q < q_num; q++)
+            {
+                merged.clear();
+                for (int r = 0; r < comm_sz; r++)
+                {
+                    for (int j = 0; j < topk; j++)
+                    {
+                        size_t idx = static_cast<size_t>(r) * per_rank + static_cast<size_t>(q) * static_cast<size_t>(topk) + static_cast<size_t>(j);
+                        merged.push_back({all_D[idx], all_I[idx]});
+                    }
+                }
+                std::sort(merged.begin(), merged.end());
+                std::unordered_set<idx_t> seen;
+                int count = 0;
+                idx_t *out_I = I + q * topk;
+                float *out_D = D + q * topk;
+                for (const auto &p : merged)
+                {
+                    if (seen.find(p.second) == seen.end())
+                    {
+                        seen.insert(p.second);
+                        out_I[count] = p.second;
+                        out_D[count] = p.first;
+                        count++;
+                        if (count >= topk)
+                            break;
+                    }
+                }
+            }
+            std::free(all_I);
+            std::free(all_D);
+        }
+    }
+#endif
+
     OdysseyQuery* load_queries_from_buffer(const float *query_buf, int q_num, isax_index *index, int my_rank)
     {
         const int ts_len = index->settings->timeseries_size;
@@ -2429,8 +2489,7 @@ namespace diNoLib
 #if ODYSSEY_MPI
         if (comm_sz > 1)
         {
-            MPI_Reduce(my_rank == 0 ? MPI_IN_PLACE : I, I, q_num * topk, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-            MPI_Reduce(my_rank == 0 ? MPI_IN_PLACE : D, D, q_num * topk, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+            odyssey_merge_knn_results_mpi(my_rank, comm_sz, q_num, topk, I, D);
         }
 #endif
 
@@ -2712,8 +2771,7 @@ namespace diNoLib
 #if ODYSSEY_MPI
         if (comm_sz > 1)
         {
-            MPI_Reduce(my_rank == 0 ? MPI_IN_PLACE : I, I, q_num * topk, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-            MPI_Reduce(my_rank == 0 ? MPI_IN_PLACE : D, D, q_num * topk, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+            odyssey_merge_knn_results_mpi(my_rank, comm_sz, q_num, topk, I, D);
         }
 #endif
 
