@@ -9,30 +9,30 @@
 #if ODYSSEY_MPI
 #include <mpi.h>
 #endif
+#if (defined(__unix__) || defined(__APPLE__)) && defined(PATH_MAX)
+#include <limits.h>
+#include <stdlib.h>
+#endif
 
 /**
  * Demo Odyssey: build index + search (L2 squared).
+ * Stessi dati e stesse query della demo ParIS L2Square per confrontare i risultati.
  *
- * Ispirata alla demo Messi L2Square: dopo la costruzione dell'indice
- * esegue anche searchIndex per verificare l'intero flusso.
+ * Parametri identici a demo_ParIS_L2Square: 200000 serie, dim 96, 10 query, k=5, seed 100/50.
+ * File: /tmp/paris_test_db.bin (stesso path di ParIS).
  *
- * 1. Genera dati random e li scrive su file
- * 2. Crea un oggetto Odyssey con configurazione base (L2_SQUARED)
- * 3. Chiama buildIndex() per costruire l'indice distribuito
- * 4. Verifica che l'indice sia stato costruito correttamente
- * 5. Genera query random e chiama searchIndex() (L2 squared, top-k)
- * 6. Stampa risultati (indici e distanze) e cleanup
+ * Per confrontare: 1) ./demos/demo_ParIS_L2Square  2) mpirun -np 4 ./demos/demo_Odyssey_buildIndex_test
  */
 int main(int argc, char *argv[])
 {
     // ========================================================================
-    // 1. CONFIGURAZIONE TEST
+    // 1. CONFIGURAZIONE — IDENTICA a demo_ParIS_L2Square
     // ========================================================================
-    diNoLib::idx_t n_database = 10000;  // Dataset piccolo per test rapido
-    unsigned long long dim = 256;       // Dimensione time series (deve essere multiplo di 8 per SIMD)
-    unsigned long long n_query = 10;   // Numero di query per la ricerca
-    diNoLib::idx_t k = 5;               // Top-k per ogni query (L2 squared)
-    std::string temp_db_file = "/tmp/odyssey_test_db.bin";
+    diNoLib::idx_t n_database = 200000;
+    unsigned long long dim = 96;
+    unsigned long long n_query = 10;
+    diNoLib::idx_t k = 5;
+    std::string temp_db_file = "/tmp/paris_test_db.bin";
 
     // ========================================================================
     // 2. CREA OGGETTO ODYSSEY PRIMA DI TUTTO (inizializza MPI)
@@ -50,6 +50,7 @@ int main(int argc, char *argv[])
     // Variabili per rank e size (saranno settate dopo la creazione di Odyssey)
     int rank = 0;
     int size = 1;
+    std::string path_to_use;  // path assoluto del file (broadcast da rank 0), usato anche in cleanup
 
     // Blocco scope per Odyssey: viene distrutto prima di MPI_Finalize
     {
@@ -72,10 +73,10 @@ int main(int argc, char *argv[])
     // ========================================================================
     if (rank == 0)
     {
-        printf("\n[Node 0] Generating random data...\n");
-        float *database = loadRandomData(n_database, dim, 100); // z-normalized
+        printf("\n[Node 0] Generating random data (same seed 100 as ParIS)...\n");
+        float *database = loadRandomData(n_database, dim, 100);
 
-        printf("[Node 0] Writing database to file...\n");
+        printf("[Node 0] Writing database to file %s ...\n", temp_db_file.c_str());
         FILE *fp = fopen(temp_db_file.c_str(), "wb");
         if (fp == nullptr)
         {
@@ -83,16 +84,41 @@ int main(int argc, char *argv[])
             delete[] database;
             return 1;
         }
-        fwrite(database, sizeof(float), n_database * dim, fp);
+        size_t to_write = static_cast<size_t>(n_database) * static_cast<size_t>(dim);
+        size_t written = fwrite(database, sizeof(float), to_write, fp);
         fclose(fp);
         delete[] database;
+        if (written != to_write)
+        {
+            fprintf(stderr, "[Node 0] Error: wrote only %zu floats (expected %zu)\n", written, to_write);
+            return 1;
+        }
         printf("[Node 0] Database written successfully (%llu time series)\n", n_database);
     }
 
 #if ODYSSEY_MPI
-    // Sincronizza tutti i nodi prima di procedere
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
+
+    // Path assoluto: rank 0 lo calcola e lo invia a tutti (tutti aprono lo stesso file)
+    static const int PATH_MAX_MPI = 1024;
+    char path_buf[PATH_MAX_MPI];
+    std::memset(path_buf, 0, PATH_MAX_MPI);
+    if (rank == 0)
+    {
+#if (defined(__unix__) || defined(__APPLE__)) && defined(PATH_MAX)
+        char resolved[PATH_MAX];
+        if (realpath(temp_db_file.c_str(), resolved) != nullptr)
+            std::strncpy(path_buf, resolved, PATH_MAX_MPI - 1);
+        else
+#endif
+            std::strncpy(path_buf, temp_db_file.c_str(), PATH_MAX_MPI - 1);
+        path_buf[PATH_MAX_MPI - 1] = '\0';
+    }
+#if ODYSSEY_MPI
+    MPI_Bcast(path_buf, PATH_MAX_MPI, MPI_CHAR, 0, MPI_COMM_WORLD);
+#endif
+    path_to_use = std::string(path_buf);
 
         printf("\n[Node %d] Odyssey object created and configured\n", rank);
 
@@ -103,8 +129,8 @@ int main(int argc, char *argv[])
 
         try
         {
-            // Crea FileDataSource
-            diNoLib::FileDataSource data_source(temp_db_file.c_str(), dim, n_database);
+            // Crea FileDataSource — tutti usano lo stesso path (broadcast da rank 0)
+            diNoLib::FileDataSource data_source(path_to_use.c_str(), dim, n_database);
 
             printf("[Node %d] FileDataSource created:\n", rank);
             printf("  - Filename: %s\n", data_source.getFilename());
@@ -175,7 +201,7 @@ int main(int argc, char *argv[])
             // ========================================================================
             printf("\n[Node %d] Preparing queries and running searchIndex (L2 squared, k=%llu)...\n", rank, static_cast<unsigned long long>(k));
 
-            float *query = loadRandomData(n_query, dim, 50);
+            float *query = loadRandomData(n_query, dim, 50);  // stesso seed 50 di ParIS
             if (query == nullptr)
             {
                 fprintf(stderr, "[Node %d] Error: Could not allocate/generate query data\n", rank);
@@ -199,16 +225,21 @@ int main(int argc, char *argv[])
 
             if (rank == 0)
             {
-                printf("\n[Node 0] Search results (indices and distances):\n");
+                printf("\n[Node 0] Search results (stesso formato di ParIS per confronto):\n");
                 for (unsigned long long i = 0; i < n_query; i++)
                 {
-                    printf("  Query %llu: ", i);
+                    printf("Query %llu: ", i);
                     for (diNoLib::idx_t j = 0; j < k; j++)
                     {
-                        printf("(idx=%llu dist=%.4f) ", static_cast<unsigned long long>(I[i * k + j]), D[i * k + j]);
+                        printf("%llu ", static_cast<unsigned long long>(I[i * k + j]));
                     }
                     printf("\n");
                 }
+                printf("\n[Node 0] (Distanze: ");
+                for (unsigned long long i = 0; i < n_query; i++)
+                    for (diNoLib::idx_t j = 0; j < k; j++)
+                        printf("%.4f ", D[i * k + j]);
+                printf(")\n");
             }
 
             std::free(I);
@@ -236,8 +267,8 @@ int main(int argc, char *argv[])
 
     if (rank == 0)
     {
-        printf("\n[Node 0] Cleaning up temporary file...\n");
-        if (remove(temp_db_file.c_str()) == 0)
+        printf("\n[Node 0] Cleaning up temporary file %s ...\n", path_to_use.c_str());
+        if (remove(path_to_use.c_str()) == 0)
         {
             printf("[Node 0] Temporary file removed\n");
         }
