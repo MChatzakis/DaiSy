@@ -13,6 +13,10 @@
 #include <limits.h>
 #include <stdlib.h>
 #endif
+#if (defined(__unix__) || defined(__APPLE__))
+#include <unistd.h>  /* fsync */
+#include <sys/stat.h> /* stat, fstat */
+#endif
 
 /**
  * Demo Odyssey: build index + search (L2 squared).
@@ -86,13 +90,49 @@ int main(int argc, char *argv[])
         }
         size_t to_write = static_cast<size_t>(n_database) * static_cast<size_t>(dim);
         size_t written = fwrite(database, sizeof(float), to_write, fp);
-        fclose(fp);
-        delete[] database;
         if (written != to_write)
         {
             fprintf(stderr, "[Node 0] Error: wrote only %zu floats (expected %zu)\n", written, to_write);
+            fclose(fp);
+            delete[] database;
             return 1;
         }
+        /* Force buffer flush and OS cache to disk so all ranks see full file (avoids "75000 records" on multi-node /tmp) */
+        if (fflush(fp) != 0)
+        {
+            fprintf(stderr, "[Node 0] Error: fflush failed\n");
+            fclose(fp);
+            delete[] database;
+            return 1;
+        }
+#if (defined(__unix__) || defined(__APPLE__))
+        if (fsync(fileno(fp)) != 0)
+        {
+            fprintf(stderr, "[Node 0] Error: fsync failed (file may be incomplete on disk)\n");
+            fclose(fp);
+            delete[] database;
+            return 1;
+        }
+#endif
+        fclose(fp);
+        delete[] database;
+
+#if (defined(__unix__) || defined(__APPLE__))
+        /* Verify file size on disk before other ranks open it */
+        struct stat st;
+        if (stat(temp_db_file.c_str(), &st) != 0)
+        {
+            fprintf(stderr, "[Node 0] Error: stat failed on %s\n", temp_db_file.c_str());
+            return 1;
+        }
+        long long expected_bytes = static_cast<long long>(n_database) * static_cast<long long>(dim) * static_cast<long long>(sizeof(float));
+        if (static_cast<long long>(st.st_size) != expected_bytes)
+        {
+            fprintf(stderr, "[Node 0] Error: file size on disk is %lld bytes (expected %lld). Run on a single node or use a shared filesystem.\n",
+                    static_cast<long long>(st.st_size), expected_bytes);
+            return 1;
+        }
+#endif
         printf("[Node 0] Database written successfully (%llu time series)\n", n_database);
     }
 

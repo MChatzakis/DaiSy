@@ -2027,7 +2027,11 @@ namespace diNoLib
             throw std::runtime_error("FileDataSource does not have a filename");
         }
 
+        // Sync Odyssey's internal notion of TS length/size with the datasource.
+        // Default value was 256, which mismatched demos using dim=96 and caused
+        // the later file-size sanity check (total_records) to undercount.
         this->dim = data_source->getDim();
+        this->time_series_size = static_cast<int>(this->dim);
         this->n_database = data_source->getTotalRecords();
 
         // If dataset_size is 0, use the total records from FileDataSource
