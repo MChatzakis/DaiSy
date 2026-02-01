@@ -17,6 +17,11 @@
 #include <mpi.h>
 #endif
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <limits.h>
+#include <stdlib.h>
+#endif
+
 int main(int argc, char *argv[])
 {
     // 0. Configuration of the variables — IDENTICA a ParIS
@@ -80,13 +85,33 @@ int main(int argc, char *argv[])
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
+    // Path assoluto del file: rank 0 lo calcola e lo invia a tutti (così tutti aprono lo stesso file)
+    static const int PATH_MAX_MPI = 1024;
+    char path_buf[PATH_MAX_MPI];
+    std::memset(path_buf, 0, PATH_MAX_MPI);
+    if (rank == 0)
+    {
+#if (defined(__unix__) || defined(__APPLE__)) && defined(PATH_MAX)
+        char resolved[PATH_MAX];
+        if (realpath(temp_db_file.c_str(), resolved) != nullptr)
+            std::strncpy(path_buf, resolved, PATH_MAX_MPI - 1);
+        else
+#endif
+            std::strncpy(path_buf, temp_db_file.c_str(), PATH_MAX_MPI - 1);
+        path_buf[PATH_MAX_MPI - 1] = '\0';
+    }
+#if ODYSSEY_MPI
+    MPI_Bcast(path_buf, PATH_MAX_MPI, MPI_CHAR, 0, MPI_COMM_WORLD);
+#endif
+    std::string path_to_use(path_buf);
+
     // Query: stessi seed di ParIS (50). Ogni rank genera la stessa sequenza.
     float *query = loadRandomData(n_query, dim, 50);
     if (rank == 0)
         printf("Loaded %llu query points with dimension %llu\n", n_query, dim);
 
-    // 3. Build the index — FileDataSource come ParIS (file-based)
-    diNoLib::FileDataSource data_source(temp_db_file.c_str(), dim, n_database);
+    // 3. Build the index — FileDataSource come ParIS (file-based); tutti usano lo stesso path
+    diNoLib::FileDataSource data_source(path_to_use.c_str(), dim, n_database);
     odyssey.buildIndex(&data_source);
     if (rank == 0)
         printf(">>> Finished indexing\n");
@@ -127,7 +152,7 @@ int main(int argc, char *argv[])
     std::free(I);
     std::free(D);
     if (rank == 0)
-        remove(temp_db_file.c_str());
+        remove(path_to_use.c_str());
 
 #if ODYSSEY_MPI
     MPI_Finalize();
