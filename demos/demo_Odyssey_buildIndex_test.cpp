@@ -120,6 +120,32 @@ int main(int argc, char *argv[])
 #endif
     path_to_use = std::string(path_buf);
 
+#if ODYSSEY_MPI
+    // Verifica che tutti i rank vedano lo stesso file (stessa dimensione)
+    long long local_size = -1;
+    FILE *check_fp = fopen(path_to_use.c_str(), "rb");
+    if (check_fp != nullptr)
+    {
+        if (fseek(check_fp, 0, SEEK_END) == 0)
+            local_size = static_cast<long long>(ftell(check_fp));
+        fclose(check_fp);
+    }
+    long long expected_size = static_cast<long long>(n_database) * static_cast<long long>(dim) * static_cast<long long>(sizeof(float));
+    long long size_from_rank0 = (rank == 0) ? expected_size : 0;
+    MPI_Bcast(&size_from_rank0, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    if (local_size != size_from_rank0)
+    {
+        fprintf(stderr, "[Node %d] ERRORE: questo rank vede un file diverso da rank 0.\n", rank);
+        fprintf(stderr, "  Path: %s\n", path_to_use.c_str());
+        fprintf(stderr, "  Dimensione vista da questo rank: %lld byte\n", static_cast<long long>(local_size));
+        fprintf(stderr, "  Dimensione attesa (rank 0):      %lld byte\n", static_cast<long long>(size_from_rank0));
+        fprintf(stderr, "  Probabile causa: multi-nodo con /tmp locale per nodo.\n");
+        fprintf(stderr, "  Soluzione: lancia su UN SOLO NODO, es: mpirun -np 4 --bind-to core ./demos/demo_Odyssey_buildIndex_test\n");
+        fflush(stderr);
+        return 1;
+    }
+#endif
+
         printf("\n[Node %d] Odyssey object created and configured\n", rank);
 
         // ========================================================================

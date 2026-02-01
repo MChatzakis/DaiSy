@@ -2791,6 +2791,8 @@ namespace diNoLib
                     ifilename,
                     static_cast<unsigned long long>(total_records),
                     static_cast<unsigned long long>(total_samples));
+            fprintf(stderr, "[Node %d] Probabile causa: multi-nodo con /tmp o path locale. Lancia su UN SOLO NODO.\n", my_rank);
+            fflush(stderr);
             std::fclose(ifile);
             std::exit(EXIT_FAILURE);
         }
