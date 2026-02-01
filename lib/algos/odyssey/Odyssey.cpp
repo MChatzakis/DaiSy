@@ -1431,7 +1431,7 @@ namespace diNoLib
 
                             if (ENABLE_PRINTS_WORKSTEALING)
                             {
-                                printf("[WORKSTEALING MAIN NODE %d]: Sending %d priority queues to node %d\n", my_rank, pq_candidates_size, rank);
+                                printf("[WORKSTEALING MAIN NODE %d]: Sendingg %d priority queues to node %d\n", my_rank, pq_candidates_size, rank);
                             }
 
                             MPI_Send(send_datas.data(), data_size, MPI_FLOAT, rank, WORKSTEALING_DATA_SEND, MPI_COMM_WORLD);
