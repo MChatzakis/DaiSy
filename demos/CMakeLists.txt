@@ -264,6 +264,20 @@ if(BUILD_DEMO)
         if(DEBUG_MSG)
             message(STATUS "Include directories added for demo_Odyssey_buildIndex_test.")
         endif()
+
+        # Odyssey BuildIndex test DTW (stessi dati di ParIS DTW per confronto)
+        if(DEBUG_MSG)
+            message(STATUS "Attempting to add executable: demo_Odyssey_buildIndex_test_DTW")
+        endif()
+        add_executable(demo_Odyssey_buildIndex_test_DTW demo_Odyssey_buildIndex_test_DTW.cpp)
+        if(DEBUG_MSG)
+            message(STATUS "Executable demo_Odyssey_buildIndex_test_DTW added.")
+        endif()
+        target_link_libraries(demo_Odyssey_buildIndex_test_DTW PRIVATE dino_lib commons_lib MPI::MPI_CXX)
+        target_include_directories(demo_Odyssey_buildIndex_test_DTW PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
     else()
         if(DEBUG_MSG)
             message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. demo_Odyssey_L2Square (MPI-dependent) will NOT be built.")
