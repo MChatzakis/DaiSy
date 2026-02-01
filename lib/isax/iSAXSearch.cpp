@@ -27,7 +27,7 @@ namespace diNoLib
 
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
-                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, 0, node);
                 }
             }
 
@@ -39,7 +39,7 @@ namespace diNoLib
 
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
-                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, 0, node);
                 }
             }
             for (i = 0; i < node->buffer->partial_buffer_size; i++)
@@ -54,7 +54,7 @@ namespace diNoLib
 
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
-                    pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
                 }
             }
         }
@@ -370,7 +370,7 @@ namespace diNoLib
                 // ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                 //                                   index->settings->timeseries_size, bsf);
 
-                pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+                pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
             }
             free(cb);
         }

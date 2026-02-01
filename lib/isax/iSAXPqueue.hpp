@@ -187,6 +187,8 @@ namespace diNoLib
     void pqueue_bsf_free(pqueue_bsf *q);
     void pqueue_bsf_destroy(pqueue_bsf *q);  // frees position, knn, node, and q (original Odyssey name)
     void pqueue_bsf_insert(pqueue_bsf *q, float data, long int position, isax_node *node);
+    /** Same as pqueue_bsf_insert but skips insert when position is already in the queue (used by Odyssey to avoid duplicate same series). */
+    void pqueue_bsf_insert_no_dup_position(pqueue_bsf *q, float data, long int position, isax_node *node);
     void pqueue_bsf_insert_offset(pqueue_bsf *q, float data, file_position_type position, isax_node *node, int merge_offset);
     void pqueue_bsfre_insert(pqueue_bsf *q, float data, long int position, isax_node *node);
     void pqueue_bsf_insert_invalidate_worse_entries(pqueue_bsf *q, float data, file_position_type position, isax_node *node);

@@ -502,6 +502,30 @@ namespace diNoLib
         }
     }
 
+    void pqueue_bsf_insert_no_dup_position(pqueue_bsf *q, float data, long int position, isax_node *node)
+    {
+        int i, j;
+
+        for (i = 0; i < q->k; i++)
+        {
+            if (data <= q->knn[i] && q->position[i] != position)
+            {
+                for (j = q->k - 1; j > i; j--)
+                {
+                    q->knn[j] = q->knn[j - 1];
+                    q->position[j] = q->position[j - 1];
+                    q->node[j] = q->node[j - 1];
+                }
+
+                q->knn[i] = data;
+                q->position[i] = position;
+                q->node[i] = node;
+
+                return;
+            }
+        }
+    }
+
     void pqueue_bsfre_insert(pqueue_bsf *q, float data, long int position, isax_node *node)
     {
 
