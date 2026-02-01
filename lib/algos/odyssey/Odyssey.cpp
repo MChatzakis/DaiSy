@@ -1536,11 +1536,11 @@ namespace diNoLib
             else
             {
                 approximate_topk_inmemory(ts, paa, index, bsf_result.pq_bsf, rawfile);
-                if (bsf_result.pq_bsf->knn[k - 1] == FLT_MAX)
-                {
-                    int min_checked_leaves = -1;
-                    refine_topk_answer_inmemory(ts, paa, index, bsf_result.pq_bsf, minimum_distance, min_checked_leaves, rawfile);
-                }
+                int min_checked_leaves = -1;
+                // Always refine: the approximate step only visits one leaf and does not
+                // produce valid top-k by itself.
+                refine_topk_answer_inmemory(ts, paa, index, bsf_result.pq_bsf,
+                                            minimum_distance, min_checked_leaves, rawfile);
             }
         }
         else
