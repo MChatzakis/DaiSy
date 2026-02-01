@@ -2,7 +2,8 @@
  * Demo Odyssey L2Square — IDENTICA a demo_ParIS_L2Square.cpp
  * Stessi dati, stesse query, stesso flusso (file -> build -> search) per confrontare i risultati.
  *
- * Esegui con: mpirun -np 4 ./demos/demo_Odyssey_L2Square
+ * Esegui dalla root del progetto: mpirun -np 4 ./demos/demo_Odyssey_L2Square
+ * (usa path in CWD così tutti i rank vedono lo stesso file; /tmp è locale per nodo in multi-node)
  */
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/hodyssey/Odyssey.hpp"
@@ -24,7 +25,7 @@ int main(int argc, char *argv[])
     unsigned long long n_query = 10;
     diNoLib::idx_t k = 5;
 
-    std::string temp_db_file = "/tmp/odyssey_l2square_db.bin";
+    std::string temp_db_file = "odyssey_l2square_db.bin";  // CWD: tutti i rank vedono lo stesso file
 
     // Odyssey inizializza MPI nel costruttore (se ODYSSEY_MPI): creare PRIMA di qualsiasi MPI_*
     diNoLib::OdysseyConfig config;
