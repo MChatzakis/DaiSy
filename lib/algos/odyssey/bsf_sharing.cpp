@@ -244,13 +244,13 @@ namespace diNoLib
 
                 float new_bsf = bsf_sharing_data.shared_bsfs[my_rank].bsf;
                 file_position_type new_position = bsf_sharing_data.shared_bsfs[my_rank].position;
-                if (new_bsf < pq_bsf->knn[pq_bsf->k - 1])
-                {
-                    bsf_sharing_data.bsf_correct_receives_counter++;
-                    pthread_mutex_lock(lock_bsf);
-                    pqueue_bsf_insert_invalidate_worse_entries(pq_bsf, new_bsf, new_position, nullptr);
-                    pthread_mutex_unlock(lock_bsf);
-                }
+                    if (new_bsf < pq_bsf->knn[pq_bsf->k - 1])
+                    {
+                        bsf_sharing_data.bsf_correct_receives_counter++;
+                        pthread_mutex_lock(lock_bsf);
+                        pqueue_bsf_insert(pq_bsf, new_bsf, static_cast<long int>(new_position), nullptr);
+                        pthread_mutex_unlock(lock_bsf);
+                    }
             }
         }
     }
@@ -275,8 +275,8 @@ namespace diNoLib
 
         if (shared_bsf_results[query_counter].bsf < last_bsf)
         {
-            pqueue_bsf_insert_invalidate_worse_entries(pq_bsf, shared_bsf_results[query_counter].bsf, 
-                                                      shared_bsf_results[query_counter].position, nullptr);
+            pqueue_bsf_insert(pq_bsf, shared_bsf_results[query_counter].bsf, 
+                              static_cast<long int>(shared_bsf_results[query_counter].position), nullptr);
         }
         else if (shared_bsf_results[query_counter].bsf > last_bsf)
         {

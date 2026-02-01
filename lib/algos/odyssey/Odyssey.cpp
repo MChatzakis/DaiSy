@@ -398,7 +398,7 @@ namespace diNoLib
 
                             if (current_k_bsf < queries[j].initial_pq_bsfs->knn[topk - 1])
                             {
-                                pqueue_bsf_insert_offset(queries[j].initial_pq_bsfs, current_k_bsf, current_k_pos, nullptr, odyssey->merge_offset);
+                                pqueue_bsf_insert(queries[j].initial_pq_bsfs, current_k_bsf, static_cast<long int>(current_k_pos), nullptr);
                             }
                         }
                     }
@@ -1123,7 +1123,7 @@ namespace diNoLib
                             pthread_mutex_lock(input_data->bsf_lock);
                             file_position_type local_ts_index = pos / static_cast<file_position_type>(ts_size);
                             file_position_type global_pos = local_ts_index + static_cast<file_position_type>(rep_get_time_series_offset(*replication_data, my_rank));
-                            pqueue_bsf_insert_offset(pq_bsf, dist, global_pos, node, merge_offset);
+                            pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(global_pos), node);
                             pthread_mutex_unlock(input_data->bsf_lock);
 
                             bsf_sharing_recv_bsf(*input_data->bsf_sharing_data, pq_bsf, input_data->workernumber, *input_data->shared_bsf_results, input_data->bsf_lock, my_rank, input_data->comm_sz, input_data->query_counter);
