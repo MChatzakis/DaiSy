@@ -1711,12 +1711,15 @@ namespace diNoLib
             bsf_result.pq_bsf = pqueue_bsf_init_from_src(k, precomputed_bsfs);
         }
 
-        // Re-rank with exact L2 (distance then index) to make output deterministic and complete.
-        // rawfile is local chunk; for comm_sz==1 this is full dataset (tests run this way).
-        /*if (rawfile != nullptr && this->distance_type == DistanceType::L2_SQUARED)
+        // Re-rank with exact L2 (distance then index) to make output deterministic and
+        // eliminate approximation artifacts. Safe for single-node (comm_sz==1) because
+        // rawfile points to the full dataset; in multi-node runs rawfile holds the
+        // local chunk, and positions from BSF sharing are already global, so rerank
+        // only when we are in the L2 path (warp_window == 0) where distances use rawfile.
+        if (rawfile != nullptr && args.warp_window == 0)
         {
             rerank_pq_exact_l2(bsf_result.pq_bsf, ts, rawfile, index->settings->timeseries_size);
-        }*/
+        }
 
         if (bsf_result.pq_bsf->knn[k - 1] == 0.0f)
         {

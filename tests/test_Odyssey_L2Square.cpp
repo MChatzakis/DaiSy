@@ -1,6 +1,9 @@
 #include "test_utils.hpp"
 #include "../commons/test_bm_utils.hpp"
 #include "../commons/paramSetup.hpp"
+#if ODYSSEY_MPI
+#include <mpi.h>
+#endif
 
 std::string prefix = "bruteForce";
 
@@ -52,5 +55,12 @@ int main(int argc, char **argv)
     g_argc = argc;
     g_argv = argv;
     ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    int result = RUN_ALL_TESTS();
+#if ODYSSEY_MPI
+    int finalized = 0;
+    MPI_Finalized(&finalized);
+    if (!finalized)
+        MPI_Finalize();
+#endif
+    return result;
 }
