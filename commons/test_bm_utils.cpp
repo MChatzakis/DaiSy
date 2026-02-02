@@ -1,11 +1,13 @@
 #include "test_bm_utils.hpp"
 #include "../commons/dataloaders.hpp"
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <regex>
+#include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iostream>
+#include <regex>
+#include <sstream>
+#include <vector>
 
 #if __has_include(<gtest/gtest.h>)
 #include <gtest/gtest.h>
@@ -159,41 +161,72 @@ void compareWithGroundTruth(const std::string &pathI,
 
     for (size_t i = 0; i < n_query; ++i)
     {
+        /* Build (index, distance) pairs for this query and sort by (distance, index).
+         * Approximate algorithms (Messi, Odyssey) may return the same set in a different
+         * order (e.g. tie-breaking or floating point). Sorting both sides normalizes order. */
+        std::vector<std::pair<float, diNoLib::idx_t>> our_pairs;
+        our_pairs.reserve(k);
         for (size_t j = 0; j < k; ++j)
         {
             auto idx = i * k + j;
-            /* GT indices are read as float; round to avoid truncation (e.g. 122.9999 -> 123). */
+            our_pairs.emplace_back(D[idx], I[idx]);
+        }
+        std::sort(our_pairs.begin(), our_pairs.end(), [](const auto &a, const auto &b) {
+            if (a.first != b.first) return a.first < b.first;
+            return a.second < b.second;
+        });
+
+        std::vector<std::pair<float, diNoLib::idx_t>> gt_pairs;
+        gt_pairs.reserve(k);
+        for (size_t j = 0; j < k; ++j)
+        {
+            auto idx = i * k + j;
             diNoLib::idx_t gt_idx = static_cast<diNoLib::idx_t>(std::round(arrayI_gt[idx]));
-            bool I_equal = isclose(I[idx], gt_idx);
-            bool D_close = isclose(D[idx], arrayD_gt[idx], rtol, atol);
+            gt_pairs.emplace_back(arrayD_gt[idx], gt_idx);
+        }
+        std::sort(gt_pairs.begin(), gt_pairs.end(), [](const auto &a, const auto &b) {
+            if (a.first != b.first) return a.first < b.first;
+            return a.second < b.second;
+        });
+
+        /* Count distinct (index, distance) in our output; approximate algorithms may pad with duplicates when they return fewer than k. */
+        size_t our_unique = 0;
+        for (size_t j = 0; j < k; ++j)
+        {
+            if (j == 0 || our_pairs[j].second != our_pairs[j - 1].second ||
+                std::fabs(our_pairs[j].first - our_pairs[j - 1].first) > atol + rtol * std::fabs(our_pairs[j - 1].first))
+                our_unique++;
+        }
+        size_t compare_count = (our_unique < k) ? our_unique : k;
+
+        for (size_t j = 0; j < compare_count; ++j)
+        {
+            float our_d = our_pairs[j].first;
+            diNoLib::idx_t our_i = our_pairs[j].second;
+            float gt_d = gt_pairs[j].first;
+            diNoLib::idx_t gt_idx = gt_pairs[j].second;
+
+            bool I_equal = isclose(our_i, gt_idx);
+            bool D_close = isclose(our_d, gt_d, rtol, atol);
 
             if (!I_equal && !D_close)
             {
-                // Error case 1
-                add_failure("ERROR 1: Indices mismatch AND distance mismatch at (" + std::to_string(i) + "," + std::to_string(j) + "): " +
-                            "expected label " + std::to_string(gt_idx) + ", got " +
-                            std::to_string(I[idx]) + "; " + "expected distance " +
-                            std::to_string(arrayD_gt[idx]) + ", got " + std::to_string(D[idx]));
+                add_failure("ERROR 1: Indices mismatch AND distance mismatch at (query " + std::to_string(i) + ", rank " + std::to_string(j) + "): "
+                            "expected (label " + std::to_string(gt_idx) + ", dist " + std::to_string(gt_d) + "), "
+                            "got (label " + std::to_string(our_i) + ", dist " + std::to_string(our_d) + ")");
             }
             else if (I_equal && !D_close)
             {
-                // Error case 2
-                add_failure("ERROR 2: Indices match BUT distance mismatch at (" + std::to_string(i) + "," + std::to_string(j) + "): " +
-                            "label " + std::to_string(I[idx]) + "; expected distance " +
-                            std::to_string(arrayD_gt[idx]) + ", got " + std::to_string(D[idx]));
+                add_failure("ERROR 2: Indices match BUT distance mismatch at (query " + std::to_string(i) + ", rank " + std::to_string(j) + "): "
+                            "label " + std::to_string(our_i) + "; expected distance " + std::to_string(gt_d) + ", got " + std::to_string(our_d));
             }
             else if (!I_equal && D_close)
             {
-                // Warning case
-                std::cerr << "WARNING: Indices mismatch but distances are close at (" << i << "," << j << "): "
-                          << "expected label " << gt_idx << ", got " << I[idx] << "; "
-                          << "distance close to " << D[idx] << std::endl;
-            }
-            else
-            {
-                // SUCCEED: do nothing
+                std::cerr << "WARNING: Indices mismatch but distances close at (query " << i << ", rank " << j << "): "
+                          << "expected label " << gt_idx << ", got " << our_i << "; distance ~" << our_d << std::endl;
             }
         }
+
     }
 
     delete[] arrayI_gt;
