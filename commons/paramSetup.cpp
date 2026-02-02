@@ -118,7 +118,7 @@ const std::vector<SSTestConfig> test_configs_random_light = []
     std::vector<SSTestConfig> configs;
     for (int threads : {1})
     {
-        for (int k : {1})
+        for (int k : {10})
         {
             configs.push_back({random_name, random_data, random_query, random_gt_data, random_gt_query, threads, k});
         }
