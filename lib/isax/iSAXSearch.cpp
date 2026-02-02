@@ -265,10 +265,6 @@ namespace diNoLib
         {
             free(n);
         }
-        for (int i = 0; i < pq_bsf->k - 1; ++i)
-        {
-            pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
-        }
         // Free the priority queue.
         pqueue_free(pq);
     }
@@ -415,10 +411,6 @@ namespace diNoLib
         }
         else
         {
-        }
-        for (int i = 0; i < pq_bsf->k - 1; ++i)
-        {
-            pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
         }
         free(sax);
     }
