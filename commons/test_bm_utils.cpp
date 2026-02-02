@@ -190,3 +190,4 @@ void compareWithGroundTruth(const std::string &pathI,
     delete[] arrayI_gt;
     delete[] arrayD_gt;
 }
+#include <gtest/gtest.h>
