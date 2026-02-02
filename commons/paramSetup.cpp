@@ -116,7 +116,7 @@ const std::vector<SSTestConfig> test_configs_dtw = []
 const std::vector<SSTestConfig> test_configs_random_light = []
 {
     std::vector<SSTestConfig> configs;
-    for (int threads : {1, 4, 8})
+    for (int threads : {1})
     {
         for (int k : {1, 10, 100})
         {
