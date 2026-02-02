@@ -71,8 +71,8 @@ namespace diNoLib
                         size_t idx = static_cast<size_t>(r) * per_rank + static_cast<size_t>(q) * static_cast<size_t>(topk) + static_cast<size_t>(j);
                         idx_t pos = all_I[idx];
                         float dist = all_D[idx];
-                        /* Skip placeholder (0, 0): rank did not contribute for this query slot */
-                        if (pos == 0 && dist == 0.0f)
+                        /* Skip sentinel (no result from this rank for this query) */
+                        if (dist >= FLT_MAX * 0.99f)
                             continue;
                         merged.push_back({dist, pos});
                     }
@@ -2504,6 +2504,15 @@ namespace diNoLib
                 {
                     I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = static_cast<idx_t>(results[i].pq_bsf->position[j]);
                     D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
+                }
+            }
+            else if (comm_sz > 1)
+            {
+                /* Sentinel for "no result" so merge can skip without wrongly dropping valid (0, 0). */
+                for (int j = 0; j < topk; j++)
+                {
+                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = 0;
+                    D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = FLT_MAX;
                 }
             }
         }
