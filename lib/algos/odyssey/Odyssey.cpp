@@ -2793,22 +2793,42 @@ namespace diNoLib
         {
             if (results[i].pq_bsf != nullptr)
             {
-                std::unordered_set<idx_t> seen;
-                int out_j = 0;
+                // Collect valid entries (distance finite, position >=0)
+                std::vector<std::pair<float, idx_t>> pairs;
+                pairs.reserve(static_cast<size_t>(topk));
                 for (int j = 0; j < topk; j++)
                 {
-                    idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
                     float dist = results[i].pq_bsf->knn[j];
-                    if (seen.insert(pos).second)
-                    {
-                        I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j)] = pos;
-                        D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j)] = dist;
-                        out_j++;
-                        if (out_j >= topk)
-                            break;
-                    }
+                    idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
+                    if (dist < FLT_MAX && pos != static_cast<idx_t>(-1))
+                        pairs.emplace_back(dist, pos);
                 }
-                /* If duplicates reduced the count, pad with last valid entry to keep size == topk */
+
+                // Sort deterministically by distance then index (matches ground-truth tie-break)
+                std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+                    if (a.first != b.first)
+                        return a.first < b.first;
+                    return a.second < b.second;
+                });
+
+                // Deduplicate by index, keep first occurrence (smallest distance)
+                std::unordered_set<idx_t> seen;
+                std::vector<std::pair<float, idx_t>> uniq;
+                uniq.reserve(pairs.size());
+                for (const auto &p : pairs)
+                {
+                    if (seen.insert(p.second).second)
+                        uniq.push_back(p);
+                }
+
+                int out_j = 0;
+                for (; out_j < topk && out_j < static_cast<int>(uniq.size()); out_j++)
+                {
+                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j)] = uniq[out_j].second;
+                    D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j)] = uniq[out_j].first;
+                }
+
+                // Pad if fewer than topk
                 if (out_j > 0 && out_j < topk)
                 {
                     idx_t pad_pos = I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j - 1)];
