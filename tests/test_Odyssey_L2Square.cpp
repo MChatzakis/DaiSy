@@ -17,7 +17,7 @@ TEST_P(OdysseyParameterizedTest, AllConfigurations)
     odyssey_config.search_workers = 2;
     odyssey_config.index_threads = 2;
     odyssey_config.query_threads = 2;
-    odyssey_config.leaf_size = 1000;
+    odyssey_config.leaf_size = 512;
     odyssey_config.paa_segments = 16;
     odyssey_config.replication_groups = 0;
 
