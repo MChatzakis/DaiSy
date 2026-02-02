@@ -1716,10 +1716,10 @@ namespace diNoLib
         // rawfile points to the full dataset; in multi-node runs rawfile holds the
         // local chunk, and positions from BSF sharing are already global, so rerank
         // only when we are in the L2 path (warp_window == 0) where distances use rawfile.
-        if (rawfile != nullptr && args.warp_window == 0)
+        /*if (rawfile != nullptr && args.warp_window == 0)
         {
             rerank_pq_exact_l2(bsf_result.pq_bsf, ts, rawfile, index->settings->timeseries_size);
-        }   
+        } */  
 
         if (bsf_result.pq_bsf->knn[k - 1] == 0.0f)
         {
