@@ -60,23 +60,13 @@ int main(int argc, char *argv[])
         rank = odyssey.getMyRank();
         size = odyssey.getCommSz();
 
-    printf("========================================\n");
-    printf("Odyssey BuildIndex Test\n");
-    printf("========================================\n");
-    printf("Dataset size: %llu\n", n_database);
-    printf("Time series dimension: %llu\n", dim);
-    printf("Temporary file: %s\n", temp_db_file.c_str());
-    printf("[Node %d/%d] Starting test...\n", rank, size);
-
     // ========================================================================
     // 3. GENERA E SCRIVI DATI SU FILE
     // ========================================================================
     if (rank == 0)
     {
-        printf("\n[Node 0] Generating random data (same seed 100 as ParIS)...\n");
         float *database = loadRandomData(n_database, dim, 100);
 
-        printf("[Node 0] Writing database to file %s ...\n", temp_db_file.c_str());
         FILE *fp = fopen(temp_db_file.c_str(), "wb");
         if (fp == nullptr)
         {
@@ -93,7 +83,8 @@ int main(int argc, char *argv[])
             fprintf(stderr, "[Node 0] Error: wrote only %zu floats (expected %zu)\n", written, to_write);
             return 1;
         }
-        printf("[Node 0] Database written successfully (%llu time series)\n", n_database);
+        printf("Loaded %llu database points and %llu query points with dimension %llu\n",
+               static_cast<unsigned long long>(n_database), static_cast<unsigned long long>(n_query), dim);
     }
 
 #if ODYSSEY_MPI
@@ -146,32 +137,19 @@ int main(int argc, char *argv[])
     }
 #endif
 
-        printf("\n[Node %d] Odyssey object created and configured\n", rank);
-
         // ========================================================================
         // 4. COSTRUISCI L'INDICE
         // ========================================================================
-        printf("\n[Node %d] Building index...\n", rank);
-
         try
         {
             // Crea FileDataSource — tutti usano lo stesso path (broadcast da rank 0)
             diNoLib::FileDataSource data_source(path_to_use.c_str(), dim, n_database);
 
-            printf("[Node %d] FileDataSource created:\n", rank);
-            printf("  - Filename: %s\n", data_source.getFilename());
-            printf("  - Dimension: %llu\n", data_source.getDim());
-            printf("  - Total records: %llu\n", data_source.getTotalRecords());
-
             // Chiama buildIndex (questo è il test principale!)
             odyssey.buildIndex(&data_source);
 
-            printf("[Node %d] >>> buildIndex() completed successfully!\n", rank);
-
-            // ========================================================================
-            // 5. VERIFICA RISULTATI
-            // ========================================================================
-            printf("\n[Node %d] Verifying index structure...\n", rank);
+            if (rank == 0)
+                printf(">>> Finished indexing\n>>> Finished indexing \n");
 
             // Verifica che l'indice sia stato creato
             if (odyssey.getIndex() == nullptr)
@@ -179,53 +157,26 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "[Node %d] ERROR: index is NULL!\n", rank);
                 return 1;
             }
-            printf("[Node %d] ✓ Index pointer is valid\n", rank);
-
-            // Verifica che index_settings sia stato inizializzato
             if (odyssey.getIndex()->settings == nullptr)
             {
                 fprintf(stderr, "[Node %d] ERROR: index->settings is NULL!\n", rank);
                 return 1;
             }
-            printf("[Node %d] ✓ Index settings initialized\n", rank);
-            printf("  - Time series size: %d\n", odyssey.getIndex()->settings->timeseries_size);
-            printf("  - PAA segments: %d\n", odyssey.getIndex()->settings->paa_segments);
-            printf("  - Leaf size: %d\n", odyssey.getIndex()->settings->max_leaf_size);
-
-            // Verifica che fbl (parallel_first_buffer_layer_ekosmas) sia stato inizializzato
             if (odyssey.getIndex()->fbl == nullptr)
             {
                 fprintf(stderr, "[Node %d] ERROR: index->fbl is NULL!\n", rank);
                 return 1;
             }
-            printf("[Node %d] ✓ FBL (parallel_first_buffer_layer_ekosmas) initialized\n", rank);
-            printf("  - Number of buffers: %d\n", odyssey.getIndex()->fbl->number_of_buffers);
-            printf("  - Max total size: %d\n", odyssey.getIndex()->fbl->max_total_size);
-
-            // Verifica che first_node sia stato inizializzato (se ci sono dati)
-            if (odyssey.getIndex()->first_node != nullptr)
-            {
-                printf("[Node %d] ✓ First node created (tree structure exists)\n", rank);
-            }
-            else
-            {
-                printf("[Node %d] ⚠ First node is NULL (might be empty index or not yet populated)\n", rank);
-            }
-
-            // Verifica che root_nodes sia stato inizializzato
-            printf("[Node %d] ✓ Root nodes count: %llu\n", rank, 
-                   static_cast<unsigned long long>(odyssey.getIndex()->root_nodes));
-
-            // Note: rawfile, replication_data, workstealing_data, bsf_sharing_data
-            // sono membri privati e non accessibili direttamente.
-            // Se buildIndex() completa senza errori, significa che sono stati inizializzati correttamente.
-
-            printf("\n[Node %d] >>> All checks passed! Index built successfully.\n", rank);
 
             // ========================================================================
-            // 6. RICERCA L2 SQUARED (come in demo Messi L2Square)
+            // 5. RICERCA L2 SQUARED (come in demo Messi L2Square)
             // ========================================================================
-            printf("\n[Node %d] Preparing queries and running searchIndex (L2 squared, k=%llu)...\n", rank, static_cast<unsigned long long>(k));
+            if (rank == 0)
+            {
+                printf("@ Starting search\n");
+                printf("@ Starting search Variables are been set\n");
+                printf("@ going searchIndex constructor\n");
+            }
 
             float *query = loadRandomData(n_query, dim, 50);  // stesso seed 50 di ParIS
             if (query == nullptr)
@@ -247,11 +198,9 @@ int main(int argc, char *argv[])
 
             odyssey.searchIndex(query, n_query, k, I, D);
 
-            printf("[Node %d] >>> searchIndex completed.\n", rank);
-
             if (rank == 0)
             {
-                printf("\n[Node 0] Search results (stesso formato di ParIS per confronto):\n");
+                printf(">>> Finished querying.\n>>> Finished search \n");
                 for (unsigned long long i = 0; i < n_query; i++)
                 {
                     printf("Query %llu: ", i);
@@ -261,11 +210,6 @@ int main(int argc, char *argv[])
                     }
                     printf("\n");
                 }
-                printf("\n[Node 0] (Distanze: ");
-                for (unsigned long long i = 0; i < n_query; i++)
-                    for (diNoLib::idx_t j = 0; j < k; j++)
-                        printf("%.4f ", D[i * k + j]);
-                printf(")\n");
             }
 
             std::free(I);
@@ -293,20 +237,9 @@ int main(int argc, char *argv[])
 
     if (rank == 0)
     {
-        printf("\n[Node 0] Cleaning up temporary file %s ...\n", path_to_use.c_str());
-        if (remove(path_to_use.c_str()) == 0)
-        {
-            printf("[Node 0] Temporary file removed\n");
-        }
-        else
-        {
+        if (remove(path_to_use.c_str()) != 0)
             fprintf(stderr, "[Node 0] Warning: Could not remove temporary file\n");
-        }
     }
-
-    printf("\n[Node %d] ========================================\n", rank);
-    printf("[Node %d] Test completed successfully!\n", rank);
-    printf("[Node %d] ========================================\n", rank);
 
     // Odyssey esce dallo scope qui, quindi il distruttore viene chiamato
     // MPI_Finalize deve essere chiamato dopo che tutti gli oggetti MPI sono stati distrutti
