@@ -93,6 +93,9 @@ namespace diNoLib
             std::free(all_I);
             std::free(all_D);
         }
+        /* Broadcast merged I and D from rank 0 to all ranks so every process has the same result (e.g. for tests that compare on all ranks). */
+        MPI_Bcast(I, static_cast<int>(per_rank), MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+        MPI_Bcast(D, static_cast<int>(per_rank), MPI_FLOAT, 0, MPI_COMM_WORLD);
     }
 #endif
 
