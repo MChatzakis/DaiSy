@@ -2645,19 +2645,45 @@ namespace diNoLib
         {
             if (results[i].pq_bsf != nullptr)
             {
-                for (int j = 0; j < topk; j++)
+                if (num_procs == 1)
                 {
-                    const long pos_signed = results[i].pq_bsf->position[j];
-                    /* Invalid/unfilled slot (e.g. -1) must not be cast to idx_t; single-node positions are already global */
-                    idx_t pos;
-                    if (num_procs == 1)
-                        pos = (pos_signed >= 0) ? static_cast<idx_t>(pos_signed) : 0;
-                    else
-                        pos = static_cast<idx_t>(pos_signed);
-                    /* Positions from our partition are local; from BSF sharing are already global */
-                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] =
-                        (num_procs == 1) ? pos : ((pos < my_partition_size) ? (pos + ts_offset) : pos);
-                    D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
+                    /* Single process: collect valid (dist, pos) pairs, sort by (dist, pos) to match FAISS ground truth order, then copy and pad. */
+                    std::vector<std::pair<float, idx_t>> pairs;
+                    pairs.reserve(static_cast<size_t>(topk));
+                    for (int j = 0; j < topk; j++)
+                    {
+                        const long pos_signed = results[i].pq_bsf->position[j];
+                        const float dist = results[i].pq_bsf->knn[j];
+                        if (pos_signed >= 0 && dist < FLT_MAX * 0.99f)
+                            pairs.emplace_back(dist, static_cast<idx_t>(pos_signed));
+                    }
+                    std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+                        if (a.first != b.first) return a.first < b.first;
+                        return a.second < b.second;
+                    });
+                    idx_t last_pos = 0;
+                    float last_dist = 0.0f;
+                    for (int j = 0; j < topk; j++)
+                    {
+                        if (j < static_cast<int>(pairs.size()))
+                        {
+                            last_dist = pairs[static_cast<size_t>(j)].first;
+                            last_pos = pairs[static_cast<size_t>(j)].second;
+                        }
+                        I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = last_pos;
+                        D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = last_dist;
+                    }
+                }
+                else
+                {
+                    for (int j = 0; j < topk; j++)
+                    {
+                        const long pos_signed = results[i].pq_bsf->position[j];
+                        idx_t pos = static_cast<idx_t>(pos_signed);
+                        I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] =
+                            (pos < my_partition_size) ? (pos + ts_offset) : pos;
+                        D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
+                    }
                 }
             }
             else if (num_procs > 1)

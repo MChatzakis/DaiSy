@@ -1,6 +1,9 @@
 #include "Messi.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cfloat>
+#include <vector>
 
 #include "../isax/iSAXPqueue.hpp"
 #include "../isax/iSAXIndex.hpp"
@@ -764,10 +767,29 @@ namespace diNoLib
 
             pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k);
   
+            /* Collect valid (position, distance) pairs, sort by (distance, position) to match FAISS ground truth order, then copy and pad. */
+            std::vector<std::pair<float, long>> pairs;
+            pairs.reserve(static_cast<size_t>(k));
             for (idx_t ik = 0; ik < k; ik++)
             {
-                I[q_loaded * k + ik] = result.position[ik];
-                D[q_loaded * k + ik] = result.knn[ik];
+                if (result.position[ik] >= 0 && result.knn[ik] < FLT_MAX * 0.99f)
+                    pairs.emplace_back(result.knn[ik], result.position[ik]);
+            }
+            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+                if (a.first != b.first) return a.first < b.first;
+                return a.second < b.second;
+            });
+            long last_pos = 0;
+            float last_dist = 0.0f;
+            for (idx_t ik = 0; ik < k; ik++)
+            {
+                if (ik < static_cast<idx_t>(pairs.size()))
+                {
+                    last_dist = pairs[static_cast<size_t>(ik)].first;
+                    last_pos = pairs[static_cast<size_t>(ik)].second;
+                }
+                I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
+                D[q_loaded * k + ik] = last_dist;
             }
             
             // Free the internal arrays of result
@@ -816,10 +838,29 @@ namespace diNoLib
             // Query-dependent computations (paa, envelopes, paaU, paaL) are done inside MESSI_search_topk_DTW
             pqueue_bsf result = MESSI_search_topk_DTW((float *)ts, &nodelist, k);
 
+            /* Collect valid (position, distance) pairs, sort by (distance, position) to match ground truth order, then copy and pad. */
+            std::vector<std::pair<float, long>> pairs;
+            pairs.reserve(static_cast<size_t>(k));
             for (idx_t ik = 0; ik < k; ik++)
             {
-                I[q_loaded * k + ik] = result.position[ik];
-                D[q_loaded * k + ik] = result.knn[ik];
+                if (result.position[ik] >= 0 && result.knn[ik] < FLT_MAX * 0.99f)
+                    pairs.emplace_back(result.knn[ik], result.position[ik]);
+            }
+            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+                if (a.first != b.first) return a.first < b.first;
+                return a.second < b.second;
+            });
+            long last_pos = 0;
+            float last_dist = 0.0f;
+            for (idx_t ik = 0; ik < k; ik++)
+            {
+                if (ik < static_cast<idx_t>(pairs.size()))
+                {
+                    last_dist = pairs[static_cast<size_t>(ik)].first;
+                    last_pos = pairs[static_cast<size_t>(ik)].second;
+                }
+                I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
+                D[q_loaded * k + ik] = last_dist;
             }
             
             // Free the internal arrays of result

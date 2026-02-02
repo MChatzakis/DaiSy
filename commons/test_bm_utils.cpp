@@ -162,14 +162,16 @@ void compareWithGroundTruth(const std::string &pathI,
         for (size_t j = 0; j < k; ++j)
         {
             auto idx = i * k + j;
-            bool I_equal = isclose(I[idx], static_cast<diNoLib::idx_t>(arrayI_gt[idx]));
+            /* GT indices are read as float; round to avoid truncation (e.g. 122.9999 -> 123). */
+            diNoLib::idx_t gt_idx = static_cast<diNoLib::idx_t>(std::round(arrayI_gt[idx]));
+            bool I_equal = isclose(I[idx], gt_idx);
             bool D_close = isclose(D[idx], arrayD_gt[idx], rtol, atol);
 
             if (!I_equal && !D_close)
             {
                 // Error case 1
                 add_failure("ERROR 1: Indices mismatch AND distance mismatch at (" + std::to_string(i) + "," + std::to_string(j) + "): " +
-                            "expected label " + std::to_string(arrayI_gt[idx]) + ", got " +
+                            "expected label " + std::to_string(gt_idx) + ", got " +
                             std::to_string(I[idx]) + "; " + "expected distance " +
                             std::to_string(arrayD_gt[idx]) + ", got " + std::to_string(D[idx]));
             }
@@ -184,7 +186,7 @@ void compareWithGroundTruth(const std::string &pathI,
             {
                 // Warning case
                 std::cerr << "WARNING: Indices mismatch but distances are close at (" << i << "," << j << "): "
-                          << "expected label " << arrayI_gt[idx] << ", got " << I[idx] << "; "
+                          << "expected label " << gt_idx << ", got " << I[idx] << "; "
                           << "distance close to " << D[idx] << std::endl;
             }
             else
