@@ -74,6 +74,9 @@ namespace diNoLib
                         /* Skip sentinel (no result from this rank for this query) */
                         if (dist >= FLT_MAX * 0.99f)
                             continue;
+                        /* Skip invalid position from unfilled pq_bsf slots (position = -1 cast to idx_t) */
+                        if (pos == static_cast<idx_t>(static_cast<long>(-1)))
+                            continue;
                         merged.push_back({dist, pos});
                     }
                 }
@@ -101,6 +104,15 @@ namespace diNoLib
                     {
                         out_I[j] = out_I[count - 1];
                         out_D[j] = out_D[count - 1];
+                    }
+                }
+                /* If no rank had valid results for this query, fill with sentinels (should not happen if every query is assigned) */
+                if (count == 0)
+                {
+                    for (int j = 0; j < topk; j++)
+                    {
+                        out_I[j] = 0;
+                        out_D[j] = FLT_MAX;
                     }
                 }
             }
