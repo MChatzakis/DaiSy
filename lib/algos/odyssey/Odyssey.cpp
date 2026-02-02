@@ -1273,8 +1273,8 @@ namespace diNoLib
                         {
                             pthread_mutex_lock(input_data->bsf_lock);
                             file_position_type local_ts_index = pos / static_cast<file_position_type>(ts_size);
-                            file_position_type global_pos = local_ts_index + static_cast<file_position_type>(rep_get_time_series_offset(*replication_data, my_rank));
-                            pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(global_pos), node);
+                            /* Store local index; global offset is applied when writing to I in searchIndex* */
+                            pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(local_ts_index), node);
                             pthread_mutex_unlock(input_data->bsf_lock);
 
                             bsf_sharing_recv_bsf(*input_data->bsf_sharing_data, pq_bsf, input_data->workernumber, *input_data->shared_bsf_results, input_data->bsf_lock, my_rank, input_data->comm_sz, input_data->query_counter);
@@ -2579,13 +2579,16 @@ namespace diNoLib
         std::memset(I, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(idx_t));
         std::memset(D, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(float));
 
+        const idx_t ts_offset = static_cast<idx_t>(rep_get_time_series_offset(replication_data, my_rank));
+
         for (int i = 0; i < q_num; i++)
         {
             if (results[i].pq_bsf != nullptr)
             {
                 for (int j = 0; j < topk; j++)
                 {
-                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = static_cast<idx_t>(results[i].pq_bsf->position[j]);
+                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] =
+                        static_cast<idx_t>(results[i].pq_bsf->position[j]) + ts_offset;
                     D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
                 }
             }
@@ -2870,11 +2873,13 @@ namespace diNoLib
             std::memset(D, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(float));
         }
 
+        const idx_t ts_offset = static_cast<idx_t>(rep_get_time_series_offset(replication_data, my_rank));
+
         for (int i = 0; i < q_num; i++)
         {
             if (results[i].pq_bsf != nullptr)
             {
-                // Collect valid entries (distance finite, position >=0)
+                // Collect valid entries (distance finite, position >=0); convert local to global index
                 std::vector<std::pair<float, idx_t>> pairs;
                 pairs.reserve(static_cast<size_t>(topk));
                 for (int j = 0; j < topk; j++)
@@ -2882,7 +2887,7 @@ namespace diNoLib
                     float dist = results[i].pq_bsf->knn[j];
                     idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
                     if (dist < FLT_MAX && pos != static_cast<idx_t>(-1))
-                        pairs.emplace_back(dist, pos);
+                        pairs.emplace_back(dist, pos + ts_offset);
                 }
 
                 // Sort deterministically by distance then index (matches ground-truth tie-break)
@@ -2919,6 +2924,15 @@ namespace diNoLib
                         I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = pad_pos;
                         D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = pad_dist;
                     }
+                }
+            }
+            else if (comm_sz > 1)
+            {
+                /* Sentinel for "no result" so merge can skip without wrongly dropping valid (0, 0). */
+                for (int j = 0; j < topk; j++)
+                {
+                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = 0;
+                    D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = FLT_MAX;
                 }
             }
         }
