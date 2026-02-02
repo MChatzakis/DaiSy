@@ -7,6 +7,13 @@
 #include <regex>
 #include <cmath>
 
+#if __has_include(<gtest/gtest.h>)
+#include <gtest/gtest.h>
+#define REPORT_FAILURE(msg) ADD_FAILURE() << msg
+#else
+#define REPORT_FAILURE(msg) std::cerr << "FAILURE: " << msg << std::endl
+#endif
+
 bool isclose(diNoLib::idx_t a, diNoLib::idx_t b)
 {
     return a == b;
@@ -129,8 +136,8 @@ void assert_eq(size_t a, size_t b, const std::string &msg)
 
 void add_failure(const std::string &msg)
 {
-    // Propagate to gtest so the test is marked as failed and shows up in the final summary.
-    ADD_FAILURE() << msg;
+    // Propagate to gtest when available; otherwise log to stderr.
+    REPORT_FAILURE(msg);
 }
 
 void compareWithGroundTruth(const std::string &pathI,
@@ -190,4 +197,3 @@ void compareWithGroundTruth(const std::string &pathI,
     delete[] arrayI_gt;
     delete[] arrayD_gt;
 }
-#include <gtest/gtest.h>
