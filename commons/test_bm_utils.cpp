@@ -129,7 +129,8 @@ void assert_eq(size_t a, size_t b, const std::string &msg)
 
 void add_failure(const std::string &msg)
 {
-    std::cerr << "FAILURE: " << msg << std::endl;
+    // Propagate to gtest so the test is marked as failed and shows up in the final summary.
+    ADD_FAILURE() << msg;
 }
 
 void compareWithGroundTruth(const std::string &pathI,
