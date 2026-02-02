@@ -1962,12 +1962,17 @@ namespace diNoLib
     void Odyssey::initializeMPI(int argc, char **argv)
     {
 #if ODYSSEY_MPI
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        if (provided < MPI_THREAD_MULTIPLE)
+        int already_initialized = 0;
+        MPI_Initialized(&already_initialized);
+        if (!already_initialized)
         {
-            printf("The threading support level is lesser than that demanded.\n");
-            MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+            int provided;
+            MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+            if (provided < MPI_THREAD_MULTIPLE)
+            {
+                printf("The threading support level is lesser than that demanded.\n");
+                MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+            }
         }
         MPI_Comm_size(MPI_COMM_WORLD, &this->comm_sz);
         MPI_Comm_rank(MPI_COMM_WORLD, &this->my_rank);

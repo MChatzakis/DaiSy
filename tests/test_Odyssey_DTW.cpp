@@ -4,14 +4,13 @@
 
 std::string prefix = "bruteForce";
 
-// Odyssey needs argc/argv for MPI_Init; store them in main() and use in tests
 static int g_argc = 0;
 static char **g_argv = nullptr;
 
 TEST_P(OdysseyParameterizedTest, AllConfigurations)
 {
     const SSTestConfig &config = GetParam();
-    diNoLib::DistanceType dist_L2Squared = diNoLib::DistanceType::L2_SQUARED;
+    diNoLib::DistanceType dist_DTW = diNoLib::DistanceType::DTW;
 
     diNoLib::OdysseyConfig odyssey_config;
     odyssey_config.search_workers = 2;
@@ -20,8 +19,9 @@ TEST_P(OdysseyParameterizedTest, AllConfigurations)
     odyssey_config.leaf_size = 1000;
     odyssey_config.paa_segments = 16;
     odyssey_config.replication_groups = 0;
+    odyssey_config.warping_window = 10;  // match typical ground truth (e.g. max(1, dim*0.1))
 
-    diNoLib::Odyssey search(odyssey_config, dist_L2Squared, g_argc, g_argv);
+    diNoLib::Odyssey search(odyssey_config, dist_DTW, g_argc, g_argv);
 
     std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
     std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
@@ -37,13 +37,14 @@ TEST_P(OdysseyParameterizedTest, AllConfigurations)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    OdysseyTests,
+    OdysseyDTWTests,
     OdysseyParameterizedTest,
-    ::testing::ValuesIn(test_configs),
+    ::testing::ValuesIn(test_configs_dtw),
     [](const ::testing::TestParamInfo<SSTestConfig> &info)
     {
         return info.param.name + "_k" + std::to_string(info.param.k_value) +
-               "_thread" + std::to_string(info.param.thread_count);
+               "_thread" + std::to_string(info.param.thread_count) +
+               "_idx" + std::to_string(info.index);
     });
 
 int main(int argc, char **argv)

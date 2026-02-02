@@ -2,6 +2,9 @@
 
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/DataSource.hpp"
+#if ODYSSEY_MPI
+#include "../lib/algos/hodyssey/Odyssey.hpp"
+#endif
 
 void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
                                   const std::string &prefix_name,
@@ -28,10 +31,16 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     float *database = loadBinData(dataset_path.c_str(), n_database, dim);
     float *query = loadBinData(query_path.c_str(), n_query, dim);
 
-    // Check if search is ParIS - it requires file-based buildIndex
-    diNoLib::ParIS* paris_search = dynamic_cast<diNoLib::ParIS*>(search);
-    if (paris_search != nullptr) {
-        // ParIS uses file-based buildIndex
+    // Odyssey requires FileDataSource and MPI (argc/argv passed in test main)
+#if ODYSSEY_MPI
+    diNoLib::Odyssey *odyssey_search = dynamic_cast<diNoLib::Odyssey *>(search);
+    if (odyssey_search != nullptr) {
+        diNoLib::FileDataSource data_source(dataset_path.c_str(), dim, n_database);
+        search->buildIndex(&data_source);
+    } else
+#endif
+    // ParIS uses file-based buildIndex
+    if (dynamic_cast<diNoLib::ParIS *>(search) != nullptr) {
         search->buildIndex(dataset_path, dim, n_database);
     } else {
         // Other algorithms use in-memory buildIndex
