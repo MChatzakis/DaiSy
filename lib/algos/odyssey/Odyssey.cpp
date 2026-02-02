@@ -2490,11 +2490,13 @@ namespace diNoLib
         fflush(stdout);
 #endif
 
-        if (comm_sz > 1)
-        {
-            std::memset(I, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(idx_t));
-            std::memset(D, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(float));
-        }
+        /* Always start from a clean slate: in single-process runs (comm_sz == 1) the
+           caller allocates I/D with new[] but leaves them uninitialised. If a query
+           fails to produce a pq_bsf (or an entry is missing), garbage values would
+           be compared against the ground truth. Zeroing here makes missing results
+           deterministic and prevents random large/negative numbers in tests. */
+        std::memset(I, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(idx_t));
+        std::memset(D, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(float));
 
         for (int i = 0; i < q_num; i++)
         {
