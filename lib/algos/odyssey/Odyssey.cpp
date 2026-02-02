@@ -351,7 +351,7 @@ namespace diNoLib
             if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
             {
                 pqueue_insert(pq, n);
-                continue;
+                break;
             }
             if (n->node->is_leaf)
             {
@@ -367,6 +367,11 @@ namespace diNoLib
                     }
                 }
                 calculate_node_DTWknn_inmemory(index, n->node, ts, warp_window, pq_bsf, rawfile);
+                if (pq_bsf->knn[pq_bsf->k - 1] < FLT_MAX)
+                {
+                    pqueue_insert(pq, n);
+                    break;
+                }
             }
             else
             {

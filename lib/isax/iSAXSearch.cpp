@@ -163,88 +163,102 @@ namespace diNoLib
                 pqueue_insert(pq, n);
                 break;
             }
-            // If it is a leaf, check its real distance.
-            if (n->node->is_leaf)
-            {
-                // *** ADAPTIVE SPLITTING ***
-                if (!n->node->has_full_data_file &&
-                    (n->node->leaf_size > index->settings->min_leaf_size) &&
-                    n->node->buffer != NULL)
-                {
-                    split_node(index, n->node);
-                    if (!n->node->is_leaf)
-                    {
-                        pqueue_insert(pq, n);
-                        continue;
-                    }
-                }
-                // *** EXTRA BOUNDING ***
-                if (tight_bound)
-                {
-                    j++;
-                    float mindistance = calculate_minimum_distance_inmemory(index, n->node, ts, paa);
-
-                    if (mindistance >= pq_bsf->knn[pq_bsf->k - 1])
-                    {
-                        free(n);
-                        continue;
-                    }
-                }
-                // *** REAL DISTANCE ***
-                checks++;
-                calculate_node_topk_inmemory(index, n->node, ts, pq_bsf, rawfile);
-            }
             else
             {
-                // Intermediate node: push children
-                if (n->node->left_child != NULL && 
-                    n->node->left_child->isax_values != NULL && 
-                    n->node->left_child->isax_cardinalities != NULL)
+                // If it is a leaf, check its real distance.
+                if (n->node->is_leaf)
                 {
-                    if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
+                    // *** ADAPTIVE SPLITTING ***
+                    // Only split if buffer exists (node hasn't been split already)
+                    if (!n->node->has_full_data_file &&
+                        (n->node->leaf_size > index->settings->min_leaf_size) &&
+                        n->node->buffer != NULL)
                     {
-                        calculate_node_topk_inmemory(index, n->node->left_child, ts, pq_bsf, rawfile);
+                        // Try to split - split_node may return early if can't split further
+                        split_node(index, n->node);
+                        // Only re-queue if split succeeded (node is no longer a leaf)
+                        if (!n->node->is_leaf)
+                        {
+                            pqueue_insert(pq, n);
+                            continue;
+                        }
+                        // If still a leaf (split failed), fall through to process normally
                     }
-                    else
+                    // *** EXTRA BOUNDING ***
+                    if (tight_bound)
                     {
-                        query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
-                        mindist_result->distance = minidist_paa_to_isax(paa, n->node->left_child->isax_values,
-                                                                        n->node->left_child->isax_cardinalities,
-                                                                        index->settings->sax_bit_cardinality,
-                                                                        index->settings->sax_alphabet_cardinality,
-                                                                        index->settings->paa_segments,
-                                                                        MINVAL, MAXVAL,
-                                                                        index->settings->mindist_sqrt);
-                        mindist_result->node = n->node->left_child;
-                        pqueue_insert(pq, mindist_result);
-                    }
-                }
-                if (n->node->right_child != NULL && 
-                    n->node->right_child->isax_values != NULL && 
-                    n->node->right_child->isax_cardinalities != NULL)
-                {
-                    if (n->node->right_child->is_leaf && !n->node->right_child->has_partial_data_file && aggressive_check)
-                    {
-                        calculate_node_topk_inmemory(index, n->node->right_child, ts, pq_bsf, rawfile);
-                    }
-                    else
-                    {
-                        query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
-                        mindist_result->distance = minidist_paa_to_isax(paa, n->node->right_child->isax_values,
-                                                                        n->node->right_child->isax_cardinalities,
-                                                                        index->settings->sax_bit_cardinality,
-                                                                        index->settings->sax_alphabet_cardinality,
-                                                                        index->settings->paa_segments,
-                                                                        MINVAL, MAXVAL,
-                                                                        index->settings->mindist_sqrt);
-                        mindist_result->node = n->node->right_child;
-                        pqueue_insert(pq, mindist_result);
-                    }
-                }
-            }
+                        j++;
+                        float mindistance = calculate_minimum_distance_inmemory(index, n->node, ts, paa);
 
-            // Free the node currently popped.
-            free(n);
+                        if (mindistance >= pq_bsf->knn[pq_bsf->k - 1])
+                        {
+                            free(n);
+                            continue;
+                        }
+                    }
+                    // *** REAL DISTANCE ***
+                    checks++;
+                    calculate_node_topk_inmemory(index, n->node, ts, pq_bsf, rawfile);
+
+                    if (pq_bsf->knn[pq_bsf->k - 1] < FLT_MAX)
+                    {
+                        pqueue_insert(pq, n);
+                        break;
+                    }
+                }
+                else
+                {
+                    // If it is an intermediate node calculate mindist for children
+                    // and push them in the queue
+                    if (n->node->left_child != NULL && 
+                        n->node->left_child->isax_values != NULL && 
+                        n->node->left_child->isax_cardinalities != NULL)
+                    {
+                        if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
+                        {
+                            calculate_node_topk_inmemory(index, n->node->left_child, ts, pq_bsf, rawfile);
+                        }
+                        else
+                        {
+                            query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
+                            mindist_result->distance = minidist_paa_to_isax(paa, n->node->left_child->isax_values,
+                                                                            n->node->left_child->isax_cardinalities,
+                                                                            index->settings->sax_bit_cardinality,
+                                                                            index->settings->sax_alphabet_cardinality,
+                                                                            index->settings->paa_segments,
+                                                                            MINVAL, MAXVAL,
+                                                                            index->settings->mindist_sqrt);
+                            mindist_result->node = n->node->left_child;
+                            pqueue_insert(pq, mindist_result);
+                        }
+                    }
+                    if (n->node->right_child != NULL && 
+                        n->node->right_child->isax_values != NULL && 
+                        n->node->right_child->isax_cardinalities != NULL)
+                    {
+                        if (n->node->right_child->is_leaf && !n->node->right_child->has_partial_data_file && aggressive_check)
+                        {
+                            calculate_node_topk_inmemory(index, n->node->right_child, ts, pq_bsf, rawfile);
+                        }
+                        else
+                        {
+                            query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
+                            mindist_result->distance = minidist_paa_to_isax(paa, n->node->right_child->isax_values,
+                                                                            n->node->right_child->isax_cardinalities,
+                                                                            index->settings->sax_bit_cardinality,
+                                                                            index->settings->sax_alphabet_cardinality,
+                                                                            index->settings->paa_segments,
+                                                                            MINVAL, MAXVAL,
+                                                                            index->settings->mindist_sqrt);
+                            mindist_result->node = n->node->right_child;
+                            pqueue_insert(pq, mindist_result);
+                        }
+                    }
+                }
+
+                // Free the node currently popped.
+                free(n);
+            }
         }
         // Free the nodes that where not popped.
         while ((n = (query_result *)pqueue_pop(pq)))
