@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cfloat>
+#include <unordered_set>
 #include <vector>
 
 #include "../isax/iSAXPqueue.hpp"
@@ -767,7 +768,7 @@ namespace diNoLib
 
             pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k);
   
-            /* Collect valid (position, distance) pairs, sort by (distance, position) to match FAISS ground truth order, then copy and pad. */
+            /* Collect valid (position, distance) pairs, sort by (distance, position), deduplicate by index (same series can appear from multiple leaves), then copy and pad. */
             std::vector<std::pair<float, long>> pairs;
             pairs.reserve(static_cast<size_t>(k));
             for (idx_t ik = 0; ik < k; ik++)
@@ -779,14 +780,22 @@ namespace diNoLib
                 if (a.first != b.first) return a.first < b.first;
                 return a.second < b.second;
             });
+            std::unordered_set<long> seen_pos;
+            std::vector<std::pair<float, long>> uniq;
+            uniq.reserve(pairs.size());
+            for (const auto &p : pairs)
+            {
+                if (seen_pos.insert(p.second).second)
+                    uniq.push_back(p);
+            }
             long last_pos = 0;
             float last_dist = 0.0f;
             for (idx_t ik = 0; ik < k; ik++)
             {
-                if (ik < static_cast<idx_t>(pairs.size()))
+                if (ik < static_cast<idx_t>(uniq.size()))
                 {
-                    last_dist = pairs[static_cast<size_t>(ik)].first;
-                    last_pos = pairs[static_cast<size_t>(ik)].second;
+                    last_dist = uniq[static_cast<size_t>(ik)].first;
+                    last_pos = uniq[static_cast<size_t>(ik)].second;
                 }
                 I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
                 D[q_loaded * k + ik] = last_dist;
@@ -838,7 +847,7 @@ namespace diNoLib
             // Query-dependent computations (paa, envelopes, paaU, paaL) are done inside MESSI_search_topk_DTW
             pqueue_bsf result = MESSI_search_topk_DTW((float *)ts, &nodelist, k);
 
-            /* Collect valid (position, distance) pairs, sort by (distance, position) to match ground truth order, then copy and pad. */
+            /* Collect valid (position, distance) pairs, sort by (distance, position), deduplicate by index, then copy and pad. */
             std::vector<std::pair<float, long>> pairs;
             pairs.reserve(static_cast<size_t>(k));
             for (idx_t ik = 0; ik < k; ik++)
@@ -850,14 +859,22 @@ namespace diNoLib
                 if (a.first != b.first) return a.first < b.first;
                 return a.second < b.second;
             });
+            std::unordered_set<long> seen_pos;
+            std::vector<std::pair<float, long>> uniq;
+            uniq.reserve(pairs.size());
+            for (const auto &p : pairs)
+            {
+                if (seen_pos.insert(p.second).second)
+                    uniq.push_back(p);
+            }
             long last_pos = 0;
             float last_dist = 0.0f;
             for (idx_t ik = 0; ik < k; ik++)
             {
-                if (ik < static_cast<idx_t>(pairs.size()))
+                if (ik < static_cast<idx_t>(uniq.size()))
                 {
-                    last_dist = pairs[static_cast<size_t>(ik)].first;
-                    last_pos = pairs[static_cast<size_t>(ik)].second;
+                    last_dist = uniq[static_cast<size_t>(ik)].first;
+                    last_pos = uniq[static_cast<size_t>(ik)].second;
                 }
                 I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
                 D[q_loaded * k + ik] = last_dist;

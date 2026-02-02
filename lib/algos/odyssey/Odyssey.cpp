@@ -2647,7 +2647,7 @@ namespace diNoLib
             {
                 if (num_procs == 1)
                 {
-                    /* Single process: collect valid (dist, pos) pairs, sort by (dist, pos) to match FAISS ground truth order, then copy and pad. */
+                    /* Single process: collect valid (dist, pos) pairs, sort by (dist, pos), deduplicate by index (same series can appear from multiple leaves), then copy and pad. */
                     std::vector<std::pair<float, idx_t>> pairs;
                     pairs.reserve(static_cast<size_t>(topk));
                     for (int j = 0; j < topk; j++)
@@ -2661,14 +2661,22 @@ namespace diNoLib
                         if (a.first != b.first) return a.first < b.first;
                         return a.second < b.second;
                     });
+                    std::unordered_set<idx_t> seen_pos;
+                    std::vector<std::pair<float, idx_t>> uniq;
+                    uniq.reserve(pairs.size());
+                    for (const auto &p : pairs)
+                    {
+                        if (seen_pos.insert(p.second).second)
+                            uniq.push_back(p);
+                    }
                     idx_t last_pos = 0;
                     float last_dist = 0.0f;
                     for (int j = 0; j < topk; j++)
                     {
-                        if (j < static_cast<int>(pairs.size()))
+                        if (j < static_cast<int>(uniq.size()))
                         {
-                            last_dist = pairs[static_cast<size_t>(j)].first;
-                            last_pos = pairs[static_cast<size_t>(j)].second;
+                            last_dist = uniq[static_cast<size_t>(j)].first;
+                            last_pos = uniq[static_cast<size_t>(j)].second;
                         }
                         I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = last_pos;
                         D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = last_dist;
