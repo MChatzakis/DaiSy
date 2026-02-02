@@ -207,6 +207,80 @@ namespace diNoLib
         return static_cast<double>(bsf);
     }
 
+    /** Re-rank a BSF priority queue with exact L2 distances (distance, then index tie-break). */
+    static void rerank_pq_exact_l2(pqueue_bsf *pq, ts_type *query, float *rawfile, int dim)
+    {
+        if (!pq || !rawfile || !query)
+            return;
+
+        const int k = pq->k;
+        std::vector<std::pair<float, file_position_type>> cand;
+        cand.reserve(static_cast<size_t>(k));
+
+        for (int i = 0; i < k; i++)
+        {
+            file_position_type pos = static_cast<file_position_type>(pq->position[i]);
+            if (pos < 0)
+                continue;
+
+            const ts_type *base = rawfile + static_cast<size_t>(pos) * static_cast<size_t>(dim);
+            float dist = 0.0f;
+            for (int d = 0; d < dim; d++)
+            {
+                float diff = static_cast<float>(query[d] - base[d]);
+                dist += diff * diff;
+            }
+            cand.emplace_back(dist, pos);
+        }
+
+        if (cand.empty())
+            return;
+
+        std::sort(cand.begin(), cand.end(), [](const auto &a, const auto &b) {
+            if (a.first != b.first)
+                return a.first < b.first;
+            return a.second < b.second;
+        });
+
+        // Deduplicate by position, keep first (best distance)
+        std::vector<std::pair<float, file_position_type>> uniq;
+        uniq.reserve(cand.size());
+        file_position_type last_pos = static_cast<file_position_type>(-1);
+        for (const auto &p : cand)
+        {
+            if (p.second != last_pos)
+            {
+                uniq.push_back(p);
+                last_pos = p.second;
+            }
+        }
+
+        // Reset pq then write back
+        for (int i = 0; i < k; i++)
+        {
+            pq->knn[i] = FLT_MAX;
+            pq->position[i] = -1;
+        }
+
+        int copy_count = std::min(k, static_cast<int>(uniq.size()));
+        for (int i = 0; i < copy_count; i++)
+        {
+            pq->knn[i] = uniq[static_cast<size_t>(i)].first;
+            pq->position[i] = static_cast<long>(uniq[static_cast<size_t>(i)].second);
+        }
+
+        if (copy_count > 0 && copy_count < k)
+        {
+            float pad_dist = pq->knn[copy_count - 1];
+            long pad_pos = pq->position[copy_count - 1];
+            for (int i = copy_count; i < k; i++)
+            {
+                pq->knn[i] = pad_dist;
+                pq->position[i] = pad_pos;
+            }
+        }
+    }
+
     int cmp_query(const void *a, const void *b)
     {
         const OdysseyQuery *query_a = static_cast<const OdysseyQuery *>(a);
@@ -1623,6 +1697,13 @@ namespace diNoLib
         else
         {
             bsf_result.pq_bsf = pqueue_bsf_init_from_src(k, precomputed_bsfs);
+        }
+
+        // Re-rank with exact L2 (distance then index) to make output deterministic and complete.
+        // rawfile is local chunk; for comm_sz==1 this is full dataset (tests run this way).
+        if (rawfile != nullptr && this->distance_type == DistanceType::L2_SQUARED)
+        {
+            rerank_pq_exact_l2(bsf_result.pq_bsf, ts, rawfile, index->settings->timeseries_size);
         }
 
         if (bsf_result.pq_bsf->knn[k - 1] == 0.0f)
