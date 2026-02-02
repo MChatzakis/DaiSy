@@ -1701,10 +1701,10 @@ namespace diNoLib
 
         // Re-rank with exact L2 (distance then index) to make output deterministic and complete.
         // rawfile is local chunk; for comm_sz==1 this is full dataset (tests run this way).
-        if (rawfile != nullptr && args.warp_window == 0)
+        /*if (rawfile != nullptr && this->distance_type == DistanceType::L2_SQUARED)
         {
             rerank_pq_exact_l2(bsf_result.pq_bsf, ts, rawfile, index->settings->timeseries_size);
-        }
+        }*/
 
         if (bsf_result.pq_bsf->knn[k - 1] == 0.0f)
         {
