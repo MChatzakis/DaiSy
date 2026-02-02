@@ -3295,7 +3295,7 @@ namespace diNoLib
         {
             const char *scheduling_methods[] = {"Single Node", "Static", "Round Robin", "Dynamic"};
             const char *odyssey_modes[] = {"Subsequence Similarity Search", "Sequence Similarity Search"};
-            const char *dynamic_scheduling_modes[] = {"Coordinator Idle", "Periodic Check", "Standalone Thread"};
+            const char *dynamic_scheduling_modes[] = {"Periodic Check", "Standalone Thread"};
             const char *dis_enab[] = {"Disabled", "Enabled"};
             const char *workstealing_types[] = {"Disabled", "S-WS"};
 
@@ -3334,7 +3334,7 @@ namespace diNoLib
             if (odyssey->query_scheduling == 3)  // DYNAMIC_PRED_BASED = 3
             {
                 int dyn_sched_idx = odyssey->dynamic_scheduling_mode;
-                if (dyn_sched_idx < 0 || dyn_sched_idx >= 3) dyn_sched_idx = 2;  // Default to standalone thread
+                if (dyn_sched_idx < 0 || dyn_sched_idx >= 2) dyn_sched_idx = 1;  // Default to standalone thread
                 printf("Dynamic Scheduling: [%s]\n", dynamic_scheduling_modes[dyn_sched_idx]);
             }
 

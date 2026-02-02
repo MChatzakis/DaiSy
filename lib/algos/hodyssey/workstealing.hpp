@@ -11,7 +11,6 @@ namespace diNoLib
     constexpr int WORKSTEALING_INFORM_AVAILABILITY = 900;
     constexpr int WORKSTEALING_QUERY_ANSWERING_COMPLETION = 901;
     constexpr int WORKSTEALING_DATA_SEND = 902;
-    constexpr int WORKSTEALING_BSF_SHARE = 903;
 
     enum class WorkstealingType
     {
@@ -23,12 +22,9 @@ namespace diNoLib
     struct WorkstealingData
     {
         int items_to_send;
-        
-        bool first_time_flag = false;                 // First time bsf sharing requires some special handling
+
         bool deterministic_index = false;             // Create deterministic index (Index across nodes with same data will be exactly the same)
-        
-        float limit_factor;                  // If the current node has processed >=80% of PQs, do not accept workstealing
-        
+
         std::vector<MPI_Request> global_helper_requests; // Helper node requests (should be global single object)
         WorkstealingType ws_type = WorkstealingType::S_WS; // 0 for no ws, 1 for first algorithm, 2 for second.
     };

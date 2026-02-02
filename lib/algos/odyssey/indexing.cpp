@@ -305,32 +305,6 @@ namespace diNoLib
         }
     }
 
-    long int find_total_tree_leafs_depths(isax_node *root_node, long int depth)
-    {
-        static long int total_leafs_depths = 0;
-        if (depth == 0)
-        {
-            // If we change tree, initialize again the variable
-            total_leafs_depths = 0;
-        }
-
-        if (root_node == nullptr)
-        {
-            return 0;
-        }
-        else if (root_node->left_child == nullptr && root_node->right_child == nullptr)
-        {
-            // is_leaf
-            total_leafs_depths += depth;
-        }
-
-        // NOT TRUE: intermediate node
-        find_total_tree_leafs_depths(root_node->left_child, depth + 1);
-        find_total_tree_leafs_depths(root_node->right_child, depth + 1);
-
-        return total_leafs_depths;
-    }
-
     long int count_ts_in_nodes(isax_node *root_node, const char parallelism_in_subtree, 
                                const char recBuf_helpers_exist)
     {

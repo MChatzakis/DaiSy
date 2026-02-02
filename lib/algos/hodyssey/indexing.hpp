@@ -23,7 +23,6 @@ namespace diNoLib
     enum class DynamicSchedulingMode
     {
         PERIODIC_CHECK = 0,
-        COORDINATOR_IDLE,
         STANDALONE_THREAD
     };
 
@@ -44,13 +43,10 @@ namespace diNoLib
         int size;
 
         volatile int current_subtree_to_process;
-        volatile int current_pq_to_process;
 
         char processed_phase_1;
-        char processed_phase_2;
 
         char is_getting_help_phase1;
-        char is_getting_help_phase2;
 
         int pq_th;
         int pq_amount;
@@ -118,7 +114,6 @@ namespace diNoLib
     long int find_total_nodes(isax_node *root_node);
     long int find_total_leafs_nodes(isax_node *root_node);
     long int find_tree_height(isax_node *root_node);
-    long int find_total_tree_leafs_depths(isax_node *root_node, long int depth);
     long int count_ts_in_nodes(isax_node *root_node, const char parallelism_in_subtree, 
                                const char recBuf_helpers_exist);
     long int find_total_nodes_tmp(isax_node *root_node);

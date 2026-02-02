@@ -208,8 +208,6 @@ namespace diNoLib
         ts_type *paaL;
     };
 
-    constexpr double ERROR_THRESHOLD = 0.00001;
-
     struct CoordinatorData
     {
         CommunicationModuleData *comm_data;  // Changed from communication_module_data to CommunicationModuleData

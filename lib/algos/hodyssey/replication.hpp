@@ -36,7 +36,6 @@ namespace diNoLib
     {
         int total_groups = 1;
         std::string node_groups_config;
-        int bsf_sharing_pdr = 1; // Share BSF among node groups
 
         std::vector<ReplicationGroup> node_groups;
         std::vector<int> node_group_mappings;
@@ -67,13 +66,9 @@ namespace diNoLib
     
     int rep_get_repgroup_nodes(const ReplicationData &replication_data, int rank);
     
-    bool rep_is_last_node_of_group(const ReplicationData &replication_data, int rank);
-    
     idx_t rep_get_time_series_of_group(const ReplicationData &replication_data, int rank);
     
     idx_t rep_get_time_series_offset(const ReplicationData &replication_data, int rank);
-    
-    ReplicationGroup rep_get_group(const ReplicationData &replication_data, int rank);
 
 } // namespace diNoLib
 

@@ -290,23 +290,6 @@ namespace diNoLib
         return replication_data.node_group_mappings[rank];
     }
 
-    bool rep_is_last_node_of_group(const ReplicationData &replication_data, int rank)
-    {
-        int group_id = rep_find_group(replication_data, rank);
-        if (group_id < 0 || group_id >= (int)replication_data.node_groups.size())
-        {
-            return false;
-        }
-        
-        const ReplicationGroup &group = replication_data.node_groups[group_id];
-        if (group.total_nodes == 0)
-        {
-            return false;
-        }
-        
-        return rank == group.nodes[group.total_nodes - 1].node_id;
-    }
-
     int rep_find_coordinator_node_rank(const ReplicationData &replication_data, int rank)
     {
         int group_id = rep_find_group(replication_data, rank);
@@ -335,24 +318,6 @@ namespace diNoLib
             return 0;
         }
         return replication_data.node_groups[group_id].total_time_series;
-    }
-
-    ReplicationGroup rep_get_group(const ReplicationData &replication_data, int rank)
-    {
-        int group_id = rep_find_group(replication_data, rank);
-        if (group_id < 0 || group_id >= (int)replication_data.node_groups.size())
-        {
-            // Return empty group as error indicator
-            ReplicationGroup empty_group;
-            empty_group.group_id = -1;
-            empty_group.total_nodes = 0;
-            empty_group.coordinator_node = -1;
-            empty_group.total_time_series = 0;
-            empty_group.index_threads_total = 0;
-            empty_group.query_threads_total = 0;
-            return empty_group;
-        }
-        return replication_data.node_groups[group_id];
     }
 
     idx_t rep_get_time_series_offset(const ReplicationData &replication_data, int rank)

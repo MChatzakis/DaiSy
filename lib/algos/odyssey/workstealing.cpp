@@ -16,8 +16,6 @@ namespace diNoLib
         workstealing_data.ws_type = WorkstealingType::S_WS;
 
         // Set default values for workstealing
-        workstealing_data.limit_factor = 0.8f;
-        workstealing_data.first_time_flag = true;
         workstealing_data.items_to_send = 4;
         workstealing_data.deterministic_index = false;
 

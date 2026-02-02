@@ -84,7 +84,7 @@ namespace diNoLib
         int merge_offset = 0;//HERE
         float corr_threshold = 0.2f;//HERE
         bool verbose = false; //HERE
-        int dynamic_scheduling_mode = 2;//HERE // 0: coordinator-idle, 1: periodic-check, 2: standalone-thread
+        int dynamic_scheduling_mode = 1;  // 0: periodic-check, 1: standalone-thread
         int top_k = 1;//HERE
 
         // MPI parameters
@@ -193,9 +193,6 @@ namespace diNoLib
     double predict_exec_time(float bsf, const char *dataset_type);  // Changed char* to const char*
     int cmp_query(const void *a, const void *b);
 
-    void greedy_query_scheduling(OdysseyQuery *queries, OdysseyQuery *queries_to_ans, int *queries_counter, int q_num,
-                                 ReplicationData *replication_data, int my_rank, int comm_sz);
-
     // Communication module functions
     // NOTE: VLA (Variable Length Array) in original C code: process_buffer_initial[comm_sz][distributed_queries_initial_burst]
     // In C++ we use pointer to pointer (int**) or flattened array with manual indexing
@@ -228,18 +225,6 @@ namespace diNoLib
     void odyssey_perform_workstealing(Odyssey *odyssey, OdysseyQuery *queries, NodeList nodelist, 
                                       ws_func_type ws_func, double (*estimation_func)(double), 
                                       query_result *results, std::vector<BsfMessage> *shared_bsf_results);  // Changed bsf_msg* to std::vector<BsfMessage>*
-    
-    // Query scheduling functions - only dynamic scheduling supported
-    // COMMENTED: Single node, static, and static pred-based scheduling not supported
-    // query_result *odyssey_sched_snode_qa(Odyssey *odyssey, qa_func_type qa_func, ws_func_type ws_func);
-    // query_result *odyssey_sched_static_qa(Odyssey *odyssey, qa_func_type qa_func, ws_func_type ws_func);
-    // query_result *odyssey_sched_static_pred_based_qa(Odyssey *odyssey, qa_func_type qa_func, ws_func_type ws_func);
-    query_result *odyssey_sched_dynamic_pred_based_qa(Odyssey *odyssey, qa_func_type qa_func, ws_func_type ws_func);  // Only dynamic scheduling supported
-    query_result *odyssey_query_answering(Odyssey *odyssey);
-    void odyssey_collect_timers(Odyssey *odyssey);
-    void odyssey_collect_results_knn(Odyssey *odyssey);
-    void odyssey_collect(Odyssey *odyssey);
-    void odyssey_destroy(Odyssey *odyssey);
 
 } // namespace diNoLib
 
