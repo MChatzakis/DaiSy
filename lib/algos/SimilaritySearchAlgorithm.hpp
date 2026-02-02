@@ -126,6 +126,9 @@ namespace diNoLib
         
         virtual void setNumThreads(int num_threads) {}
 
+        /** For MPI algorithms (e.g. Odyssey): only rank 0 should compare results; others return non-zero. Default 0 = always compare. */
+        virtual int getResultCompareRank() const { return 0; }
+
         virtual ~SimilaritySearchAlgorithm()
         {
             delete distance_computer;

@@ -53,7 +53,9 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     float *D = new float[n_query * k];
     search->searchIndex(query, n_query, k, I, D);
 
-    compareWithGroundTruth(gt_I, gt_D, I, D, n_query, k);
+    /* For MPI (e.g. Odyssey) only rank 0 has merged results to compare; other ranks skip. */
+    if (search->getResultCompareRank() == 0)
+        compareWithGroundTruth(gt_I, gt_D, I, D, n_query, k);
 
     delete[] database;
     delete[] query;

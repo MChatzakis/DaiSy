@@ -161,6 +161,9 @@ namespace diNoLib
         
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
+        /** Only rank 0 compares results in tests; other ranks skip to avoid comparing unmerged buffers. */
+        int getResultCompareRank() const override { return my_rank; }
+
         ~Odyssey();
 
     };
