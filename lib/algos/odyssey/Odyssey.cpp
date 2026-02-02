@@ -69,7 +69,12 @@ namespace diNoLib
                     for (int j = 0; j < topk; j++)
                     {
                         size_t idx = static_cast<size_t>(r) * per_rank + static_cast<size_t>(q) * static_cast<size_t>(topk) + static_cast<size_t>(j);
-                        merged.push_back({all_D[idx], all_I[idx]});
+                        idx_t pos = all_I[idx];
+                        float dist = all_D[idx];
+                        /* Skip placeholder (0, 0): rank did not contribute for this query slot */
+                        if (pos == 0 && dist == 0.0f)
+                            continue;
+                        merged.push_back({dist, pos});
                     }
                 }
                 std::sort(merged.begin(), merged.end());
@@ -87,6 +92,15 @@ namespace diNoLib
                         count++;
                         if (count >= topk)
                             break;
+                    }
+                }
+                /* Pad to exactly topk if we have fewer unique results (e.g. some ranks had no result) */
+                if (count > 0 && count < topk)
+                {
+                    for (int j = count; j < topk; j++)
+                    {
+                        out_I[j] = out_I[count - 1];
+                        out_D[j] = out_D[count - 1];
                     }
                 }
             }
