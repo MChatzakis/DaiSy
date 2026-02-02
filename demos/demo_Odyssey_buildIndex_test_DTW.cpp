@@ -58,24 +58,13 @@ int main(int argc, char *argv[])
         rank = odyssey.getMyRank();
         size = odyssey.getCommSz();
 
-    printf("========================================\n");
-    printf("Odyssey BuildIndex Test (DTW)\n");
-    printf("========================================\n");
-    printf("Dataset size: %llu\n", n_database);
-    printf("Time series dimension: %llu\n", dim);
-    printf("Warping window: %d\n", warp_window);
-    printf("Temporary file: %s\n", temp_db_file.c_str());
-    printf("[Node %d/%d] Starting test...\n", rank, size);
-
     // ========================================================================
     // 3. GENERA E SCRIVI DATI SU FILE
     // ========================================================================
     if (rank == 0)
     {
-        printf("\n[Node 0] Generating random data (same seed 100 as ParIS)...\n");
         float *database = loadRandomData(n_database, dim, 100);
 
-        printf("[Node 0] Writing database to file %s ...\n", temp_db_file.c_str());
         FILE *fp = fopen(temp_db_file.c_str(), "wb");
         if (fp == nullptr)
         {
@@ -92,7 +81,8 @@ int main(int argc, char *argv[])
             fprintf(stderr, "[Node 0] Error: wrote only %zu floats (expected %zu)\n", written, to_write);
             return 1;
         }
-        printf("[Node 0] Database written successfully (%llu time series)\n", n_database);
+        printf("Loaded %llu database points and %llu query points with dimension %llu\n",
+               static_cast<unsigned long long>(n_database), static_cast<unsigned long long>(n_query), dim);
     }
 
 #if ODYSSEY_MPI
@@ -142,51 +132,38 @@ int main(int argc, char *argv[])
     }
 #endif
 
-        printf("\n[Node %d] Odyssey object created and configured (DTW)\n", rank);
-
         // ========================================================================
         // 4. COSTRUISCI L'INDICE
         // ========================================================================
-        printf("\n[Node %d] Building index...\n", rank);
-
         try
         {
             diNoLib::FileDataSource data_source(path_to_use.c_str(), dim, n_database);
 
-            printf("[Node %d] FileDataSource created:\n", rank);
-            printf("  - Filename: %s\n", data_source.getFilename());
-            printf("  - Dimension: %llu\n", data_source.getDim());
-            printf("  - Total records: %llu\n", data_source.getTotalRecords());
-
             odyssey.buildIndex(&data_source);
 
-            printf("[Node %d] >>> buildIndex() completed successfully!\n", rank);
-
-            // ========================================================================
-            // 5. VERIFICA E RICERCA DTW
-            // ========================================================================
-            printf("\n[Node %d] Verifying index structure...\n", rank);
+            if (rank == 0)
+                printf(">>> Finished indexing\n>>> Finished indexing \n");
 
             if (odyssey.getIndex() == nullptr)
             {
                 fprintf(stderr, "[Node %d] ERROR: index is NULL!\n", rank);
                 return 1;
             }
-            printf("[Node %d] ✓ Index pointer is valid\n", rank);
-
             if (odyssey.getIndex()->settings == nullptr)
             {
                 fprintf(stderr, "[Node %d] ERROR: index->settings is NULL!\n", rank);
                 return 1;
             }
-            printf("[Node %d] ✓ Index settings initialized\n", rank);
-            printf("[Node %d] ✓ Warping window: %d\n", rank, warp_window);
-            printf("\n[Node %d] >>> All checks passed! Index built successfully.\n", rank);
 
             // ========================================================================
-            // 6. RICERCA DTW (come in demo ParIS DTW)
+            // 5. RICERCA DTW (come in demo ParIS DTW)
             // ========================================================================
-            printf("\n[Node %d] Preparing queries and running searchIndex (DTW, k=%llu)...\n", rank, static_cast<unsigned long long>(k));
+            if (rank == 0)
+            {
+                printf("@ Starting search\n");
+                printf("@ Starting search Variables are been set\n");
+                printf("@ going searchIndex constructor\n");
+            }
 
             float *query = loadRandomData(n_query, dim, 50);
             if (query == nullptr)
@@ -208,11 +185,9 @@ int main(int argc, char *argv[])
 
             odyssey.searchIndex(query, n_query, k, I, D);
 
-            printf("[Node %d] >>> searchIndex completed.\n", rank);
-
             if (rank == 0)
             {
-                printf("\n[Node 0] Search results (stesso formato di ParIS DTW per confronto):\n");
+                printf(">>> Finished querying.\n>>> Finished search \n");
                 for (unsigned long long i = 0; i < n_query; i++)
                 {
                     printf("Query %llu: ", i);
@@ -222,11 +197,6 @@ int main(int argc, char *argv[])
                     }
                     printf("\n");
                 }
-                printf("\n[Node 0] (Distanze: ");
-                for (unsigned long long i = 0; i < n_query; i++)
-                    for (diNoLib::idx_t j = 0; j < k; j++)
-                        printf("%.4f ", D[i * k + j]);
-                printf(")\n");
             }
 
             std::free(I);
@@ -254,20 +224,9 @@ int main(int argc, char *argv[])
 
     if (rank == 0)
     {
-        printf("\n[Node 0] Cleaning up temporary file %s ...\n", path_to_use.c_str());
-        if (remove(path_to_use.c_str()) == 0)
-        {
-            printf("[Node 0] Temporary file removed\n");
-        }
-        else
-        {
+        if (remove(path_to_use.c_str()) != 0)
             fprintf(stderr, "[Node 0] Warning: Could not remove temporary file\n");
-        }
     }
-
-    printf("\n[Node %d] ========================================\n", rank);
-    printf("[Node %d] Test completed successfully!\n", rank);
-    printf("[Node %d] ========================================\n", rank);
 
 #if ODYSSEY_MPI
     MPI_Finalize();
