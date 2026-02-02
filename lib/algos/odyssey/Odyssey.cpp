@@ -582,13 +582,7 @@ namespace diNoLib
         int coordinator_of_current_group_rank = rep_find_coordinator_node_rank(*replication_data, my_rank);
         int repgroup_nodes = rep_get_repgroup_nodes(*replication_data, my_rank);
 
-        static bool termination_message_sent = false;
-        /* Reset termination flag for each new search invocation.
-           q_loaded is set to 0 at the start of searchIndex; without this reset,
-           the static flag stayed true after a previous run and the coordinator
-           would break out after the first query, leaving the rest unprocessed. */
-        if (*q_loaded == 0)
-            termination_message_sent = false;
+        bool termination_message_sent = false;
         if (termination_message_sent)
         {
             return 0;
