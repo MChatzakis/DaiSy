@@ -2601,6 +2601,11 @@ namespace diNoLib
         {
             if (results[i].pq_bsf != nullptr)
             {
+                // Final deterministic rerank (distance then index), after any workstealing/merging.
+                // Protects against duplicate positions or stale ordering that can appear when
+                // multiple PQs are combined. Uses the full local rawfile (comm_sz==1 case in tests).
+                rerank_pq_exact_l2(results[i].pq_bsf, queries[i].query, this->rawfile, index->settings->timeseries_size);
+
                 for (int j = 0; j < topk; j++)
                 {
                     idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
