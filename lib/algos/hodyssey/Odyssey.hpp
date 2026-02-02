@@ -70,7 +70,7 @@ namespace diNoLib
         int sax_cardinality = 8; //HERE  
         int density_aware_prepro = 0;//HERE
         std::string dataset_type = "default"; //HERE  
-        int pq_th_div_factor = 16;//HERE
+        int pq_th_div_factor = 4;//HERE
         int read_block_length = 20000;//HERE
         int flush_limit = 1000000;
         std::string output_file;//HERE
