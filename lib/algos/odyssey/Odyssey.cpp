@@ -2793,10 +2793,31 @@ namespace diNoLib
         {
             if (results[i].pq_bsf != nullptr)
             {
+                std::unordered_set<idx_t> seen;
+                int out_j = 0;
                 for (int j = 0; j < topk; j++)
                 {
-                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = static_cast<idx_t>(results[i].pq_bsf->position[j]);
-                    D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
+                    idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
+                    float dist = results[i].pq_bsf->knn[j];
+                    if (seen.insert(pos).second)
+                    {
+                        I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j)] = pos;
+                        D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j)] = dist;
+                        out_j++;
+                        if (out_j >= topk)
+                            break;
+                    }
+                }
+                /* If duplicates reduced the count, pad with last valid entry to keep size == topk */
+                if (out_j > 0 && out_j < topk)
+                {
+                    idx_t pad_pos = I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j - 1)];
+                    float pad_dist = D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j - 1)];
+                    for (int j = out_j; j < topk; j++)
+                    {
+                        I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = pad_pos;
+                        D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = pad_dist;
+                    }
                 }
             }
         }
