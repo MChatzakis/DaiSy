@@ -42,7 +42,7 @@ TEST_P(OdysseyParameterizedTest, AllConfigurations)
 INSTANTIATE_TEST_SUITE_P(
     OdysseyTests,
     OdysseyParameterizedTest,
-    ::testing::ValuesIn(test_configs_random_light),
+    ::testing::ValuesIn(test_configs),
     [](const ::testing::TestParamInfo<SSTestConfig> &info)
     {
         return info.param.name + "_k" + std::to_string(info.param.k_value) +
