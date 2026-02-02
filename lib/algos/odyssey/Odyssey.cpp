@@ -2346,6 +2346,47 @@ namespace diNoLib
         const DynamicSchedulingMode mode = static_cast<DynamicSchedulingMode>(this->dynamic_scheduling_mode);
 
 #if ODYSSEY_MPI
+        if (comm_sz == 1)
+        {
+            /* Single process: no workstealing, no BSF sharing. Run all queries sequentially
+             * to avoid coordinator/worker logic that is designed for multi-rank. */
+            for (int q_loaded = 0; q_loaded < q_num; q_loaded++)
+            {
+                SearchFunctionParams args;
+                args.query_id = q_loaded;
+                args.ts = queries[q_loaded].query;
+                args.paa = queries[q_loaded].paa;
+                args.index = index;
+                args.nodelist = &nodelist;
+                args.minimum_distance = minimum_distance;
+                args.comm_data = nullptr;
+                args.estimation_func = basis_func;
+                args.shared_bsf_results = shared_bsf_results;
+                args.k = topk;
+                args.precomputed_bsfs = queries[q_loaded].initial_pq_bsfs;
+                args.query_threads = query_threads;
+                args.my_rank = my_rank;
+                args.comm_sz = comm_sz;
+                args.verbose = verbose;
+                args.rawfile = rawfile;
+                args.replication_data = &replication_data;
+                args.output_file = output_file;
+                args.corr_threshold = corr_threshold;
+                args.bsf_sharing_data = &bsf_sharing_data;
+                args.workstealing_data = workstealing_data;
+                args.pq_th_div_factor = pq_th_div_factor;
+                args.merge_offset = merge_offset;
+                args.query_counter = q_loaded;
+                args.warp_window = 0;
+                args.paaU = nullptr;
+                args.paaL = nullptr;
+
+                query_result result = qa_exact_search_odyssey_knn(args);
+                results[queries[q_loaded].id] = result;
+            }
+        }
+        else
+        {
         std::vector<MPI_Request> request(static_cast<size_t>(comm_sz));
         std::vector<MPI_Request> send_request(static_cast<size_t>(comm_sz));
         const int distributed_queries_initial_burst = 1;
@@ -2523,6 +2564,7 @@ namespace diNoLib
 
         for (size_t i = 0; i < static_cast<size_t>(comm_sz); i++)
             free(process_buffer_initial[i]);
+        }  /* end else (comm_sz > 1) */
 #else
         (void)mode;
         (void)workstealing_data;
