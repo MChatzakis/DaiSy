@@ -1278,7 +1278,7 @@ namespace diNoLib
                             pthread_mutex_unlock(input_data->bsf_lock);
 
                             bsf_sharing_recv_bsf(*input_data->bsf_sharing_data, pq_bsf, input_data->workernumber, *input_data->shared_bsf_results, input_data->bsf_lock, my_rank, input_data->comm_sz, input_data->query_counter);
-                            bsf_sharing_bcast_bsf(*input_data->bsf_sharing_data, pq_bsf, input_data->workernumber, my_rank, input_data->query_counter, nullptr);
+                            bsf_sharing_bcast_bsf(*input_data->bsf_sharing_data, pq_bsf, input_data->workernumber, my_rank, input_data->query_counter, input_data->replication_data, nullptr);
                         }
                     }
                 }
@@ -1621,7 +1621,7 @@ namespace diNoLib
             while (process_pq_of_batch_chatzakis(current_pq_index, in_data))
             {
                 bsf_sharing_recv_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, *in_data->shared_bsf_results, in_data->bsf_lock, my_rank, comm_sz, query_counter);
-                bsf_sharing_bcast_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, my_rank, query_counter, nullptr);
+                bsf_sharing_bcast_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, my_rank, query_counter, in_data->replication_data, nullptr);
 
                 if (comm_data != nullptr && in_data->workernumber == 0 && comm_data->mode == DynamicSchedulingMode::PERIODIC_CHECK)
                 {
@@ -2580,6 +2580,7 @@ namespace diNoLib
         std::memset(D, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(float));
 
         const idx_t ts_offset = static_cast<idx_t>(rep_get_time_series_offset(replication_data, my_rank));
+        const idx_t my_partition_size = rep_get_time_series_of_group(replication_data, my_rank);
 
         for (int i = 0; i < q_num; i++)
         {
@@ -2587,8 +2588,10 @@ namespace diNoLib
             {
                 for (int j = 0; j < topk; j++)
                 {
+                    idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
+                    /* Positions from our partition are local; from BSF sharing are already global */
                     I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] =
-                        static_cast<idx_t>(results[i].pq_bsf->position[j]) + ts_offset;
+                        (pos < my_partition_size) ? (pos + ts_offset) : pos;
                     D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
                 }
             }
@@ -2874,12 +2877,13 @@ namespace diNoLib
         }
 
         const idx_t ts_offset = static_cast<idx_t>(rep_get_time_series_offset(replication_data, my_rank));
+        const idx_t my_partition_size = rep_get_time_series_of_group(replication_data, my_rank);
 
         for (int i = 0; i < q_num; i++)
         {
             if (results[i].pq_bsf != nullptr)
             {
-                // Collect valid entries (distance finite, position >=0); convert local to global index
+                // Collect valid entries (distance finite, position >=0); local -> global, BSF-received already global
                 std::vector<std::pair<float, idx_t>> pairs;
                 pairs.reserve(static_cast<size_t>(topk));
                 for (int j = 0; j < topk; j++)
@@ -2887,7 +2891,10 @@ namespace diNoLib
                     float dist = results[i].pq_bsf->knn[j];
                     idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
                     if (dist < FLT_MAX && pos != static_cast<idx_t>(-1))
-                        pairs.emplace_back(dist, pos + ts_offset);
+                    {
+                        idx_t global_pos = (pos < my_partition_size) ? (pos + ts_offset) : pos;
+                        pairs.emplace_back(dist, global_pos);
+                    }
                 }
 
                 // Sort deterministically by distance then index (matches ground-truth tie-break)

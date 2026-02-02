@@ -1,4 +1,5 @@
 #include "../hodyssey/bsf_sharing.hpp"
+#include "../hodyssey/replication.hpp"
 #include "../../utils/TimerManager.hpp"
 #include "../../isax/iSAXPqueue.hpp"
 #include <cstring>
@@ -99,6 +100,7 @@ namespace diNoLib
 
     void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                                 int workernumber, int my_rank, int query_counter, 
+                                const ReplicationData *replication_data,
                                 ::dinoLib::timer_manager_t *timer_manager)
     {
         if (!bsf_sharing_data.bsf_sharing_enabled || workernumber != 0 || pq_bsf == nullptr)
@@ -109,7 +111,9 @@ namespace diNoLib
         static bool first_time = true;
 
         float current_BSF = pq_bsf->knn[pq_bsf->k - 1];
-        file_position_type position = pq_bsf->position[pq_bsf->k - 1];
+        file_position_type position_local = pq_bsf->position[pq_bsf->k - 1];
+        file_position_type position = position_local + static_cast<file_position_type>(
+            replication_data ? rep_get_time_series_offset(*replication_data, my_rank) : 0);
         int query_id = query_counter;
 
         if (first_time)
@@ -156,7 +160,7 @@ namespace diNoLib
         if (bsf_changed || query_changed)
         {
             bsf_sharing_data.shared_bsfs[my_rank].bsf = current_BSF;
-            bsf_sharing_data.shared_bsfs[my_rank].position = position;
+            bsf_sharing_data.shared_bsfs[my_rank].position = position;  /* global position */
             bsf_sharing_data.shared_bsfs[my_rank].q_num = query_id;
 
             bsf_sharing_data.bsf_broadcasts_counter++;

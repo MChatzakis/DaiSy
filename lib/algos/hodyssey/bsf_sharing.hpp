@@ -43,8 +43,10 @@ namespace diNoLib
     
     void bsf_sharing_destroy(BsfSharingData &bsf_sharing_data, int comm_sz);
     
+    struct ReplicationData;
     void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                                 int workernumber, int my_rank, int query_counter, 
+                                const ReplicationData *replication_data,
                                 ::dinoLib::timer_manager_t *timer_manager);
     
     void bsf_sharing_recv_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
