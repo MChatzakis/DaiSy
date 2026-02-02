@@ -422,6 +422,8 @@ namespace diNoLib
         }
         while ((n = static_cast<query_result *>(pqueue_pop(pq))) != nullptr)
             std::free(n);
+        for (int i = 0; i < pq_bsf->k - 1; ++i)
+            pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
         pqueue_free(pq);
     }
 
@@ -2599,51 +2601,13 @@ namespace diNoLib
         {
             if (results[i].pq_bsf != nullptr)
             {
-                // Collect valid entries (finite distance, position >= 0); local -> global, BSF-received already global
-                std::vector<std::pair<float, idx_t>> pairs;
-                pairs.reserve(static_cast<size_t>(topk));
                 for (int j = 0; j < topk; j++)
                 {
-                    float dist = results[i].pq_bsf->knn[j];
                     idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
-                    if (dist < FLT_MAX && pos != static_cast<idx_t>(-1))
-                    {
-                        idx_t global_pos = (pos < my_partition_size) ? (pos + ts_offset) : pos;
-                        pairs.emplace_back(dist, global_pos);
-                    }
-                }
-
-                // Sort deterministically by distance then index (matches ground-truth tie-break)
-                std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
-                    if (a.first != b.first)
-                        return a.first < b.first;
-                    return a.second < b.second;
-                });
-
-                // Deduplicate by index, keep first occurrence (smallest distance)
-                std::unordered_set<idx_t> seen;
-                int out_j = 0;
-                for (const auto &p : pairs)
-                {
-                    if (out_j >= topk)
-                        break;
-                    if (seen.insert(p.second).second)
-                    {
-                        I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j)] = p.second;
-                        D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j)] = p.first;
-                        out_j++;
-                    }
-                }
-                // Pad if fewer than topk
-                if (out_j > 0 && out_j < topk)
-                {
-                    idx_t last_I = I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j - 1)];
-                    float last_D = D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(out_j - 1)];
-                    for (int j = out_j; j < topk; j++)
-                    {
-                        I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = last_I;
-                        D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = last_D;
-                    }
+                    /* Positions from our partition are local; from BSF sharing are already global */
+                    I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] =
+                        (pos < my_partition_size) ? (pos + ts_offset) : pos;
+                    D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
                 }
             }
             else if (comm_sz > 1)
