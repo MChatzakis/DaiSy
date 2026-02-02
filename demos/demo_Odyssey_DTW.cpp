@@ -22,7 +22,7 @@
  * Warping window: max(1, dim*0.1) = 10 (come ParIS).
  * File: /tmp/paris_test_db.bin (stesso path di ParIS).
  *
- * Per confrontare: 1) ./demos/demo_ParIS_DTW  2) mpirun -np 4 ./demos/demo_Odyssey_buildIndex_test_DTW
+ * Per confrontare: 1) ./demos/demo_ParIS_DTW  2) mpirun -np 4 ./demos/demo_Odyssey_DTW
  */
 int main(int argc, char *argv[])
 {
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "[Node %d] ERRORE: questo rank vede un file diverso da rank 0.\n", rank);
         fprintf(stderr, "  Path: %s\n", path_to_use.c_str());
         fprintf(stderr, "  Probabile causa: multi-nodo con /tmp locale per nodo.\n");
-        fprintf(stderr, "  Soluzione: mpirun -np 4 --bind-to core ./demos/demo_Odyssey_buildIndex_test_DTW\n");
+        fprintf(stderr, "  Soluzione: mpirun -np 4 --bind-to core ./demos/demo_Odyssey_DTW\n");
         fflush(stderr);
         return 1;
     }

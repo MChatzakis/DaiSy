@@ -21,7 +21,7 @@
  * Parametri identici a demo_ParIS_L2Square: 200000 serie, dim 96, 10 query, k=5, seed 100/50.
  * File: /tmp/paris_test_db.bin (stesso path di ParIS).
  *
- * Per confrontare: 1) ./demos/demo_ParIS_L2Square  2) mpirun -np 4 ./demos/demo_Odyssey_buildIndex_test
+ * Per confrontare: 1) ./demos/demo_ParIS_L2Square  2) mpirun -np 4 ./demos/demo_Odyssey_L2Squared
  */
 int main(int argc, char *argv[])
 {
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "  Dimensione vista da questo rank: %lld byte\n", static_cast<long long>(local_size));
         fprintf(stderr, "  Dimensione attesa (rank 0):      %lld byte\n", static_cast<long long>(size_from_rank0));
         fprintf(stderr, "  Probabile causa: multi-nodo con /tmp locale per nodo.\n");
-        fprintf(stderr, "  Soluzione: lancia su UN SOLO NODO, es: mpirun -np 4 --bind-to core ./demos/demo_Odyssey_buildIndex_test\n");
+        fprintf(stderr, "  Soluzione: lancia su UN SOLO NODO, es: mpirun -np 4 --bind-to core ./demos/demo_Odyssey_L2Squared\n");
         fflush(stderr);
         return 1;
     }
