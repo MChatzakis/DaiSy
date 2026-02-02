@@ -2344,9 +2344,11 @@ namespace diNoLib
         ReplicationData &replication_data = this->replication_data;
         WorkstealingData *workstealing_data = &this->workstealing_data;
         const DynamicSchedulingMode mode = static_cast<DynamicSchedulingMode>(this->dynamic_scheduling_mode);
+        const int num_procs = this->comm_sz;
+        const int rank = this->my_rank;
 
 #if ODYSSEY_MPI
-        if (comm_sz == 1)
+        if (num_procs == 1)
         {
             /* Single process: no workstealing, no BSF sharing. Run all queries sequentially
              * to avoid coordinator/worker logic that is designed for multi-rank. */
@@ -2604,7 +2606,7 @@ namespace diNoLib
         }
 #endif
 
-        if (comm_sz > 1 && workstealing_data->ws_type != WorkstealingType::DISABLED)
+        if (num_procs > 1 && workstealing_data->ws_type != WorkstealingType::DISABLED)
         {
             odyssey_perform_workstealing(this, queries, nodelist,
                                          &qa_exact_search_odyssey_knn_workstealing,
@@ -2636,8 +2638,8 @@ namespace diNoLib
         std::memset(I, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(idx_t));
         std::memset(D, 0, static_cast<size_t>(q_num) * static_cast<size_t>(topk) * sizeof(float));
 
-        const idx_t ts_offset = static_cast<idx_t>(rep_get_time_series_offset(replication_data, my_rank));
-        const idx_t my_partition_size = rep_get_time_series_of_group(replication_data, my_rank);
+        const idx_t ts_offset = static_cast<idx_t>(rep_get_time_series_offset(replication_data, rank));
+        const idx_t my_partition_size = rep_get_time_series_of_group(replication_data, rank);
 
         for (int i = 0; i < q_num; i++)
         {
@@ -2645,14 +2647,20 @@ namespace diNoLib
             {
                 for (int j = 0; j < topk; j++)
                 {
-                    idx_t pos = static_cast<idx_t>(results[i].pq_bsf->position[j]);
+                    const long pos_signed = results[i].pq_bsf->position[j];
+                    /* Invalid/unfilled slot (e.g. -1) must not be cast to idx_t; single-node positions are already global */
+                    idx_t pos;
+                    if (num_procs == 1)
+                        pos = (pos_signed >= 0) ? static_cast<idx_t>(pos_signed) : 0;
+                    else
+                        pos = static_cast<idx_t>(pos_signed);
                     /* Positions from our partition are local; from BSF sharing are already global */
                     I[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] =
-                        (pos < my_partition_size) ? (pos + ts_offset) : pos;
+                        (num_procs == 1) ? pos : ((pos < my_partition_size) ? (pos + ts_offset) : pos);
                     D[static_cast<size_t>(i) * static_cast<size_t>(topk) + static_cast<size_t>(j)] = results[i].pq_bsf->knn[j];
                 }
             }
-            else if (comm_sz > 1)
+            else if (num_procs > 1)
             {
                 /* Sentinel for "no result" so merge can skip without wrongly dropping valid (0, 0). */
                 for (int j = 0; j < topk; j++)
@@ -2664,9 +2672,9 @@ namespace diNoLib
         }
 
 #if ODYSSEY_MPI
-        if (comm_sz > 1)
+        if (num_procs > 1)
         {
-            odyssey_merge_knn_results_mpi(my_rank, comm_sz, q_num, topk, I, D);
+            odyssey_merge_knn_results_mpi(rank, num_procs, q_num, topk, I, D);
         }
 #endif
 
