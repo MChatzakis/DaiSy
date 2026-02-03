@@ -1719,7 +1719,7 @@ namespace diNoLib
         if (rawfile != nullptr && args.warp_window == 0)
         {
             rerank_pq_exact_l2(bsf_result.pq_bsf, ts, rawfile, index->settings->timeseries_size);
-        } 
+        }   
 
         if (bsf_result.pq_bsf->knn[k - 1] == 0.0f)
         {
