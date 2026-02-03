@@ -237,34 +237,6 @@ if(BUILD_DEMO)
             message(STATUS "Include directories added for demo_Odyssey_L2Square.")
         endif()
 
-        # Odyssey L2 squared (build index + search, stessi dati di ParIS L2Square)
-        if(DEBUG_MSG)
-            message(STATUS "Attempting to add executable: demo_Odyssey_L2Squared")
-        endif()
-        add_executable(demo_Odyssey_L2Squared demo_Odyssey_L2Squared.cpp)
-        if(DEBUG_MSG)
-            message(STATUS "Executable demo_Odyssey_L2Squared added.")
-        endif()
-
-        if(DEBUG_MSG)
-            message(STATUS "Linking libraries for demo_Odyssey_L2Squared...")
-        endif()
-        target_link_libraries(demo_Odyssey_L2Squared PRIVATE dino_lib commons_lib MPI::MPI_CXX)
-        if(DEBUG_MSG)
-            message(STATUS "Libraries linked for demo_Odyssey_L2Squared.")
-        endif()
-
-        if(DEBUG_MSG)
-            message(STATUS "Adding include directories for demo_Odyssey_L2Squared...")
-        endif()
-        target_include_directories(demo_Odyssey_L2Squared PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-        )
-        if(DEBUG_MSG)
-            message(STATUS "Include directories added for demo_Odyssey_L2Squared.")
-        endif()
-
         # Odyssey DTW (build index + search, stessi dati di ParIS DTW)
         if(DEBUG_MSG)
             message(STATUS "Attempting to add executable: demo_Odyssey_DTW")
