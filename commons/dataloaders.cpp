@@ -4,6 +4,8 @@
 #include <cmath>
 #include <stdexcept>
 
+static float *z_normalize(const float *data, unsigned long long n, unsigned long long dim);
+
 float *loadBinData(const char *filename, unsigned long long n, unsigned long long dim, bool do_z_normalize)
 {
     FILE *fp = fopen(filename, "rb");
