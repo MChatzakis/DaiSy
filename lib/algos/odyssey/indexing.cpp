@@ -27,9 +27,9 @@ namespace diNoLib
     //   void *index_creation_sequence_worker(void *transferdata)
     //
     // NOTE:
-    // - La parte relativa a znorm (index->settings->znorm, index->means, index->stds)
-    //   è stata rimossa perché nel porting C++ non esistono più questi campi
-    //   e la normalizzazione Z viene gestita esternamente (dati già z-normalizzati).
+    // - The znorm-related part (index->settings->znorm, index->means, index->stds)
+    //   was removed because in the C++ port these fields no longer exist
+    //   and Z-normalization is handled externally (data is already z-normalized).
     // ========================================================================
     void *index_creation_sequence_worker(void *transferdata)
     {
@@ -49,7 +49,7 @@ namespace diNoLib
 
         if (input_data->deterministic_index)
         {
-            // In modalità deterministica ogni worker incrementa un contatore locale
+            // In deterministic mode each worker increments a local counter
             next_block_to_process = &localcounterblock;
         }
 
@@ -60,8 +60,8 @@ namespace diNoLib
         sax_type *sax = static_cast<sax_type *>(std::malloc(static_cast<size_t>(sax_byte_size)));
         CHECK_ALLOC(sax, input_data->my_rank);
 
-        // Nel porting C++ non gestiamo più la znorm interna:
-        // current_series punta direttamente dentro rawfile.
+        // In the C++ port we no longer handle internal znorm:
+        // current_series points directly into rawfile.
         ts_type *current_series = nullptr;
 
         if (input_data->workernumber == 0)
@@ -90,7 +90,7 @@ namespace diNoLib
             my_ts_start = block_num * static_cast<unsigned long>(input_data->readblock);
             if (block_num == total_blocks)
             {
-                // Ultimo blocco: può contenere meno serie del readblock
+                // Last block: may contain fewer series than readblock
                 my_ts_end = ts_num;
             }
             else
@@ -101,7 +101,6 @@ namespace diNoLib
 
             for (i = my_ts_start; i < my_ts_end; i++)
             {
-                // NIENTE znorm interna: lavoriamo direttamente sui dati di rawfile
                 current_series =
                     &rawfile[i * static_cast<unsigned long>(index->settings->timeseries_size)];
 
@@ -115,7 +114,7 @@ namespace diNoLib
                     pos = static_cast<file_position_type>(
                         i * static_cast<unsigned long>(index->settings->timeseries_size));
 
-                    // Inserisce il record SAX nell'indice usando la versione EKOSMAS
+                    // Insert the SAX record into the index using the EKOSMAS version
                     isax_pRecBuf_index_insert_inmemory_ekosmas(
                         index,
                         sax,

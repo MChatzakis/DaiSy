@@ -37,7 +37,7 @@ std::vector<SSTestConfig> generate_configs(
     return configs;
 }
 
-//Incresing number of threads and decresing k should tighten BFS bounds and so should increase the frequency of concurrent write operations to the shared BSF queue
+// Increasing number of threads and decreasing k should tighten BFS bounds and so should increase the frequency of concurrent write operations to the shared BSF queue
 std::vector<SSTestConfig> generate_concurrency_stress_configs(
     const char *name,
     const char *data,

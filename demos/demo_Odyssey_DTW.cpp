@@ -16,18 +16,18 @@
 
 /**
  * Demo Odyssey: build index + search (DTW).
- * Stessi dati e stesse query della demo ParIS DTW per confrontare i risultati.
+ * Same data and queries as demo_ParIS_DTW for result comparison.
  *
- * Parametri identici a demo_ParIS_DTW: 200000 serie, dim 96, 10 query, k=5, seed 100/50.
- * Warping window: max(1, dim*0.1) = 10 (come ParIS).
- * File: /tmp/paris_test_db.bin (stesso path di ParIS).
+ * Parameters identical to demo_ParIS_DTW: 200000 series, dim 96, 10 queries, k=5, seed 100/50.
+ * Warping window: max(1, dim*0.1) = 10 (as ParIS).
+ * File: /tmp/paris_test_db.bin (same path as ParIS).
  *
- * Per confrontare: 1) ./demos/demo_ParIS_DTW  2) mpirun -np 4 ./demos/demo_Odyssey_DTW
+ * To compare: 1) ./demos/demo_ParIS_DTW  2) mpirun -np 4 ./demos/demo_Odyssey_DTW
  */
 int main(int argc, char *argv[])
 {
     // ========================================================================
-    // 1. CONFIGURAZIONE — IDENTICA a demo_ParIS_DTW
+    // 1. CONFIGURATION — IDENTICAL to demo_ParIS_DTW
     // ========================================================================
     diNoLib::idx_t n_database = 200000;
     unsigned long long dim = 96;
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     int warp_window = std::max(1, static_cast<int>(dim * 0.1));
 
     // ========================================================================
-    // 2. CREA OGGETTO ODYSSEY PRIMA DI TUTTO (inizializza MPI)
+    // 2. CREATE ODYSSEY OBJECT FIRST (initializes MPI)
     // ========================================================================
     diNoLib::OdysseyConfig config;
     config.search_workers = 2;
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
         size = odyssey.getCommSz();
 
     // ========================================================================
-    // 3. GENERA E SCRIVI DATI SU FILE
+    // 3. GENERATE AND WRITE DATA TO FILE
     // ========================================================================
     if (rank == 0)
     {
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
-    // Path assoluto: rank 0 lo calcola e lo invia a tutti
+    // Absolute path: rank 0 computes it and broadcasts to all
     static const int PATH_MAX_MPI = 1024;
     char path_buf[PATH_MAX_MPI];
     std::memset(path_buf, 0, PATH_MAX_MPI);
@@ -123,17 +123,17 @@ int main(int argc, char *argv[])
     MPI_Bcast(&size_from_rank0, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     if (local_size != size_from_rank0)
     {
-        fprintf(stderr, "[Node %d] ERRORE: questo rank vede un file diverso da rank 0.\n", rank);
+        fprintf(stderr, "[Node %d] ERROR: this rank sees a different file than rank 0.\n", rank);
         fprintf(stderr, "  Path: %s\n", path_to_use.c_str());
-        fprintf(stderr, "  Probabile causa: multi-nodo con /tmp locale per nodo.\n");
-        fprintf(stderr, "  Soluzione: mpirun -np 4 --bind-to core ./demos/demo_Odyssey_DTW\n");
+        fprintf(stderr, "  Likely cause: multi-node with /tmp local per node.\n");
+        fprintf(stderr, "  Solution: mpirun -np 4 --bind-to core ./demos/demo_Odyssey_DTW\n");
         fflush(stderr);
         return 1;
     }
 #endif
 
         // ========================================================================
-        // 4. COSTRUISCI L'INDICE
+        // 4. BUILD THE INDEX
         // ========================================================================
         try
         {
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
             }
 
             // ========================================================================
-            // 5. RICERCA DTW (come in demo ParIS DTW)
+            // 5. DTW SEARCH (as in demo ParIS DTW)
             // ========================================================================
             if (rank == 0)
             {

@@ -237,7 +237,7 @@ if(BUILD_DEMO)
             message(STATUS "Include directories added for demo_Odyssey_L2Square.")
         endif()
 
-        # Odyssey DTW (build index + search, stessi dati di ParIS DTW)
+        # Odyssey DTW (build index + search, same data as ParIS DTW)
         if(DEBUG_MSG)
             message(STATUS "Attempting to add executable: demo_Odyssey_DTW")
         endif()
