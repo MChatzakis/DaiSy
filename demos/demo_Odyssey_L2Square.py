@@ -25,12 +25,15 @@ n_query = 10
 k = 5
 
 # 1. Generate random data and queries
-database = np.random.rand(n_database, dim).astype(np.float32)
-query = np.random.rand(n_query, dim).astype(np.float32)
+np.random.seed(100)   
+db = np.random.randn(n_database, dim).astype(np.float32)
+
+np.random.seed(50)
+query = np.random.randn(n_query, dim).astype(np.float32)
 
 # 2. Create an Odyssey object
 odyssey_search = dss.Odyssey(dss.DistanceType.L2_SQUARED)
-odyssey_search.buildIndex(database)
+odyssey_search.buildIndex(db)
 
 # 4. Search the index
 I, D = odyssey_search.searchIndex(query, k)
@@ -38,7 +41,7 @@ I, D = odyssey_search.searchIndex(query, k)
 # 5. Print the results (only from rank 0 for clarity)
 if rank == 0:
     print("\nPython Search Results (first 5 queries):")
-    for i in range(min(5, n_query)):
+    for i in range(n_query):
         print(f"Query {i}: Indices {I[i, :k]} Distances {D[i, :k]}")
 
 # 6. Finalize MPI
