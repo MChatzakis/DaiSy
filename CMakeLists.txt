@@ -35,6 +35,7 @@ option(BUILD_BENCHMARK "Build benchmark executables" ON)
 option(BUILD_DEMO "Build the demo folder" ON)
 option(BUILD_TESTS "Build test executables" ON)
 option(ODYSSEY_MPI "Build Odyssey components with MPI support" ON)
+option(ODYSSEY_DEBUG_RESULTS "Print Odyssey search results (query_result) for debug before copy to I,D" OFF)
 option(SING_CUDA "Enable CUDA support" ON)
 
 message(STATUS "  DEBUG_MSG: ${DEBUG_MSG}")
@@ -44,7 +45,13 @@ message(STATUS "  BUILD_BENCHMARK: ${BUILD_BENCHMARK}")
 message(STATUS "  BUILD_DEMO: ${BUILD_DEMO}")
 message(STATUS "  BUILD_TESTS: ${BUILD_TESTS}")
 message(STATUS "  ODYSSEY_MPI: ${ODYSSEY_MPI}")
+message(STATUS "  ODYSSEY_DEBUG_RESULTS: ${ODYSSEY_DEBUG_RESULTS}")
 message(STATUS "  SING_CUDA: ${SING_CUDA}")
+
+# Use ODYSSEY_DEBUG_RESULTS so CMake does not warn "variable not used", and propagate to C++
+if(ODYSSEY_DEBUG_RESULTS)
+    add_compile_definitions(ODYSSEY_DEBUG_RESULTS=1)
+endif()
 
 # Initialize ODYSSEY_MPI_AVAILABLE to FALSE by default.
 # It's kept as CACHE INTERNAL for user persistency, but its value will be updated.
@@ -106,20 +113,38 @@ if(DEBUG_MSG)
     message(DEBUG "SING_CUDA_AVAILABLE initialized to: ${SING_CUDA_AVAILABLE}")
 endif()
 
+# Support both ENABLE_CUDA and SING_CUDA for backward compatibility
+if(DEFINED ENABLE_CUDA)
+    if(ENABLE_CUDA STREQUAL "OFF" OR NOT ENABLE_CUDA)
+        set(SING_CUDA OFF CACHE BOOL "Enable CUDA support" FORCE)
+        if(DEBUG_MSG)
+            message(STATUS "ENABLE_CUDA=OFF detected, setting SING_CUDA=OFF")
+        endif()
+    endif()
+endif()
+
 if (SING_CUDA)
     if(DEBUG_MSG)
         message(STATUS "Attempting to build with CUDA support (SING_CUDA is ON)...")
     endif()
 
-    # Specify CUDA architectures to avoid errors
-    set(CMAKE_CUDA_ARCHITECTURES 75 CACHE STRING "CUDA architectures to build for")
-
-    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "")
-        set(CMAKE_CUDA_ARCHITECTURES 75 CACHE STRING "CUDA architectures to build for" FORCE)
-    endif()
-
-    enable_language(CUDA OPTIONAL)
+    # Check if CUDA is available before enabling the language
     find_package(CUDAToolkit QUIET)
+    
+    if(CUDAToolkit_FOUND)
+        # Specify CUDA architectures to avoid errors
+        set(CMAKE_CUDA_ARCHITECTURES 75 CACHE STRING "CUDA architectures to build for")
+
+        if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "")
+            set(CMAKE_CUDA_ARCHITECTURES 75 CACHE STRING "CUDA architectures to build for" FORCE)
+        endif()
+
+        enable_language(CUDA OPTIONAL)
+    else()
+        if(DEBUG_MSG)
+            message(WARNING "CUDA toolkit not found. Skipping CUDA language enable.")
+        endif()
+    endif()
 
     if (CUDAToolkit_FOUND)
         set(SING_CUDA_AVAILABLE TRUE CACHE INTERNAL "Internal flag indicating CUDA is available." FORCE)

@@ -1,6 +1,10 @@
 #include "Messi.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cfloat>
+#include <unordered_set>
+#include <vector>
 
 #include "../isax/iSAXPqueue.hpp"
 #include "../isax/iSAXIndex.hpp"
@@ -127,8 +131,14 @@ namespace diNoLib
 
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
+                    file_position_type pos = 0;
+                    if (node->buffer->full_position_buffer != nullptr &&
+                        node->buffer->full_position_buffer[i] != nullptr)
+                    {
+                        pos = *node->buffer->full_position_buffer[i] / index->settings->timeseries_size;
+                    }
                     pthread_rwlock_wrlock(lock_queue);
-                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                    pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(pos), node);
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
@@ -141,8 +151,14 @@ namespace diNoLib
 
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
+                    file_position_type pos = 0;
+                    if (node->buffer->tmp_full_position_buffer != nullptr &&
+                        node->buffer->tmp_full_position_buffer[i] != nullptr)
+                    {
+                        pos = *node->buffer->tmp_full_position_buffer[i] / index->settings->timeseries_size;
+                    }
                     pthread_rwlock_wrlock(lock_queue);
-                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                    pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(pos), node);
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
@@ -485,8 +501,18 @@ namespace diNoLib
     }
 
     Messi::Messi(DistanceType distance_type)
+        : Messi(distance_type, MessiConfig{})
+    {
+    }
+
+    Messi::Messi(DistanceType distance_type, const MessiConfig &config)
         : SimilaritySearchAlgorithm(distance_type)
     {
+        this->search_workers = config.search_workers;
+        this->index_workers = config.index_workers;
+        this->warping_window = config.warping_window;
+        this->leaf_size = config.leaf_size;
+        this->paa_segments = config.paa_segments;
     }
 
     void *indexCreationWorker(void *transferdata)
@@ -742,10 +768,37 @@ namespace diNoLib
 
             pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k);
   
+            /* Collect valid (position, distance) pairs, sort by (distance, position), deduplicate by index (same series can appear from multiple leaves), then copy and pad. */
+            std::vector<std::pair<float, long>> pairs;
+            pairs.reserve(static_cast<size_t>(k));
             for (idx_t ik = 0; ik < k; ik++)
             {
-                I[q_loaded * k + ik] = result.position[ik];
-                D[q_loaded * k + ik] = result.knn[ik];
+                if (result.position[ik] >= 0 && result.knn[ik] < FLT_MAX * 0.99f)
+                    pairs.emplace_back(result.knn[ik], result.position[ik]);
+            }
+            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+                if (a.first != b.first) return a.first < b.first;
+                return a.second < b.second;
+            });
+            std::unordered_set<long> seen_pos;
+            std::vector<std::pair<float, long>> uniq;
+            uniq.reserve(pairs.size());
+            for (const auto &p : pairs)
+            {
+                if (seen_pos.insert(p.second).second)
+                    uniq.push_back(p);
+            }
+            long last_pos = 0;
+            float last_dist = 0.0f;
+            for (idx_t ik = 0; ik < k; ik++)
+            {
+                if (ik < static_cast<idx_t>(uniq.size()))
+                {
+                    last_dist = uniq[static_cast<size_t>(ik)].first;
+                    last_pos = uniq[static_cast<size_t>(ik)].second;
+                }
+                I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
+                D[q_loaded * k + ik] = last_dist;
             }
             
             // Free the internal arrays of result
@@ -794,10 +847,37 @@ namespace diNoLib
             // Query-dependent computations (paa, envelopes, paaU, paaL) are done inside MESSI_search_topk_DTW
             pqueue_bsf result = MESSI_search_topk_DTW((float *)ts, &nodelist, k);
 
+            /* Collect valid (position, distance) pairs, sort by (distance, position), deduplicate by index, then copy and pad. */
+            std::vector<std::pair<float, long>> pairs;
+            pairs.reserve(static_cast<size_t>(k));
             for (idx_t ik = 0; ik < k; ik++)
             {
-                I[q_loaded * k + ik] = result.position[ik];
-                D[q_loaded * k + ik] = result.knn[ik];
+                if (result.position[ik] >= 0 && result.knn[ik] < FLT_MAX * 0.99f)
+                    pairs.emplace_back(result.knn[ik], result.position[ik]);
+            }
+            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+                if (a.first != b.first) return a.first < b.first;
+                return a.second < b.second;
+            });
+            std::unordered_set<long> seen_pos;
+            std::vector<std::pair<float, long>> uniq;
+            uniq.reserve(pairs.size());
+            for (const auto &p : pairs)
+            {
+                if (seen_pos.insert(p.second).second)
+                    uniq.push_back(p);
+            }
+            long last_pos = 0;
+            float last_dist = 0.0f;
+            for (idx_t ik = 0; ik < k; ik++)
+            {
+                if (ik < static_cast<idx_t>(uniq.size()))
+                {
+                    last_dist = uniq[static_cast<size_t>(ik)].first;
+                    last_pos = uniq[static_cast<size_t>(ik)].second;
+                }
+                I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
+                D[q_loaded * k + ik] = last_dist;
             }
             
             // Free the internal arrays of result

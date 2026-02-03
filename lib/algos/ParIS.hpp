@@ -16,6 +16,15 @@ namespace diNoLib
     // Constants for ParIS search
     #define MAXREADTHREAD 4
 
+    struct ParISConfig
+    {
+        int search_workers = 64;   // threads for querying
+        int index_workers = 32;    // threads for indexing
+        int warping_window = 10;  // warping window size (typically 10% of time series length)
+        int leaf_size = 2000;
+        int paa_segments = 16;
+    };
+
     typedef struct ParIS_LDCW_data
     {
         isax_index *index;
@@ -89,10 +98,15 @@ namespace diNoLib
                 
     public:
         ParIS(DistanceType distance_type);
-        void setNumThreads(int num_threads);
-        int getNumThreads() const;
+        ParIS(DistanceType distance_type, const ParISConfig &config);
+
         void setWarpingWindow(int warping_window) { this->warping_window = warping_window; }
         int getWarpingWindow() const { return this->warping_window; }
+        
+        // Getters and setters for Python bindings
+        int getNumThreads() const { return num_threads; }
+        void setNumThreads(int n) { num_threads = n; }
+        
         // Bring base class buildIndex overloads into scope
         using SimilaritySearchAlgorithm::buildIndex;
         

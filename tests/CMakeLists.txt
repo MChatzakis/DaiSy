@@ -342,67 +342,86 @@ endif()
      message(STATUS "Tests discovered for test_Messi_L2Square.")
  endif()
 
-# ////// ODYSSEY L2Square (conditional on MPI) ////// (COMMENTED OUT - UNDER IMPLEMENTATION)
-# if(DEBUG_MSG)
-#     message(STATUS "---")
-# endif()
-# if (ODYSSEY_MPI_AVAILABLE)
-#     if(DEBUG_MSG)
-#         message(STATUS "ODYSSEY_MPI_AVAILABLE is TRUE. Building test_Odyssey_L2Square.")
-#         message(STATUS "Attempting to add executable: test_Odyssey_L2Square")
-#     endif()
-#     add_executable(
-#         test_Odyssey_L2Square
-#         test_Odyssey_L2Square.cpp
-#         test_utils.cpp
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Executable test_Odyssey_L2Square added.")
-#     endif()
+# ////// ODYSSEY L2Square (conditional on MPI) //////
+# Odyssey tests must run under mpirun (e.g. mpirun -np 4); one CTest entry runs all GTest cases.
+if(DEBUG_MSG)
+    message(STATUS "---")
+endif()
+if (ODYSSEY_MPI_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_MPI_AVAILABLE is TRUE. Building test_Odyssey_L2Square.")
+        message(STATUS "Attempting to add executable: test_Odyssey_L2Square")
+    endif()
+    add_executable(
+        test_Odyssey_L2Square
+        test_Odyssey_L2Square.cpp
+        test_utils.cpp
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Executable test_Odyssey_L2Square added.")
+    endif()
 
-#     if(DEBUG_MSG)
-#         message(STATUS "Linking libraries for test_Odyssey_L2Square...")
-#     endif()
-#     target_link_libraries(
-#         test_Odyssey_L2Square
-#         PRIVATE
-#         GTest::gtest_main
-#         dino_lib
-#         commons_lib
-#         stdc++fs
-#         MPI::MPI_CXX # Link with MPI for this test
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Libraries linked for test_Odyssey_L2Square.")
-#     endif()
+    target_compile_definitions(test_Odyssey_L2Square PRIVATE ODYSSEY_MPI)
 
-#     if(DEBUG_MSG)
-#         message(STATUS "Adding include directories for test_Odyssey_L2Square...")
-#     endif()
-#     target_include_directories(test_Odyssey_L2Square
-#         PRIVATE
-#         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Include directories added for test_Odyssey_L2Square.")
-#     endif()
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for test_Odyssey_L2Square...")
+    endif()
+    target_link_libraries(
+        test_Odyssey_L2Square
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+        MPI::MPI_CXX
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for test_Odyssey_L2Square.")
+    endif()
 
-#     if(DEBUG_MSG)
-#         message(STATUS "Discovering tests for test_Odyssey_L2Square...")
-#     endif()
-#     gtest_discover_tests(
-#         test_Odyssey_L2Square
-#         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Tests discovered for test_Odyssey_L2Square.")
-#     endif()
-# else()
-#     if(DEBUG_MSG)
-#         message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. test_Odyssey_L2Square (MPI-dependent) will NOT be built.")
-#     endif()
-# endif()
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for test_Odyssey_L2Square...")
+    endif()
+    target_include_directories(test_Odyssey_L2Square
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for test_Odyssey_L2Square.")
+    endif()
+
+    # Run all Odyssey L2Square tests under mpirun (single CTest entry; GTest runs all parameterized cases)
+    add_test(NAME test_Odyssey_L2Square COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 $<TARGET_FILE:test_Odyssey_L2Square>)
+    set_tests_properties(test_Odyssey_L2Square PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "PMIX_MCA_pcompress_base_silence_warning=1")
+    if(DEBUG_MSG)
+        message(STATUS "Test test_Odyssey_L2Square added (run with mpirun -np 4).")
+    endif()
+
+    # Odyssey DTW (same pattern: build + link + run under mpirun)
+    if(DEBUG_MSG)
+        message(STATUS "Attempting to add executable: test_Odyssey_DTW")
+    endif()
+    add_executable(
+        test_Odyssey_DTW
+        test_Odyssey_DTW.cpp
+        test_utils.cpp
+    )
+    target_compile_definitions(test_Odyssey_DTW PRIVATE ODYSSEY_MPI)
+    target_link_libraries(test_Odyssey_DTW PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs MPI::MPI_CXX)
+    target_include_directories(test_Odyssey_DTW PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+    add_test(NAME test_Odyssey_DTW COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 $<TARGET_FILE:test_Odyssey_DTW>)
+    set_tests_properties(test_Odyssey_DTW PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "PMIX_MCA_pcompress_base_silence_warning=1")
+    if(DEBUG_MSG)
+        message(STATUS "Test test_Odyssey_DTW added (run with mpirun -np 4).")
+    endif()
+else()
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. test_Odyssey_L2Square / test_Odyssey_DTW (MPI-dependent) will NOT be built.")
+    endif()
+endif()
 
 # ////// PARIS L2Square //////
 if(DEBUG_MSG)

@@ -34,5 +34,6 @@ std::vector<SSTestConfig> generate_configs(
 // Test config list declaration
 extern const std::vector<SSTestConfig> test_configs;
 extern const std::vector<SSTestConfig> test_configs_dtw;
+extern const std::vector<SSTestConfig> test_configs_random_light;
 
 #endif // PARAM_SETUP_HPP

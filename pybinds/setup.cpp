@@ -1,12 +1,21 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+#if ODYSSEY_MPI
+#include <mpi.h>
+#endif
 
 #include "../lib/distance_computers/DistanceComputer.hpp"
 #include "../lib/algos/Bruteforce.hpp"
 #include "../lib/algos/LbBruteforce.hpp"
 #include "../lib/algos/Messi.hpp"
-#include "../lib/algos/Odyssey.hpp"
+#if ODYSSEY_MPI
+#include "../lib/algos/hodyssey/Odyssey.hpp"
+#endif
 #include "../lib/algos/ParIS.hpp"
 #ifdef SING_CUDA_ENABLED
     #if SING_CUDA_ENABLED != 0
@@ -279,6 +288,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the MESSI index using queries and return (indices, distances)");
 
+#if ODYSSEY_MPI
     ////// ODYSSEY //////
     pybind11::class_<diNoLib::Odyssey>(m, "Odyssey", "Odyssey similarity search with MPI")
         // Constructor
@@ -291,6 +301,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
         .def("getNumThreads", &diNoLib::Odyssey::getNumThreads, "Get the number of threads (for OpenMP parts)")
 
         // Bind method to build the index from a NumPy array
+        // Odyssey requires FileDataSource (disk-based indexing). We write the array to a temp file.
         .def("buildIndex", [](diNoLib::Odyssey &self, pybind11::array_t<float> db)
              {
             pybind11::buffer_info buf = db.request();
@@ -300,8 +311,24 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             diNoLib::idx_t n = buf.shape[0];
             diNoLib::idx_t d = buf.shape[1];
 
-            // Create InMemoryDataSource from numpy array
-            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+#if ODYSSEY_MPI
+            int my_rank = self.getMyRank();
+            if (my_rank == 0) {
+#endif
+            // Write array to temp file (rank 0 only with MPI)
+            const char *tmp_path = "/tmp/odyssey_pybind_db.bin";
+            FILE *fp = std::fopen(tmp_path, "wb");
+            if (!fp)
+                throw std::runtime_error("Odyssey buildIndex: could not create temp file " + std::string(tmp_path));
+            size_t written = std::fwrite(buf.ptr, sizeof(float), static_cast<size_t>(n) * static_cast<size_t>(d), fp);
+            std::fclose(fp);
+            if (written != static_cast<size_t>(n) * static_cast<size_t>(d))
+                throw std::runtime_error("Odyssey buildIndex: failed to write temp file");
+#if ODYSSEY_MPI
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+#endif
+            diNoLib::FileDataSource data_source("/tmp/odyssey_pybind_db.bin", d, n);
             self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
@@ -332,6 +359,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                 pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the index with queries and return (indices, distances)");
+#endif  // ODYSSEY_MPI
 
     ////// PARIS //////
     pybind11::class_<diNoLib::ParIS>(m, "ParIS", "ParIS similarity search (file-based)")

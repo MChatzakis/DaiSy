@@ -12,6 +12,17 @@
 
 namespace diNoLib
 {
+
+    struct MessiConfig
+    {
+        int search_workers = 4;   // threads for querying
+        int index_workers = 2;    // threads for indexing
+        int warping_window = 10;  // warping window size (typically 10% of time series length)
+        int leaf_size = 2000;
+        int paa_segments = 16;
+    };
+    
+
     typedef struct localStack
     {
         isax_node **val;
@@ -57,26 +68,27 @@ namespace diNoLib
     void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
     void calculate_node_DTW2knn_inmemory(isax_index *index, isax_node *node, ts_type *query, float *uo, float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf, int warpWind, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
 
+
     class Messi : public SimilaritySearchAlgorithm
     {
     private:
-        int paa_segments = 16;
-        int sax_cardinality = 8;
-        int leaf_size = 2000;
-        int min_leaf_size = 10;
-        int initial_lbl_size = 2000;
-        int flush_limit = 200000;
-        int initial_fbl_size = 100;
+        int paa_segments = 16; //HERE
+        int sax_cardinality = 8; 
+        int leaf_size = 2000; //HERE
+        int min_leaf_size = 10; 
+        int initial_lbl_size = 2000; 
+        int flush_limit = 200000; 
+        int initial_fbl_size = 100; 
         int total_loaded_leaves = 1;
         int tight_bound = 0;
         float minimum_distance = FLT_MAX;
         int min_checked_leaves = -1;
         
         int read_block_length = 100000;
-        int search_workers = 4; //64;
-        int index_workers = 2; //32;
+        int search_workers = 4; //64; HERE
+        int index_workers = 2; //32; HERE
         int n_pqueue = 42;
-        int warping_window = 10;  // warping window size (typically 10% of time series length)
+        int warping_window = 10; //HERE // warping window size (typically 10% of time series length)
 
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
@@ -89,42 +101,10 @@ namespace diNoLib
 
     public:
         Messi(DistanceType distance_type);
-        void setNumThreads(int num_threads)
-        {
-            this->search_workers = num_threads;
-            this->index_workers = num_threads;
-        }
-        int getNumThreads() const { return this->search_workers; }
-
-        int getPaaSegments() const { return paa_segments; }
-        int getSaxCardinality() const { return sax_cardinality; }
-        int getLeafSize() const { return leaf_size; }
-        int getMinLeafSize() const { return min_leaf_size; }
-        int getInitialLblSize() const { return initial_lbl_size; }
-        int getFlushLimit() const { return flush_limit; }
-        int getInitialFblSize() const { return initial_fbl_size; }
-        int getTotalLoadedLeaves() const { return total_loaded_leaves; }
-        int getTightBound() const { return tight_bound; }
+        Messi(DistanceType distance_type, const MessiConfig &config);
         
-        int getSearchWorkers() const { return search_workers; }
-        int getIndexWorkers() const { return index_workers; }
-        int getReadBlockLength() const { return read_block_length; }
-        int getWarpingWindow() const { return warping_window; }
-
-        void setPaaSegments(int paa_segments) { this->paa_segments = paa_segments; }
-        void setSaxCardinality(int sax_cardinality) { this->sax_cardinality = sax_cardinality; }
-        void setLeafSize(int leaf_size) { this->leaf_size = leaf_size; }
-        void setMinLeafSize(int min_leaf_size) { this->min_leaf_size = min_leaf_size; }
-        void setInitialLblSize(int initial_lbl_size) { this->initial_lbl_size = initial_lbl_size; }
-        void setFlushLimit(int flush_limit) { this->flush_limit = flush_limit; }
-        void setInitialFblSize(int initial_fbl_size) { this->initial_fbl_size = initial_fbl_size; }
-        void setTotalLoadedLeaves(int total_loaded_leaves) { this->total_loaded_leaves = total_loaded_leaves; }
-        void setTightBound(int tight_bound) { this->tight_bound = tight_bound; }
-        
-        void setSearchWorkers(int search_workers) { this->search_workers = search_workers; }
-        void setIndexWorkers(int index_workers) { this->index_workers = index_workers; }
-        void setReadBlockLength(int read_block_length) { this->read_block_length = read_block_length; }
         void setWarpingWindow(int warping_window) { this->warping_window = warping_window; }
+        void setWarpWindow(int warping_window) { this->warping_window = warping_window; } // alias for compatibility
 
         // Bring base class buildIndex overloads into scope
         using SimilaritySearchAlgorithm::buildIndex;
@@ -137,6 +117,35 @@ namespace diNoLib
         }
         
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
+
+        // Getters and setters for Python bindings
+        int getNumThreads() const { return SimilaritySearchAlgorithm::num_threads; }
+        void setNumThreads(int n) { SimilaritySearchAlgorithm::num_threads = n; }
+        int getPaaSegments() const { return paa_segments; }
+        void setPaaSegments(int n) { paa_segments = n; }
+        int getSaxCardinality() const { return sax_cardinality; }
+        void setSaxCardinality(int n) { sax_cardinality = n; }
+        int getLeafSize() const { return leaf_size; }
+        void setLeafSize(int n) { leaf_size = n; }
+        int getMinLeafSize() const { return min_leaf_size; }
+        void setMinLeafSize(int n) { min_leaf_size = n; }
+        int getInitialLblSize() const { return initial_lbl_size; }
+        void setInitialLblSize(int n) { initial_lbl_size = n; }
+        int getFlushLimit() const { return flush_limit; }
+        void setFlushLimit(int n) { flush_limit = n; }
+        int getInitialFblSize() const { return initial_fbl_size; }
+        void setInitialFblSize(int n) { initial_fbl_size = n; }
+        int getTotalLoadedLeaves() const { return total_loaded_leaves; }
+        void setTotalLoadedLeaves(int n) { total_loaded_leaves = n; }
+        int getTightBound() const { return tight_bound; }
+        void setTightBound(int n) { tight_bound = n; }
+        int getSearchWorkers() const { return search_workers; }
+        void setSearchWorkers(int n) { search_workers = n; }
+        int getIndexWorkers() const { return index_workers; }
+        void setIndexWorkers(int n) { index_workers = n; }
+        int getReadBlockLength() const { return read_block_length; }
+        void setReadBlockLength(int n) { read_block_length = n; }
+        int getWarpingWindow() const { return warping_window; }
 
         ~Messi();
     };

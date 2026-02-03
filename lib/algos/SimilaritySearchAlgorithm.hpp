@@ -51,6 +51,7 @@ namespace diNoLib
         float *getDatabase() const { return database; }
         idx_t getNDatabase() const { return n_database; }
         idx_t getDim() const { return dim; }
+        isax_index* getIndex() const { return index; }  // Getter for index (needed by demos/tests)
 
         /**
          * @brief Build index from a DataSource (advanced usage)
@@ -124,6 +125,9 @@ namespace diNoLib
         */ 
         
         virtual void setNumThreads(int num_threads) {}
+
+        /** For MPI algorithms (e.g. Odyssey): only rank 0 should compare results; others return non-zero. Default 0 = always compare. */
+        virtual int getResultCompareRank() const { return 0; }
 
         virtual ~SimilaritySearchAlgorithm()
         {

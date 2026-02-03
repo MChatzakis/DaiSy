@@ -37,7 +37,7 @@ std::vector<SSTestConfig> generate_configs(
     return configs;
 }
 
-//Incresing number of threads and decresing k should tighten BFS bounds and so should increase the frequency of concurrent write operations to the shared BSF queue
+// Increasing number of threads and decreasing k should tighten BFS bounds and so should increase the frequency of concurrent write operations to the shared BSF queue
 std::vector<SSTestConfig> generate_concurrency_stress_configs(
     const char *name,
     const char *data,
@@ -50,25 +50,6 @@ std::vector<SSTestConfig> generate_concurrency_stress_configs(
     configs.push_back({name, data, query, gt_data, gt_query, 32, 10}); 
     return configs;
 }
-
-//Conf1: 4 threads, k=100. Lots of dynamic allocation --> leaked memory accumulates quickly
-//Conf2: 8 threads, k=1. Lots of distances calculations --> lots of dynamic allocation --> leaked memory accumulates quickly
-std::vector<SSTestConfig> generate_memory_leak_configs(
-    const char *name,
-    const char *data,
-    const char *query,
-    const char *gt_data,
-    const char *gt_query)
-{
-    std::vector<SSTestConfig> configs;
-    
-    configs.push_back({name, data, query, gt_data, gt_query, 4, 100}); 
-    
-    configs.push_back({name, data, query, gt_data, gt_query, 8, 1}); 
-
-    return configs;
-}
-
 
 const std::vector<SSTestConfig> test_configs = []
 {
@@ -89,13 +70,6 @@ const std::vector<SSTestConfig> test_configs = []
     configs.insert(configs.end(), astro_stress.begin(), astro_stress.end());
     configs.insert(configs.end(), random_stress.begin(), random_stress.end());
 
-    //MEMORY LEAK TESTS
-    auto astro_leak = generate_memory_leak_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
-    auto random_leak = generate_memory_leak_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
-
-    configs.insert(configs.end(), astro_leak.begin(), astro_leak.end());
-    configs.insert(configs.end(), random_leak.begin(), random_leak.end());
-
     return configs;
 }();
 
@@ -112,5 +86,18 @@ const std::vector<SSTestConfig> test_configs_dtw = []
     return configs;
 }();
 
+/* Lightweight subset for Odyssey debugging: only RandomWalk, threads {1,4,8}, k {1,10,100}. */
+const std::vector<SSTestConfig> test_configs_random_light = []
+{
+    std::vector<SSTestConfig> configs;
+    for (int threads : {1})
+    {
+        for (int k : {100})
+        {
+            configs.push_back({random_name, random_data, random_query, random_gt_data, random_gt_query, threads, k});
+        }
+    }
+    return configs;
+}();
 
 

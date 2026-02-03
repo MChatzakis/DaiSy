@@ -4,7 +4,9 @@
 #include <cmath>
 #include <stdexcept>
 
-float *loadBinData(const char *filename, unsigned long long n, unsigned long long dim)
+static float *z_normalize(const float *data, unsigned long long n, unsigned long long dim);
+
+float *loadBinData(const char *filename, unsigned long long n, unsigned long long dim, bool do_z_normalize)
 {
     FILE *fp = fopen(filename, "rb");
     if (fp == nullptr)
@@ -22,10 +24,22 @@ float *loadBinData(const char *filename, unsigned long long n, unsigned long lon
     }
 
     fclose(fp);
-    return data;
+
+    if (!do_z_normalize)
+    {
+        std::cerr << "[loadBinData] DISCLAIMER: The library currently supports only searches on "
+                     "normalized data and queries. It is therefore assumed that false is passed because the "
+                     "loaded data are already z-normalized.\n";
+        return data;
+    }
+
+    float *normalized_data = z_normalize(data, n, dim);
+    delete[] data;
+    return normalized_data;
 }
 
-float *z_normalize(const float *data, unsigned long long n, unsigned long long dim)
+// Private helper function for z-normalization
+static float *z_normalize(const float *data, unsigned long long n, unsigned long long dim)
 {
     float *normalized_data = new float[n * dim];
     for (unsigned long long i = 0; i < n; i++)
@@ -52,7 +66,7 @@ float *z_normalize(const float *data, unsigned long long n, unsigned long long d
     return normalized_data;
 }
 
-float *loadRandomData(unsigned long long n, unsigned long long dim, bool z_norm, int seed)
+float *loadRandomData(unsigned long long n, unsigned long long dim, int seed, bool do_z_normalize)
 {
     if (seed != 0)
     {
@@ -72,12 +86,14 @@ float *loadRandomData(unsigned long long n, unsigned long long dim, bool z_norm,
         }
     }
 
-    if (z_norm)
+    if (!do_z_normalize)
     {
-        float *normalized_data = z_normalize(data, n, dim);
-        delete[] data;
-        return normalized_data;
+        std::cerr << "[loadRandomData] DISCLAIMER: The library currently supports only searches on "
+                     "normalized data and queries. Future versions will support searches on raw data. "
+                     "For the present release, the data will be normalized regardless of this parameter.\n";
     }
 
-    return data;
+    float *normalized_data = z_normalize(data, n, dim);
+    delete[] data;
+    return normalized_data;
 }

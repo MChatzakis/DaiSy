@@ -4,6 +4,7 @@
 #include <float.h>
 #include <string.h>
 #include <stdlib.h>
+#include <cstring>  // for memset
 namespace diNoLib
 {
 
@@ -263,6 +264,55 @@ namespace diNoLib
         return fbl;
     }
 
+    // EKOSMAS-specific parallel buffer initialization for Odyssey
+    // NOTE: total_workers is currently unused, but kept for API symmetry with initialize_pRecBuf.
+    parallel_first_buffer_layer_ekosmas *initialize_pRecBuf_ekosmas(int initial_buffer_size,
+                                                                     int number_of_buffers,
+                                                                     int max_total_buffers_size,
+                                                                     isax_index *index,
+                                                                     int /*total_workers*/)
+    {
+        (void)index; // index is not needed for the basic EKOSMAS initialization
+
+        parallel_first_buffer_layer_ekosmas *fbl =
+            (parallel_first_buffer_layer_ekosmas *)malloc(sizeof(parallel_first_buffer_layer_ekosmas));
+        if (fbl == NULL)
+        {
+            fprintf(stderr, "Error: could not allocate memory for parallel_first_buffer_layer_ekosmas.\n");
+            return NULL;
+        }
+
+        fbl->max_total_size = max_total_buffers_size;
+        fbl->initial_buffer_size = initial_buffer_size;
+        fbl->number_of_buffers = number_of_buffers;
+        fbl->current_record_index = 0;
+        fbl->current_record = NULL;  // layout compatibility with parallel_first_buffer_layer
+        fbl->hard_buffer = NULL;      // layout compatibility with parallel_first_buffer_layer
+
+        // Allocate a set of soft buffers
+        fbl->soft_buffers = (parallel_fbl_soft_buffer_ekosmas *)malloc(
+            sizeof(parallel_fbl_soft_buffer_ekosmas) * number_of_buffers);
+        if (fbl->soft_buffers == NULL)
+        {
+            fprintf(stderr, "Error: could not allocate memory for parallel_fbl_soft_buffer_ekosmas array.\n");
+            free(fbl);
+            return NULL;
+        }
+
+        for (int i = 0; i < number_of_buffers; i++)
+        {
+            fbl->soft_buffers[i].initialized = 0;
+            fbl->soft_buffers[i].finished = 0;
+            fbl->soft_buffers[i].node = NULL;         // EKOSMAS: initially no node is attached
+            fbl->soft_buffers[i].sax_records = NULL;  // will be initialized by workers
+            fbl->soft_buffers[i].pos_records = NULL;  // will be initialized by workers
+            fbl->soft_buffers[i].max_buffer_size = NULL;
+            fbl->soft_buffers[i].buffer_size = NULL;
+        }
+
+        return fbl;
+    }
+
     isax_index *isax_index_init_inmemory(isax_index_settings *settings)
     {
         isax_index *index = (isax_index *)malloc(sizeof(isax_index));
@@ -294,6 +344,27 @@ namespace diNoLib
         // index->locations = malloc(sizeof(int) * settings->timeseries_size);
 
         index->answer = (ts_type *)malloc(sizeof(ts_type) * settings->timeseries_size);
+        return index;
+    }
+
+    isax_index *isax_index_init_inmemory_ekosmas(isax_index_settings *settings)
+    {
+        isax_index *index = (isax_index *)malloc(sizeof(isax_index));
+        if (index == NULL)
+        {
+            fprintf(stderr, "error: could not allocate memory for index structure.\n");
+            return NULL;
+        }
+
+        // Initialize all fields to zero (memset equivalent)
+        memset(index, 0, sizeof(isax_index));
+
+        index->settings = settings;
+        index->first_node = NULL;
+
+        // NOTE: fbl will be initialized later (e.g., in buildIndexSequence) with parallel_first_buffer_layer_ekosmas
+        // This matches the original C implementation where fbl is set up separately
+
         return index;
     }
 
@@ -530,6 +601,143 @@ namespace diNoLib
         return first_bit_mask;
     }
 
+    // ========================================================================
+    // EKOSMAS-specific versions for Odyssey
+    // ========================================================================
+
+    isax_node *insert_to_pRecBuf_ekosmas(parallel_first_buffer_layer_ekosmas *fbl, sax_type *sax,
+                                          file_position_type *pos, root_mask_type mask,
+                                          isax_index *index, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber)
+    {
+        parallel_fbl_soft_buffer_ekosmas *current_buffer = &fbl->soft_buffers[(int)mask];
+
+        file_position_type *filepointer;
+        sax_type *saxpointer;
+
+        int current_buffer_number;
+
+        // Check if this buffer is initialized
+        if (!current_buffer->initialized)
+        {
+            pthread_mutex_lock(lock_firstnode); // Double-check locking pattern
+            if (!current_buffer->initialized)
+            {
+                current_buffer->max_buffer_size = (int *)malloc(sizeof(int) * total_workernumber);
+                current_buffer->buffer_size = (int *)malloc(sizeof(int) * total_workernumber);
+                current_buffer->sax_records = (sax_type **)malloc(sizeof(sax_type *) * total_workernumber);
+                current_buffer->pos_records = (file_position_type **)malloc(sizeof(file_position_type *) * total_workernumber);
+                
+                if (current_buffer->max_buffer_size == nullptr ||
+                    current_buffer->buffer_size == nullptr ||
+                    current_buffer->sax_records == nullptr ||
+                    current_buffer->pos_records == nullptr)
+                {
+                    fprintf(stderr, "[Node %d] Error: Memory allocation failed in insert_to_pRecBuf_ekosmas\n", workernumber);
+                    pthread_mutex_unlock(lock_firstnode);
+                    exit(EXIT_FAILURE);
+                }
+
+                for (int i = 0; i < total_workernumber; i++)
+                {
+                    current_buffer->max_buffer_size[i] = 0;
+                    current_buffer->buffer_size[i] = 0;
+                    current_buffer->pos_records[i] = NULL;
+                    current_buffer->sax_records[i] = NULL;
+                }
+                
+                // NOTE: isax_root_node_init takes only 2 parameters (mask, initial_buffer_size)
+                // The third parameter (NULL) in the original C code was likely unused/optional
+                current_buffer->node = isax_root_node_init(mask, index->settings->initial_leaf_buffer_size);
+                current_buffer->node->is_leaf = 1;
+                current_buffer->initialized = 1;
+                
+                // EKOSMAS: Set index->first_node and increment root_nodes (same as insert_to_pRecBuf)
+                if (index->first_node == NULL)
+                {
+                    index->first_node = current_buffer->node;
+                    current_buffer->node->next = NULL;
+                    current_buffer->node->previous = NULL;
+                }
+                else
+                {
+                    isax_node *prev_first = index->first_node;
+                    index->first_node = current_buffer->node;
+                    index->first_node->next = prev_first;
+                    prev_first->previous = current_buffer->node;
+                }
+                __sync_fetch_and_add(&(index->root_nodes), 1);
+            }
+            pthread_mutex_unlock(lock_firstnode);
+        }
+
+        // Check if this buffer is not full!
+        if (current_buffer->buffer_size[workernumber] >= current_buffer->max_buffer_size[workernumber])
+        {
+            if (current_buffer->max_buffer_size[workernumber] == 0)
+            {
+                current_buffer->max_buffer_size[workernumber] = fbl->initial_buffer_size;
+                current_buffer->sax_records[workernumber] = (sax_type *)malloc(index->settings->sax_byte_size *
+                                                                               current_buffer->max_buffer_size[workernumber]);
+                current_buffer->pos_records[workernumber] = (file_position_type *)malloc(index->settings->position_byte_size *
+                                                                                          current_buffer->max_buffer_size[workernumber]);
+            }
+            else
+            {
+                current_buffer->max_buffer_size[workernumber] *= BUFFER_REALLOCATION_RATE;
+
+                current_buffer->sax_records[workernumber] = (sax_type *)realloc(current_buffer->sax_records[workernumber],
+                                                                                index->settings->sax_byte_size *
+                                                                                    current_buffer->max_buffer_size[workernumber]);
+                current_buffer->pos_records[workernumber] = (file_position_type *)realloc(current_buffer->pos_records[workernumber],
+                                                                                          index->settings->position_byte_size *
+                                                                                              current_buffer->max_buffer_size[workernumber]);
+            }
+        }
+
+        if (current_buffer->sax_records[workernumber] == NULL || current_buffer->pos_records[workernumber] == NULL)
+        {
+            fprintf(stderr, "Node error: Could not allocate memory in FBL. Query Worker ID = %d, Total Query Workers = %d\n", workernumber, total_workernumber);
+            exit(EXIT_FAILURE);
+        }
+
+        current_buffer_number = current_buffer->buffer_size[workernumber];
+        filepointer = (file_position_type *)current_buffer->pos_records[workernumber];
+        saxpointer = (sax_type *)current_buffer->sax_records[workernumber];
+        
+        // EKOSMAS: memcpy per copiare SAX e posizione nel buffer
+        memcpy((void *)(&saxpointer[current_buffer_number * index->settings->paa_segments]), (void *)sax, index->settings->sax_byte_size);
+        memcpy((void *)(&filepointer[current_buffer_number]), (void *)pos, index->settings->position_byte_size);
+
+        (current_buffer->buffer_size[workernumber])++;
+
+        return (isax_node *)current_buffer->node;
+    }
+
+    root_mask_type isax_pRecBuf_index_insert_inmemory_ekosmas(isax_index *index,
+                                                               sax_type *sax,
+                                                               file_position_type *pos,
+                                                               pthread_mutex_t *lock_firstnode,
+                                                               int workernumber,
+                                                               int total_workernumber)
+    {
+        root_mask_type first_bit_mask = 0x00;
+
+        CREATE_MASK(first_bit_mask, index, sax);
+
+        // Insert into EKOSMAS parallel buffer layer
+        insert_to_pRecBuf_ekosmas(
+            (parallel_first_buffer_layer_ekosmas *)(index->fbl),
+            sax,
+            pos,
+            first_bit_mask,
+            index,
+            lock_firstnode,
+            workernumber,
+            total_workernumber);
+
+        return first_bit_mask;
+    }
+
     void destroy_node_buffer(isax_node_buffer *node_buffer)
     {
         if (node_buffer->full_position_buffer != NULL)
@@ -732,6 +940,113 @@ namespace diNoLib
             if (node->filename == NULL)
             {
                 create_node_filename(index, node, record);
+            }
+            add_to_node_buffer(node->buffer, record, index->settings->paa_segments,
+                               index->settings->timeseries_size);
+            node->leaf_size++;
+        }
+        return node;
+    }
+
+    // ========================================================================
+    // EKOSMAS-specific in-memory versions (no disk file handling)
+    // ========================================================================
+
+    enum response initialize_isax_values_and_cardinalities(isax_index *index,
+                                                            isax_node *node,
+                                                            sax_type *sax)
+    {
+        int i;
+        node->isax_values = static_cast<sax_type *>(malloc(sizeof(sax_type) * index->settings->paa_segments));
+        if (node->isax_values == nullptr)
+        {
+            fprintf(stderr, "error: could not allocate memory for isax_values.\n");
+            return FAILURE;
+        }
+
+        node->isax_cardinalities = static_cast<sax_type *>(malloc(sizeof(sax_type) * index->settings->paa_segments));
+        if (node->isax_cardinalities == nullptr)
+        {
+            fprintf(stderr, "error: could not allocate memory for isax_cardinalities.\n");
+            free(node->isax_values);
+            node->isax_values = nullptr;
+            return FAILURE;
+        }
+
+        // If this has a parent then it is not a root node and as such it does have some
+        // split data on its parent about the cardinalities.
+        if (node->parent)
+        {
+            for (i = 0; i < index->settings->paa_segments; i++)
+            {
+                root_mask_type mask = 0x00;
+                int k;
+                for (k = 0; k <= node->parent->split_data->split_mask[i]; k++)
+                {
+                    mask |= (index->settings->bit_masks[index->settings->sax_bit_cardinality - 1 - k] & sax[i]);
+                }
+                mask = mask >> (index->settings->sax_bit_cardinality - node->parent->split_data->split_mask[i] - 1);
+
+                node->isax_values[i] = static_cast<sax_type>(mask);
+                node->isax_cardinalities[i] = node->parent->split_data->split_mask[i] + 1;
+            }
+        }
+        // If it has no parent it is root node and as such it's cardinality is 1.
+        else
+        {
+            root_mask_type mask = 0x00;
+
+            for (i = 0; i < index->settings->paa_segments; i++)
+            {
+                mask = (index->settings->bit_masks[index->settings->sax_bit_cardinality - 1] & sax[i]);
+                mask = mask >> (index->settings->sax_bit_cardinality - 1);
+
+                node->isax_values[i] = static_cast<sax_type>(mask);
+                node->isax_cardinalities[i] = 1;
+            }
+        }
+
+        return SUCCESS;
+    }
+
+    isax_node *add_record_to_node_inmemory(isax_index *index,
+                                            isax_node *tree_node,
+                                            isax_node_record *record,
+                                            const char leaf_size_check)
+    {
+        isax_node *node = tree_node;
+
+        // Traverse tree
+        while (!node->is_leaf)
+        {
+            int location = index->settings->sax_bit_cardinality - 1 -
+                           node->split_data->split_mask[node->split_data->splitpoint];
+
+            root_mask_type mask = index->settings->bit_masks[location];
+            if (record->sax[node->split_data->splitpoint] & mask)
+            {
+                node = node->right_child;
+            }
+            else
+            {
+                node = node->left_child;
+            }
+        }
+
+        // Check if split needed
+        if ((node->leaf_size) >= index->settings->max_leaf_size && leaf_size_check)
+        {
+            // NOTE: split_node should work for in-memory nodes (filename == NULL)
+            // If it doesn't, we may need to implement split_node_inmemory
+            split_node(index, node);
+            // EKOSMAS: Recursive call to add_record_to_node_inmemory (not add_record_to_node)
+            add_record_to_node_inmemory(index, node, record, leaf_size_check);
+        }
+        else
+        {
+            if (node->isax_values == NULL)
+            {
+                initialize_isax_values_and_cardinalities(index, node, record->sax);
             }
             add_to_node_buffer(node->buffer, record, index->settings->paa_segments,
                                index->settings->timeseries_size);

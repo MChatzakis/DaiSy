@@ -23,11 +23,13 @@ namespace diNoLib
             {
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-                //__sync_fetch_and_add(&RDcalculationnumber, 1);
-
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
-                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                    file_position_type pos = 0;
+                    if (node->buffer->full_position_buffer != nullptr &&
+                        node->buffer->full_position_buffer[i] != nullptr)
+                        pos = *node->buffer->full_position_buffer[i] / index->settings->timeseries_size;
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, pos, node);
                 }
             }
 
@@ -35,28 +37,29 @@ namespace diNoLib
             {
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-                // __sync_fetch_and_add(&RDcalculationnumber, 1);
-
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
-                    pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                    file_position_type pos = 0;
+                    if (node->buffer->tmp_full_position_buffer != nullptr &&
+                        node->buffer->tmp_full_position_buffer[i] != nullptr)
+                        pos = *node->buffer->tmp_full_position_buffer[i] / index->settings->timeseries_size;
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, pos, node);
                 }
             }
-            for (i = 0; i < node->buffer->partial_buffer_size; i++)
+        for (i = 0; i < node->buffer->partial_buffer_size; i++)
+        {
+            if (node->buffer->partial_position_buffer[i] == NULL)
+                continue;
+
+            float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
+                                                    index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
+
+            if (dist <= pq_bsf->knn[pq_bsf->k - 1])
             {
-                // Skip if position buffer entry is NULL
-                if (node->buffer->partial_position_buffer[i] == NULL)
-                    continue;
-
-                float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
-                                                        index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-                //__sync_fetch_and_add(&RDcalculationnumber, 1);
-
-                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
-                {
-                    pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
-                }
+                file_position_type pos = *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size;
+                pqueue_bsf_insert_no_dup_position(pq_bsf, dist, pos, node);
             }
+        }
         }
         //////////////////////////////////////
     }
@@ -103,10 +106,6 @@ namespace diNoLib
         }
         else
         {
-        }
-        for (int i = 0; i < pq_bsf->k - 1; ++i)
-        {
-            pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
         }
         free(sax);
     }
@@ -370,7 +369,7 @@ namespace diNoLib
                 // ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                 //                                   index->settings->timeseries_size, bsf);
 
-                pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+                pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
             }
             free(cb);
         }

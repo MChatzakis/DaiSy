@@ -86,15 +86,33 @@ else()
     target_compile_definitions(dino_lib PUBLIC ODYSSEY_MPI=0)
 endif()
 
+if(ODYSSEY_DEBUG_RESULTS)
+    target_compile_definitions(dino_lib PRIVATE ODYSSEY_DEBUG_RESULTS=1)
+    if(DEBUG_MSG)
+        message(STATUS "ODYSSEY_DEBUG_RESULTS enabled: Odyssey will print raw results before copy to I,D.")
+    endif()
+endif()
+
+# Odyssey sources require MPI; only add them when ODYSSEY_MPI_AVAILABLE
+if(ODYSSEY_MPI_AVAILABLE)
 if(DEBUG_MSG)
     message(STATUS "Adding Odyssey.cpp to dino_lib sources.")
 endif()
-target_sources(dino_lib
+    target_sources(dino_lib
     PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/Odyssey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/Odyssey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/bsf_sharing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/replication.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/workstealing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odyssey/indexing.cpp
 )
 if(DEBUG_MSG)
-    message(STATUS "Odyssey.cpp added.")
+    message(STATUS "Odyssey.cpp, bsf_sharing.cpp, replication.cpp, workstealing.cpp, and indexing.cpp added.")
+endif()
+else()
+if(DEBUG_MSG)
+    message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. Skipping Odyssey sources (require MPI).")
+endif()
 endif()
 
 # ////// PARIS //////

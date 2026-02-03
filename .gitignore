@@ -33,6 +33,11 @@
 *.out
 *.app
 
+# iSAX index disk files (ParIS, etc.) - created in CWD during index build
+*.part
+*.full
+isax_file.sax
+
 # Build directories
 build/
 dist/

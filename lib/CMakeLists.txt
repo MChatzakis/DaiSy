@@ -12,7 +12,8 @@ add_library(
     isax/SAX.cpp
     isax/iSAXIndex.cpp
     isax/iSAXPqueue.cpp
-    algos/Odyssey.cpp
+    utils/TimerManager.cpp
+    # Note: Odyssey.cpp and related files are added via target_sources in algos/CMakeLists.txt
 )
 if(DEBUG_MSG)
     message(STATUS "Library dino_lib added.")
@@ -37,7 +38,9 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/algos # Ensure algos directory headers are found
     ${CMAKE_CURRENT_SOURCE_DIR}/distance_computers
     ${CMAKE_CURRENT_SOURCE_DIR}/isax
+    ${CMAKE_SOURCE_DIR}/commons  # for common.hpp (initialize_basis_function)
 )
+target_link_libraries(dino_lib PUBLIC commons_lib)
 if(DEBUG_MSG)
     message(STATUS "Public include directories set for dino_lib.")
 endif()
