@@ -13,7 +13,9 @@
 #include "../lib/algos/Bruteforce.hpp"
 #include "../lib/algos/LbBruteforce.hpp"
 #include "../lib/algos/Messi.hpp"
+#if ODYSSEY_MPI
 #include "../lib/algos/hodyssey/Odyssey.hpp"
+#endif
 #include "../lib/algos/ParIS.hpp"
 #ifdef SING_CUDA_ENABLED
     #if SING_CUDA_ENABLED != 0
@@ -286,6 +288,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the MESSI index using queries and return (indices, distances)");
 
+#if ODYSSEY_MPI
     ////// ODYSSEY //////
     pybind11::class_<diNoLib::Odyssey>(m, "Odyssey", "Odyssey similarity search with MPI")
         // Constructor
@@ -356,6 +359,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                 pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the index with queries and return (indices, distances)");
+#endif  // ODYSSEY_MPI
 
     ////// PARIS //////
     pybind11::class_<diNoLib::ParIS>(m, "ParIS", "ParIS similarity search (file-based)")

@@ -93,6 +93,8 @@ if(ODYSSEY_DEBUG_RESULTS)
     endif()
 endif()
 
+# Odyssey sources require MPI; only add them when ODYSSEY_MPI_AVAILABLE
+if(ODYSSEY_MPI_AVAILABLE)
 if(DEBUG_MSG)
     message(STATUS "Adding Odyssey.cpp to dino_lib sources.")
 endif()
@@ -106,6 +108,11 @@ endif()
 )
 if(DEBUG_MSG)
     message(STATUS "Odyssey.cpp, bsf_sharing.cpp, replication.cpp, workstealing.cpp, and indexing.cpp added.")
+endif()
+else()
+if(DEBUG_MSG)
+    message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. Skipping Odyssey sources (require MPI).")
+endif()
 endif()
 
 # ////// PARIS //////
