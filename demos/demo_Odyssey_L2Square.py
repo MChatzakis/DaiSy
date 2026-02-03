@@ -40,9 +40,13 @@ I, D = odyssey_search.searchIndex(query, k)
 
 # 5. Print the results (only from rank 0 for clarity)
 if rank == 0:
-    print("\nPython Search Results (first 5 queries):")
+    print("\nPython Search Results:")
     for i in range(n_query):
-        print(f"Query {i}: Indices {I[i, :k]} Distances {D[i, :k]}")
+        print(f"Query {i}:")
+        print("Distances:", D[i])
+        print("Indices:", I[i])
+        print()
+
 
 # 6. Finalize MPI
 if MPI.Is_initialized():
