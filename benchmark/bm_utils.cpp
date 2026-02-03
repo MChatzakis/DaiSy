@@ -35,8 +35,8 @@ void runSSTBenchmark(
         return;
     }
 
-    float *database = loadBinData(dataset_path.c_str(), n_database, dim);
-    float *query = loadBinData(query_path.c_str(), n_query, dim);
+    float *database = loadBinData(dataset_path.c_str(), n_database, dim, false);
+    float *query = loadBinData(query_path.c_str(), n_query, dim, false);
 
     diNoLib::InMemoryDataSource data_source(database, n_database, dim);
     search->buildIndex(&data_source);

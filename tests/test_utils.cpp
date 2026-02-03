@@ -28,8 +28,8 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     ASSERT_EQ(dim_gt, dim);
     ASSERT_EQ(n_database_gt, n_database);
 
-    float *database = loadBinData(dataset_path.c_str(), n_database, dim);
-    float *query = loadBinData(query_path.c_str(), n_query, dim);
+    float *database = loadBinData(dataset_path.c_str(), n_database, dim, false);
+    float *query = loadBinData(query_path.c_str(), n_query, dim, false);
 
     // Odyssey requires FileDataSource and MPI (argc/argv passed in test main)
 #if ODYSSEY_MPI

@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     if (rank == 0)
     {
         remove(temp_db_file.c_str());  // evita file residui da run precedenti
-        database = loadRandomData(n_database, dim, 100);
+        database = loadRandomData(n_database, dim, 100, true);
         printf("Loaded %llu database points with dimension %llu\n", n_database, dim);
     }
 
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
     std::string path_to_use(path_buf);
 
     // Query: stessi seed di ParIS (50). Ogni rank genera la stessa sequenza.
-    float *query = loadRandomData(n_query, dim, 50);
+    float *query = loadRandomData(n_query, dim, 50, true);
     if (rank == 0)
         printf("Loaded %llu query points with dimension %llu\n", n_query, dim);
 

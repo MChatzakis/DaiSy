@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     // ========================================================================
     if (rank == 0)
     {
-        float *database = loadRandomData(n_database, dim, 100);
+        float *database = loadRandomData(n_database, dim, 100, true);
 
         FILE *fp = fopen(temp_db_file.c_str(), "wb");
         if (fp == nullptr)
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
                 printf("@ going searchIndex constructor\n");
             }
 
-            float *query = loadRandomData(n_query, dim, 50);  // stesso seed 50 di ParIS
+            float *query = loadRandomData(n_query, dim, 50, true);  // stesso seed 50 di ParIS
             if (query == nullptr)
             {
                 fprintf(stderr, "[Node %d] Error: Could not allocate/generate query data\n", rank);
