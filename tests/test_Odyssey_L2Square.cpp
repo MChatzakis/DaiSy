@@ -20,9 +20,10 @@ TEST_P(OdysseyParameterizedTest, AllConfigurations)
     odyssey_config.search_workers = 2;
     odyssey_config.index_threads = 2;
     odyssey_config.query_threads = 2;
-    odyssey_config.leaf_size = 128;
+    odyssey_config.leaf_size = 256;
     odyssey_config.paa_segments = 16;
     odyssey_config.replication_groups = 0;
+    odyssey_config.pq_th_div_factor = 4;
 
     diNoLib::Odyssey search(odyssey_config, dist_L2Squared, g_argc, g_argv);
 

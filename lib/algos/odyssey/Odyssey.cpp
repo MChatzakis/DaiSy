@@ -2145,6 +2145,7 @@ namespace diNoLib
         this->paa_segments = config.paa_segments;
         this->replication_groups = config.replication_groups;
         this->query_threads = config.query_threads;
+        this->pq_th_div_factor = config.pq_th_div_factor;
         this->num_threads = config.search_workers;
         
         initializeMPI(argc, argv);
