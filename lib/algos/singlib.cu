@@ -97,7 +97,7 @@ __global__ void calculate_lbdfloat(
             {
                 sax_type v = saxarray[j * N + i];
                 sax_type region_lower = v;
-                sax_type region_upper = (~((int)MAXFLOAT) | region_lower);
+                sax_type region_upper = ((sax_type)(~0) | region_lower);
 
                 if (region_lower == 0)
                 {
