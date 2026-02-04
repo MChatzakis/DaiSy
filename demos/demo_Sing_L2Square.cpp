@@ -5,19 +5,19 @@
 #include <cstdio>
 
 int main(){
-    // 0. Configuration (dataset ridotto per verificare buildIndex velocemente)
-    diNoLib::idx_t n_database = 5000;
+    // 0. Configuration (stesso dataset della demo Messi)
+    diNoLib::idx_t n_database = 200000;
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
     diNoLib::idx_t k = 5;
 
-    printf("=== Sing L2Square demo (buildIndex debug) ===\n");
+    printf("=== Sing L2Square demo (stesso dataset di demo_Messi_L2Square) ===\n");
     printf("n_database=%llu dim=%llu n_query=%llu k=%llu\n", n_database, dim, n_query, k);
 
-    // 1. Generate random data and queries
+    // 1. Generate random data and queries (stessi seed di Messi: 100 database, 50 query)
     float *database = loadRandomData(n_database, dim, 100, true);
     float *query = loadRandomData(n_query, dim, 50, true);
-    printf("Loaded %llu database points and %llu query points\n", n_database, n_query);
+    printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
     // 2. Create Sing search object
     diNoLib::Sing sing_search(diNoLib::DistanceType::L2_SQUARED);
