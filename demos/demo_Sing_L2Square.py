@@ -19,14 +19,11 @@ except ImportError as e:
 
 
 def main():
-    # 0. Configuration (same as C++ demo_Sing_L2Square and demo_Messi_L2Square)
-    n_database = 200_000
+    # 0. Configuration (same dataset as demo_Odyssey_L2Square)
+    n_database = 200000
     dim = 96
     n_query = 10
     k = 5
-
-    print("=== Sing L2Square demo (same dataset as demo_Messi_L2Square) ===")
-    print(f"n_database={n_database} dim={dim} n_query={n_query} k={k}")
 
     # 1. Generate random data and queries (seeds 100 database, 50 query)
     np.random.seed(100)
@@ -53,10 +50,13 @@ def main():
     search_ms = (t_search1 - t_search0) * 1000
     print(f"Search done in {search_ms:.2f} ms ({search_ms / n_query:.2f} ms/query)")
 
-    # 5. Print results (same format as demo_Odyssey_L2Square / demo_ParIS_L2Square)
+    # 5. Print results (same format as demo_Odyssey_L2Square)
+    print("\nPython Search Results:")
     for i in range(n_query):
-        indices_str = " ".join(str(I[i, j]) for j in range(k))
-        print(f"Query {i}: {indices_str}")
+        print(f"Query {i}:")
+        print("Distances:", D[i])
+        print("Indices:", I[i])
+        print()
 
     return 0
 
