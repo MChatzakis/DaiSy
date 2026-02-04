@@ -35,17 +35,24 @@ int main(){
     // 4. Search the index
     diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
     float *D = new float[n_query * k];
+    printf("Starting search (n_query=%llu, k=%llu)...\n", n_query, k);
+    auto t_search0 = std::chrono::steady_clock::now();
     sing_search.searchIndex(query, n_query, k, I, D);
+    auto t_search1 = std::chrono::steady_clock::now();
+    double search_ms = 1e-6 * (double)std::chrono::duration_cast<std::chrono::microseconds>(t_search1 - t_search0).count();
+    printf("Search done in %.2f ms (%.2f ms/query)\n", search_ms, search_ms / (double)n_query);
 
     // 5. Print the results
+    printf("Results (indices I, distances D):\n");
     for (diNoLib::idx_t i = 0; i < n_query; i++)
     {
-        printf("Query %llu: ", i);
+        printf("  Query %llu: I=[", i);
         for (diNoLib::idx_t j = 0; j < k; j++)
-        {
-            printf("%llu ", I[i * k + j]);
-        }
-        printf("\n");
+            printf("%s%llu", j ? " " : "", I[i * k + j]);
+        printf("] D=[");
+        for (diNoLib::idx_t j = 0; j < k; j++)
+            printf("%s%.4f", j ? " " : "", D[i * k + j]);
+        printf("]\n");
     }
 
     // 6. Clean up

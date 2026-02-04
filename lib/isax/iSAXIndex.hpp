@@ -335,6 +335,13 @@ namespace diNoLib
         int node_amount;
     } node_list;
 
+    typedef struct localStack
+    {
+        isax_node **val;
+        int top;
+        int bottom;
+    } localStack;
+
     struct pqueue_bsf;  // forward declaration (defined in iSAXPqueue.hpp)
     typedef struct query_result
     {
