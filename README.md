@@ -123,6 +123,23 @@ cmake .. -DODYSSEY_MPI=OFF -DSING_CUDA=OFF
 cmake --build .
 ```
 
+#### Build con CUDA (per testare la demo Sing)
+Richiede **CUDA Toolkit** installato (`nvcc --version` e `nvidia-smi` funzionanti). La demo `demo_Sing_L2Square` viene compilata solo se CUDA è disponibile.
+
+```bash
+mkdir -p build && cd build
+# Se non usi MPI (consigliato per test locali):
+cmake .. -DODYSSEY_MPI=OFF -DSING_CUDA=ON -DBUILD_DEMO=ON
+# Oppure con MPI:
+# cmake .. -DSING_CUDA=ON -DBUILD_DEMO=ON
+
+cmake --build . -j
+./demos/demo_Sing_L2Square
+```
+
+- **Architettura GPU**: di default è `75` (Turing). Se hai un’GPU diversa imposta ad es. `-DCMAKE_CUDA_ARCHITECTURES=86` (Ampere) o `89` (Ada). Controlla [CUDA arch list](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-feature-list).
+- Se la configurazione segnala "CUDA toolkit not found", verifica `PATH` e `LD_LIBRARY_PATH` (vedi `docs/cuda-installation.md`).
+
 #### Debug Build
 ```bash
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DDEBUG_MSG=ON

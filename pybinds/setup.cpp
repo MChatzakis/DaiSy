@@ -296,9 +296,11 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
 
         // Setters
         .def("setNumThreads", &diNoLib::Odyssey::setNumThreads, "Set the number of threads to use (for OpenMP parts)")
+        .def("setWarpingWindow", &diNoLib::Odyssey::setWarpingWindow, "Set the warping window size for DTW (typically 10% of time series length)")
 
         // Getters
         .def("getNumThreads", &diNoLib::Odyssey::getNumThreads, "Get the number of threads (for OpenMP parts)")
+        .def("getWarpingWindow", &diNoLib::Odyssey::getWarpingWindow, "Get the warping window size for DTW")
 
         // Bind method to build the index from a NumPy array
         // Odyssey requires FileDataSource (disk-based indexing). We write the array to a temp file.

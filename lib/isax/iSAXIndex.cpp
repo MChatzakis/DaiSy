@@ -190,6 +190,13 @@ namespace diNoLib
         free(fbl);
     }
 
+    void destroy_fbl2(first_buffer_layer2 *fbl)
+    {
+        // free(fbl->hard_buffer);
+        free(fbl->soft_buffers);
+        free(fbl);
+    }
+
     void destroy_parallel_fbl(parallel_first_buffer_layer *fbl)
     {
         if (fbl == NULL) return;
