@@ -49,7 +49,9 @@ int main(){
         printf("  Query %llu: I=[", i);
         for (diNoLib::idx_t j = 0; j < k; j++)
             printf("%s%llu", j ? " " : "", I[i * k + j]);
-        printf("] D=[");
+        printf("]")
+        print("\n")
+        print("D=[");
         for (diNoLib::idx_t j = 0; j < k; j++)
             printf("%s%.4f", j ? " " : "", D[i * k + j]);
         printf("]\n");
