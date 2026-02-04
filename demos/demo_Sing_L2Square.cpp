@@ -42,19 +42,15 @@ int main(){
     double search_ms = 1e-6 * (double)std::chrono::duration_cast<std::chrono::microseconds>(t_search1 - t_search0).count();
     printf("Search done in %.2f ms (%.2f ms/query)\n", search_ms, search_ms / (double)n_query);
 
-    // 5. Print the results
-    printf("Results (indices I, distances D):\n");
+    // 5. Print the results — same format as demo_Odyssey_L2Square (indices per query)
     for (diNoLib::idx_t i = 0; i < n_query; i++)
     {
-        printf("  Query %llu: I=[", (unsigned long long)i);
+        printf("Query %llu: ", static_cast<unsigned long long>(i));
         for (diNoLib::idx_t j = 0; j < k; j++)
-            printf("%s%llu", j ? " " : "", I[i * k + j]);
-        printf("]");
+        {
+            printf("%llu ", static_cast<unsigned long long>(I[i * k + j]));
+        }
         printf("\n");
-        printf("D=[");
-        for (diNoLib::idx_t j = 0; j < k; j++)
-            printf("%s%.4f", j ? " " : "", D[i * k + j]);
-        printf("]\n");
     }
 
     // 6. Clean up
