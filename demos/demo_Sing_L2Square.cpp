@@ -46,12 +46,12 @@ int main(){
     printf("Results (indices I, distances D):\n");
     for (diNoLib::idx_t i = 0; i < n_query; i++)
     {
-        printf("  Query %llu: I=[", i); bmn
+        printf("  Query %llu: I=[", (unsigned long long)i);
         for (diNoLib::idx_t j = 0; j < k; j++)
             printf("%s%llu", j ? " " : "", I[i * k + j]);
         printf("]");
-        print("\n");
-        print("D=[");
+        printf("\n");
+        printf("D=[");
         for (diNoLib::idx_t j = 0; j < k; j++)
             printf("%s%.4f", j ? " " : "", D[i * k + j]);
         printf("]\n");
