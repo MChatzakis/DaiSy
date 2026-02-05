@@ -35,5 +35,7 @@ std::vector<SSTestConfig> generate_configs(
 extern const std::vector<SSTestConfig> test_configs;
 extern const std::vector<SSTestConfig> test_configs_dtw;
 extern const std::vector<SSTestConfig> test_configs_random_light;
+/** Solo dataset Random Walk (randwalk): per test Sing e altri che vogliono solo random. */
+extern const std::vector<SSTestConfig> test_configs_random_only;
 
 #endif // PARAM_SETUP_HPP

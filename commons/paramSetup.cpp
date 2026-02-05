@@ -100,4 +100,15 @@ const std::vector<SSTestConfig> test_configs_random_light = []
     return configs;
 }();
 
+/* Solo dataset Random Walk: stesse combinazioni thread/k di test_configs ma solo random (no astronomy). */
+const std::vector<SSTestConfig> test_configs_random_only = []
+{
+    std::vector<SSTestConfig> configs;
+    auto random_configs = generate_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
+    auto random_stress = generate_concurrency_stress_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
+    configs.insert(configs.end(), random_configs.begin(), random_configs.end());
+    configs.insert(configs.end(), random_stress.begin(), random_stress.end());
+    return configs;
+}();
+
 

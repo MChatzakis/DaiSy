@@ -76,7 +76,7 @@ namespace diNoLib
     struct SingConfig
     {
         int search_workers = 4;   // threads for querying
-        int index_workers = 2;     // threads for indexing
+        int index_workers = 4;     // threads for indexing
         int warping_window = 10;  // warping window size (typically 10% of time series length)
         int leaf_size = 2000;
         int paa_segments = 16;
@@ -122,7 +122,7 @@ namespace diNoLib
 
         int read_block_length = 100000;
         int search_workers = 4;
-        int index_workers = 2;
+        int index_workers = 4;
         int n_pqueue = 42;
         int warping_window = 10;  // warping window size (typically 10% of time series length)
 

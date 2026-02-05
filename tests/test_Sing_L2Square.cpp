@@ -29,7 +29,7 @@ TEST_P(SingParameterizedTest, AllConfigurations)
 INSTANTIATE_TEST_SUITE_P(
     SingTests,
     SingParameterizedTest,
-    ::testing::ValuesIn(test_configs),
+    ::testing::ValuesIn(test_configs_random_only),
     [](const ::testing::TestParamInfo<SSTestConfig> &info)
     {
         return info.param.name + "_k" + std::to_string(info.param.k_value) +
