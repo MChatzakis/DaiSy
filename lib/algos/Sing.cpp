@@ -681,22 +681,24 @@ namespace diNoLib
     void Sing::setNumThreads(int num_threads)
     {
         int max_threads = omp_get_max_threads();
+        int n = num_threads;
 
-        if (num_threads > max_threads) 
+        if (num_threads > max_threads)
         {
-            std::cerr << "[Warning] " << num_threads 
-                    << " threads exceeds max available " << max_threads << " Using the max threads available.\n";
-            this->num_threads = max_threads;
-        } 
-        else if (num_threads < 1) 
+            std::cerr << "[Warning] " << num_threads
+                      << " threads exceeds max available " << max_threads << ". Using the max threads available.\n";
+            n = max_threads;
+        }
+        else if (num_threads < 1)
         {
             std::cerr << "[Warning] Thread count must be >= 1. Using 1.\n";
-            this->num_threads = 1;
-        } 
-        else 
-        {
-            this->num_threads = num_threads;
+            n = 1;
         }
+
+        this->num_threads = n;
+        /* search_workers controls the number of pthreads used per query in searchIndexL2Square;
+         * without this, setNumThreads(8) would have no effect on search (it would stay at default 4). */
+        this->search_workers = n;
     } 
 
     int Sing::getNumThreads() const
