@@ -200,8 +200,17 @@ namespace diNoLib
             }
             calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile);
         }
-        /* Do NOT overwrite knn[0..k-2] with knn[k-1]: that would corrupt the heap (distances
-         * would no longer match positions) and destroy valid candidates when we found fewer than k. */
+        /* Reinitialize all best-so-far slots so positions/nodes can't keep stale data (Codex-style fix). */
+        {
+            float bsf = pq_bsf->knn[pq_bsf->k - 1];
+            for (int i = 0; i < pq_bsf->k; ++i)
+            {
+                pq_bsf->knn[i] = bsf;
+                pq_bsf->position[i] = -1;
+                pq_bsf->node[i] = nullptr;
+            }
+            pq_bsf->nowk = 0;
+        }
         free(sax);
     }
 
