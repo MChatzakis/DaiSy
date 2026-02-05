@@ -438,8 +438,12 @@ namespace diNoLib
                                                     index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
             if (dist <= pq_bsf->knn[pq_bsf->k - 1])
             {
+                long int pos = 0;
+                if (node->buffer->full_position_buffer != nullptr &&
+                    node->buffer->full_position_buffer[i] != nullptr)
+                    pos = (long int)(*node->buffer->full_position_buffer[i] / index->settings->timeseries_size);
                 pthread_rwlock_wrlock(lock_queue);
-                pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                pqueue_bsf_insert(pq_bsf, dist, pos, node);
                 pthread_rwlock_unlock(lock_queue);
             }
         }
@@ -450,8 +454,12 @@ namespace diNoLib
                                                     index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
             if (dist <= pq_bsf->knn[pq_bsf->k - 1])
             {
+                long int pos = 0;
+                if (node->buffer->tmp_full_position_buffer != nullptr &&
+                    node->buffer->tmp_full_position_buffer[i] != nullptr)
+                    pos = (long int)(*node->buffer->tmp_full_position_buffer[i] / index->settings->timeseries_size);
                 pthread_rwlock_wrlock(lock_queue);
-                pqueue_bsf_insert(pq_bsf, dist, 0, node);
+                pqueue_bsf_insert(pq_bsf, dist, pos, node);
                 pthread_rwlock_unlock(lock_queue);
             }
         }

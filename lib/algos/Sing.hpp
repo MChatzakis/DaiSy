@@ -78,7 +78,7 @@ namespace diNoLib
         int search_workers = 4;   // threads for querying
         int index_workers = 4;     // threads for indexing
         int warping_window = 10;  // warping window size (typically 10% of time series length)
-        int leaf_size = 2000;
+        int leaf_size = 128;
         int paa_segments = 16;
     };
 
