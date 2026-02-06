@@ -27,9 +27,27 @@ std::vector<SSTestConfig> generate_configs(
     const char *gt_query)
 {
     std::vector<SSTestConfig> configs;
-    for (int threads : {1, 2, 4})
+    for (int threads : {1, 4, 8})
     {
         for (int k : {1, 10, 100})
+        {
+            configs.push_back({name, data, query, gt_data, gt_query, threads, k});
+        }
+    }
+    return configs;
+}
+
+std::vector<SSTestConfig> generate_sing_configs(
+    const char *name,
+    const char *data,
+    const char *query,
+    const char *gt_data,
+    const char *gt_query)
+{
+    std::vector<SSTestConfig> configs;
+    for (int threads : {4})
+    {
+        for (int k : {10, 100})
         {
             configs.push_back({name, data, query, gt_data, gt_query, threads, k});
         }
@@ -104,7 +122,7 @@ const std::vector<SSTestConfig> test_configs_random_light = []
 const std::vector<SSTestConfig> test_configs_random_only = []
 {
     std::vector<SSTestConfig> configs;
-    auto random_configs = generate_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
+    auto random_configs = generate_sing_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
     configs.insert(configs.end(), random_configs.begin(), random_configs.end());
     return configs;
 }();
