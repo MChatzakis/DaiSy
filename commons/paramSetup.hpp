@@ -37,5 +37,7 @@ extern const std::vector<SSTestConfig> test_configs_dtw;
 extern const std::vector<SSTestConfig> test_configs_random_light;
 /** Solo dataset Random Walk (randwalk): per test Sing e altri che vogliono solo random. */
 extern const std::vector<SSTestConfig> test_configs_random_only;
+/** Solo dataset Astronomy: stesse combinazioni thread/k di generate_configs ma solo astronomy. */
+extern const std::vector<SSTestConfig> test_configs_astro_only;
 
 #endif // PARAM_SETUP_HPP

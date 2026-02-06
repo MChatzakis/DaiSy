@@ -127,4 +127,12 @@ const std::vector<SSTestConfig> test_configs_random_only = []
     return configs;
 }();
 
+/* Solo dataset Astronomy: stesse combinazioni thread/k di test_configs ma solo astronomy. */
+const std::vector<SSTestConfig> test_configs_astro_only = []
+{
+    std::vector<SSTestConfig> configs;
+    auto astro_configs = generate_sing_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
+    configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
+    return configs;
+}();
 
