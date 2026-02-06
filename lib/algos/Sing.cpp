@@ -1092,6 +1092,7 @@ namespace diNoLib
             (void)current_root_node;
 
             pthread_t *threadid = (pthread_t *)malloc(sizeof(pthread_t) * (size_t)maxquerythread);
+            pthread_t *threadid2 = (pthread_t *)malloc(sizeof(pthread_t) * (size_t)maxquerythread);
             SING_workerdata *workerdata = (SING_workerdata *)malloc(sizeof(SING_workerdata) * (size_t)maxquerythread);
             pthread_mutex_t lock_queue = PTHREAD_MUTEX_INITIALIZER, lock_current_root_node = PTHREAD_MUTEX_INITIALIZER;
             pthread_rwlock_t lock_bsf = PTHREAD_RWLOCK_INITIALIZER;
@@ -1112,15 +1113,42 @@ namespace diNoLib
             bool *activechunk = (bool *)malloc(sizeof(bool) * (size_t)(loopnumber + 1));
             for (int i = 0; i < loopnumber + 1; i++)
             {
-                activechunk[i] = true; /* CPU path: examine every chunk to avoid missing candidates */
+                activechunk[i] = false;
             }
+            gap_workerdata *gapworkerdata = (gap_workerdata *)malloc(sizeof(gap_workerdata) * (size_t)maxquerythread);
+            int startnode = nodelist.node_amount, stopnode = 0, nodecounter = 0, nodecounter2 = nodelist.node_amount - 1;
             bool *activenode = (bool *)malloc(sizeof(bool) * (size_t)nodelist.node_amount);
-            /* CPU correctness: avoid aggressive pruning based on nodedistance heuristic.
-             * Mark every node as active so each leaf can be examined by exact_knn_SING_worker. */
-            for (int i = 0; i < nodelist.node_amount; i++)
+            for (int i = 0; i < maxquerythread; i++)
             {
-                activenode[i] = true;
+                gapworkerdata[i].nodelist = nodelist.nlist;
+                gapworkerdata[i].amountnode = nodelist.node_amount;
+                gapworkerdata[i].startnode = &startnode;
+                gapworkerdata[i].stopnode = &stopnode;
+                gapworkerdata[i].nodecounter = &nodecounter;
+                gapworkerdata[i].nodecounter2 = &nodecounter2;
+                gapworkerdata[i].index = index;
+                gapworkerdata[i].bsf = pq_bsf->knn[pq_bsf->k - 1];
+                gapworkerdata[i].paa = paa;
+                gapworkerdata[i].lockposition = &lock_queue;
+                gapworkerdata[i].offsetarray = (unsigned long *)offsetarray;
+                gapworkerdata[i].activechunk = activechunk;
+                gapworkerdata[i].chunknumber = loopnumber;
+                gapworkerdata[i].activenode = activenode;
+                gapworkerdata[i].workerstartnode = (i) * nodelist.node_amount / loopnumber;
+                gapworkerdata[i].workerstopnode = (i + 1) * nodelist.node_amount / loopnumber;
             }
+            gapworkerdata[maxquerythread - 1].workerstopnode = nodelist.node_amount;
+
+            for (int i = 0; i < maxquerythread; i++)
+            {
+                pthread_create(&threadid2[i], NULL, multigapworker, (void *)&gapworkerdata[i]);
+            }
+            for (int i = 0; i < maxquerythread; i++)
+            {
+                pthread_join(threadid2[i], NULL);
+            }
+            if (activechunk[loopnumber])
+                activechunk[loopnumber - 1] = true;
 
             int node_counter = 0;
 
@@ -1214,7 +1242,9 @@ namespace diNoLib
             free(ququelock);
             free(queuelabel);
             free(threadid);
+            free(threadid2);
             free(workerdata);
+            free(gapworkerdata);
             free(activechunk);
             free(activenode);
             free(queueoffset);
