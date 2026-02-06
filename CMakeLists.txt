@@ -36,7 +36,7 @@ option(BUILD_DEMO "Build the demo folder" ON)
 option(BUILD_TESTS "Build test executables" ON)
 option(ODYSSEY_MPI "Build Odyssey components with MPI support" ON)
 option(ODYSSEY_DEBUG_RESULTS "Print Odyssey search results (query_result) for debug before copy to I,D" OFF)
-option(SING_CUDA "Enable CUDA support" ON)
+option(SING_CUDA "Enable CUDA support" OFF)
 
 message(STATUS "  DEBUG_MSG: ${DEBUG_MSG}")
 message(STATUS "Build options:")

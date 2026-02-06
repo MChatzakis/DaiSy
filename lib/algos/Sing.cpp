@@ -541,7 +541,9 @@ namespace diNoLib
                     }
                     pthread_mutex_unlock(&alllock[queuenumber]);
 
-                    if (n->distance > bsfdistance || n->distance > minimum_distance)
+                    /* For exact KNN we must scan every leaf; only prune non-leaf nodes by LBD. */
+                    if (!n->node->is_leaf &&
+                        (n->distance > bsfdistance || n->distance > minimum_distance))
                     {
                         wd->allqueuelabel[queuenumber] = 0;
                         free(n);
