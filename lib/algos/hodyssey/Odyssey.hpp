@@ -145,7 +145,9 @@ namespace diNoLib
         Odyssey(const OdysseyConfig &config, DistanceType distance_type, int argc, char **argv);
         void setNumThreads(int num_threads);
         int getNumThreads() const;
-        
+        void setWarpingWindow(int w) { warping_window = w; }
+        int getWarpingWindow() const { return warping_window; }
+
         // MPI rank and size getters (for demos/tests)
         int getMyRank() const { return my_rank; }
         int getCommSz() const { return comm_sz; }

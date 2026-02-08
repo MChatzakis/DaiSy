@@ -37,6 +37,24 @@ std::vector<SSTestConfig> generate_configs(
     return configs;
 }
 
+std::vector<SSTestConfig> generate_sing_configs(
+    const char *name,
+    const char *data,
+    const char *query,
+    const char *gt_data,
+    const char *gt_query)
+{
+    std::vector<SSTestConfig> configs;
+    for (int threads : {4})
+    {
+        for (int k : {10, 100})
+        {
+            configs.push_back({name, data, query, gt_data, gt_query, threads, k});
+        }
+    }
+    return configs;
+}
+
 // Increasing number of threads and decreasing k should tighten BFS bounds and so should increase the frequency of concurrent write operations to the shared BSF queue
 std::vector<SSTestConfig> generate_concurrency_stress_configs(
     const char *name,
@@ -100,4 +118,21 @@ const std::vector<SSTestConfig> test_configs_random_light = []
     return configs;
 }();
 
+/* Solo dataset Random Walk: stesse combinazioni thread/k di test_configs ma solo random (no astronomy). */
+const std::vector<SSTestConfig> test_configs_random_only = []
+{
+    std::vector<SSTestConfig> configs;
+    auto random_configs = generate_sing_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
+    configs.insert(configs.end(), random_configs.begin(), random_configs.end());
+    return configs;
+}();
+
+/* Solo dataset Astronomy: stesse combinazioni thread/k di test_configs ma solo astronomy. */
+const std::vector<SSTestConfig> test_configs_astro_only = []
+{
+    std::vector<SSTestConfig> configs;
+    auto astro_configs = generate_sing_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
+    configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
+    return configs;
+}();
 

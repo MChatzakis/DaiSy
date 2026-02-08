@@ -475,65 +475,66 @@ if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_ParIS_L2Square.")
 endif()
 
-# ////// SING L2Square ////// (COMMENTED OUT - UNDER IMPLEMENTATION)
-# if(DEBUG_MSG)
-#     message(STATUS "---")
-#     message(STATUS "## Test: Sing L2Square (conditional on CUDA)") # Updated message for clarity
-# endif()
+# ////// SING L2Square (conditional on CUDA) //////
+if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "## Test: Sing L2Square (conditional on CUDA)")
+endif()
 
-# if(SING_CUDA_AVAILABLE)
-#     if(DEBUG_MSG)
-#         message(STATUS "SING_CUDA_AVAILABLE is TRUE. Building test_Sing_L2Square.")
-#         message(STATUS "Attempting to add executable: test_Sing_L2Square")
-#     endif()
-#     add_executable(
-#         test_Sing_L2Square
-#         test_Sing_L2Square.cpp
-#         test_utils.cpp
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Executable test_Sing_L2Square added.")
-#     endif()
+if(SING_CUDA_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "SING_CUDA_AVAILABLE is TRUE. Building test_Sing_L2Square.")
+        message(STATUS "Attempting to add executable: test_Sing_L2Square")
+    endif()
+    add_executable(
+        test_Sing_L2Square
+        test_Sing_L2Square.cpp
+        test_utils.cpp
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Executable test_Sing_L2Square added.")
+    endif()
 
-#     if(DEBUG_MSG)
-#         message(STATUS "Linking libraries for test_Sing_L2Square...")
-#     endif()
-#     target_link_libraries(
-#         test_Sing_L2Square
-#         PRIVATE
-#         GTest::gtest_main
-#         dino_lib
-#         commons_lib
-#         stdc++fs
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Libraries linked for test_Sing_L2Square.")
-#     endif()
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for test_Sing_L2Square...")
+    endif()
+    target_link_libraries(
+        test_Sing_L2Square
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+        CUDA::cudart
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for test_Sing_L2Square.")
+    endif()
 
-#     if(DEBUG_MSG)
-#         message(STATUS "Adding include directories for test_Sing_L2Square...")
-#     endif()
-#     target_include_directories(test_Sing_L2Square
-#         PRIVATE
-#         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Include directories added for test_Sing_L2Square.")
-#     endif()
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for test_Sing_L2Square...")
+    endif()
+    target_include_directories(test_Sing_L2Square
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for test_Sing_L2Square.")
+    endif()
 
-#     if(DEBUG_MSG)
-#         message(STATUS "Discovering tests for test_Sing_L2Square...")
-#     endif()
-#     gtest_discover_tests(
-#         test_Sing_L2Square
-#         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Tests discovered for test_Sing_L2Square.")
-#     endif()
-# else()
-#     if(DEBUG_MSG)
-#         message(STATUS "SING_CUDA_AVAILABLE is FALSE. test_Sing_L2Square (CUDA-dependent) will NOT be built.")
-#     endif()
-# endif()
+    if(DEBUG_MSG)
+        message(STATUS "Discovering tests for test_Sing_L2Square...")
+    endif()
+    gtest_discover_tests(
+        test_Sing_L2Square
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Tests discovered for test_Sing_L2Square.")
+    endif()
+else()
+    if(DEBUG_MSG)
+        message(STATUS "SING_CUDA_AVAILABLE is FALSE. test_Sing_L2Square (CUDA-dependent) will NOT be built.")
+    endif()
+endif()

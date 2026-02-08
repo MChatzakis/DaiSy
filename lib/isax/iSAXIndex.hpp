@@ -163,6 +163,27 @@ namespace diNoLib
 
     } first_buffer_layer;
 
+    typedef struct fbl_soft_buffer2
+    {
+        isax_node *node;
+        sax_type *sax_records;
+        file_position_type *pos_records;
+        int initialized;
+        int max_buffer_size;
+        int buffer_size;
+    } fbl_soft_buffer2;
+
+    typedef struct first_buffer_layer2
+    {
+        int number_of_buffers;
+        int initial_buffer_size;
+        int max_total_size;
+        int current_record_index;
+        char *current_record;
+        char *hard_buffer;
+        fbl_soft_buffer2 *soft_buffers;
+    } first_buffer_layer2;
+
     typedef struct parallel_fbl_soft_buffer
     {
         isax_node *node;
@@ -314,6 +335,13 @@ namespace diNoLib
         int node_amount;
     } node_list;
 
+    typedef struct localStack
+    {
+        isax_node **val;
+        int top;
+        int bottom;
+    } localStack;
+
     struct pqueue_bsf;  // forward declaration (defined in iSAXPqueue.hpp)
     typedef struct query_result
     {
@@ -388,6 +416,7 @@ namespace diNoLib
                                                                int total_workernumber);
 
     void destroy_fbl(first_buffer_layer *fbl);
+    void destroy_fbl2(first_buffer_layer2 *fbl);
     void destroy_parallel_fbl(parallel_first_buffer_layer *fbl);
     void destroy_node_buffer(isax_node_buffer *node_buffer);
     void split_node(isax_index *index, isax_node *node);

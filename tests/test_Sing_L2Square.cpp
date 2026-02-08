@@ -8,29 +8,33 @@ TEST_P(SingParameterizedTest, AllConfigurations)
 {
     const SSTestConfig &config = GetParam();
     diNoLib::DistanceType dist_L2Squared = diNoLib::DistanceType::L2_SQUARED;
-    diNoLib::Sing search(dist_L2Squared);
+    for (int i = 0; i < 3; ++i)
+    {
+        diNoLib::Sing search(dist_L2Squared);
 
-    std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
-    std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
+        std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
+        std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
 
-    runSST(
-        &search,
-        prefix,
-        gt_I_path,
-        gt_D_path,
-        config.dataset_path,
-        config.query_path,
-        config.thread_count);
+        runSST(
+            &search,
+            prefix,
+            gt_I_path,
+            gt_D_path,
+            config.dataset_path,
+            config.query_path,
+            config.thread_count);
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(
     SingTests,
     SingParameterizedTest,
-    ::testing::ValuesIn(test_configs),
+    ::testing::ValuesIn(test_configs_astro_only),
     [](const ::testing::TestParamInfo<SSTestConfig> &info)
     {
         return info.param.name + "_k" + std::to_string(info.param.k_value) +
-               "_thread" + std::to_string(info.param.thread_count);
+               "_thread" + std::to_string(info.param.thread_count) +
+               "_idx" + std::to_string(info.index);
     });
 
 int main(int argc, char **argv)

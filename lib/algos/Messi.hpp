@@ -21,14 +21,6 @@ namespace diNoLib
         int leaf_size = 2000;
         int paa_segments = 16;
     };
-    
-
-    typedef struct localStack
-    {
-        isax_node **val;
-        int top;
-        int bottom;
-    } localStack;
 
     typedef struct MESSI_workerdata
     {

@@ -32,6 +32,7 @@ def main():
 
     np.random.seed(50)
     query = np.random.randn(n_query, dim).astype(np.float32)
+    
 
     print(f"Loaded {n_database} database points and {n_query} query points with dimension {dim}")
 
