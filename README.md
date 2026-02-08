@@ -3,6 +3,17 @@ DaiSy is a unified library for exact data series similarity search that integrat
 It supports a wide range approaches tailored for different execution environments, including disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search. 
 DaiSy is implemented in C++, while it also offers a convenient Python interface for ease of use and integration with data science workflows.
 
+When using DaiSy, please consider citing the following paper:
+
+```latex
+@inproceedings{todo,
+  title={DaiSy: A Library for Scalable Data Series Similarity Search},
+  author={},
+  conference={Coming Soon!},
+  year={2026}
+}
+```
+
 
 ## Supported State-of-the-Art algorithms
 We currently support several algorithms for exact similarity search, each optimized for specific use cases and environments. 
@@ -106,10 +117,6 @@ cmake --build . -j
 ```bash
 cd build
 
-# Complete test suite
-ctest --output-on-failure
-
-# Verbose output
 ctest --output-on-failure --verbose
 ```
 
@@ -130,7 +137,7 @@ cd build
 ```
 
 ## About
-DaiSy is developed by the [diNo research group at LIPADE, Université Paris Cit\'e](https://dino.mi.parisdescartes.fr/). 
+DaiSy is developed by the [diNo research group at LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
 It is provided with no warranty, and we encourage contributions from the community to enhance its capabilities and performance. For questions, issues, or contributions, please open an issue or submit a pull request on GitHub.
 DaiSy licensed under the [MIT License](LICENSE).
 
