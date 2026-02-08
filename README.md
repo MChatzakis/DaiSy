@@ -1,12 +1,10 @@
-# diNo Similarity Search Library
+# DaiSy: A Library for Scalable Data Series Similarity Search
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![C++](https://img.shields.io/badge/C%2B%2B-14%2B-blue.svg)](https://isocpp.org/)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
-[![CMake](https://img.shields.io/badge/CMake-3.15%2B-red.svg)](https://cmake.org/)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/MChatzakis/diNo-lib)
+DaiSy is a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework, developed at LIPADE, Université Paris Cit\'e.
+It supports a wide range approaches tailored for different execution environments, including disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search. 
+DaiSy is implemented in C++, while it also offers a convenient Python interface for ease of use and integration with data science workflows.
 
-**diNoSimilaritySearch** is a high-performance C++ and Python library designed for efficient nearest neighbor search on time series data. The library provides multiple algorithmic implementations optimized for various computational environments and use cases, from single-machine processing to distributed computing and GPU acceleration.
+
 
 ## 🚀 Key Features
 
@@ -294,14 +292,6 @@ For detailed documentation and advanced usage examples, please refer to:
 - **Performance Guide**: Optimization strategies and best practices
 - **Contributing**: Guidelines for contributing to the project
 
-## 🤝 Contributing
-
-We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
-
-- Code style and standards
-- Testing requirements
-- Pull request process
-- Development setup
 
 ## 📄 License
 
@@ -311,6 +301,3 @@ This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LI
 
 Special thanks to the open-source community and contributors who have helped make this library possible.
 
----
-
-**diNoSimilaritySearch** - Efficient Time Series Similarity Search for Modern Computing Environments
