@@ -25,16 +25,11 @@ int main(){
     
     // 3. Build the index (simplified API - no need for DataSource!)
     messi_search.buildIndex(database, n_database, dim);
-    printf(">>> Finished indexing \n");
 
     // 4. Search the index
-    printf("@ Starting search\n");
     daisy::idx_t *I = new daisy::idx_t[n_query * k];
     float *D = new float[n_query * k];
-    printf("@ Starting search Variables are been set\n");
-    printf("@ going searchIndex constructor\n");                
     messi_search.searchIndex(query, n_query, k, I, D);
-    printf(">>> Finished search \n");
 
     // 5. Print the results
     for (daisy::idx_t i = 0; i < n_query; i++)

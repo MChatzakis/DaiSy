@@ -10,7 +10,7 @@ import numpy as np
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 try:
-    from diNoSimilaritySearch import DistanceType, Sing
+    from daisy import DistanceType, Sing
 except ImportError as e:
     print("Error: Sing is not available in the Python bindings.")
     print("Build the project with CUDA (SING_CUDA=ON) so that Sing is compiled and exposed.")

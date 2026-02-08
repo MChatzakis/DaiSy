@@ -27,7 +27,7 @@
 // Define a Python module named 'diNoSimilaritySearch'
 PYBIND11_MODULE(diNoSimilaritySearch, m)
 {
-    m.doc() = "diNo::diNoSimilaritySearch Python bindings";
+    m.doc() = "diNo::daisy Python bindings";
 
     ////// DISTANCETYPE //////
     pybind11::enum_<daisy::DistanceType>(m, "DistanceType")

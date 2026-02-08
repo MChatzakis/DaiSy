@@ -1,24 +1,21 @@
 # DaiSy: A Library for Scalable Data Series Similarity Search
-
 DaiSy is a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework, developed at LIPADE, Université Paris Cit\'e.
 It supports a wide range approaches tailored for different execution environments, including disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search. 
 DaiSy is implemented in C++, while it also offers a convenient Python interface for ease of use and integration with data science workflows.
 
 
 ## Supported State-of-the-Art algorithms
-
 We currently support several algorithms for exact similarity search, each optimized for specific use cases and environments. 
 The following table summarizes the key features of each algorithm:
 
 | Algorithm | Description |
 |-----------|-------------|
-| **Bruteforce** | Naive sequential similarity search implementation |
-| **Lower Bound Bruteforce** | Optimized brute force with lower bounding for the distance calculations |
-| **MESSI** | In-memory parallel similarity search |
-| **PARIS** | Disk-based parallel similarity search |
-| **SING** | GPU-accelerated in-memory parallel similarity search |
-| **Odyssey** | Distributed and parallel in-memory similarity search |
-
+| **Bruteforce** | Naive parallel similarity search implementation |
+| **Lower Bound Bruteforce** | Optimized bruteforce with lower bounding for the distance calculations |
+| **[MESSI](https://github.com/MChatzakis/messi)** | In-memory parallel similarity search |
+| **[PARIS](https://github.com/MChatzakis/paris)** | Disk-based parallel similarity search |
+| **[SING](https://helios2.mi.parisdescartes.fr/~themisp/sing/)** | GPU-accelerated in-memory parallel similarity search |
+| **[Odyssey](https://github.com/MChatzakis/odyssey)** | Distributed and parallel in-memory similarity search |
 
 
 ## Quickstart
@@ -39,6 +36,7 @@ Optionally,
 To download DaiSy, use:
 ```bash
 git clone https://github.com/MChatzakis/daisy.git
+
 cd daisy
 git submodule update --init --recursive
 ```
@@ -55,52 +53,40 @@ Based on the available hardware, you can specify the below arguments to enable/d
 
 To compile:
 ```bash
-# Create build directory
 mkdir build && cd build
 
-# Configure with CMake
 cmake ..
-
-# Build the project
 cmake --build .
 ```
 
 ### Enable Python
 
 ```bash
-# Create virtual environment
-python3.12 -m venv diNo_env
+python3.12 -m venv daisy_env
 
-# Activate environment
-source diNo_env/bin/activate          # Linux/macOS
-# or
-.\diNo_env\Scripts\activate          # Windows
+source daisy_env/bin/activate 
 
-# Install dependencies
-pip install -r requirements_diNo.txt
+pip install -r requirements_daisy.txt
 ```
 
 #### Conda Environment
 
 ```bash
-conda env create -f environment_diNo.yml
-conda activate diNo_env
+conda env create -f environment_daisy.yml
+conda activate daisy_env
 ```
 
-### Running the test suite
+
+### Example Usage
+We provide several usage examples in both C++ and Python under [`demos/`](demos/), demonstrating how to utilize the library for various similarity search tasks.
 
 
+## Running the test suite
 ```bash
 cd build
 
 # Complete test suite
 ctest --output-on-failure
-
-# Individual test execution
-./tests/test_bruteforce_L2Square
-./tests/test_Messi_L2Square
-./tests/test_Odyssey_L2Square    # MPI required
-./tests/test_Sing_L2Square       # CUDA required
 
 # Verbose output
 ctest --output-on-failure --verbose
@@ -122,11 +108,10 @@ cd build
 ./benchmark/bm_Sing_L2Square       # CUDA required
 ```
 
-## License
-DaiSy licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for complete details.
-
 ## About
-DaiSy is developed by the diNo research group at LIPADE, Université Paris Cit\'e. It is provided with no warranty, and we encourage contributions from the community to enhance its capabilities and performance. For questions, issues, or contributions, please open an issue or submit a pull request on GitHub.
+DaiSy is developed by the [diNo research group at LIPADE, Université Paris Cit\'e](https://dino.mi.parisdescartes.fr/). 
+It is provided with no warranty, and we encourage contributions from the community to enhance its capabilities and performance. For questions, issues, or contributions, please open an issue or submit a pull request on GitHub.
+DaiSy licensed under the [MIT License](LICENSE).
 
 
 
@@ -157,80 +142,5 @@ cmake --build . -j
 
 
 
-## 🚀 Quick Start
-
-### Basic Usage Example
-
-```python
-import numpy as np
-from diNo import BruteForceL2Square
-
-# Create sample data
-data = np.random.randn(1000, 64)
-query = np.random.randn(64)
-
-# Initialize search algorithm
-searcher = BruteForceL2Square(data)
-
-# Perform search
-distances, indices = searcher.search(query, k=5)
-print(f"Top 5 matches: {indices}")
-print(f"Distances: {distances}")
-```
-
-### C++ Example
-
-```cpp
-#include <diNo/bruteforce_l2square.hpp>
-#include <vector>
-
-int main() {
-    std::vector<std::vector<float>> data = {{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
-    std::vector<float> query = {1.0, 2.0, 3.0};
-    
-    auto searcher = diNo::BruteForceL2Square(data);
-    auto results = searcher.search(query, 2);
-    
-    return 0;
-}
-```
-
-## 📚 Usage Examples
-
-### Running Demonstrations
-
-#### C++ Demos
-```bash
-cd build
-
-# Basic algorithms
-./demos/demo_bruteforce_L2Square
-./demos/demo_bruteforce_DTW
-./demos/demo_LbBruteforce_L2Square
-
-# Advanced algorithms
-./demos/demo_Messi_L2Squares
-./demos/demo_Paris_L2Square
-./demos/demo_Odyssey_L2Square    # MPI required
-./demos/demo_Sing_L2Square       # CUDA required
-```
-
-#### Python Demos
-```bash
-cd demos
-
-# Basic demonstrations
-python3.12 demo_bruteforce_L2Square.py
-python3.12 demo_Messi_L2Square.py
-
-# Interactive GUI
-python3.12 demo_gui.py
-
-# Distributed computing (MPI)
-mpirun -np 4 python3.12 demo_Odyssey_L2Square.py
-
-# GPU acceleration (CUDA)
-python3.12 demo_Sing_L2Square.py
-```
 
 

@@ -6,7 +6,7 @@ The pybinds module uses pybind11 to create efficient Python bindings for the diN
 
 ### Main Binding File (`setup.cpp`)
 
-The primary file that defines the Python API bindings for the diNo library.
+The primary file that defines the Python API bindings for the DaiSy library.
 
 ## Adding New Algorithms
 

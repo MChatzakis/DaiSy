@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # This demo shows the expected interface when ParIS bindings are added
 # For now, this will fail with ImportError until ParIS is added to the Python bindings
 try:
-    from diNoSimilaritySearch import DistanceType, ParIS
+    from daisy import DistanceType, ParIS
 except ImportError:
     print("Error: ParIS is not yet available in Python bindings.")
     print("ParIS requires file-based data and needs to be added to pybinds/setup.cpp")

@@ -35,13 +35,11 @@ int main(){
 
     // 4. Build the index (simplified API - just pass filename!)
     paris_search.buildIndex(temp_db_file, dim, n_database);
-    printf(">>> Finished indexing\n");
 
     // 5. Search the index
     daisy::idx_t *I = new daisy::idx_t[n_query * k];
     float *D = new float[n_query * k];
     paris_search.searchIndex(query, n_query, k, I, D);
-    printf(">>> Finished search\n");
 
     // 6. Print the results
     for (daisy::idx_t i = 0; i < n_query; i++)

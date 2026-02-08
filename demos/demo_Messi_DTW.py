@@ -7,10 +7,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # GUI import not needed for this demo - uncomment if using GUI
 # from scripts.gui_config_param import get_config, search_classes
 
-from diNoSimilaritySearch import DistanceType, Messi
+from daisy import DistanceType, Messi
 
 def main():
-# Without the GUI
     # 0. Configuration of the variables
     n_database = 200000
     dim = 96
@@ -26,9 +25,8 @@ def main():
 
     # 2. Create a brute-force search object
     index = Messi(DistanceType.DTW)
-
-    #REMEMBER TO SET THE WARPING WINDOW TO 10% OF THE TIME SERIES LENGTH, NOT 10 AS A NUMBER
     index.setWarpingWindow(int(dim * 0.1))
+
     # 3. Build the index
     index.setNumThreads(1)
     index.buildIndex(db)

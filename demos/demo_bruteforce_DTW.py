@@ -7,10 +7,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # GUI import not needed for this demo - uncomment if using GUI
 # from scripts.gui_config_param import get_config, search_classes
 
-from diNoSimilaritySearch import DistanceType, BruteForceSearch
+from daisy import DistanceType, BruteForceSearch
 
 def main():
-# Without the GUI
     # 0. Configuration of the variables
     n_database = 200000
     dim = 96

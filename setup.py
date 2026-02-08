@@ -25,7 +25,7 @@ try:
     # Define the extension module using pybind11
     ext_modules = [
         Pybind11Extension(
-            "diNoSimilaritySearch",
+            "daisy",
             [
                 "pybinds/setup.cpp",
             ],
@@ -50,14 +50,14 @@ except ImportError:
     build_ext_class = None
 
 setup(
-    name="diNo-lib",
+    name="daisy",
     version=__version__,
     author="",
     author_email="",  
     description="High-performance similarity search library for time series data",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
-    url="https://github.com/MChatzakis/diNo-lib",
+    url="https://github.com/MChatzakis/daisy",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext_class} if build_ext_class else {},
     zip_safe=False,
@@ -90,7 +90,7 @@ setup(
     ],
     keywords="similarity-search time-series nearest-neighbor dtw cuda mpi",
     project_urls={
-        "Bug Reports": "https://github.com/MChatzakis/diNo-lib/issues",
-        "Source": "https://github.com/MChatzakis/diNo-lib",
+        "Bug Reports": "https://github.com/MChatzakis/daisy/issues",
+        "Source": "https://github.com/MChatzakis/daisy",
     },
 )
