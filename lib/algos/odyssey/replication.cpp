@@ -4,7 +4,7 @@
 #include <cstring>
 #include <stdexcept>
 
-namespace diNoLib
+namespace daisy
 {
     void rep_log_info(const ReplicationData &replication_data, int index_threads, int query_threads)
     {
@@ -339,4 +339,4 @@ namespace diNoLib
         return offset;
     }
 
-} // namespace diNoLib
+} // namespace daisy

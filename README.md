@@ -12,10 +12,10 @@ The following table summarizes the key features of each algorithm:
 |-----------|-------------|
 | **Bruteforce** | Naive parallel similarity search implementation |
 | **Lower Bound Bruteforce** | Optimized bruteforce with lower bounding for the distance calculations |
-| **[MESSI](https://github.com/MChatzakis/messi)** | In-memory parallel similarity search |
-| **[PARIS](https://github.com/MChatzakis/paris)** | Disk-based parallel similarity search |
+| **[MESSI](https://helios2.mi.parisdescartes.fr/~themisp/messi/)** | In-memory parallel similarity search |
+| **[PARIS](https://helios2.mi.parisdescartes.fr/~themisp/paris/)** | Disk-based parallel similarity search |
 | **[SING](https://helios2.mi.parisdescartes.fr/~themisp/sing/)** | GPU-accelerated in-memory parallel similarity search |
-| **[Odyssey](https://github.com/MChatzakis/odyssey)** | Distributed and parallel in-memory similarity search |
+| **[Odyssey](https://helios2.mi.parisdescartes.fr/~themisp/odyssey/)** | Distributed and parallel in-memory similarity search |
 
 
 ## Quickstart
@@ -46,6 +46,7 @@ Based on the available hardware, you can specify the below arguments to enable/d
 |------|-------------|---------|--------------|
 | `BUILD_PYTHON` | Enable Python bindings | `ON` | Python 3.10+ |
 | `BUILD_BENCHMARK` | Build benchmarking tools | `ON` | GoogleBenchmark |
+| `BUILD_TESTS` | Build test suite | `ON` | GoogleTest |
 | `BUILD_DEMO` | Build demonstration applications | `ON` | Core library |
 | `ODYSSEY_MPI` | Enable MPI for distributed computing | `ON` | OpenMPI/MPICH |
 | `SING_CUDA` | Enable CUDA for GPU acceleration | `ON` | CUDA Toolkit |
@@ -65,7 +66,6 @@ cmake --build .
 python3.12 -m venv daisy_env
 
 source daisy_env/bin/activate 
-
 pip install -r requirements_daisy.txt
 ```
 
@@ -79,6 +79,27 @@ conda activate daisy_env
 
 ### Example Usage
 We provide several usage examples in both C++ and Python under [`demos/`](demos/), demonstrating how to utilize the library for various similarity search tasks.
+
+
+
+#### Build con CUDA (per testare la demo Sing)
+Richiede **CUDA Toolkit** installato (`nvcc --version` e `nvidia-smi` funzionanti). La demo `demo_Sing_L2Square` viene compilata solo se CUDA è disponibile.
+
+```bash
+mkdir -p build && cd build
+# Se non usi MPI (consigliato per test locali):
+cmake .. -DODYSSEY_MPI=OFF -DSING_CUDA=ON -DBUILD_DEMO=ON
+# Oppure con MPI:
+# cmake .. -DSING_CUDA=ON -DBUILD_DEMO=ON
+
+cmake --build . -j
+./demos/demo_Sing_L2Square
+```
+
+- **Architettura GPU**: di default è `75` (Turing). Se hai un’GPU diversa imposta ad es. `-DCMAKE_CUDA_ARCHITECTURES=86` (Ampere) o `89` (Ada). Controlla [CUDA arch list](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-feature-list).
+- Se la configurazione segnala "CUDA toolkit not found", verifica `PATH` e `LD_LIBRARY_PATH` (vedi `docs/cuda-installation.md`).
+`
+
 
 
 ## Running the test suite
@@ -121,24 +142,6 @@ DaiSy licensed under the [MIT License](LICENSE).
 
 
 
-
-#### Build con CUDA (per testare la demo Sing)
-Richiede **CUDA Toolkit** installato (`nvcc --version` e `nvidia-smi` funzionanti). La demo `demo_Sing_L2Square` viene compilata solo se CUDA è disponibile.
-
-```bash
-mkdir -p build && cd build
-# Se non usi MPI (consigliato per test locali):
-cmake .. -DODYSSEY_MPI=OFF -DSING_CUDA=ON -DBUILD_DEMO=ON
-# Oppure con MPI:
-# cmake .. -DSING_CUDA=ON -DBUILD_DEMO=ON
-
-cmake --build . -j
-./demos/demo_Sing_L2Square
-```
-
-- **Architettura GPU**: di default è `75` (Turing). Se hai un’GPU diversa imposta ad es. `-DCMAKE_CUDA_ARCHITECTURES=86` (Ampere) o `89` (Ada). Controlla [CUDA arch list](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-feature-list).
-- Se la configurazione segnala "CUDA toolkit not found", verifica `PATH` e `LD_LIBRARY_PATH` (vedi `docs/cuda-installation.md`).
-`
 
 
 

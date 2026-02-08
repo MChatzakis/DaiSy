@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cstddef>  // for offsetof
 
-namespace diNoLib
+namespace daisy
 {
     // MPI Datatype for BSF message (initialized in create_bsf_msg_mpi_type)
     MPI_Datatype bsf_msg_type;
@@ -101,7 +101,7 @@ namespace diNoLib
     void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                                 int workernumber, int my_rank, int query_counter, 
                                 const ReplicationData *replication_data,
-                                ::dinoLib::timer_manager_t *timer_manager)
+                                ::daisy::timer_manager_t *timer_manager)
     {
         if (!bsf_sharing_data.bsf_sharing_enabled || workernumber != 0 || pq_bsf == nullptr)
         {
@@ -133,11 +133,11 @@ namespace diNoLib
             bsf_sharing_data.bsf_broadcasts_counter++;
 
             if (timer_manager)
-                ::dinoLib::timer_start(timer_manager, "COMM");
+                ::daisy::timer_start(timer_manager, "COMM");
             MPI_Ibcast(&bsf_sharing_data.shared_bsfs[my_rank], 1, bsf_msg_type, my_rank, 
                       bsf_sharing_data.communicators[my_rank], &bsf_sharing_data.requests[my_rank]);
             if (timer_manager)
-                ::dinoLib::timer_stop(timer_manager, "COMM");
+                ::daisy::timer_stop(timer_manager, "COMM");
 
             first_time = false;
             return;
@@ -145,10 +145,10 @@ namespace diNoLib
 
         int ready;
         if (timer_manager)
-            ::dinoLib::timer_start(timer_manager, "COMM");
+            ::daisy::timer_start(timer_manager, "COMM");
         MPI_Test(&bsf_sharing_data.requests[my_rank], &ready, MPI_STATUS_IGNORE);
         if (timer_manager)
-            ::dinoLib::timer_stop(timer_manager, "COMM");
+            ::daisy::timer_stop(timer_manager, "COMM");
 
         if (!ready)
         {
@@ -174,11 +174,11 @@ namespace diNoLib
             }
 
             if (timer_manager)
-                ::dinoLib::timer_start(timer_manager, "COMM");
+                ::daisy::timer_start(timer_manager, "COMM");
             MPI_Ibcast(&bsf_sharing_data.shared_bsfs[my_rank], 1, bsf_msg_type, my_rank, 
                       bsf_sharing_data.communicators[my_rank], &bsf_sharing_data.requests[my_rank]);
             if (timer_manager)
-                ::dinoLib::timer_stop(timer_manager, "COMM");
+                ::daisy::timer_stop(timer_manager, "COMM");
         }
     }
 
@@ -290,4 +290,4 @@ namespace diNoLib
         }
     }
 
-} // namespace diNoLib
+} // namespace daisy

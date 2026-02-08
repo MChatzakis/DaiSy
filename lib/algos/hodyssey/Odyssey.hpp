@@ -17,7 +17,7 @@
 #include <mpi.h>
 #endif
 
-namespace diNoLib
+namespace daisy
 {
     struct OdysseyConfig
     {

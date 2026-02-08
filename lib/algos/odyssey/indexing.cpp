@@ -8,7 +8,7 @@
 #include <cstring>
 #include <climits>
 
-namespace diNoLib
+namespace daisy
 {
 
     // Helper macro for allocation checking (if not defined elsewhere)
@@ -498,5 +498,5 @@ namespace diNoLib
         return batchlist;
     }
 
-} // namespace diNoLib
+} // namespace daisy
 

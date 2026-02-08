@@ -11,7 +11,7 @@
 #include <mpi.h>
 #include <pthread.h>
 
-namespace diNoLib
+namespace daisy
 {
 
     // MPI Datatype for BSF message (needs to be initialized)
@@ -47,7 +47,7 @@ namespace diNoLib
     void bsf_sharing_bcast_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                                 int workernumber, int my_rank, int query_counter, 
                                 const ReplicationData *replication_data,
-                                ::dinoLib::timer_manager_t *timer_manager);
+                                ::daisy::timer_manager_t *timer_manager);
     
     void bsf_sharing_recv_bsf(BsfSharingData &bsf_sharing_data, pqueue_bsf *pq_bsf, 
                               int workernumber, std::vector<BsfMessage> &shared_bsf_results, 
@@ -58,6 +58,6 @@ namespace diNoLib
                                               std::vector<BsfMessage> &shared_bsf_results, 
                                               int query_counter);
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // BSF_SHARING_HPP

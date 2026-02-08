@@ -24,10 +24,10 @@
 #endif
 #include "../lib/algos/DataSource.hpp"
 
-// Define a Python module named 'diNoSimilaritySearch'
-PYBIND11_MODULE(diNoSimilaritySearch, m)
+// Define a Python module named 'daisy'
+PYBIND11_MODULE(daisy, m)
 {
-    m.doc() = "diNo::daisy Python bindings";
+    m.doc() = "daisy Python bindings";
 
     ////// DISTANCETYPE //////
     pybind11::enum_<daisy::DistanceType>(m, "DistanceType")

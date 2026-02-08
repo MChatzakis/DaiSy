@@ -22,10 +22,10 @@
 #include "bsf_sharing.hpp"
 #include "indexing.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     // Bring profiling timer type from utils into this namespace when needed
-    using ::dinoLib::TimerManager;
+    using ::daisy::TimerManager;
     // Forward declaration
     class Odyssey;
 
@@ -286,6 +286,6 @@ namespace diNoLib
     query_result qa_exact_search_odyssey_knn_workstealing(WsSearchFunctionParams ws_args);  // Changed ws_search_function_params to WsSearchFunctionParams
     // query_result qa_exact_search_odyssey_th_workstealing(WsSearchFunctionParams ws_args);  // COMMENTED: Threshold search not supported
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // QUERY_ANSWERING_HPP

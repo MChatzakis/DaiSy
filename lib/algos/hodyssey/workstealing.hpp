@@ -5,7 +5,7 @@
 #include <mpi.h>
 #include "../../isax/iSAXIndex.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     // Workstealing message tags
     constexpr int WORKSTEALING_INFORM_AVAILABILITY = 900;
@@ -41,6 +41,6 @@ namespace diNoLib
     isax_node* ws_locate_node(isax_index *index, isax_node *node_to_locate);
     isax_node* ws_compute_lca(isax_index *index, isax_node *node_1, isax_node *node_2);
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // WORKSTEALING_HPP

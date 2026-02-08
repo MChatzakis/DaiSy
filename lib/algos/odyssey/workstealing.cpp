@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-namespace diNoLib
+namespace daisy
 {
     void ws_init(WorkstealingData &workstealing_data, int comm_sz)
     {
@@ -243,4 +243,4 @@ namespace diNoLib
         return nullptr;
     }
 
-} // namespace diNoLib
+} // namespace daisy

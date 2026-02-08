@@ -10,7 +10,7 @@
 #include "../../isax/iSAXPqueue.hpp"
 #include "replication.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     // TimerManager commented out - only used for profiling, not needed for functionality
     // namespace dinoLib {
@@ -168,6 +168,6 @@ namespace diNoLib
     void* index_creation_sequence_worker(void *transferdata);
     // Note: index_create_subsequence_worker removed - subsequence querying not supported
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // INDEXING_HPP

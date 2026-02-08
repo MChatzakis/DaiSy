@@ -35,7 +35,7 @@
     } while (0)
 #endif
 
-namespace diNoLib
+namespace daisy
 {
 #if ODYSSEY_MPI
     /** Gather k-NN results from all MPI ranks and merge into global top-k per query (rank 0 only). */
@@ -2235,7 +2235,7 @@ namespace diNoLib
         // Step 5: Print index statistics (if verbose)
         if (this->verbose)
         {
-            diNoLib::print_index_stats(this->index, this->my_rank);
+            daisy::print_index_stats(this->index, this->my_rank);
         }
 
         // Step 6: Synchronize all MPI processes before moving to query answering
@@ -3226,9 +3226,9 @@ namespace diNoLib
         std::vector<pthread_t> threadid(static_cast<size_t>(index_threads));
 
         // Allocate worker input structures (one per index thread)
-        diNoLib::buffer_data_inmemory_ekosmas *input_data =
-            static_cast<diNoLib::buffer_data_inmemory_ekosmas *>(
-                std::malloc(sizeof(diNoLib::buffer_data_inmemory_ekosmas) *
+        daisy::buffer_data_inmemory_ekosmas *input_data =
+            static_cast<daisy::buffer_data_inmemory_ekosmas *>(
+                std::malloc(sizeof(daisy::buffer_data_inmemory_ekosmas) *
                             static_cast<size_t>(index_threads)));
         if (input_data == nullptr)
         {
@@ -3264,7 +3264,7 @@ namespace diNoLib
 
         for (int i = 0; i < index_threads; i++)
         {
-            diNoLib::buffer_data_inmemory_ekosmas &data = input_data[i];
+            daisy::buffer_data_inmemory_ekosmas &data = input_data[i];
             data.index = index;
             data.lock_firstnode = &lock_firstnode; // subtree root node initialization
             data.workernumber = i;
@@ -3272,7 +3272,7 @@ namespace diNoLib
             data.ts_num = my_time_series;
             data.wait_summaries_to_compute = &wait_summaries_to_compute;
             data.node_counter = &node_counter; // required for tree construction using FAI
-            data.parallelism_in_subtree = diNoLib::NO_PARALLELISM_IN_SUBTREE;
+            data.parallelism_in_subtree = daisy::NO_PARALLELISM_IN_SUBTREE;
             data.next_iSAX_group = next_iSAX_group; // EKOSMAS bookkeeping
             data.rawfile = rawfile;
             data.deterministic_index = this->workstealing_data.deterministic_index;
@@ -3289,7 +3289,7 @@ namespace diNoLib
         {
             if (pthread_create(&threadid[static_cast<size_t>(i)],
                                nullptr,
-                               diNoLib::index_creation_sequence_worker,
+                               daisy::index_creation_sequence_worker,
                                static_cast<void *>(&input_data[i])) != 0)
             {
                 fprintf(stderr,
@@ -3646,4 +3646,4 @@ namespace diNoLib
         }
     }
 
-} // namespace diNoLib
+} // namespace daisy

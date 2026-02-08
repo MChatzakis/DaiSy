@@ -6,7 +6,7 @@
 #include <memory>
 #include <cstdint>
 
-namespace diNoLib
+namespace daisy
 {
     // Use idx_t from SimilaritySearchAlgorithm.hpp as data_size_type
     using idx_t = unsigned long long;
@@ -70,6 +70,6 @@ namespace diNoLib
     
     idx_t rep_get_time_series_offset(const ReplicationData &replication_data, int rank);
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // REPLICATION_GROUP_HPP
