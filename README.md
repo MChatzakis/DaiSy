@@ -91,7 +91,7 @@ conda activate daisy_env
 ### Example Usage
 We provide several usage examples in both C++ and Python under [`demos/`](demos/), demonstrating how to utilize the library for various similarity search tasks.
 
-
+<!--
 
 #### Build con CUDA (per testare la demo Sing)
 Richiede **CUDA Toolkit** installato (`nvcc --version` e `nvidia-smi` funzionanti). La demo `demo_Sing_L2Square` viene compilata solo se CUDA è disponibile.
@@ -111,7 +111,7 @@ cmake --build . -j
 - Se la configurazione segnala "CUDA toolkit not found", verifica `PATH` e `LD_LIBRARY_PATH` (vedi `docs/cuda-installation.md`).
 `
 
-<!--
+
 
 ## Running the test suite
 ```bash
