@@ -7,8 +7,8 @@ std::string prefix = "bruteForce";
 TEST_P(ParISParameterizedTest, AllConfigurations)
 {
     const SSTestConfig &config = GetParam();
-    diNoLib::DistanceType dist_L2Squared = diNoLib::DistanceType::L2_SQUARED;
-    diNoLib::ParIS search(dist_L2Squared);
+    daisy::DistanceType dist_L2Squared = daisy::DistanceType::L2_SQUARED;
+    daisy::ParIS search(dist_L2Squared);
 
     std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
     std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";

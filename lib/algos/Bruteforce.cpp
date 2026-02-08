@@ -1,6 +1,6 @@
 #include "Bruteforce.hpp"
 
-namespace diNoLib
+namespace daisy
 {
 
     BruteForceSearch::BruteForceSearch(DistanceType distance_type)
@@ -33,7 +33,7 @@ namespace diNoLib
     {
         this->dim = data_source->getDim();
         this->n_database = data_source->getTotalRecords();
-        
+
         // For bruteforce, we need all data in memory, so load it all
         if (this->n_database == 0)
         {
@@ -50,7 +50,7 @@ namespace diNoLib
             this->n_database = count;
             data_source->reset();
         }
-        
+
         // Allocate and load all data
         this->database = new float[this->n_database * this->dim];
         float *record = new float[this->dim];
@@ -66,10 +66,11 @@ namespace diNoLib
     void BruteForceSearch::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         // Validate input parameters
-        if (!validateSearchParams(k, n_query)) {
+        if (!validateSearchParams(k, n_query))
+        {
             return; // Early return on validation failure
         }
-        
+
 #pragma omp parallel num_threads(num_threads)
         {
 #pragma omp for
@@ -113,10 +114,11 @@ namespace diNoLib
     void BruteForceSearch::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         // Validate input parameters
-        if (!validateSearchParams(k, n_query)) {
+        if (!validateSearchParams(k, n_query))
+        {
             return; // Early return on validation failure
         }
-        
+
 #pragma omp parallel num_threads(num_threads)
         {
 #pragma omp for

@@ -5,10 +5,10 @@
 
 int main(){
     // 0. Configuration of the variables
-    diNoLib::idx_t n_database = 200000;
+    daisy::idx_t n_database = 200000;
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
-    diNoLib::idx_t k = 5;
+    daisy::idx_t k = 5;
 
     // 1. Generate random data and queries
     float *database = loadRandomData(n_database, dim, 100, true);
@@ -17,7 +17,7 @@ int main(){
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
     // 2. Create a DTW search object
-    diNoLib::Messi messi_search(diNoLib::DistanceType::DTW);
+    daisy::Messi messi_search(daisy::DistanceType::DTW);
     messi_search.setNumThreads(4);
 
     int warp_window = std::max(1, static_cast<int>(dim * 0.1));
@@ -29,7 +29,7 @@ int main(){
 
     // 4. Search the index
     printf("@ Starting search\n");
-    diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
+    daisy::idx_t *I = new daisy::idx_t[n_query * k];
     float *D = new float[n_query * k];
     printf("@ Starting search Variables are been set\n");
     printf("@ going searchIndex constructor\n");                
@@ -37,10 +37,10 @@ int main(){
     printf(">>> Finished search \n");
 
     // 5. Print the results
-    for (diNoLib::idx_t i = 0; i < n_query; i++)
+    for (daisy::idx_t i = 0; i < n_query; i++)
     {
         printf("Query %llu: ", i);
-        for (diNoLib::idx_t j = 0; j < k; j++)
+        for (daisy::idx_t j = 0; j < k; j++)
         {
             printf("%llu ", I[i * k + j]);
         }

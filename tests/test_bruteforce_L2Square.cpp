@@ -7,10 +7,10 @@ std::string prefix = "bruteForce";
 TEST_P(BruteforceParameterizedTest, AllConfigurations)
 {
     const SSTestConfig &config = GetParam();
-    diNoLib::DistanceType dist_L2Squared = diNoLib::DistanceType::L2_SQUARED;
+    daisy::DistanceType dist_L2Squared = daisy::DistanceType::L2_SQUARED;
     for (int i = 0; i < 5; ++i)
     {
-        diNoLib::BruteForceSearch search(dist_L2Squared);
+        daisy::BruteForceSearch search(dist_L2Squared);
 
         std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
         std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";

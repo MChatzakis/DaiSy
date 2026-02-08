@@ -10,7 +10,7 @@
 #include "../isax/iSAXTypes.hpp"
 #include "../isax/SAX.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     enum class DistanceType
     {
@@ -22,17 +22,27 @@ namespace diNoLib
 namespace std
 {
     template <>
-    struct hash<diNoLib::DistanceType>
+    struct hash<daisy::DistanceType>
     {
-        std::size_t operator()(const diNoLib::DistanceType &dt) const noexcept
+        std::size_t operator()(const daisy::DistanceType &dt) const noexcept
         {
             return std::hash<int>()(static_cast<int>(dt));
         }
     };
 }
 
-namespace diNoLib
+namespace daisy
 {
+    /**
+     * @class DistanceComputer
+     * @brief Unified distance computation interface with SIMD optimizations
+     *
+     * Provides distance computations for time series including L2 Euclidean and DTW metrics
+     * with SIMD-accelerated implementations. Supports PAA-to-iSAX minimum distance calculations,
+     * SAX transformations, and lower-bound distance functions (LB_Keogh) for efficient pruning.
+     *
+     * @note Use compute_dist() for full distance or compute_minidist_SIMD() for lower bounds.
+     */
     class DistanceComputer
     {
     private:

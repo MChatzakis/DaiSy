@@ -17,7 +17,7 @@
  * @param k Number of neighbors to search for
  */
 void runSSTBenchmark(
-    diNoLib::SimilaritySearchAlgorithm* search,
+    daisy::SimilaritySearchAlgorithm* search,
     const std::string& dataset_path,
     const std::string& query_path,
     int num_thread,

@@ -12,7 +12,7 @@
 
 #include "../distance_computers/DistanceComputer.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue)
     {
@@ -21,8 +21,7 @@ namespace diNoLib
         {
             return;
         }
-        
-        // COUNT_CAL_TIME_START
+
         float distance = minidist_paa_to_isax(paa, node->isax_values,
                                               node->isax_cardinalities,
                                               index->settings->sax_bit_cardinality,
@@ -30,7 +29,7 @@ namespace diNoLib
                                               index->settings->paa_segments,
                                               MINVAL, MAXVAL,
                                               index->settings->mindist_sqrt);
-        // COUNT_CAL_TIME_END
+
         if (distance < bsf)
         {
             if (node->is_leaf)
@@ -40,22 +39,20 @@ namespace diNoLib
                 mindist_result->distance = distance;
                 pthread_mutex_lock(&lock_queue[*tnumber]);
                 pqueue_insert(pq[*tnumber], mindist_result);
-                // __sync_fetch_and_add(&LBDcalculationnumber,1);
 
                 pthread_mutex_unlock(&lock_queue[*tnumber]);
                 *tnumber = (*tnumber + 1) % n_pqueue;
-                // added_tree_node++;
             }
             else
             {
-                if (node->left_child != NULL && 
-                    node->left_child->isax_values != NULL && 
+                if (node->left_child != NULL &&
+                    node->left_child->isax_values != NULL &&
                     node->left_child->isax_cardinalities != NULL)
                 {
                     insert_tree_node_m_hybridpqueue(paa, node->left_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
                 }
-                if (node->right_child != NULL && 
-                    node->right_child->isax_values != NULL && 
+                if (node->right_child != NULL &&
+                    node->right_child->isax_values != NULL &&
                     node->right_child->isax_cardinalities != NULL)
                 {
                     insert_tree_node_m_hybridpqueue(paa, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
@@ -71,8 +68,7 @@ namespace diNoLib
         {
             return;
         }
-        
-        // COUNT_CAL_TIME_START
+
         float distance = minidist_paa_to_isax_DTW(paaU, paaL, node->isax_values,
                                                   node->isax_cardinalities,
                                                   index->settings->sax_bit_cardinality,
@@ -80,30 +76,28 @@ namespace diNoLib
                                                   index->settings->paa_segments,
                                                   MINVAL, MAXVAL,
                                                   index->settings->mindist_sqrt);
-        // COUNT_CAL_TIME_END
         if (distance <= bsf)
         {
             if (node->is_leaf)
             {
-                query_result *mindist_result = (query_result *) malloc(sizeof(query_result));
+                query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
                 mindist_result->node = node;
                 mindist_result->distance = distance;
                 pthread_mutex_lock(&lock_queue[*tnumber]);
                 pqueue_insert(pq[*tnumber], mindist_result);
                 pthread_mutex_unlock(&lock_queue[*tnumber]);
                 *tnumber = (*tnumber + 1) % n_pqueue;
-                //added_tree_node++;
             }
             else
             {
-                if (node->left_child != NULL && 
-                    node->left_child->isax_values != NULL && 
+                if (node->left_child != NULL &&
+                    node->left_child->isax_values != NULL &&
                     node->left_child->isax_cardinalities != NULL)
                 {
                     insert_tree_node_m_hybridpqueue_DTW(paaU, paaL, node->left_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
                 }
-                if (node->right_child != NULL && 
-                    node->right_child->isax_values != NULL && 
+                if (node->right_child != NULL &&
+                    node->right_child->isax_values != NULL &&
                     node->right_child->isax_cardinalities != NULL)
                 {
                     insert_tree_node_m_hybridpqueue_DTW(paaU, paaL, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
@@ -196,7 +190,7 @@ namespace diNoLib
         {
             return;
         }
-        
+
         // COUNT_CHECKED_NODE()
         float distmin;
         int k;
@@ -280,7 +274,6 @@ namespace diNoLib
             insert_tree_node_m_hybridpqueue(paa, current_root_node, index, bsfdisntance, ((MESSI_workerdata *)rfdata)->allpq, ((MESSI_workerdata *)rfdata)->alllock, &tnumber, n_pqueue);
         }
 
-     
         pthread_barrier_wait(((MESSI_workerdata *)rfdata)->lock_barrier);
         while (1)
         {
@@ -291,7 +284,7 @@ namespace diNoLib
                 break;
 
             bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
-          
+
             if (n->distance > bsfdisntance || n->distance > minimum_distance)
             {
                 break;
@@ -361,7 +354,7 @@ namespace diNoLib
                 break;
             }
         }
-        
+
         return nullptr; // pthread function should return a pointer
     }
 
@@ -496,7 +489,7 @@ namespace diNoLib
                 break;
             }
         }
-        
+
         return nullptr; // pthread function should return a pointer
     }
 
@@ -620,7 +613,7 @@ namespace diNoLib
     {
         this->dim = data_source->getDim();
         this->n_database = data_source->getTotalRecords();
-        
+
         // For Messi, we need all data in memory for worker threads, so load it all
         if (this->n_database == 0)
         {
@@ -636,9 +629,9 @@ namespace diNoLib
             this->n_database = count;
             data_source->reset();
         }
-        
+
         // Allocate and load all data
-        data_source->reset();  // IMPORTANT: Reset to beginning before reading
+        data_source->reset(); // IMPORTANT: Reset to beginning before reading
         this->database = new float[this->n_database * this->dim];
         float *record = new float[this->dim];
         idx_t idx = 0;
@@ -725,11 +718,11 @@ namespace diNoLib
         __sync_fetch_and_add(&(index->total_records), this->n_database);
         index->sax_cache_size = index->total_records;
         fprintf(stderr, ">>> Finished indexing\n");
-        
+
         // Clean up pthread resources
         pthread_barrier_destroy(&lock_barrier1);
         pthread_barrier_destroy(&lock_barrier2);
-        
+
         free(input_data);
         free(nodeid);
         free(nodesize);
@@ -738,36 +731,36 @@ namespace diNoLib
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
-        
+
         node_list nodelist;
         nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * pow(2, index->settings->paa_segments));
         nodelist.node_amount = 0;
         isax_node *current_root_node = index->first_node;
-    
-        //---       
+
+        //---
         while (1)
-        {  
+        {
             if (current_root_node != NULL)
             {
-            
+
                 nodelist.nlist[nodelist.node_amount] = current_root_node;
                 current_root_node = current_root_node->next;
                 nodelist.node_amount++;
             }
-            else break;
+            else
+                break;
         }
-
 
         for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
         {
-        
+
             const float *ts = query + q_loaded * this->dim;
 
             //  Parse ts and make PAA representation
             paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
             pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k);
-  
+
             /* Collect valid (position, distance) pairs, sort by (distance, position), deduplicate by index (same series can appear from multiple leaves), then copy and pad. */
             std::vector<std::pair<float, long>> pairs;
             pairs.reserve(static_cast<size_t>(k));
@@ -776,10 +769,10 @@ namespace diNoLib
                 if (result.position[ik] >= 0 && result.knn[ik] < FLT_MAX * 0.99f)
                     pairs.emplace_back(result.knn[ik], result.position[ik]);
             }
-            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b)
+                      {
                 if (a.first != b.first) return a.first < b.first;
-                return a.second < b.second;
-            });
+                return a.second < b.second; });
             std::unordered_set<long> seen_pos;
             std::vector<std::pair<float, long>> uniq;
             uniq.reserve(pairs.size());
@@ -800,7 +793,7 @@ namespace diNoLib
                 I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
                 D[q_loaded * k + ik] = last_dist;
             }
-            
+
             // Free the internal arrays of result
             free(result.position);
             free(result.knn);
@@ -811,7 +804,6 @@ namespace diNoLib
         free(paa);
         fprintf(stderr, ">>> Finished querying.\n");
         fflush(stdout);
-              
     }
 
     void Messi::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
@@ -855,10 +847,10 @@ namespace diNoLib
                 if (result.position[ik] >= 0 && result.knn[ik] < FLT_MAX * 0.99f)
                     pairs.emplace_back(result.knn[ik], result.position[ik]);
             }
-            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b)
+                      {
                 if (a.first != b.first) return a.first < b.first;
-                return a.second < b.second;
-            });
+                return a.second < b.second; });
             std::unordered_set<long> seen_pos;
             std::vector<std::pair<float, long>> uniq;
             uniq.reserve(pairs.size());
@@ -879,7 +871,7 @@ namespace diNoLib
                 I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
                 D[q_loaded * k + ik] = last_dist;
             }
-            
+
             // Free the internal arrays of result
             free(result.position);
             free(result.knn);
@@ -992,9 +984,8 @@ namespace diNoLib
 
         // Copy result before freeing pq_bsf structure
         pqueue_bsf result = *pq_bsf;
-        free(pq_bsf);  // Free the struct itself (internal arrays are now owned by result)
+        free(pq_bsf); // Free the struct itself (internal arrays are now owned by result)
         return result;
-
     }
 
     pqueue_bsf Messi::MESSI_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k)
@@ -1105,7 +1096,7 @@ namespace diNoLib
 
         // Copy result before freeing pq_bsf structure
         pqueue_bsf result = *pq_bsf;
-        free(pq_bsf);  // Free the struct itself (internal arrays are now owned by result)
+        free(pq_bsf); // Free the struct itself (internal arrays are now owned by result)
         return result;
     }
 
@@ -1114,28 +1105,36 @@ namespace diNoLib
         delete[] database;
 
         // Cleanup iSAX index structures
-        if (index != nullptr) {
-            if (index->sax_cache != nullptr) {
+        if (index != nullptr)
+        {
+            if (index->sax_cache != nullptr)
+            {
                 free(index->sax_cache);
             }
-            if (index->answer != nullptr) {
+            if (index->answer != nullptr)
+            {
                 free(index->answer);
             }
-            if (index->fbl != nullptr) {
+            if (index->fbl != nullptr)
+            {
                 // Use parallel FBL destructor since we use initialize_pRecBuf
                 destroy_parallel_fbl((parallel_first_buffer_layer *)index->fbl);
             }
-            if (index->sax_file != nullptr) {
+            if (index->sax_file != nullptr)
+            {
                 fclose(index->sax_file);
             }
             free(index);
         }
-        
-        if (index_settings != nullptr) {
-            if (index_settings->bit_masks != nullptr) {
+
+        if (index_settings != nullptr)
+        {
+            if (index_settings->bit_masks != nullptr)
+            {
                 free(index_settings->bit_masks);
             }
-            if (index_settings->max_sax_cardinalities != nullptr) {
+            if (index_settings->max_sax_cardinalities != nullptr)
+            {
                 free(index_settings->max_sax_cardinalities);
             }
             free(index_settings);

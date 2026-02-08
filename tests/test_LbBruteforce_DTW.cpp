@@ -7,8 +7,8 @@ std::string prefix = "bruteForce";
 TEST_P(LbBruteforceDTWParameterizedTest, AllConfigurations)
 {
     const SSTestConfig &config = GetParam();
-    diNoLib::DistanceType dist_DTW = diNoLib::DistanceType::DTW;
-    diNoLib::LbBruteforce search(dist_DTW);
+    daisy::DistanceType dist_DTW = daisy::DistanceType::DTW;
+    daisy::LbBruteforce search(dist_DTW);
 
     std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
     std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";

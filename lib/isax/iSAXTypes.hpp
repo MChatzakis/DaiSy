@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-namespace diNoLib
+namespace daisy
 {
 
 #define DISK_BUFFER_SIZE 8192

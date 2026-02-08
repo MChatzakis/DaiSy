@@ -5,61 +5,67 @@ It supports a wide range approaches tailored for different execution environment
 DaiSy is implemented in C++, while it also offers a convenient Python interface for ease of use and integration with data science workflows.
 
 
+## Supported State-of-the-Art algorithms
 
-## 🚀 Key Features
+We currently support several algorithms for exact similarity search, each optimized for specific use cases and environments. 
+The following table summarizes the key features of each algorithm:
 
-- **Multi-Algorithm Support**: Comprehensive suite of similarity search algorithms
-- **Cross-Platform Compatibility**: Native support for Linux, macOS, and Windows
-- **Language Bindings**: High-performance C++ core with intuitive Python bindings
-- **Scalability**: Optimized for both single-machine and distributed computing
-- **GPU Acceleration**: CUDA support for high-throughput processing
-- **Comprehensive Testing**: Extensive test suite with GoogleTest framework
-- **Performance Analysis**: Built-in benchmarking tools for algorithm comparison
+| Algorithm | Description |
+|-----------|-------------|
+| **Bruteforce** | Naive sequential similarity search implementation |
+| **Lower Bound Bruteforce** | Optimized brute force with lower bounding for the distance calculations |
+| **MESSI** | In-memory parallel similarity search |
+| **PARIS** | Disk-based parallel similarity search |
+| **SING** | GPU-accelerated in-memory parallel similarity search |
+| **Odyssey** | Distributed and parallel in-memory similarity search |
 
-## 🏗️ Architecture Overview
 
-### Core Algorithms
 
-| Algorithm | Description | Use Case |
-|-----------|-------------|----------|
-| **Brute Force** | Basic similarity search implementation | Baseline performance, small datasets |
-| **Lower Bound Brute Force** | Optimized brute force with early termination | Medium datasets, exact results |
-| **MESSI** | Memory-efficient indexing for exact DTW searches | Large in-memory datasets |
-| **PARIS** | Parallel indexing for disk-based datasets | Large datasets with disk constraints |
-| **Odyssey** | MPI-based distributed search algorithm | Massive datasets across multiple nodes |
-| **SING** | CUDA-accelerated GPU parallel processing | High-throughput GPU environments |
+## Quickstart
 
-## 📋 Prerequisites
-
-### System Requirements
-
+### Dependencies
 - **Operating System**: Linux, macOS, or Windows
 - **C++ Compiler**: C++14 or higher (GCC 6+, Clang 3.4+, MSVC 2015+)
 - **CMake**: Version 3.15 or higher
-- **Python**: 3.10-3.12 (3.12 recommended for diNo, 3.10 for FAISS)
 
-### Optional Dependencies
+Optionally,
 
+- **Python**: 3.10-3.12
 - **MPI**: Required for Odyssey distributed computing algorithm
 - **CUDA**: Required for SING GPU acceleration algorithm
-- **tkinter**: Required for graphical user interface demonstrations
 
-## 🛠️ Installation
 
-### 1. Repository Setup
-
+### Installation
+To download DaiSy, use:
 ```bash
-# Clone the repository
-git clone https://github.com/MChatzakis/diNo-lib.git
-cd diNo-lib
-
-# Initialize submodules
+git clone https://github.com/MChatzakis/daisy.git
+cd daisy
 git submodule update --init --recursive
 ```
 
-### 2. Environment Configuration
+Based on the available hardware, you can specify the below arguments to enable/disable features.
+| Flag | Description | Default | Dependencies |
+|------|-------------|---------|--------------|
+| `BUILD_PYTHON` | Enable Python bindings | `ON` | Python 3.10+ |
+| `BUILD_BENCHMARK` | Build benchmarking tools | `ON` | GoogleBenchmark |
+| `BUILD_DEMO` | Build demonstration applications | `ON` | Core library |
+| `ODYSSEY_MPI` | Enable MPI for distributed computing | `ON` | OpenMPI/MPICH |
+| `SING_CUDA` | Enable CUDA for GPU acceleration | `ON` | CUDA Toolkit |
+| `DEBUG_MSG` | Enable debug output | `OFF` | None |
 
-#### Python Virtual Environment (Recommended)
+To compile:
+```bash
+# Create build directory
+mkdir build && cd build
+
+# Configure with CMake
+cmake ..
+
+# Build the project
+cmake --build .
+```
+
+### Enable Python
 
 ```bash
 # Create virtual environment
@@ -81,45 +87,55 @@ conda env create -f environment_diNo.yml
 conda activate diNo_env
 ```
 
-### 3. Build Configuration
+### Running the test suite
+
 
 ```bash
-# Create build directory
-mkdir build && cd build
+cd build
 
-# Configure with CMake
-cmake ..
+# Complete test suite
+ctest --output-on-failure
 
-# Build the project
-cmake --build .
+# Individual test execution
+./tests/test_bruteforce_L2Square
+./tests/test_Messi_L2Square
+./tests/test_Odyssey_L2Square    # MPI required
+./tests/test_Sing_L2Square       # CUDA required
+
+# Verbose output
+ctest --output-on-failure --verbose
 ```
 
-## ⚙️ Build Options
+## To run a performance analysis
+Execute performance benchmarks to compare algorithm performance:
 
-### CMake Configuration Flags
-
-| Flag | Description | Default | Dependencies |
-|------|-------------|---------|--------------|
-| `BUILD_PYTHON` | Enable Python bindings | `ON` | Python 3.10+ |
-| `BUILD_BENCHMARK` | Build benchmarking tools | `ON` | GoogleBenchmark |
-| `BUILD_DEMO` | Build demonstration applications | `ON` | Core library |
-| `ODYSSEY_MPI` | Enable MPI for distributed computing | `ON` | OpenMPI/MPICH |
-| `SING_CUDA` | Enable CUDA for GPU acceleration | `ON` | CUDA Toolkit |
-| `DEBUG_MSG` | Enable debug output | `OFF` | None |
-
-### Common Build Configurations
-
-#### Minimal Build (C++ Only)
 ```bash
-cmake .. -DBUILD_PYTHON=OFF -DBUILD_BENCHMARK=OFF -DBUILD_DEMO=OFF
-cmake --build .
+cd build
+
+# Core algorithms
+./benchmark/bm_bruteforce_L2Square
+./benchmark/bm_LbBruteforce_L2Square
+./benchmark/bm_Messi_L2Square
+
+# Advanced algorithms (if available)
+./benchmark/bm_Odyssey_L2Square    # MPI required
+./benchmark/bm_Sing_L2Square       # CUDA required
 ```
 
-#### CPU-Only Build
-```bash
-cmake .. -DODYSSEY_MPI=OFF -DSING_CUDA=OFF
-cmake --build .
-```
+## License
+DaiSy licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for complete details.
+
+## About
+DaiSy is developed by the diNo research group at LIPADE, Université Paris Cit\'e. It is provided with no warranty, and we encourage contributions from the community to enhance its capabilities and performance. For questions, issues, or contributions, please open an issue or submit a pull request on GitHub.
+
+
+
+
+
+
+
+
+
 
 #### Build con CUDA (per testare la demo Sing)
 Richiede **CUDA Toolkit** installato (`nvcc --version` e `nvidia-smi` funzionanti). La demo `demo_Sing_L2Square` viene compilata solo se CUDA è disponibile.
@@ -137,12 +153,9 @@ cmake --build . -j
 
 - **Architettura GPU**: di default è `75` (Turing). Se hai un’GPU diversa imposta ad es. `-DCMAKE_CUDA_ARCHITECTURES=86` (Ampere) o `89` (Ada). Controlla [CUDA arch list](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-feature-list).
 - Se la configurazione segnala "CUDA toolkit not found", verifica `PATH` e `LD_LIBRARY_PATH` (vedi `docs/cuda-installation.md`).
+`
 
-#### Debug Build
-```bash
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DDEBUG_MSG=ON
-cmake --build .
-```
+
 
 ## 🚀 Quick Start
 
@@ -220,84 +233,4 @@ mpirun -np 4 python3.12 demo_Odyssey_L2Square.py
 python3.12 demo_Sing_L2Square.py
 ```
 
-## 🧪 Testing
-
-### Running Test Suite
-
-```bash
-cd build
-
-# Complete test suite
-ctest --output-on-failure
-
-# Individual test execution
-./tests/test_bruteforce_L2Square
-./tests/test_Messi_L2Square
-./tests/test_Odyssey_L2Square    # MPI required
-./tests/test_Sing_L2Square       # CUDA required
-
-# Verbose output
-ctest --output-on-failure --verbose
-```
-
-## 📊 Performance Analysis
-
-### Benchmarking
-
-Execute performance benchmarks to compare algorithm performance:
-
-```bash
-cd build
-
-# Core algorithms
-./benchmark/bm_bruteforce_L2Square
-./benchmark/bm_LbBruteforce_L2Square
-./benchmark/bm_Messi_L2Square
-
-# Advanced algorithms (if available)
-./benchmark/bm_Odyssey_L2Square    # MPI required
-./benchmark/bm_Sing_L2Square       # CUDA required
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues and Solutions
-
-#### Build Errors
-- **Submodule Issues**: Ensure `git submodule update --init --recursive` is executed
-- **CMake Version**: Verify CMake 3.15+ is installed (`cmake --version`)
-- **Compiler Support**: Confirm C++14+ compatibility
-
-#### Python Import Errors
-- **Path Issues**: Execute Python scripts from the `demos/` directory
-- **Environment**: Ensure virtual environment is activated
-- **Bindings**: Verify Python bindings were built (`BUILD_PYTHON=ON`)
-
-#### MPI Configuration
-- **Installation**: Verify MPI installation (`mpirun --version`)
-- **Process Count**: Ensure MPI process count matches available cores
-- **Implementation**: Use consistent MPI implementation across build and runtime
-
-#### CUDA Issues
-- **Toolkit**: Verify CUDA installation (`nvcc --version`)
-- **Hardware**: Check GPU compatibility and driver version (`nvidia-smi`)
-- **Environment**: Ensure CUDA toolkit path is properly configured
-
-## 📖 Documentation
-
-For detailed documentation and advanced usage examples, please refer to:
-
-- **API Reference**: Comprehensive documentation of all classes and methods
-- **Algorithm Details**: In-depth explanation of each search algorithm
-- **Performance Guide**: Optimization strategies and best practices
-- **Contributing**: Guidelines for contributing to the project
-
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for complete details.
-
-## 🙏 Acknowledgments
-
-Special thanks to the open-source community and contributors who have helped make this library possible.
 

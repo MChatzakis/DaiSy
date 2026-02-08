@@ -6,10 +6,10 @@
 
 int main(){
     // 0. Configuration of the variables
-    diNoLib::idx_t n_database = 200000;
+    daisy::idx_t n_database = 200000;
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
-    diNoLib::idx_t k = 5;
+    daisy::idx_t k = 5;
 
     // 1. Generate random data and queries (same as LbBruteforce demo)
     float *database = loadRandomData(n_database, dim, 100, true);
@@ -30,7 +30,7 @@ int main(){
     fclose(fp);
 
     // 3. Create ParIS search object
-    diNoLib::ParIS paris_search(diNoLib::DistanceType::L2_SQUARED);
+    daisy::ParIS paris_search(daisy::DistanceType::L2_SQUARED);
     paris_search.setNumThreads(4);
 
     // 4. Build the index (simplified API - just pass filename!)
@@ -38,16 +38,16 @@ int main(){
     printf(">>> Finished indexing\n");
 
     // 5. Search the index
-    diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
+    daisy::idx_t *I = new daisy::idx_t[n_query * k];
     float *D = new float[n_query * k];
     paris_search.searchIndex(query, n_query, k, I, D);
     printf(">>> Finished search\n");
 
     // 6. Print the results
-    for (diNoLib::idx_t i = 0; i < n_query; i++)
+    for (daisy::idx_t i = 0; i < n_query; i++)
     {
         printf("Query %llu: ", i);
-        for (diNoLib::idx_t j = 0; j < k; j++)
+        for (daisy::idx_t j = 0; j < k; j++)
         {
             printf("%llu ", I[i * k + j]);
         }

@@ -11,7 +11,7 @@
  * @param b Second index
  * @return True if equal, false otherwise
  */
-bool isclose(diNoLib::idx_t a, diNoLib::idx_t b);
+bool isclose(daisy::idx_t a, daisy::idx_t b);
 
 /**
  * @brief Floating point ; A equivalent function of numpy.isclose -- absolute(a - b) <= (atol + rtol * absolute(b))
@@ -53,10 +53,10 @@ std::string pathToFilename(std::string path);
  */
 bool parseFilenameForConfig(const std::string &filename,
                             const std::string &prefix,
-                            diNoLib::idx_t &dim,
-                            diNoLib::idx_t &n_database,
-                            diNoLib::idx_t &n_query,
-                            diNoLib::idx_t &k);
+                            daisy::idx_t &dim,
+                            daisy::idx_t &n_database,
+                            daisy::idx_t &n_query,
+                            daisy::idx_t &k);
 
 /**
  * @brief Compare brute-force search results with ground truth and report mismatches or close results.
@@ -70,10 +70,10 @@ bool parseFilenameForConfig(const std::string &filename,
  */
 void compareWithGroundTruth(const std::string &pathI,
                             const std::string &pathD,
-                            const diNoLib::idx_t *I,
+                            const daisy::idx_t *I,
                             float *D,
-                            diNoLib::idx_t n_query,
-                            diNoLib::idx_t k,
+                            daisy::idx_t n_query,
+                            daisy::idx_t k,
                             double rtol = 1e-2,
                             double atol = 1e-8);
 /**

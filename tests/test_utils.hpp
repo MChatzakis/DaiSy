@@ -52,7 +52,7 @@ protected:
      * @param query_path Path to the query binary file
      * @param num_thread Number of threads to use during search
      */
-    void runSSTWithDistance(diNoLib::DistanceType distance_type,
+    void runSSTWithDistance(daisy::DistanceType distance_type,
                             const std::string &prefix_name,
                             const std::string &gt_I,
                             const std::string &gt_D,

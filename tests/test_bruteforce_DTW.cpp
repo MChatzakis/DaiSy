@@ -17,7 +17,7 @@ TEST_P(BruteforceDTWParameterizedTest, AllConfigurations)
     double dtw_atol = 2.0;
 
     runSSTWithDistance(
-        diNoLib::DistanceType::DTW,
+        daisy::DistanceType::DTW,
         prefix,
         gt_I_path,
         gt_D_path,
@@ -105,9 +105,9 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
 
         // L2_SQUARED search
         diNoLib::BruteForceSearch bf_search_l2(diNoLib::DistanceType::L2_SQUARED);
-        diNoLib::InMemoryDataSource data_source_l2(database, n_database, dim);
+        daisy::InMemoryDataSource data_source_l2(database, n_database, dim);
         bf_search_l2.buildIndex(&data_source_l2);
-        diNoLib::idx_t *I_l2 = new diNoLib::idx_t[n_query * k];
+        daisy::idx_t *I_l2 = new daisy::idx_t[n_query * k];
         float *D_l2 = new float[n_query * k];
         bf_search_l2.searchIndex(query, n_query, k, I_l2, D_l2);
 

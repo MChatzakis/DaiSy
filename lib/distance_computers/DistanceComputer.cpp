@@ -2,7 +2,7 @@
 #include "../isax/SAX.hpp"
 #include "../isax/iSAXSearch.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     void DistanceComputer::init_distance_map()
     {

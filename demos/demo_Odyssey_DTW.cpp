@@ -29,17 +29,17 @@ int main(int argc, char *argv[])
     // ========================================================================
     // 1. CONFIGURATION — IDENTICAL to demo_ParIS_DTW
     // ========================================================================
-    diNoLib::idx_t n_database = 200000;
+    daisy::idx_t n_database = 200000;
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
-    diNoLib::idx_t k = 5;
+    daisy::idx_t k = 5;
     std::string temp_db_file = "/tmp/paris_test_db.bin";
     int warp_window = std::max(1, static_cast<int>(dim * 0.1));
 
     // ========================================================================
     // 2. CREATE ODYSSEY OBJECT FIRST (initializes MPI)
     // ========================================================================
-    diNoLib::OdysseyConfig config;
+    daisy::OdysseyConfig config;
     config.search_workers = 2;
     config.index_threads = 2;
     config.query_threads = 2;
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     std::string path_to_use;
 
     {
-        diNoLib::Odyssey odyssey(config, diNoLib::DistanceType::DTW, argc, argv);
+        daisy::Odyssey odyssey(config, daisy::DistanceType::DTW, argc, argv);
 
         rank = odyssey.getMyRank();
         size = odyssey.getCommSz();
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
         // ========================================================================
         try
         {
-            diNoLib::FileDataSource data_source(path_to_use.c_str(), dim, n_database);
+            daisy::FileDataSource data_source(path_to_use.c_str(), dim, n_database);
 
             odyssey.buildIndex(&data_source);
 
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
                 return 1;
             }
 
-            diNoLib::idx_t *I = static_cast<diNoLib::idx_t *>(std::malloc(sizeof(diNoLib::idx_t) * static_cast<size_t>(n_query * k)));
+            daisy::idx_t *I = static_cast<daisy::idx_t *>(std::malloc(sizeof(daisy::idx_t) * static_cast<size_t>(n_query * k)));
             float *D = static_cast<float *>(std::malloc(sizeof(float) * static_cast<size_t>(n_query * k)));
             if (I == nullptr || D == nullptr)
             {
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
                 delete[] query;
                 return 1;
             }
-            std::memset(I, 0, sizeof(diNoLib::idx_t) * static_cast<size_t>(n_query * k));
+            std::memset(I, 0, sizeof(daisy::idx_t) * static_cast<size_t>(n_query * k));
             std::memset(D, 0, sizeof(float) * static_cast<size_t>(n_query * k));
 
             odyssey.searchIndex(query, n_query, k, I, D);
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
                 for (unsigned long long i = 0; i < n_query; i++)
                 {
                     printf("Query %llu: ", i);
-                    for (diNoLib::idx_t j = 0; j < k; j++)
+                    for (daisy::idx_t j = 0; j < k; j++)
                     {
                         printf("%llu ", static_cast<unsigned long long>(I[i * k + j]));
                     }

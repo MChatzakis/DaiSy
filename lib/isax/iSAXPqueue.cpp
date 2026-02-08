@@ -23,7 +23,7 @@
 #include <float.h>
 
 
-namespace diNoLib
+namespace daisy
 {
 
 #define left(i) ((i) << 1)

@@ -12,7 +12,7 @@
 #include "./SAXBreakpoints.hpp"
 #include "./SAX.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     typedef struct
     {

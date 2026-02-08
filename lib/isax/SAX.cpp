@@ -4,7 +4,7 @@
 #include "SAX.hpp"
 #include "immintrin.h"
 
-namespace diNoLib
+namespace daisy
 {
 
     int compare(const void *a, const void *b)

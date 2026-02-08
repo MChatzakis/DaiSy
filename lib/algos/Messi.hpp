@@ -10,14 +10,14 @@
 #include "../isax/iSAXIndex.hpp"
 #include "../isax/iSAXPqueue.hpp"
 
-namespace diNoLib
+namespace daisy
 {
 
     struct MessiConfig
     {
-        int search_workers = 4;   // threads for querying
-        int index_workers = 2;    // threads for indexing
-        int warping_window = 10;  // warping window size (typically 10% of time series length)
+        int search_workers = 4;  // threads for querying
+        int index_workers = 2;   // threads for indexing
+        int warping_window = 10; // warping window size (typically 10% of time series length)
         int leaf_size = 2000;
         int paa_segments = 16;
     };
@@ -60,27 +60,36 @@ namespace diNoLib
     void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
     void calculate_node_DTW2knn_inmemory(isax_index *index, isax_node *node, ts_type *query, float *uo, float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf, int warpWind, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
 
-
+    /**
+     * @class Messi
+     * @brief Multi-threaded indexed similarity search with hybrid priority queues
+     *
+     * Combines iSAX indexing with multi-threaded search workers and hybrid priority queues
+     * for accelerated similarity queries. Supports both L2 and DTW metrics with configurable
+     * search/indexing worker threads and warping window for DTW. Requires in-memory data.
+     *
+     * @note Configure search_workers, index_workers, and warping_window via MessiConfig or setters.
+     */
     class Messi : public SimilaritySearchAlgorithm
     {
     private:
-        int paa_segments = 16; //HERE
-        int sax_cardinality = 8; 
-        int leaf_size = 2000; //HERE
-        int min_leaf_size = 10; 
-        int initial_lbl_size = 2000; 
-        int flush_limit = 200000; 
-        int initial_fbl_size = 100; 
+        int paa_segments = 16;
+        int sax_cardinality = 8;
+        int leaf_size = 2000;
+        int min_leaf_size = 10;
+        int initial_lbl_size = 2000;
+        int flush_limit = 200000;
+        int initial_fbl_size = 100;
         int total_loaded_leaves = 1;
         int tight_bound = 0;
         float minimum_distance = FLT_MAX;
         int min_checked_leaves = -1;
-        
+
         int read_block_length = 100000;
-        int search_workers = 4; //64; HERE
-        int index_workers = 2; //32; HERE
+        int search_workers = 4;
+        int index_workers = 2;
         int n_pqueue = 42;
-        int warping_window = 10; //HERE // warping window size (typically 10% of time series length)
+        int warping_window = 10;
 
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
@@ -94,20 +103,21 @@ namespace diNoLib
     public:
         Messi(DistanceType distance_type);
         Messi(DistanceType distance_type, const MessiConfig &config);
-        
+
         void setWarpingWindow(int warping_window) { this->warping_window = warping_window; }
         void setWarpWindow(int warping_window) { this->warping_window = warping_window; } // alias for compatibility
 
         // Bring base class buildIndex overloads into scope
         using SimilaritySearchAlgorithm::buildIndex;
-        
+
         void buildIndex(DataSource *data_source) override;
-        
+
         // Messi only supports in-memory data
-        void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) override {
+        void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) override
+        {
             throw std::runtime_error("Messi requires in-memory data. Use buildIndex(database, n_database, dim) instead.");
         }
-        
+
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
         // Getters and setters for Python bindings
@@ -142,6 +152,6 @@ namespace diNoLib
         ~Messi();
     };
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // MESSI_HPP

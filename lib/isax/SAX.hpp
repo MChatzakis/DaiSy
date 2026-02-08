@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-namespace diNoLib
+namespace daisy
 {
     int compare(const void *a, const void *b);
 

@@ -8,19 +8,19 @@
 
 #include <queue>
 #include <cfloat>
-#include <omp.h> 
+#include <omp.h>
 #include <pthread.h>
 
-namespace diNoLib
+namespace daisy
 {
-    // Constants for ParIS search
-    #define MAXREADTHREAD 4
+// Constants for ParIS search
+#define MAXREADTHREAD 4
 
     struct ParISConfig
     {
-        int search_workers = 64;   // threads for querying
-        int index_workers = 32;    // threads for indexing
-        int warping_window = 10;  // warping window size (typically 10% of time series length)
+        int search_workers = 64; // threads for querying
+        int index_workers = 32;  // threads for indexing
+        int warping_window = 10; // warping window size (typically 10% of time series length)
         int leaf_size = 2000;
         int paa_segments = 16;
     };
@@ -32,8 +32,8 @@ namespace diNoLib
         unsigned long start_number;
         unsigned long stop_number;
         ts_type *paa;
-        ts_type *paaU;  // Upper PAA bounds for DTW
-        ts_type *paaL;  // Lower PAA bounds for DTW
+        ts_type *paaU; // Upper PAA bounds for DTW
+        ts_type *paaL; // Lower PAA bounds for DTW
         ts_type *ts;
         float bsfdistance;
         unsigned long sum_of_lab;
@@ -45,20 +45,20 @@ namespace diNoLib
     {
         isax_index *index;
         ts_type *ts;
-        ts_type *tsU;  // Upper Lemire envelope for DTW
-        ts_type *tsL;  // Lower Lemire envelope for DTW
+        ts_type *tsU; // Upper Lemire envelope for DTW
+        ts_type *tsL; // Lower Lemire envelope for DTW
         unsigned long *counter;
         unsigned long *load_point;
         pthread_rwlock_t *lock_bsf;
         float *minidisvector;
         unsigned long sum_of_lab;
         pqueue_bsf *pq_bsf;
-        int warpWind;  // Warping window for DTW
+        int warpWind; // Warping window for DTW
     } ParIS_read_worker_data;
 
     void *mindistance_worker(void *essdata);
     void *topk_read_worker(void *read_pointer);
-    void *mindistance_worker_dtw(void *essdata);  // DTW version of mindistance_worker
+    void *mindistance_worker_dtw(void *essdata); // DTW version of mindistance_worker
     void *dtwknnreadworker(void *read_pointer);  // DTW version of read worker
     pqueue_bsf exact_topk_serial_ParIS(ts_type *ts, ts_type *paa, isax_index *index, float minimum_distance, int min_checked_leaves, int k, int maxquerythread);
     void approximate_topk(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf);
@@ -68,6 +68,17 @@ namespace diNoLib
     void calculate_node_topk_dtw(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, int warpWind);
     float calculate_minimum_distance(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
 
+    /**
+     * @class ParIS
+     * @brief Parallel disk-based indexed similarity search
+     *
+     * Disk-based algorithm using iSAX indexing with multi-threaded search workers for
+     * large-scale time series datasets. Supports both L2 and DTW metrics with configurable
+     * search/indexing threads and warping window. Requires file-based data; in-memory arrays
+     * are not supported.
+     *
+     * @note Configure search_workers, index_workers, and warping_window via ParISConfig or setters.
+     */
     class ParIS : public SimilaritySearchAlgorithm
     {
     private:
@@ -87,7 +98,7 @@ namespace diNoLib
         float minimum_distance = FLT_MAX;
         int min_checked_leaves = -1;
         int n_pqueue = 42;
-        int warping_window = 10;  // warping window size (typically 10% of time series length)
+        int warping_window = 10; // warping window size (typically 10% of time series length)
 
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
@@ -95,33 +106,32 @@ namespace diNoLib
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         pqueue_bsf exact_DTWknn_serial_ParIS(ts_type *ts, isax_index *index, int warpWind, int k);
-                
+
     public:
         ParIS(DistanceType distance_type);
         ParIS(DistanceType distance_type, const ParISConfig &config);
 
         void setWarpingWindow(int warping_window) { this->warping_window = warping_window; }
         int getWarpingWindow() const { return this->warping_window; }
-        
+
         // Getters and setters for Python bindings
         int getNumThreads() const { return num_threads; }
         void setNumThreads(int n) { num_threads = n; }
-        
+
         // Bring base class buildIndex overloads into scope
         using SimilaritySearchAlgorithm::buildIndex;
-        
+
         void buildIndex(DataSource *data_source) override;
-        
+
         // ParIS only supports file-based data - override to give clear error
-        void buildIndex(float *database, idx_t n_database, idx_t dim) override {
+        void buildIndex(float *database, idx_t n_database, idx_t dim) override
+        {
             throw std::runtime_error("ParIS requires file-based data. Use buildIndex(filename, dim, n_database) instead.");
         }
-        
+
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
-           
 
         ~ParIS();
-
     };
 
 } // namespace diNoLib

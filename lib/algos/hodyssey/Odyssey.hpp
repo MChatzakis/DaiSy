@@ -34,6 +34,17 @@ namespace diNoLib
     // Forward declare type used in friend declaration (full definition repeated later)
     using ws_func_type = query_result (*)(WsSearchFunctionParams);
     
+    /**
+     * @class Odyssey
+     * @brief Distributed MPI-based similarity search with work stealing and BSF sharing
+     *
+     * High-performance distributed algorithm using MPI for multi-node parallel search with
+     * advanced features including work stealing, BSF (best-so-far) sharing across nodes,
+     * replication groups, and dynamic query scheduling. Supports both L2 and DTW metrics.
+     * Requires file-based data; in-memory arrays are not supported.
+     *
+     * @note Configure via OdysseyConfig. Initialize MPI before use. Only rank 0 compares results.
+     */
     class Odyssey : public SimilaritySearchAlgorithm
     {
         // Friend declarations for helper functions that need access to private members
@@ -232,7 +243,7 @@ namespace diNoLib
                                       ws_func_type ws_func, double (*estimation_func)(double), 
                                       query_result *results, std::vector<BsfMessage> *shared_bsf_results);  // Changed bsf_msg* to std::vector<BsfMessage>*
 
-} // namespace diNoLib
+} // namespace daisy
 
 
 #endif // ODYSSEY_HPP

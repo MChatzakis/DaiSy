@@ -28,9 +28,8 @@
 #define COUNT_QUEUE_TIME_START
 #define COUNT_QUEUE_TIME_END
 
-namespace diNoLib
+namespace daisy
 {
-
 
     static long added_tree_node = 0;
 
@@ -152,13 +151,13 @@ namespace diNoLib
         __m256 dis_uppv_1 = _mm256_sub_ps(breakpoint_upperv_1, paav_1);
 
         __m256 distancev_0 = (__m256)_mm256_castsi256_ps(_mm256_or_si256(_mm256_or_si256(
-            _mm256_and_si256(_mm256_castps_si256(dis_juge_upv_0), _mm256_castps_si256(dis_lowv_0)),
-            _mm256_and_si256(_mm256_castps_si256(dis_juge_lov_0), _mm256_castps_si256(dis_uppv_0))),
-            _mm256_and_si256(_mm256_castps_si256(dis_juge_elv_0), _mm256_castps_si256(_mm256_set1_ps(0.0f)))));
+                                                                             _mm256_and_si256(_mm256_castps_si256(dis_juge_upv_0), _mm256_castps_si256(dis_lowv_0)),
+                                                                             _mm256_and_si256(_mm256_castps_si256(dis_juge_lov_0), _mm256_castps_si256(dis_uppv_0))),
+                                                                         _mm256_and_si256(_mm256_castps_si256(dis_juge_elv_0), _mm256_castps_si256(_mm256_set1_ps(0.0f)))));
         __m256 distancev_1 = (__m256)_mm256_castsi256_ps(_mm256_or_si256(_mm256_or_si256(
-            _mm256_and_si256(_mm256_castps_si256(dis_juge_upv_1), _mm256_castps_si256(dis_lowv_1)),
-            _mm256_and_si256(_mm256_castps_si256(dis_juge_lov_1), _mm256_castps_si256(dis_uppv_1))),
-            _mm256_and_si256(_mm256_castps_si256(dis_juge_elv_1), _mm256_castps_si256(_mm256_set1_ps(0.0f)))));
+                                                                             _mm256_and_si256(_mm256_castps_si256(dis_juge_upv_1), _mm256_castps_si256(dis_lowv_1)),
+                                                                             _mm256_and_si256(_mm256_castps_si256(dis_juge_lov_1), _mm256_castps_si256(dis_uppv_1))),
+                                                                         _mm256_and_si256(_mm256_castps_si256(dis_juge_elv_1), _mm256_castps_si256(_mm256_set1_ps(0.0f)))));
 
         __m256 distancesum_0 = _mm256_dp_ps(distancev_0, distancev_0, 0xff);
         __m256 distancesum_1 = _mm256_dp_ps(distancev_1, distancev_1, 0xff);
@@ -423,7 +422,7 @@ namespace diNoLib
     }
 
     void calculate_node_cal_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
-                                         pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
+                                          pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
         COUNT_CHECKED_NODE();
         if (node == nullptr || node->buffer == nullptr)
@@ -473,7 +472,7 @@ namespace diNoLib
             if (distmin <= pq_bsf->knn[pq_bsf->k - 1])
             {
                 float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
-                                                       index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
+                                                        index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
                     pthread_rwlock_wrlock(lock_queue);
@@ -650,7 +649,7 @@ namespace diNoLib
 
         int worker_id = ((buffer_data_inmemory *)transferdata)->workernumber;
         int buffers_processed = 0;
-        static const int debug_print_max = 10;  /* stampa al più i primi N buffer per worker */
+        static const int debug_print_max = 10; /* stampa al più i primi N buffer per worker */
 
         while (1)
         {
@@ -707,12 +706,12 @@ namespace diNoLib
         /* search_workers controls the number of pthreads used per query in searchIndexL2Square;
          * without this, setNumThreads(8) would have no effect on search (it would stay at default 4). */
         this->search_workers = n;
-    } 
+    }
 
     int Sing::getNumThreads() const
     {
         return this->num_threads;
-    } 
+    }
 
     void Sing::buildIndex(DataSource *data_source)
     {
@@ -744,20 +743,20 @@ namespace diNoLib
         }
         delete[] record;
 
-        const char *index_path = "";  // in-memory: no directory
-        this->index_settings = isax_index_settings_init(index_path,         // INDEX DIRECTORY
-                                                        this->dim,          // TIME SERIES SIZE
-                                                        this->paa_segments, // PAA SEGMENTS
-                                                        this->sax_cardinality, // SAX CARDINALITY IN BITS
-                                                        this->leaf_size,    // LEAF SIZE
-                                                        this->min_leaf_size, // MIN LEAF SIZE
-                                                        this->initial_lbl_size,  // INITIAL LEAF BUFFER SIZE
-                                                        this->flush_limit,  // FLUSH LIMIT
-                                                        this->initial_fbl_size, // INITIAL FBL BUFFER SIZE
+        const char *index_path = "";                                               // in-memory: no directory
+        this->index_settings = isax_index_settings_init(index_path,                // INDEX DIRECTORY
+                                                        this->dim,                 // TIME SERIES SIZE
+                                                        this->paa_segments,        // PAA SEGMENTS
+                                                        this->sax_cardinality,     // SAX CARDINALITY IN BITS
+                                                        this->leaf_size,           // LEAF SIZE
+                                                        this->min_leaf_size,       // MIN LEAF SIZE
+                                                        this->initial_lbl_size,    // INITIAL LEAF BUFFER SIZE
+                                                        this->flush_limit,         // FLUSH LIMIT
+                                                        this->initial_fbl_size,    // INITIAL FBL BUFFER SIZE
                                                         this->total_loaded_leaves, // Leaves to load at each fetch
-                                                        this->tight_bound,  // Tightness of leaf bounds
-                                                        this->aggressive_check, // aggressive check
-                                                        1, 1);             // new index, inmemory
+                                                        this->tight_bound,         // Tightness of leaf bounds
+                                                        this->aggressive_check,    // aggressive check
+                                                        1, 1);                     // new index, inmemory
 
         this->index = isax_index_init_inmemory(this->index_settings);
         this->index->sax_cache_size = this->n_database;
@@ -905,7 +904,7 @@ namespace diNoLib
         pthread_barrier_destroy(&lock_barrier1);
         pthread_barrier_destroy(&lock_barrier2);
     }
-    
+
     void Sing::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         if (this->distance_type == DistanceType::L2_SQUARED && this->index != nullptr)
@@ -918,10 +917,10 @@ namespace diNoLib
             searchIndex_DTW(query, n_query, k, I, D);
             return;
         }
-        // Fallback: brute-force
-        #pragma omp parallel num_threads(num_threads)
+// Fallback: brute-force
+#pragma omp parallel num_threads(num_threads)
         {
-            #pragma omp for
+#pragma omp for
             for (idx_t qi = 0; qi < n_query; qi++)
             {
                 std::priority_queue<std::pair<float, idx_t>> pq;
@@ -931,10 +930,16 @@ namespace diNoLib
                 {
                     const float *db_vec = this->database + dbi * this->dim;
                     float dist = this->distance_computer->compute_dist(const_cast<float *>(q_vec),
-                                                                        const_cast<float *>(db_vec),
-                                                                        this->dim, bound);
-                    if ((idx_t)pq.size() < k) pq.emplace(dist, dbi);
-                    else if (dist < pq.top().first) { pq.pop(); pq.emplace(dist, dbi); bound = pq.top().first; }
+                                                                       const_cast<float *>(db_vec),
+                                                                       this->dim, bound);
+                    if ((idx_t)pq.size() < k)
+                        pq.emplace(dist, dbi);
+                    else if (dist < pq.top().first)
+                    {
+                        pq.pop();
+                        pq.emplace(dist, dbi);
+                        bound = pq.top().first;
+                    }
                 }
                 for (idx_t j = k; j > 0; --j)
                 {
@@ -963,9 +968,9 @@ namespace diNoLib
         if (fbl2 == nullptr || fbl2->soft_buffers == nullptr)
         {
             fprintf(stderr, "[Sing searchIndexL2Square] fbl not available, running brute-force.\n");
-            #pragma omp parallel num_threads(num_threads)
+#pragma omp parallel num_threads(num_threads)
             {
-                #pragma omp for
+#pragma omp for
                 for (idx_t qi = 0; qi < n_query; qi++)
                 {
                     std::priority_queue<std::pair<float, idx_t>> pq;
@@ -975,10 +980,16 @@ namespace diNoLib
                     {
                         const float *db_vec = this->database + dbi * this->dim;
                         float dist = this->distance_computer->compute_dist(const_cast<float *>(q_vec),
-                                                                            const_cast<float *>(db_vec),
-                                                                            this->dim, bound);
-                        if ((idx_t)pq.size() < k) pq.emplace(dist, dbi);
-                        else if (dist < pq.top().first) { pq.pop(); pq.emplace(dist, dbi); bound = pq.top().first; }
+                                                                           const_cast<float *>(db_vec),
+                                                                           this->dim, bound);
+                        if ((idx_t)pq.size() < k)
+                            pq.emplace(dist, dbi);
+                        else if (dist < pq.top().first)
+                        {
+                            pq.pop();
+                            pq.emplace(dist, dbi);
+                            bound = pq.top().first;
+                        }
                     }
                     for (idx_t j = k; j > 0; --j)
                     {
@@ -1134,7 +1145,7 @@ namespace diNoLib
                 gapworkerdata[i].activechunk = activechunk;
                 gapworkerdata[i].chunknumber = loopnumber;
                 gapworkerdata[i].activenode = activenode;
-                gapworkerdata[i].workerstartnode = (i) * nodelist.node_amount / loopnumber;
+                gapworkerdata[i].workerstartnode = (i)*nodelist.node_amount / loopnumber;
                 gapworkerdata[i].workerstopnode = (i + 1) * nodelist.node_amount / loopnumber;
             }
             gapworkerdata[maxquerythread - 1].workerstopnode = nodelist.node_amount;
@@ -1214,16 +1225,17 @@ namespace diNoLib
                 if (result.position[ik] >= 0 && result.knn[ik] < FLT_MAX * 0.99f)
                     pairs.emplace_back(result.knn[ik], result.position[ik]);
             }
-            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
+            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b)
+                      {
                 if (a.first != b.first) return a.first < b.first;
-                return a.second < b.second;
-            });
+                return a.second < b.second; });
             std::unordered_set<long> seen_pos;
             std::vector<std::pair<float, long>> uniq;
             uniq.reserve(pairs.size());
             for (const auto &p : pairs)
             {
-                if (seen_pos.insert(p.second).second) uniq.push_back(p);
+                if (seen_pos.insert(p.second).second)
+                    uniq.push_back(p);
             }
             long last_pos = 0;
             float last_dist = 0.0f;

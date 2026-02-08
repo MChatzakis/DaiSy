@@ -1,7 +1,7 @@
 #include "LbBruteforce.hpp"
 #include "../isax/iSAXIndex.hpp"
 
-namespace diNoLib
+namespace daisy
 {
 
     LbBruteforce::LbBruteforce(DistanceType distance_type)

@@ -16,7 +16,7 @@
 #define REPORT_FAILURE(msg) std::cerr << "FAILURE: " << msg << std::endl
 #endif
 
-bool isclose(diNoLib::idx_t a, diNoLib::idx_t b)
+bool isclose(daisy::idx_t a, daisy::idx_t b)
 {
     return a == b;
 }
@@ -65,10 +65,10 @@ float *readFile(const std::string &filepath, size_t &outSize)
 
 bool parseFilenameForConfig(const std::string &filename,
                             const std::string &prefix,
-                            diNoLib::idx_t &dim,
-                            diNoLib::idx_t &n_database,
-                            diNoLib::idx_t &n_query,
-                            diNoLib::idx_t &k)
+                            daisy::idx_t &dim,
+                            daisy::idx_t &n_database,
+                            daisy::idx_t &n_query,
+                            daisy::idx_t &k)
 {
     std::smatch match;
     std::regex len_rx("len(\\d+)");
@@ -144,10 +144,10 @@ void add_failure(const std::string &msg)
 
 void compareWithGroundTruth(const std::string &pathI,
                             const std::string &pathD,
-                            const diNoLib::idx_t *I,
+                            const daisy::idx_t *I,
                             float *D,
-                            diNoLib::idx_t n_query,
-                            diNoLib::idx_t k,
+                            daisy::idx_t n_query,
+                            daisy::idx_t k,
                             double rtol,
                             double atol)
 {
@@ -164,7 +164,7 @@ void compareWithGroundTruth(const std::string &pathI,
         /* Build (index, distance) pairs for this query and sort by (distance, index).
          * Approximate algorithms (Messi, Odyssey) may return the same set in a different
          * order (e.g. tie-breaking or floating point). Sorting both sides normalizes order. */
-        std::vector<std::pair<float, diNoLib::idx_t>> our_pairs;
+        std::vector<std::pair<float, daisy::idx_t>> our_pairs;
         our_pairs.reserve(k);
         for (size_t j = 0; j < k; ++j)
         {
@@ -176,12 +176,12 @@ void compareWithGroundTruth(const std::string &pathI,
             return a.second < b.second;
         });
 
-        std::vector<std::pair<float, diNoLib::idx_t>> gt_pairs;
+        std::vector<std::pair<float, daisy::idx_t>> gt_pairs;
         gt_pairs.reserve(k);
         for (size_t j = 0; j < k; ++j)
         {
             auto idx = i * k + j;
-            diNoLib::idx_t gt_idx = static_cast<diNoLib::idx_t>(std::round(arrayI_gt[idx]));
+            daisy::idx_t gt_idx = static_cast<daisy::idx_t>(std::round(arrayI_gt[idx]));
             gt_pairs.emplace_back(arrayD_gt[idx], gt_idx);
         }
         std::sort(gt_pairs.begin(), gt_pairs.end(), [](const auto &a, const auto &b) {
@@ -202,9 +202,9 @@ void compareWithGroundTruth(const std::string &pathI,
         for (size_t j = 0; j < compare_count; ++j)
         {
             float our_d = our_pairs[j].first;
-            diNoLib::idx_t our_i = our_pairs[j].second;
+            daisy::idx_t our_i = our_pairs[j].second;
             float gt_d = gt_pairs[j].first;
-            diNoLib::idx_t gt_idx = gt_pairs[j].second;
+            daisy::idx_t gt_idx = gt_pairs[j].second;
 
             bool I_equal = isclose(our_i, gt_idx);
             bool D_close = isclose(our_d, gt_d, rtol, atol);

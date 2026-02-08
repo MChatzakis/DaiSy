@@ -30,38 +30,38 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
     m.doc() = "diNo::diNoSimilaritySearch Python bindings";
 
     ////// DISTANCETYPE //////
-    pybind11::enum_<diNoLib::DistanceType>(m, "DistanceType")
-        .value("L2_SQUARED", diNoLib::DistanceType::L2_SQUARED)
-        .value("DTW", diNoLib::DistanceType::DTW)
+    pybind11::enum_<daisy::DistanceType>(m, "DistanceType")
+        .value("L2_SQUARED", daisy::DistanceType::L2_SQUARED)
+        .value("DTW", daisy::DistanceType::DTW)
         .export_values();
 
     ////// BRUTEFORCE //////
-    pybind11::class_<diNoLib::BruteForceSearch>(m, "BruteForceSearch", "Brute force similarity search")
+    pybind11::class_<daisy::BruteForceSearch>(m, "BruteForceSearch", "Brute force similarity search")
         // Constructor
-        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new BruteForceSearch with the given distance metric")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new BruteForceSearch with the given distance metric")
 
         // Setter
-        .def("setNumThreads", &diNoLib::BruteForceSearch::setNumThreads, "Set the number of threads to use")
+        .def("setNumThreads", &daisy::BruteForceSearch::setNumThreads, "Set the number of threads to use")
 
         // Getter
-        .def("getNumThreads", &diNoLib::BruteForceSearch::getNumThreads, "Get the number of threads")
+        .def("getNumThreads", &daisy::BruteForceSearch::getNumThreads, "Get the number of threads")
 
         // Bind method to build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::BruteForceSearch &self, pybind11::array_t<float> db)
+        .def("buildIndex", [](daisy::BruteForceSearch &self, pybind11::array_t<float> db)
              {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
 
-            diNoLib::idx_t n = buf.shape[0];
-            diNoLib::idx_t d = buf.shape[1];
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
 
             // Create InMemoryDataSource from numpy array
-            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
             self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
-        .def("searchIndex", [](diNoLib::BruteForceSearch &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+        .def("searchIndex", [](daisy::BruteForceSearch &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
             pybind11::buffer_info query_buf = query.request(); // Get query buffer info
 
@@ -72,11 +72,11 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                 throw std::runtime_error("k must be positive");            
 
             // Number of query vectors and their dimension
-            diNoLib::idx_t n_query = query_buf.shape[0];
-            diNoLib::idx_t dim = query_buf.shape[1];
+            daisy::idx_t n_query = query_buf.shape[0];
+            daisy::idx_t dim = query_buf.shape[1];
 
             // Allocate output arrays for indices and distances
-            std::vector<diNoLib::idx_t> indices(n_query * k);
+            std::vector<daisy::idx_t> indices(n_query * k);
             std::vector<float> distances(n_query * k);
             
             // Perform the search
@@ -85,74 +85,74 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
 
             // Return results as a tuple of NumPy arrays
             return pybind11::make_tuple(
-                pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the index with queries and return (indices, distances)");
 
     ////// LBBRUTEFORCE //////
-    pybind11::class_<diNoLib::LbBruteforce>(m, "LbBruteforce", "Lower Bound brute-force similarity search")
+    pybind11::class_<daisy::LbBruteforce>(m, "LbBruteforce", "Lower Bound brute-force similarity search")
         // Constructor
-        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new LbBruteforce with the given distance metric")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new LbBruteforce with the given distance metric")
 
         // Getters
-        .def("getPaaSegments", &diNoLib::LbBruteforce::getPaaSegments, "Get the number of PAA segments")
-        .def("getSaxCardinality", &diNoLib::LbBruteforce::getSaxCardinality, "Get the SAX cardinality used for dimensionality reduction")
-        .def("getLeafSize", &diNoLib::LbBruteforce::getLeafSize, "Get the configured leaf size")
-        .def("getMinLeafSize", &diNoLib::LbBruteforce::getMinLeafSize, "Get the minimum leaf size for search optimization")
-        .def("getInitialLblSize", &diNoLib::LbBruteforce::getInitialLblSize, "Get the initial size of the lower-bound leaf buffer (LBL)")
-        .def("getFlushLimit", &diNoLib::LbBruteforce::getFlushLimit, "Get the flush limit for internal buffers")
-        .def("getInitialFblSize", &diNoLib::LbBruteforce::getInitialFblSize, "Get the initial size of the full buffer list (FBL)")
-        .def("getTotalLoadedLeaves", &diNoLib::LbBruteforce::getTotalLoadedLeaves, "Get the number of total loaded leaves")
-        .def("getTightBound", &diNoLib::LbBruteforce::getTightBound, "Get whether tight lower bounds are used")
+        .def("getPaaSegments", &daisy::LbBruteforce::getPaaSegments, "Get the number of PAA segments")
+        .def("getSaxCardinality", &daisy::LbBruteforce::getSaxCardinality, "Get the SAX cardinality used for dimensionality reduction")
+        .def("getLeafSize", &daisy::LbBruteforce::getLeafSize, "Get the configured leaf size")
+        .def("getMinLeafSize", &daisy::LbBruteforce::getMinLeafSize, "Get the minimum leaf size for search optimization")
+        .def("getInitialLblSize", &daisy::LbBruteforce::getInitialLblSize, "Get the initial size of the lower-bound leaf buffer (LBL)")
+        .def("getFlushLimit", &daisy::LbBruteforce::getFlushLimit, "Get the flush limit for internal buffers")
+        .def("getInitialFblSize", &daisy::LbBruteforce::getInitialFblSize, "Get the initial size of the full buffer list (FBL)")
+        .def("getTotalLoadedLeaves", &daisy::LbBruteforce::getTotalLoadedLeaves, "Get the number of total loaded leaves")
+        .def("getTightBound", &daisy::LbBruteforce::getTightBound, "Get whether tight lower bounds are used")
 
         // Setters
-        .def("setNumThreads", &diNoLib::LbBruteforce::setNumThreads, "Set the number of threads to use")
-        .def("setPaaSegments", &diNoLib::LbBruteforce::setPaaSegments, "Set the number of PAA segments")
-        .def("setSaxCardinality", &diNoLib::LbBruteforce::setSaxCardinality, "Set the SAX cardinality")
-        .def("setLeafSize", &diNoLib::LbBruteforce::setLeafSize, "Set the leaf size")
-        .def("setMinLeafSize", &diNoLib::LbBruteforce::setMinLeafSize, "Set the minimum leaf size")
-        .def("setInitialLblSize", &diNoLib::LbBruteforce::setInitialLblSize, "Set the initial size of the lower-bound leaf buffer (LBL)")
-        .def("setFlushLimit", &diNoLib::LbBruteforce::setFlushLimit, "Set the flush limit for internal buffers")
-        .def("setInitialFblSize", &diNoLib::LbBruteforce::setInitialFblSize, "Set the initial size of the full buffer list (FBL)")
-        .def("setTotalLoadedLeaves", &diNoLib::LbBruteforce::setTotalLoadedLeaves, "Set the number of total loaded leaves")
-        .def("setTightBound", &diNoLib::LbBruteforce::setTightBound, "Enable or disable tight lower bounds")
+        .def("setNumThreads", &daisy::LbBruteforce::setNumThreads, "Set the number of threads to use")
+        .def("setPaaSegments", &daisy::LbBruteforce::setPaaSegments, "Set the number of PAA segments")
+        .def("setSaxCardinality", &daisy::LbBruteforce::setSaxCardinality, "Set the SAX cardinality")
+        .def("setLeafSize", &daisy::LbBruteforce::setLeafSize, "Set the leaf size")
+        .def("setMinLeafSize", &daisy::LbBruteforce::setMinLeafSize, "Set the minimum leaf size")
+        .def("setInitialLblSize", &daisy::LbBruteforce::setInitialLblSize, "Set the initial size of the lower-bound leaf buffer (LBL)")
+        .def("setFlushLimit", &daisy::LbBruteforce::setFlushLimit, "Set the flush limit for internal buffers")
+        .def("setInitialFblSize", &daisy::LbBruteforce::setInitialFblSize, "Set the initial size of the full buffer list (FBL)")
+        .def("setTotalLoadedLeaves", &daisy::LbBruteforce::setTotalLoadedLeaves, "Set the number of total loaded leaves")
+        .def("setTightBound", &daisy::LbBruteforce::setTightBound, "Enable or disable tight lower bounds")
 
         // Build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> db)
+        .def("buildIndex", [](daisy::LbBruteforce &self, pybind11::array_t<float> db)
              {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Database array must be 2D");
             
-            diNoLib::idx_t n = buf.shape[0];
-            diNoLib::idx_t d = buf.shape[1];
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
             
             // Create InMemoryDataSource from numpy array
-            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
             self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Search the index using a query array and return (indices, distances)
-        .def("searchIndex", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+        .def("searchIndex", [](daisy::LbBruteforce &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
             pybind11::buffer_info buf = query.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Query array must be 2D");
 
-            std::vector<diNoLib::idx_t> indices(buf.shape[0] * k);
+            std::vector<daisy::idx_t> indices(buf.shape[0] * k);
             std::vector<float> distances(buf.shape[0] * k);
 
             self.searchIndex(static_cast<float *>(buf.ptr), buf.shape[0], k, indices.data(), distances.data());
 
             return pybind11::make_tuple(
-                pybind11::array_t<diNoLib::idx_t>(pybind11::buffer_info(
+                pybind11::array_t<daisy::idx_t>(pybind11::buffer_info(
                     indices.data(),
-                    sizeof(diNoLib::idx_t),
-                    pybind11::format_descriptor<diNoLib::idx_t>::format(),
+                    sizeof(daisy::idx_t),
+                    pybind11::format_descriptor<daisy::idx_t>::format(),
                     2,
                     std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)},
                     std::vector<pybind11::ssize_t>{
-                        static_cast<pybind11::ssize_t>(sizeof(diNoLib::idx_t) * k),
-                        static_cast<pybind11::ssize_t>(sizeof(diNoLib::idx_t))
+                        static_cast<pybind11::ssize_t>(sizeof(daisy::idx_t) * k),
+                        static_cast<pybind11::ssize_t>(sizeof(daisy::idx_t))
                     }
                 )),
                 pybind11::array_t<float>(pybind11::buffer_info(
@@ -169,19 +169,19 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             ); }, "Search the index with queries and return (indices, distances)")
 
         // Search the index using DTW distance specifically
-        .def("searchIndexDTW", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+        .def("searchIndexDTW", [](daisy::LbBruteforce &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
             pybind11::buffer_info buf = query.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Query array must be 2D");
 
-            std::vector<diNoLib::idx_t> indices(buf.shape[0] * k);
+            std::vector<daisy::idx_t> indices(buf.shape[0] * k);
             std::vector<float> distances(buf.shape[0] * k);
 
             self.searchIndexDTW(static_cast<float *>(buf.ptr), buf.shape[0], k, indices.data(), distances.data());
 
             return pybind11::make_tuple(
-                pybind11::array_t<diNoLib::idx_t>(
+                pybind11::array_t<daisy::idx_t>(
                     std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)}, 
                     indices.data()
                 ),
@@ -192,19 +192,19 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             ); }, "Search the index using DTW distance and return (indices, distances)")
 
         // Search the index using L2 squared distance specifically
-        .def("searchIndexL2Squared", [](diNoLib::LbBruteforce &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+        .def("searchIndexL2Squared", [](daisy::LbBruteforce &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
             pybind11::buffer_info buf = query.request();
             if (buf.ndim != 2) 
                 throw std::runtime_error("Query array must be 2D");
 
-            std::vector<diNoLib::idx_t> indices(buf.shape[0] * k);
+            std::vector<daisy::idx_t> indices(buf.shape[0] * k);
             std::vector<float> distances(buf.shape[0] * k);
 
             self.searchIndexL2Squared(static_cast<float *>(buf.ptr), buf.shape[0], k, indices.data(), distances.data());
 
             return pybind11::make_tuple(
-                pybind11::array_t<diNoLib::idx_t>(
+                pybind11::array_t<daisy::idx_t>(
                     std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)}, 
                     indices.data()
                 ),
@@ -215,59 +215,59 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             ); }, "Search the index using L2 squared distance and return (indices, distances)");
 
     ////// MESSI //////
-    pybind11::class_<diNoLib::Messi>(m, "Messi", "MESSI (Multi-Queue Efficient SAX Similarity Index) algorithm for time series similarity search")
+    pybind11::class_<daisy::Messi>(m, "Messi", "MESSI (Multi-Queue Efficient SAX Similarity Index) algorithm for time series similarity search")
         // Constructor
-        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new Messi instance with the given distance metric")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new Messi instance with the given distance metric")
 
         // Getters
-        .def("getNumThreads", &diNoLib::Messi::getNumThreads, "Get the number of search threads")
-        .def("getPaaSegments", &diNoLib::Messi::getPaaSegments, "Get the number of PAA segments used in SAX transformation")
-        .def("getSaxCardinality", &diNoLib::Messi::getSaxCardinality, "Get the cardinality of SAX symbols")
-        .def("getLeafSize", &diNoLib::Messi::getLeafSize, "Get the maximum leaf size in the index tree")
-        .def("getMinLeafSize", &diNoLib::Messi::getMinLeafSize, "Get the minimum number of entries per leaf")
-        .def("getInitialLblSize", &diNoLib::Messi::getInitialLblSize, "Get the initial size of the lower-bound buffer")
-        .def("getFlushLimit", &diNoLib::Messi::getFlushLimit, "Get the flush limit before writing to disk")
-        .def("getInitialFblSize", &diNoLib::Messi::getInitialFblSize, "Get the initial full-buffer size")
-        .def("getTotalLoadedLeaves", &diNoLib::Messi::getTotalLoadedLeaves, "Get the total number of leaves loaded")
-        .def("getTightBound", &diNoLib::Messi::getTightBound, "Check whether tight bounds are enabled")
+        .def("getNumThreads", &daisy::Messi::getNumThreads, "Get the number of search threads")
+        .def("getPaaSegments", &daisy::Messi::getPaaSegments, "Get the number of PAA segments used in SAX transformation")
+        .def("getSaxCardinality", &daisy::Messi::getSaxCardinality, "Get the cardinality of SAX symbols")
+        .def("getLeafSize", &daisy::Messi::getLeafSize, "Get the maximum leaf size in the index tree")
+        .def("getMinLeafSize", &daisy::Messi::getMinLeafSize, "Get the minimum number of entries per leaf")
+        .def("getInitialLblSize", &daisy::Messi::getInitialLblSize, "Get the initial size of the lower-bound buffer")
+        .def("getFlushLimit", &daisy::Messi::getFlushLimit, "Get the flush limit before writing to disk")
+        .def("getInitialFblSize", &daisy::Messi::getInitialFblSize, "Get the initial full-buffer size")
+        .def("getTotalLoadedLeaves", &daisy::Messi::getTotalLoadedLeaves, "Get the total number of leaves loaded")
+        .def("getTightBound", &daisy::Messi::getTightBound, "Check whether tight bounds are enabled")
 
-        .def("getSearchWorkers", &diNoLib::Messi::getSearchWorkers, "Get number of worker threads used for search")
-        .def("getIndexWorkers", &diNoLib::Messi::getIndexWorkers, "Get number of worker threads used for indexing")
-        .def("getReadBlockLength", &diNoLib::Messi::getReadBlockLength, "Get block size for reading the time series data")
-        .def("getWarpingWindow", &diNoLib::Messi::getWarpingWindow, "Get the DTW warping window constraint")
+        .def("getSearchWorkers", &daisy::Messi::getSearchWorkers, "Get number of worker threads used for search")
+        .def("getIndexWorkers", &daisy::Messi::getIndexWorkers, "Get number of worker threads used for indexing")
+        .def("getReadBlockLength", &daisy::Messi::getReadBlockLength, "Get block size for reading the time series data")
+        .def("getWarpingWindow", &daisy::Messi::getWarpingWindow, "Get the DTW warping window constraint")
 
         // Setters
-        .def("setNumThreads", &diNoLib::Messi::setNumThreads, "Set the number of threads to use for both indexing and search")
-        .def("setPaaSegments", &diNoLib::Messi::setPaaSegments, "Set the number of PAA segments")
-        .def("setSaxCardinality", &diNoLib::Messi::setSaxCardinality, "Set the SAX cardinality")
-        .def("setLeafSize", &diNoLib::Messi::setLeafSize, "Set the leaf size of the index tree")
-        .def("setMinLeafSize", &diNoLib::Messi::setMinLeafSize, "Set the minimum size of a leaf")
-        .def("setInitialLblSize", &diNoLib::Messi::setInitialLblSize, "Set the initial LBL size")
-        .def("setFlushLimit", &diNoLib::Messi::setFlushLimit, "Set the flush limit")
-        .def("setInitialFblSize", &diNoLib::Messi::setInitialFblSize, "Set the initial FBL size")
-        .def("setTotalLoadedLeaves", &diNoLib::Messi::setTotalLoadedLeaves, "Set the number of total loaded leaves")
-        .def("setTightBound", &diNoLib::Messi::setTightBound, "Enable or disable tight bounds")
-        .def("setSearchWorkers", &diNoLib::Messi::setSearchWorkers, "Set the number of worker threads for search")
-        .def("setIndexWorkers", &diNoLib::Messi::setIndexWorkers, "Set the number of worker threads for indexing")
-        .def("setReadBlockLength", &diNoLib::Messi::setReadBlockLength, "Set the length of each read block")
-        .def("setWarpingWindow", &diNoLib::Messi::setWarpingWindow, "Set the warping window size for DTW")
+        .def("setNumThreads", &daisy::Messi::setNumThreads, "Set the number of threads to use for both indexing and search")
+        .def("setPaaSegments", &daisy::Messi::setPaaSegments, "Set the number of PAA segments")
+        .def("setSaxCardinality", &daisy::Messi::setSaxCardinality, "Set the SAX cardinality")
+        .def("setLeafSize", &daisy::Messi::setLeafSize, "Set the leaf size of the index tree")
+        .def("setMinLeafSize", &daisy::Messi::setMinLeafSize, "Set the minimum size of a leaf")
+        .def("setInitialLblSize", &daisy::Messi::setInitialLblSize, "Set the initial LBL size")
+        .def("setFlushLimit", &daisy::Messi::setFlushLimit, "Set the flush limit")
+        .def("setInitialFblSize", &daisy::Messi::setInitialFblSize, "Set the initial FBL size")
+        .def("setTotalLoadedLeaves", &daisy::Messi::setTotalLoadedLeaves, "Set the number of total loaded leaves")
+        .def("setTightBound", &daisy::Messi::setTightBound, "Enable or disable tight bounds")
+        .def("setSearchWorkers", &daisy::Messi::setSearchWorkers, "Set the number of worker threads for search")
+        .def("setIndexWorkers", &daisy::Messi::setIndexWorkers, "Set the number of worker threads for indexing")
+        .def("setReadBlockLength", &daisy::Messi::setReadBlockLength, "Set the length of each read block")
+        .def("setWarpingWindow", &daisy::Messi::setWarpingWindow, "Set the warping window size for DTW")
 
         // Build the index from a 2D NumPy array
-        .def("buildIndex", [](diNoLib::Messi &self, pybind11::array_t<float> db)
+        .def("buildIndex", [](daisy::Messi &self, pybind11::array_t<float> db)
              {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
             
-            diNoLib::idx_t n = buf.shape[0];
-            diNoLib::idx_t d = buf.shape[1];
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
             
             // Create InMemoryDataSource from numpy array
-            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
             self.buildIndex(&data_source); }, "Build the MESSI index from a 2D float32 NumPy array")
 
         // Search the index with query array and return top-k results
-        .def("searchIndex", [](diNoLib::Messi &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+        .def("searchIndex", [](daisy::Messi &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
             pybind11::buffer_info query_buf = query.request();
             if (query_buf.ndim != 2)
@@ -275,43 +275,43 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             if (k <= 0)
                 throw std::runtime_error("k must be positive");
 
-            const diNoLib::idx_t n_query = query_buf.shape[0];
-            const diNoLib::idx_t dim = query_buf.shape[1];
+            const daisy::idx_t n_query = query_buf.shape[0];
+            const daisy::idx_t dim = query_buf.shape[1];
 
-            std::vector<diNoLib::idx_t> indices(n_query * k);
+            std::vector<daisy::idx_t> indices(n_query * k);
             std::vector<float> distances(n_query * k);
 
             self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k, indices.data(), distances.data());
 
             return pybind11::make_tuple(
-                pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the MESSI index using queries and return (indices, distances)");
 
 #if ODYSSEY_MPI
     ////// ODYSSEY //////
-    pybind11::class_<diNoLib::Odyssey>(m, "Odyssey", "Odyssey similarity search with MPI")
+    pybind11::class_<daisy::Odyssey>(m, "Odyssey", "Odyssey similarity search with MPI")
         // Constructor
-        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new Odyssey with the given distance metric")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new Odyssey with the given distance metric")
 
         // Setters
-        .def("setNumThreads", &diNoLib::Odyssey::setNumThreads, "Set the number of threads to use (for OpenMP parts)")
-        .def("setWarpingWindow", &diNoLib::Odyssey::setWarpingWindow, "Set the warping window size for DTW (typically 10% of time series length)")
+        .def("setNumThreads", &daisy::Odyssey::setNumThreads, "Set the number of threads to use (for OpenMP parts)")
+        .def("setWarpingWindow", &daisy::Odyssey::setWarpingWindow, "Set the warping window size for DTW (typically 10% of time series length)")
 
         // Getters
-        .def("getNumThreads", &diNoLib::Odyssey::getNumThreads, "Get the number of threads (for OpenMP parts)")
-        .def("getWarpingWindow", &diNoLib::Odyssey::getWarpingWindow, "Get the warping window size for DTW")
+        .def("getNumThreads", &daisy::Odyssey::getNumThreads, "Get the number of threads (for OpenMP parts)")
+        .def("getWarpingWindow", &daisy::Odyssey::getWarpingWindow, "Get the warping window size for DTW")
 
         // Bind method to build the index from a NumPy array
         // Odyssey requires FileDataSource (disk-based indexing). We write the array to a temp file.
-        .def("buildIndex", [](diNoLib::Odyssey &self, pybind11::array_t<float> db)
+        .def("buildIndex", [](daisy::Odyssey &self, pybind11::array_t<float> db)
              {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
 
-            diNoLib::idx_t n = buf.shape[0];
-            diNoLib::idx_t d = buf.shape[1];
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
 
 #if ODYSSEY_MPI
             int my_rank = self.getMyRank();
@@ -330,11 +330,11 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             }
             MPI_Barrier(MPI_COMM_WORLD);
 #endif
-            diNoLib::FileDataSource data_source("/tmp/odyssey_pybind_db.bin", d, n);
+            daisy::FileDataSource data_source("/tmp/odyssey_pybind_db.bin", d, n);
             self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
-        .def("searchIndex", [](diNoLib::Odyssey &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+        .def("searchIndex", [](daisy::Odyssey &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
             pybind11::buffer_info query_buf = query.request(); // Get query buffer info
 
@@ -345,11 +345,11 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                 throw std::runtime_error("k must be positive");            
 
             // Number of query vectors and their dimension
-            diNoLib::idx_t n_query = query_buf.shape[0];
-            diNoLib::idx_t dim = query_buf.shape[1];
+            daisy::idx_t n_query = query_buf.shape[0];
+            daisy::idx_t dim = query_buf.shape[1];
 
             // Allocate output arrays for indices and distances
-            std::vector<diNoLib::idx_t> indices(n_query * k);
+            std::vector<daisy::idx_t> indices(n_query * k);
             std::vector<float> distances(n_query * k);
             
             // Perform the search
@@ -358,33 +358,33 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
 
             // Return results as a tuple of NumPy arrays
             return pybind11::make_tuple(
-                pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the index with queries and return (indices, distances)");
 #endif  // ODYSSEY_MPI
 
     ////// PARIS //////
-    pybind11::class_<diNoLib::ParIS>(m, "ParIS", "ParIS similarity search (file-based)")
+    pybind11::class_<daisy::ParIS>(m, "ParIS", "ParIS similarity search (file-based)")
         // Constructor
-        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new ParIS instance with the given distance metric")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new ParIS instance with the given distance metric")
 
         // Setters
-        .def("setNumThreads", &diNoLib::ParIS::setNumThreads, "Set the number of threads to use")
-        .def("setWarpingWindow", &diNoLib::ParIS::setWarpingWindow, "Set the warping window size for DTW (typically 10% of time series length)")
+        .def("setNumThreads", &daisy::ParIS::setNumThreads, "Set the number of threads to use")
+        .def("setWarpingWindow", &daisy::ParIS::setWarpingWindow, "Set the warping window size for DTW (typically 10% of time series length)")
 
         // Getters
-        .def("getNumThreads", &diNoLib::ParIS::getNumThreads, "Get the number of threads")
-        .def("getWarpingWindow", &diNoLib::ParIS::getWarpingWindow, "Get the warping window size for DTW")
+        .def("getNumThreads", &daisy::ParIS::getNumThreads, "Get the number of threads")
+        .def("getWarpingWindow", &daisy::ParIS::getWarpingWindow, "Get the warping window size for DTW")
 
         // Build the index from a file (ParIS requires file-based data)
-        .def("buildIndex", [](diNoLib::ParIS &self, const std::string &filename, diNoLib::idx_t dim, diNoLib::idx_t n_database = 0)
+        .def("buildIndex", [](daisy::ParIS &self, const std::string &filename, daisy::idx_t dim, daisy::idx_t n_database = 0)
              {
             self.buildIndex(filename, dim, n_database); }, 
             pybind11::arg("filename"), pybind11::arg("dim"), pybind11::arg("n_database") = 0,
             "Build the ParIS index from a binary file. filename: path to binary data file, dim: dimension of each time series, n_database: number of time series (0 = auto-detect from file size)")
 
         // Search the index with query array and return top-k results
-        .def("searchIndex", [](diNoLib::ParIS &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+        .def("searchIndex", [](daisy::ParIS &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
             pybind11::buffer_info query_buf = query.request();
             if (query_buf.ndim != 2)
@@ -392,16 +392,16 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
             if (k <= 0)
                 throw std::runtime_error("k must be positive");
 
-            const diNoLib::idx_t n_query = query_buf.shape[0];
-            const diNoLib::idx_t dim = query_buf.shape[1];
+            const daisy::idx_t n_query = query_buf.shape[0];
+            const daisy::idx_t dim = query_buf.shape[1];
 
-            std::vector<diNoLib::idx_t> indices(n_query * k);
+            std::vector<daisy::idx_t> indices(n_query * k);
             std::vector<float> distances(n_query * k);
 
             self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k, indices.data(), distances.data());
 
             return pybind11::make_tuple(
-                pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the ParIS index using queries and return (indices, distances)");
 
@@ -409,32 +409,32 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
     // Only include Sing bindings if Sing is built (requires CUDA)
 #ifdef SING_CUDA_ENABLED
     #if SING_CUDA_ENABLED != 0
-    pybind11::class_<diNoLib::Sing>(m, "Sing", "Sing similarity search algorithm")
+    pybind11::class_<daisy::Sing>(m, "Sing", "Sing similarity search algorithm")
         // Constructor
-        .def(pybind11::init<diNoLib::DistanceType>(), "Create a new Sing instance with the given distance metric")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new Sing instance with the given distance metric")
 
         // Setters
-        .def("setNumThreads", &diNoLib::Sing::setNumThreads, "Set the number of threads to use")
+        .def("setNumThreads", &daisy::Sing::setNumThreads, "Set the number of threads to use")
 
         // Getters
-        .def("getNumThreads", &diNoLib::Sing::getNumThreads, "Get the number of threads")
+        .def("getNumThreads", &daisy::Sing::getNumThreads, "Get the number of threads")
 
         // Bind method to build the index from a NumPy array
-        .def("buildIndex", [](diNoLib::Sing &self, pybind11::array_t<float> db)
+        .def("buildIndex", [](daisy::Sing &self, pybind11::array_t<float> db)
              {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
 
-            diNoLib::idx_t n = buf.shape[0];
-            diNoLib::idx_t d = buf.shape[1];
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
 
             // Create InMemoryDataSource from numpy array
-            diNoLib::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
             self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
         // Bind method to perform similarity search
-        .def("searchIndex", [](diNoLib::Sing &self, pybind11::array_t<float> query, diNoLib::idx_t k)
+        .def("searchIndex", [](daisy::Sing &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
             pybind11::buffer_info query_buf = query.request(); // Get query buffer info
 
@@ -445,11 +445,11 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
                 throw std::runtime_error("k must be positive");
 
             // Number of query vectors and their dimension
-            diNoLib::idx_t n_query = query_buf.shape[0];
-            diNoLib::idx_t dim = query_buf.shape[1];
+            daisy::idx_t n_query = query_buf.shape[0];
+            daisy::idx_t dim = query_buf.shape[1];
 
             // Allocate output arrays for indices and distances
-            std::vector<diNoLib::idx_t> indices(n_query * k);
+            std::vector<daisy::idx_t> indices(n_query * k);
             std::vector<float> distances(n_query * k);
 
             // Perform the search
@@ -458,7 +458,7 @@ PYBIND11_MODULE(diNoSimilaritySearch, m)
 
             // Return results as a tuple of NumPy arrays
             return pybind11::make_tuple(
-                pybind11::array_t<diNoLib::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the index with queries and return (indices, distances)");
     #endif

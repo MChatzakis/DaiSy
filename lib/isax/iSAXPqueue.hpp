@@ -22,7 +22,7 @@
 
 #include "iSAXIndex.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     /** priority data type */
     typedef double pqueue_pri_t;

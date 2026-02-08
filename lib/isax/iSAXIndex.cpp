@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <cstring>  // for memset
-namespace diNoLib
+namespace daisy
 {
 
     isax_index_settings *isax_index_settings_init(const char *root_directory, int timeseries_size,

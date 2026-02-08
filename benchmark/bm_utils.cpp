@@ -4,7 +4,7 @@
 #include "../lib/algos/DataSource.hpp"
 
 void runSSTBenchmark(
-    diNoLib::SimilaritySearchAlgorithm *search,
+    daisy::SimilaritySearchAlgorithm *search,
     const std::string &dataset_path,
     const std::string &query_path,
     int num_thread,
@@ -14,14 +14,14 @@ void runSSTBenchmark(
     std::string dataset_filename = pathToFilename(dataset_path);
     std::string query_filename = pathToFilename(query_path);
 
-    diNoLib::idx_t dim, n_database, _;
+    daisy::idx_t dim, n_database, _;
     if (!parseFilenameForConfig(dataset_filename, "bruteForce", dim, n_database, _, _))
     {
         std::cerr << "Failed to parse dataset config from filename: " << dataset_filename << std::endl;
         return;
     }
 
-    diNoLib::idx_t dim_q, n_query, __, ___;
+    daisy::idx_t dim_q, n_query, __, ___;
     if (!parseFilenameForConfig(query_filename, "bruteForce", dim_q, n_query, __, ___))
     {
         std::cerr << "Failed to parse query config from filename: " << query_filename << std::endl;
@@ -38,11 +38,11 @@ void runSSTBenchmark(
     float *database = loadBinData(dataset_path.c_str(), n_database, dim, false);
     float *query = loadBinData(query_path.c_str(), n_query, dim, false);
 
-    diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+    daisy::InMemoryDataSource data_source(database, n_database, dim);
     search->buildIndex(&data_source);
     search->setNumThreads(num_thread);
 
-    diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
+    daisy::idx_t *I = new daisy::idx_t[n_query * k];
     float *D = new float[n_query * k];
 
     // Run the search without validation

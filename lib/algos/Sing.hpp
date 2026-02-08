@@ -14,7 +14,7 @@
 #include <cuda_runtime.h>
 #endif
 
-namespace diNoLib
+namespace daisy
 {
 
     typedef struct SING_workerdata
@@ -49,8 +49,8 @@ namespace diNoLib
         unsigned long int *gpuoffset;
         unsigned long int *seriesnumber;
         unsigned long int rawdatanumber;
-        int n_pqueue;       /**< number of priority queues (for insert_tree_node_m_hybridpqueue) */
-        float *rawfile;     /**< raw database for calculate_node2_topk_inmemory */
+        int n_pqueue;   /**< number of priority queues (for insert_tree_node_m_hybridpqueue) */
+        float *rawfile; /**< raw database for calculate_node2_topk_inmemory */
     } SING_workerdata;
 
     typedef struct gap_workerdata
@@ -75,9 +75,9 @@ namespace diNoLib
 
     struct SingConfig
     {
-        int search_workers = 4;   // threads for querying
-        int index_workers = 4;     // threads for indexing
-        int warping_window = 10;  // warping window size (typically 10% of time series length)
+        int search_workers = 4;  // threads for querying
+        int index_workers = 4;   // threads for indexing
+        int warping_window = 10; // warping window size (typically 10% of time series length)
         int leaf_size = 128;
         int paa_segments = 16;
     };
@@ -99,6 +99,17 @@ namespace diNoLib
                                          sax_type max_bit_cardinality, int max_cardinality, int number_of_segments,
                                          int min_val, int max_val, float ratio_sqrt);
 
+    /**
+     * @class Sing
+     * @brief GPU-accelerated indexed similarity search with optimized breakpoint computations
+     *
+     * High-performance algorithm combining iSAX indexing with optional CUDA GPU acceleration
+     * for index creation and distance computations. Uses breakpoint-based PAA-to-iSAX distance
+     * calculations and SIMD optimizations. Supports both L2 and DTW metrics with configurable
+     * search workers and warping window.
+     *
+     * @note Enable GPU support with SING_CUDA_ENABLED. Configure via SingConfig or setters.
+     */
     class Sing : public SimilaritySearchAlgorithm
     {
     private:
@@ -113,18 +124,18 @@ namespace diNoLib
         int initial_fbl_size = 100;
         int total_loaded_leaves = 1;
         int tight_bound = 0;
-        int aggressive_check = 0;    // NO
+        int aggressive_check = 0; // NO
         float minimum_distance = FLT_MAX;
-        int serial_scan = 0;         // NO
+        int serial_scan = 0; // NO
         int min_checked_leaves = -1;
-        int cpu_control_type = 81;   // NO
-        int calculate_thread = 8;    // NO
+        int cpu_control_type = 81; // NO
+        int calculate_thread = 8;  // NO
 
         int read_block_length = 100000;
         int search_workers = 4;
         int index_workers = 4;
         int n_pqueue = 42;
-        int warping_window = 10;  // warping window size (typically 10% of time series length)
+        int warping_window = 10; // warping window size (typically 10% of time series length)
 
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
@@ -134,16 +145,16 @@ namespace diNoLib
         void searchIndexL2Square(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
         void searchIndex_DTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
 
-        #if SING_CUDA_ENABLED
-        float* d_database = nullptr;
-        #endif
+#if SING_CUDA_ENABLED
+        float *d_database = nullptr;
+#endif
 
         bool use_cuda = false;
-                
+
     public:
         Sing(DistanceType distance_type);
         void setNumThreads(int num_threads);
-        int getNumThreads() const;        
+        int getNumThreads() const;
         void buildIndex(DataSource *data_source) override;
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
@@ -151,9 +162,8 @@ namespace diNoLib
         void printBuildIndexDebug() const;
 
         ~Sing();
-
     };
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // SINGSEARCH_HPP

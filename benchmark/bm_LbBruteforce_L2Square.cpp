@@ -6,7 +6,7 @@ static void BM_LbBruteforce(benchmark::State& state) {
     int config_idx = static_cast<int>(state.range(0));
     const SSTestConfig& config = test_configs[config_idx];
 
-    diNoLib::LbBruteforce search(diNoLib::DistanceType::L2_SQUARED);
+    daisy::LbBruteforce search(daisy::DistanceType::L2_SQUARED);
 
 
     for (auto _ : state) {

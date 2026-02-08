@@ -6,7 +6,7 @@
 #include "../lib/algos/hodyssey/Odyssey.hpp"
 #endif
 
-void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
+void SimilaritySearchTest::runSST(daisy::SimilaritySearchAlgorithm *search,
                                   const std::string &prefix_name,
                                   const std::string &gt_I,
                                   const std::string &gt_D,
@@ -19,10 +19,10 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     std::string filename_gt = pathToFilename(gt_I);
     std::string dataset_name = pathToFilename(dataset_path);
 
-    diNoLib::idx_t dim_gt, n_database_gt, n_query, k;
+    daisy::idx_t dim_gt, n_database_gt, n_query, k;
     ASSERT_TRUE(parseFilenameForConfig(filename_gt, prefix_name, dim_gt, n_database_gt, n_query, k));
 
-    diNoLib::idx_t dim, n_database, _, __;
+    daisy::idx_t dim, n_database, _, __;
     ASSERT_TRUE(parseFilenameForConfig(dataset_name, prefix_name, dim, n_database, _, __));
 
     ASSERT_EQ(dim_gt, dim);
@@ -40,7 +40,7 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     } else
 #endif
     // ParIS uses file-based buildIndex
-    if (dynamic_cast<diNoLib::ParIS *>(search) != nullptr) {
+    if (dynamic_cast<daisy::ParIS *>(search) != nullptr) {
         search->buildIndex(dataset_path, dim, n_database);
     } else {
         // Other algorithms use in-memory buildIndex
@@ -49,7 +49,7 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     
     search->setNumThreads(num_thread);
 
-    diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
+    daisy::idx_t *I = new daisy::idx_t[n_query * k];
     float *D = new float[n_query * k];
     search->searchIndex(query, n_query, k, I, D);
 
@@ -63,7 +63,7 @@ void SimilaritySearchTest::runSST(diNoLib::SimilaritySearchAlgorithm *search,
     delete[] D;
 }
 
-void SimilaritySearchTest::runSSTWithDistance(diNoLib::DistanceType distance_type,
+void SimilaritySearchTest::runSSTWithDistance(daisy::DistanceType distance_type,
                                               const std::string &prefix_name,
                                               const std::string &gt_I,
                                               const std::string &gt_D,
@@ -73,6 +73,6 @@ void SimilaritySearchTest::runSSTWithDistance(diNoLib::DistanceType distance_typ
                                               double rtol,
                                               double atol)
 {
-    diNoLib::BruteForceSearch search(distance_type);
+    daisy::BruteForceSearch search(distance_type);
     runSST(&search, prefix_name, gt_I, gt_D, dataset_path, query_path, num_thread, rtol, atol);
 }

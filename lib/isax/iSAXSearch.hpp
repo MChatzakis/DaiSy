@@ -9,7 +9,7 @@
 #include "iSAXIndex.hpp"
 #include "iSAXPqueue.hpp"
 
-namespace diNoLib
+namespace daisy
 {
     void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile);
 

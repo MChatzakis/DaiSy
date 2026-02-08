@@ -10,8 +10,19 @@
 #include <cfloat>
 #include <omp.h>
 
-namespace diNoLib
+namespace daisy
 {
+    /**
+     * @class LbBruteforce
+     * @brief Lower-bound pruning with brute-force refinement
+     *
+     * Accelerates similarity search by first computing lower-bound distances using
+     * iSAX representations, then pruning candidates before exact distance computation.
+     * Supports both L2 and DTW metrics with configurable iSAX indexing parameters.
+     * Requires in-memory data; file-based input is not supported.
+     *
+     * @note Use setPaaSegments(), setSaxCardinality(), etc. to tune performance.
+     */
     class LbBruteforce : public SimilaritySearchAlgorithm
     {
     private:
@@ -59,14 +70,15 @@ namespace diNoLib
 
         // Bring base class buildIndex overloads into scope
         using SimilaritySearchAlgorithm::buildIndex;
-        
+
         void buildIndex(DataSource *data_source) override;
-        
+
         // LbBruteforce only supports in-memory data
-        void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) override {
+        void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) override
+        {
             throw std::runtime_error("LbBruteforce requires in-memory data. Use buildIndex(database, n_database, dim) instead.");
         }
-        
+
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
@@ -74,6 +86,6 @@ namespace diNoLib
         ~LbBruteforce();
     };
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // LBBRUTEFORCE_HPP
