@@ -111,7 +111,7 @@ cmake --build . -j
 - Se la configurazione segnala "CUDA toolkit not found", verifica `PATH` e `LD_LIBRARY_PATH` (vedi `docs/cuda-installation.md`).
 `
 
-
+<!--
 
 ## Running the test suite
 ```bash
@@ -135,6 +135,7 @@ cd build
 ./benchmark/bm_Odyssey_L2Square    # MPI required
 ./benchmark/bm_Sing_L2Square       # CUDA required
 ```
+-->
 
 ## About
 DaiSy is developed by the [diNo research group at LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
