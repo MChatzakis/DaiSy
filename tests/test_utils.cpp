@@ -33,9 +33,9 @@ void SimilaritySearchTest::runSST(daisy::SimilaritySearchAlgorithm *search,
 
     // Odyssey requires FileDataSource and MPI (argc/argv passed in test main)
 #if ODYSSEY_MPI
-    diNoLib::Odyssey *odyssey_search = dynamic_cast<diNoLib::Odyssey *>(search);
+    daisy::Odyssey *odyssey_search = dynamic_cast<daisy::Odyssey *>(search);
     if (odyssey_search != nullptr) {
-        diNoLib::FileDataSource data_source(dataset_path.c_str(), dim, n_database);
+        daisy::FileDataSource data_source(dataset_path.c_str(), dim, n_database);
         search->buildIndex(&data_source);
     } else
 #endif

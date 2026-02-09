@@ -31,7 +31,7 @@ protected:
      * @param query_path Path to the query binary file
      * @param num_thread Number of threads to use during search
      */
-    void runSST(diNoLib::SimilaritySearchAlgorithm *search,
+    void runSST(daisy::SimilaritySearchAlgorithm *search,
                 const std::string &prefix_name,
                 const std::string &gt_I,
                 const std::string &gt_D,

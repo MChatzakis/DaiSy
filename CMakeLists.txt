@@ -38,6 +38,16 @@ option(ODYSSEY_MPI "Build Odyssey components with MPI support" ON)
 option(ODYSSEY_DEBUG_RESULTS "Print Odyssey search results (query_result) for debug before copy to I,D" OFF)
 option(SING_CUDA "Enable CUDA support" OFF)
 
+# Backward compatibility: ENABLE_MPI maps to ODYSSEY_MPI
+if(DEFINED ENABLE_MPI)
+    if(ENABLE_MPI STREQUAL "OFF" OR NOT ENABLE_MPI)
+        set(ODYSSEY_MPI OFF CACHE BOOL "Build Odyssey components with MPI support" FORCE)
+        if(DEBUG_MSG)
+            message(STATUS "ENABLE_MPI=OFF detected, setting ODYSSEY_MPI=OFF")
+        endif()
+    endif()
+endif()
+
 message(STATUS "  DEBUG_MSG: ${DEBUG_MSG}")
 message(STATUS "Build options:")
 message(STATUS "  BUILD_PYTHON: ${BUILD_PYTHON}")

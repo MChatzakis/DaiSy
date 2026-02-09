@@ -13,9 +13,9 @@ static char **g_argv = nullptr;
 TEST_P(OdysseyParameterizedTest, AllConfigurations)
 {
     const SSTestConfig &config = GetParam();
-    diNoLib::DistanceType dist_DTW = diNoLib::DistanceType::DTW;
+    daisy::DistanceType dist_DTW = daisy::DistanceType::DTW;
 
-    diNoLib::OdysseyConfig odyssey_config;
+    daisy::OdysseyConfig odyssey_config;
     odyssey_config.search_workers = 2;
     odyssey_config.index_threads = 2;
     odyssey_config.query_threads = 2;
@@ -24,7 +24,7 @@ TEST_P(OdysseyParameterizedTest, AllConfigurations)
     odyssey_config.replication_groups = 0;
     odyssey_config.warping_window = 10;  // match typical ground truth (e.g. max(1, dim*0.1))
 
-    diNoLib::Odyssey search(odyssey_config, dist_DTW, g_argc, g_argv);
+    daisy::Odyssey search(odyssey_config, dist_DTW, g_argc, g_argv);
 
     std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
     std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";

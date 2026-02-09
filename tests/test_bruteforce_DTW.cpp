@@ -47,24 +47,24 @@ TEST(BruteforceDTWManualTests, BasicDTWFunctionality)
     // Test 1: Basic functionality test
     {
         printf("Test 1: Basic DTW functionality...\n");
-        diNoLib::idx_t n_database = 10;
+        daisy::idx_t n_database = 10;
         unsigned long long dim = 5;
         unsigned long long n_query = 1;
-        diNoLib::idx_t k = 3;
+        daisy::idx_t k = 3;
 
         float *database = loadRandomData(n_database, dim, 42, true);
         float *query = loadRandomData(n_query, dim, 24, true);
 
-        diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
-        diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+        daisy::BruteForceSearch bf_search_dtw(daisy::DistanceType::DTW);
+        daisy::InMemoryDataSource data_source(database, n_database, dim);
         bf_search_dtw.buildIndex(&data_source);
 
-        diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
+        daisy::idx_t *I = new daisy::idx_t[n_query * k];
         float *D = new float[n_query * k];
         bf_search_dtw.searchIndex(query, n_query, k, I, D);
 
         bool has_valid_results = true;
-        for (diNoLib::idx_t i = 0; i < k; i++)
+        for (daisy::idx_t i = 0; i < k; i++)
         {
             if (I[i] >= n_database || D[i] < 0)
             {
@@ -87,24 +87,24 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
     // Test 2: Compare DTW vs L2_SQUARED results are different
     {
         printf("Test 2: DTW vs L2_SQUARED produce different results...\n");
-        diNoLib::idx_t n_database = 20;
+        daisy::idx_t n_database = 20;
         unsigned long long dim = 8;
         unsigned long long n_query = 1;
-        diNoLib::idx_t k = 5;
+        daisy::idx_t k = 5;
 
         float *database = loadRandomData(n_database, dim, 100, true);
         float *query = loadRandomData(n_query, dim, 50, true);
 
         // DTW search
-        diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
-        diNoLib::InMemoryDataSource data_source_dtw(database, n_database, dim);
+        daisy::BruteForceSearch bf_search_dtw(daisy::DistanceType::DTW);
+        daisy::InMemoryDataSource data_source_dtw(database, n_database, dim);
         bf_search_dtw.buildIndex(&data_source_dtw);
-        diNoLib::idx_t *I_dtw = new diNoLib::idx_t[n_query * k];
+        daisy::idx_t *I_dtw = new daisy::idx_t[n_query * k];
         float *D_dtw = new float[n_query * k];
         bf_search_dtw.searchIndex(query, n_query, k, I_dtw, D_dtw);
 
         // L2_SQUARED search
-        diNoLib::BruteForceSearch bf_search_l2(diNoLib::DistanceType::L2_SQUARED);
+        daisy::BruteForceSearch bf_search_l2(daisy::DistanceType::L2_SQUARED);
         daisy::InMemoryDataSource data_source_l2(database, n_database, dim);
         bf_search_l2.buildIndex(&data_source_l2);
         daisy::idx_t *I_l2 = new daisy::idx_t[n_query * k];
@@ -113,7 +113,7 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
 
         // Check if results are different (they should be)
         bool results_different = false;
-        for (diNoLib::idx_t i = 0; i < k; i++)
+        for (daisy::idx_t i = 0; i < k; i++)
         {
             if (I_dtw[i] != I_l2[i] || fabs(D_dtw[i] - D_l2[i]) > 0.001)
             {
@@ -138,25 +138,25 @@ TEST(BruteforceDTWManualTests, DTWMultiThreading)
     // Test 3: Thread safety test
     {
         printf("Test 3: DTW multi-threading...\n");
-        diNoLib::idx_t n_database = 50;
+        daisy::idx_t n_database = 50;
         unsigned long long dim = 12;
         unsigned long long n_query = 5;
-        diNoLib::idx_t k = 3;
+        daisy::idx_t k = 3;
 
         float *database = loadRandomData(n_database, dim, 200, true);
         float *query = loadRandomData(n_query, dim, 150, true);
 
-        diNoLib::BruteForceSearch bf_search_dtw(diNoLib::DistanceType::DTW);
+        daisy::BruteForceSearch bf_search_dtw(daisy::DistanceType::DTW);
         bf_search_dtw.setNumThreads(4);
-        diNoLib::InMemoryDataSource data_source(database, n_database, dim);
+        daisy::InMemoryDataSource data_source(database, n_database, dim);
         bf_search_dtw.buildIndex(&data_source);
 
-        diNoLib::idx_t *I = new diNoLib::idx_t[n_query * k];
+        daisy::idx_t *I = new daisy::idx_t[n_query * k];
         float *D = new float[n_query * k];
         bf_search_dtw.searchIndex(query, n_query, k, I, D);
 
         bool all_valid = true;
-        for (diNoLib::idx_t i = 0; i < n_query * k; i++)
+        for (daisy::idx_t i = 0; i < n_query * k; i++)
         {
             if (I[i] >= n_database || D[i] < 0)
             {
