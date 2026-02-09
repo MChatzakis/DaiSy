@@ -165,62 +165,86 @@ if(DEBUG_MSG)
     message(STATUS "Include directories added for bm_Messi_L2Square.")
 endif()
 
-# ////// ODYSSEY (conditional on MPI) //////
+# ////// PARIS //////
 if(DEBUG_MSG)
     message(STATUS "---")
-    message(STATUS "## Benchmark: Odyssey (conditional on MPI)")
+    message(STATUS "## Benchmark: ParIS")
 endif()
 
-# if (ODYSSEY_MPI_AVAILABLE)
-#     if(DEBUG_MSG)
-#         message(STATUS "ODYSSEY_MPI_AVAILABLE is TRUE. Building bm_Odyssey_L2Square.")
-#         message(STATUS "Attempting to add executable: bm_Odyssey_L2Square")
-#     endif()
-#     add_executable(bm_Odyssey_L2Square
-#         bm_Odyssey_L2Square.cpp
-#         bm_utils.cpp
-#         ../commons/paramSetup.cpp
-#         ../commons/test_bm_utils.cpp
-#         ../commons/dataloaders.cpp
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Executable bm_Odyssey_L2Square added.")
-#     endif()
+add_executable(bm_ParIS_L2Square
+    bm_ParIS_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_ParIS_L2Square
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_ParIS_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
 
-#     if(DEBUG_MSG)
-#         message(STATUS "Linking libraries for bm_Odyssey_L2Square...")
-#     endif()
-#     target_link_libraries(bm_Odyssey_L2Square
-#         PRIVATE
-#         benchmark::benchmark
-#         benchmark::benchmark_main
-#         dino_lib
-#         MPI::MPI_CXX # Link with MPI for this benchmark
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Libraries linked for bm_Odyssey_L2Square.")
-#     endif()
+# ////// ODYSSEY (conditional on MPI) //////
+if(ODYSSEY_MPI_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "## Benchmark: Odyssey L2Square")
+    endif()
 
-#     if(DEBUG_MSG)
-#         message(STATUS "Adding include directories for bm_Odyssey_L2Square...")
-#     endif()
-#     target_include_directories(bm_Odyssey_L2Square
-#         PRIVATE
-#         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
-#         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
-#     )
-#     if(DEBUG_MSG)
-#         message(STATUS "Include directories added for bm_Odyssey_L2Square.")
-#     endif()
-# else()
-#     if(DEBUG_MSG)
-#         message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. bm_Odyssey_L2Square (MPI-dependent) will NOT be built.")
-#     endif()
-# endif()
+    add_executable(bm_Odyssey_L2Square
+        bm_Odyssey_L2Square.cpp
+        bm_utils.cpp
+        ../commons/paramSetup.cpp
+        ../commons/test_bm_utils.cpp
+        ../commons/dataloaders.cpp
+    )
+    target_compile_definitions(bm_Odyssey_L2Square PRIVATE ODYSSEY_MPI=1)
+    target_link_libraries(bm_Odyssey_L2Square
+        PRIVATE
+        benchmark::benchmark
+        benchmark::benchmark_main
+        dino_lib
+        MPI::MPI_CXX
+    )
+    target_include_directories(bm_Odyssey_L2Square
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+endif()
 
-# ////// PARIS //////
+# ////// SING (conditional on CUDA) //////
+if(SING_CUDA_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "## Benchmark: Sing L2Square")
+    endif()
 
-# ////// SING //////
+    add_executable(bm_Sing_L2Square
+        bm_Sing_L2Square.cpp
+        bm_utils.cpp
+        ../commons/paramSetup.cpp
+        ../commons/test_bm_utils.cpp
+        ../commons/dataloaders.cpp
+    )
+    target_link_libraries(bm_Sing_L2Square
+        PRIVATE
+        benchmark::benchmark
+        benchmark::benchmark_main
+        dino_lib
+    )
+    target_include_directories(bm_Sing_L2Square
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+endif()
 
 if(DEBUG_MSG)
     message(STATUS "--- Benchmark Configuration Complete ---")

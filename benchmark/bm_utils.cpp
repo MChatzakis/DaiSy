@@ -2,6 +2,10 @@
 
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/DataSource.hpp"
+#include "../lib/algos/ParIS.hpp"
+#if ODYSSEY_MPI
+#include "../lib/algos/hodyssey/Odyssey.hpp"
+#endif
 
 void runSSTBenchmark(
     daisy::SimilaritySearchAlgorithm *search,
@@ -35,20 +39,35 @@ void runSSTBenchmark(
         return;
     }
 
-    float *database = loadBinData(dataset_path.c_str(), n_database, dim, false);
     float *query = loadBinData(query_path.c_str(), n_query, dim, false);
 
-    daisy::InMemoryDataSource data_source(database, n_database, dim);
-    search->buildIndex(&data_source);
+#if ODYSSEY_MPI
+    if (daisy::Odyssey *odyssey_search = dynamic_cast<daisy::Odyssey *>(search))
+    {
+        daisy::FileDataSource data_source(dataset_path.c_str(), dim, n_database);
+        search->buildIndex(&data_source);
+    }
+    else
+#endif
+    if (daisy::ParIS *paris_search = dynamic_cast<daisy::ParIS *>(search))
+    {
+        search->buildIndex(dataset_path, dim, n_database);
+    }
+    else
+    {
+        float *database = loadBinData(dataset_path.c_str(), n_database, dim, false);
+        daisy::InMemoryDataSource data_source(database, n_database, dim);
+        search->buildIndex(&data_source);
+        delete[] database;
+    }
+
     search->setNumThreads(num_thread);
 
     daisy::idx_t *I = new daisy::idx_t[n_query * k];
     float *D = new float[n_query * k];
 
-    // Run the search without validation
     search->searchIndex(query, n_query, k, I, D);
 
-    delete[] database;
     delete[] query;
     delete[] I;
     delete[] D;
