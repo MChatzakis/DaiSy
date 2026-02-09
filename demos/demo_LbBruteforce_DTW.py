@@ -4,7 +4,7 @@ import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from diNoSimilaritySearch import DistanceType, LbBruteforce
+from daisy import DistanceType, LbBruteforce
 
 def main():
     n_database = 200000

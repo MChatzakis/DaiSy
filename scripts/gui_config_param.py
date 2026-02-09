@@ -3,7 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import platform
 from typing import Optional, Tuple
 
-from diNoSimilaritySearch import BruteForceSearch, LbBruteforce, Messi, Odyssey, Sing #, ParIS, Sing
+from daisy import BruteForceSearch, LbBruteforce, Messi, Odyssey, Sing #, ParIS, Sing
 
 # Global variables
 user_inputs = {}
