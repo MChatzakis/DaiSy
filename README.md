@@ -74,17 +74,17 @@ cmake --build .
 ### Enable Python
 
 ```bash
-python3.12 -m venv daisy_env
+python3.12 -m venv DaiSy_env
 
-source daisy_env/bin/activate 
-pip install -r requirements_daisy.txt
+source DaiSy_env/bin/activate 
+pip install -r requirements_DaiSy.txt
 ```
 
 #### Conda Environment
 
 ```bash
-conda env create -f environment_daisy.yml
-conda activate daisy_env
+conda env create -f environment_DaiSy.yml
+conda activate DaiSy_env
 ```
 
 
