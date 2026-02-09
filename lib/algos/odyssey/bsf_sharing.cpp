@@ -5,14 +5,13 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
-#include <cstddef>  // for offsetof
+#include <cstddef>  
 
 namespace daisy
 {
-    // MPI Datatype for BSF message (initialized in create_bsf_msg_mpi_type)
+    
     MPI_Datatype bsf_msg_type;
 
-    // Helper macro for allocation checking (if not defined elsewhere)
     #ifndef CHECK_ALLOC
     #define CHECK_ALLOC(ptr, rank) \
         if ((ptr) == nullptr) { \
@@ -21,9 +20,8 @@ namespace daisy
         }
     #endif
 
-    // Debug flag for BSF sharing prints (can be set via environment variable or config)
     #ifndef ENABLE_PRINTS_BSF_SHARING
-    #define ENABLE_PRINTS_BSF_SHARING 0  // Set to 1 to enable debug prints
+    #define ENABLE_PRINTS_BSF_SHARING 0  
     #endif
 
     void create_bsf_msg_mpi_type()
@@ -34,7 +32,7 @@ namespace daisy
             offsetof(BsfMessage, bsf),
             offsetof(BsfMessage, position)
         };
-        MPI_Datatype types[3] = {MPI_INT, MPI_FLOAT, MPI_UNSIGNED_LONG_LONG}; // query_id, bsf, pos of bsf
+        MPI_Datatype types[3] = {MPI_INT, MPI_FLOAT, MPI_UNSIGNED_LONG_LONG}; 
         MPI_Type_create_struct(3, lengths, displacements, types, &bsf_msg_type);
         MPI_Type_commit(&bsf_msg_type);
     }
@@ -48,7 +46,6 @@ namespace daisy
 
         create_bsf_msg_mpi_type();
 
-        // Initialize/reset the data structure
         bsf_sharing_data.communicators.clear();
         bsf_sharing_data.requests.clear();
         bsf_sharing_data.shared_bsfs.clear();
@@ -58,13 +55,11 @@ namespace daisy
         bsf_sharing_data.bsf_receives_counter = 0;
         bsf_sharing_data.bsf_correct_receives_counter = 0;
 
-        // Resize vectors to comm_sz
         bsf_sharing_data.communicators.resize(comm_sz);
         bsf_sharing_data.requests.resize(comm_sz);
         bsf_sharing_data.shared_bsfs.resize(comm_sz);
         bsf_sharing_data.bcasts_per_query.resize(comm_sz);
 
-        // Each node broadcasts in one communicator, and listens to all communicators.
         for (int i = 0; i < comm_sz; ++i)
         {
             MPI_Comm_dup(MPI_COMM_WORLD, &(bsf_sharing_data.communicators[i]));
@@ -89,7 +84,6 @@ namespace daisy
             MPI_Comm_free(&(bsf_sharing_data.communicators[i]));
         }
 
-        // Vectors will be automatically cleaned up by destructor
         bsf_sharing_data.communicators.clear();
         bsf_sharing_data.requests.clear();
         bsf_sharing_data.shared_bsfs.clear();
@@ -160,7 +154,7 @@ namespace daisy
         if (bsf_changed || query_changed)
         {
             bsf_sharing_data.shared_bsfs[my_rank].bsf = current_BSF;
-            bsf_sharing_data.shared_bsfs[my_rank].position = position;  /* global position */
+            bsf_sharing_data.shared_bsfs[my_rank].position = position;  
             bsf_sharing_data.shared_bsfs[my_rank].q_num = query_id;
 
             bsf_sharing_data.bsf_broadcasts_counter++;
@@ -198,7 +192,7 @@ namespace daisy
 
             if (my_rank != process_rank && ready)
             {
-                // Process process_rank has shared a new BSF value
+                
                 do
                 {
                     bsf_sharing_data.bsf_receives_counter++;
@@ -210,7 +204,6 @@ namespace daisy
                     float current_bsf_shared = bsf_sharing_data.shared_bsfs[my_rank].bsf;
                     float current_bsf_local = pq_bsf->knn[pq_bsf->k - 1];
 
-                    // Bookkeeping: update shared_bsf_results if received BSF is better
                     if (query_id_received >= 0 && query_id_received < (int)shared_bsf_results.size() &&
                         bsf_received < shared_bsf_results[query_id_received].bsf)
                     {
@@ -225,7 +218,6 @@ namespace daisy
                         shared_bsf_results[query_id_received].q_num = query_id_received;
                     }
 
-                    // Check if the received BSF is for my current query and if it is smaller than my current BSF
                     if (query_counter == query_id_received && bsf_received < current_bsf_shared && bsf_received < current_bsf_local)
                     {
                         bsf_sharing_data.shared_bsfs[my_rank].bsf = bsf_sharing_data.shared_bsfs[process_rank].bsf;
@@ -240,7 +232,6 @@ namespace daisy
                         }
                     }
 
-                    // Continue listening to the communicator of process_rank, and consume all the messages of this communicator
                     MPI_Ibcast(&bsf_sharing_data.shared_bsfs[process_rank], 1, bsf_msg_type, process_rank, 
                               bsf_sharing_data.communicators[process_rank], &bsf_sharing_data.requests[process_rank]);
                     MPI_Test(&bsf_sharing_data.requests[process_rank], &ready, MPI_STATUS_IGNORE);
@@ -290,4 +281,4 @@ namespace daisy
         }
     }
 
-} // namespace daisy
+} 

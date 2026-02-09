@@ -39,11 +39,10 @@ namespace daisy
     {
         this->dim = data_source->getDim();
         this->n_database = data_source->getTotalRecords();
-        
-        // For LbBruteforce, we need all data in memory, so load it all
+
         if (this->n_database == 0)
         {
-            // If total records unknown, we need to count first
+            
             data_source->reset();
             idx_t count = 0;
             float *dummy = new float[this->dim];
@@ -55,8 +54,7 @@ namespace daisy
             this->n_database = count;
             data_source->reset();
         }
-        
-        // Allocate and load all data
+
         this->database = new float[this->n_database * this->dim];
         float *record = new float[this->dim];
         idx_t idx = 0;
@@ -67,33 +65,31 @@ namespace daisy
         }
         delete[] record;
 
-        this->index_settings = isax_index_settings_init("",                        // INDEX DIRECTORY
-                                                        this->dim,                 // TIME SERIES SIZE
-                                                        this->paa_segments,        // PAA SEGMENTS
-                                                        this->sax_cardinality,     // SAX CARDINALITY IN BITS
-                                                        this->leaf_size,           // LEAF SIZE
-                                                        this->min_leaf_size,       // MIN LEAF SIZE
-                                                        this->initial_lbl_size,    // INITIAL LEAF BUFFER SIZE
-                                                        this->flush_limit,         // FLUSH LIMIT
-                                                        this->initial_fbl_size,    // INITIAL FBL BUFFER SIZE
-                                                        this->total_loaded_leaves, // Leaves to load at each fetch
-                                                        this->tight_bound,         // Tightness of leaf bounds
-                                                        0,                         // aggressive check
+        this->index_settings = isax_index_settings_init("",                        
+                                                        this->dim,                 
+                                                        this->paa_segments,        
+                                                        this->sax_cardinality,     
+                                                        this->leaf_size,           
+                                                        this->min_leaf_size,       
+                                                        this->initial_lbl_size,    
+                                                        this->flush_limit,         
+                                                        this->initial_fbl_size,    
+                                                        this->total_loaded_leaves, 
+                                                        this->tight_bound,         
+                                                        0,                         
                                                         1,
-                                                        1); // new index
+                                                        1); 
 
         this->index = isax_index_init_inmemory(this->index_settings);
 
-        // initialize db_sax_representations
         this->db_sax_representations = (sax_type **)malloc(n_database * sizeof(sax_type *));
 
 #pragma omp parallel for num_threads(num_threads)
-        for (idx_t dbi = 0; dbi < n_database; dbi++) // replaced n_database*dim with n_database
+        for (idx_t dbi = 0; dbi < n_database; dbi++) 
         {
             this->db_sax_representations[dbi] = (sax_type *)malloc(sizeof(sax_type) * this->index->settings->paa_segments);
             float *vi_vec = this->database + dbi * dim;
 
-    
             if (!this->distance_computer->compute_sax_from_ts(vi_vec,
                                                               this->db_sax_representations[dbi],
                                                               this->index->settings->ts_values_per_paa_segment,
@@ -133,12 +129,12 @@ namespace daisy
             {
                 std::priority_queue<std::pair<float, idx_t>> pq;
                 const float *q_vec = query + qi * dim;
-                float bound = FLT_MAX; // initialize bound to max float
+                float bound = FLT_MAX; 
 
                 ts_type *q_paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
                 if (q_paa == nullptr) {
                     fprintf(stderr, "Error: Failed to allocate memory for PAA representation\n");
-                    continue; // Skip this query
+                    continue; 
                 }
                 
                 this->distance_computer->compute_paa_from_ts(
@@ -167,23 +163,21 @@ namespace daisy
                                                                                 dim,
                                                                                 bound);
 
-                        if ((idx_t)pq.size() < k) // maintain max-heap
+                        if ((idx_t)pq.size() < k) 
                         {
-                            pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
+                            pq.emplace(dist, dbi); 
                         }
                         else if (dist < pq.top().first)
                         {
                             pq.pop();
                             pq.emplace(dist, dbi);
-                            bound = pq.top().first; // update the bound variable for pruning
+                            bound = pq.top().first; 
                         }
                     }
                 }
 
-                // Free the allocated PAA memory
                 free(q_paa);
 
-                // store top-k results in reverse order
                 for (idx_t j = k; j > 0; --j)
                 {
                     D[qi * k + (j - 1)] = pq.top().first;
@@ -203,32 +197,26 @@ namespace daisy
             {
                 std::priority_queue<std::pair<float, idx_t>> pq;
                 const float *q_vec = query + qi * dim;
-                float bound = FLT_MAX; // initialize bound to max float
+                float bound = FLT_MAX; 
 
-                // Allocate memory for DTW envelopes and PAA representations
                 float *lower_envelope = (float *)malloc(sizeof(float) * dim);
                 float *upper_envelope = (float *)malloc(sizeof(float) * dim);
                 ts_type *q_paa_upper = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
                 ts_type *q_paa_lower = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
 
-                // Check memory allocation
                 if (!lower_envelope || !upper_envelope || !q_paa_upper || !q_paa_lower) {
                     fprintf(stderr, "Error: Failed to allocate memory for DTW computation\n");
-                    // Clean up any successful allocations
+                    
                     if (lower_envelope) free(lower_envelope);
                     if (upper_envelope) free(upper_envelope);
                     if (q_paa_upper) free(q_paa_upper);
                     if (q_paa_lower) free(q_paa_lower);
-                    continue; // Skip this query
+                    continue; 
                 }
 
-                // Compute DTW envelopes with warping window
-                // For DTW we use a default warping window, could be made configurable
-                int warping_window = static_cast<int>(dim * 0.1); // 10% of time series length
+                int warping_window = static_cast<int>(dim * 0.1); 
                 lower_upper_lemire(const_cast<float *>(q_vec), dim, warping_window, lower_envelope, upper_envelope);
 
-
-                // Compute PAA for upper and lower envelopes
                 this->distance_computer->compute_paa_from_ts(
                     upper_envelope, q_paa_upper,
                     index->settings->paa_segments,
@@ -242,7 +230,6 @@ namespace daisy
                 {
                     const float *db_vec = database + dbi * dim;
 
-                    // Use DTW-specific minimum distance computation
                     float minimum_distance = this->distance_computer->wrap_minidist_paa_to_isax_DTW(
                         q_paa_upper, q_paa_lower,
                         db_sax_representations[dbi],
@@ -256,29 +243,27 @@ namespace daisy
 
                     if (minimum_distance < bound)
                     {
-                        // Compute actual DTW distance
+                        
                         float dist = this->distance_computer->compute_dist(const_cast<float *>(q_vec),
                                                                            const_cast<float *>(db_vec),
                                                                            dim,
                                                                            bound);
 
-                        if ((idx_t)pq.size() < k) // maintain max-heap
+                        if ((idx_t)pq.size() < k) 
                         {
-                            pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
+                            pq.emplace(dist, dbi); 
                 
                         }
                         else if (dist < pq.top().first)
                         {
                             pq.pop();
                             pq.emplace(dist, dbi);
-                            bound = pq.top().first; // update the bound variable for pruning
+                            bound = pq.top().first; 
                     
                         }
                     }
                 }
 
-
-                // store top-k results in reverse order
                 for (idx_t j = k; j > 0; --j)
                 {
                     D[qi * k + (j - 1)] = pq.top().first;
@@ -286,7 +271,6 @@ namespace daisy
                     pq.pop();
                 }
 
-                // Clean up allocated memory
                 free(lower_envelope);
                 free(upper_envelope);
                 free(q_paa_upper);
@@ -299,7 +283,6 @@ namespace daisy
     {
         delete[] database;
 
-        // delete the sax representations as well
         for (idx_t dbi = 0; dbi < n_database; ++dbi)
         {
             free(db_sax_representations[dbi]);

@@ -27,7 +27,6 @@ TEST_P(MessiParameterizedTest, AllConfigurations)
 
 }
 
-    
 INSTANTIATE_TEST_SUITE_P(
     MessiTests,
     MessiParameterizedTest,

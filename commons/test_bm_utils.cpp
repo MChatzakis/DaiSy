@@ -138,7 +138,7 @@ void assert_eq(size_t a, size_t b, const std::string &msg)
 
 void add_failure(const std::string &msg)
 {
-    // Propagate to gtest when available; otherwise log to stderr.
+    
     REPORT_FAILURE(msg);
 }
 
@@ -161,9 +161,7 @@ void compareWithGroundTruth(const std::string &pathI,
 
     for (size_t i = 0; i < n_query; ++i)
     {
-        /* Build (index, distance) pairs for this query and sort by (distance, index).
-         * Approximate algorithms (Messi, Odyssey) may return the same set in a different
-         * order (e.g. tie-breaking or floating point). Sorting both sides normalizes order. */
+        
         std::vector<std::pair<float, daisy::idx_t>> our_pairs;
         our_pairs.reserve(k);
         for (size_t j = 0; j < k; ++j)
@@ -189,7 +187,6 @@ void compareWithGroundTruth(const std::string &pathI,
             return a.second < b.second;
         });
 
-        /* Count distinct (index, distance) in our output; approximate algorithms may pad with duplicates when they return fewer than k. */
         size_t our_unique = 0;
         for (size_t j = 0; j < k; ++j)
         {

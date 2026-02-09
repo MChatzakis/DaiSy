@@ -22,23 +22,16 @@
 #include <cuda_runtime.h>
 #endif
 
-#define COUNT_CAL_TIME_START
-#define COUNT_CAL_TIME_END
-#define COUNT_CHECKED_NODE()
-#define COUNT_QUEUE_TIME_START
-#define COUNT_QUEUE_TIME_END
-
 namespace daisy
 {
 
     static long added_tree_node = 0;
 
-    // Funzioni non presenti nel codebase: dichiarate e chiamate, da implementare
     void approximate_topk_SING(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float *rawfile);
     void *multigapworker(void *arg);
     void *exact_knn_SING_worker(void *arg);
 #if SING_CUDA_ENABLED
-    /* LBDfloatstreamGPU dichiarata in singlib.hpp e implementata in singlib.cu */
+    
 #else
     void LBDfloatstreamGPU(sax_type *gsaxarray, float *positionmap, ts_type *paa, float *gqts, float bsf,
                            unsigned long size, float *gpositionmap, int paa_segments, float mindist_sqrt);
@@ -47,7 +40,6 @@ namespace daisy
                                            int max_total_buffers_size, isax_index *index);
     void *index_creation_worker2_inmemory(void *arg);
 
-    /** Attraversa l’albero e riempie sortsaxarray/lbdarray; aggiorna *currentposition per ogni foglia. */
     void pass_tree_node_m(isax_node *node, isax_index *index, pthread_mutex_t *lock_queue,
                           unsigned long int *currentposition, sax_type *saxarray, sax_type *sortsaxarray,
                           float *lbdarray);
@@ -199,8 +191,7 @@ namespace daisy
             }
             calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile);
         }
-        /* Do NOT overwrite knn[0..k-2] with knn[k-1]: that would corrupt the heap (distances
-         * would no longer match positions) and destroy valid candidates when we found fewer than k. */
+        
         free(sax);
     }
 
@@ -253,7 +244,7 @@ namespace daisy
             sax_type c_m = max_bit_cardinality;
             sax_type v = sax[i];
             sax_type region_lower = (sax_type)(v << (c_m - c_c));
-            /* Maschera: tutti i bit bassi (c_m - c_c) a 1; (int)MAXFLOAT non è una maschera valida. */
+            
             sax_type mask = ((c_m - c_c) >= (int)(sizeof(sax_type) * 8)) ? (sax_type)-1 : ((sax_type)1 << (c_m - c_c)) - 1;
             sax_type region_upper = region_lower | mask;
             float breakpoint_lower = 0;
@@ -399,7 +390,6 @@ namespace daisy
     void calculate_node_topk_SING(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
                                   pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
-        COUNT_CHECKED_NODE();
         if (node == nullptr || node->buffer == nullptr)
             return;
         for (int i = 0; i < node->buffer->partial_buffer_size; i++)
@@ -413,9 +403,7 @@ namespace daisy
             if (dist <= pq_bsf->knn[pq_bsf->k - 1])
             {
                 pthread_rwlock_wrlock(lock_queue);
-                COUNT_QUEUE_TIME_START
                 pqueue_bsf_insert(pq_bsf, dist, (long int)(*node->buffer->partial_position_buffer[i] / index->settings->timeseries_size), node);
-                COUNT_QUEUE_TIME_END
                 pthread_rwlock_unlock(lock_queue);
             }
         }
@@ -424,7 +412,6 @@ namespace daisy
     void calculate_node_cal_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
                                           pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
-        COUNT_CHECKED_NODE();
         if (node == nullptr || node->buffer == nullptr)
             return;
 
@@ -476,9 +463,7 @@ namespace daisy
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
                     pthread_rwlock_wrlock(lock_queue);
-                    COUNT_QUEUE_TIME_START
                     pqueue_bsf_insert(pq_bsf, dist, (long int)(*node->buffer->partial_position_buffer[i] / index->settings->timeseries_size), node);
-                    COUNT_QUEUE_TIME_END
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
@@ -506,7 +491,6 @@ namespace daisy
         bool finished = true;
         int current_root_node_number;
 
-        /* Phase 1: insert active root nodes into priority queues */
         while (1)
         {
             current_root_node_number = __sync_fetch_and_add(wd->node_counter, 1);
@@ -540,7 +524,6 @@ namespace daisy
                     }
                     pthread_mutex_unlock(&alllock[queuenumber]);
 
-                    /* For exact KNN we must scan every leaf; only prune non-leaf nodes by LBD. */
                     if (!n->node->is_leaf &&
                         (n->distance > bsfdistance || n->distance > minimum_distance))
                     {
@@ -588,7 +571,7 @@ namespace daisy
         (void)gpositionmap;
         (void)paa_segments;
         (void)mindist_sqrt;
-        /* Stub: implementazione reale in singlib.cu quando SING_CUDA è abilitato */
+        
     }
 #endif
 
@@ -600,10 +583,6 @@ namespace daisy
         fbl->max_total_size = max_total_buffers_size;
         fbl->initial_buffer_size = initial_buffer_size;
         fbl->number_of_buffers = number_of_buffers;
-
-        // Allocate a big chunk of memory to store sax data and positions (optional, commented in original)
-        // long long hard_buffer_size = (long long)(index->settings->sax_byte_size + index->settings->position_byte_size) * (long long)max_total_buffers_size;
-        // fbl->hard_buffer = malloc(hard_buffer_size);
 
         fbl->soft_buffers = (fbl_soft_buffer2 *)malloc(sizeof(fbl_soft_buffer2) * (size_t)number_of_buffers);
         fbl->current_record_index = 0;
@@ -649,7 +628,7 @@ namespace daisy
 
         int worker_id = ((buffer_data_inmemory *)transferdata)->workernumber;
         int buffers_processed = 0;
-        static const int debug_print_max = 10; /* stampa al più i primi N buffer per worker */
+        static const int debug_print_max = 10; 
 
         while (1)
         {
@@ -703,8 +682,7 @@ namespace daisy
         }
 
         this->num_threads = n;
-        /* search_workers controls the number of pthreads used per query in searchIndexL2Square;
-         * without this, setNumThreads(8) would have no effect on search (it would stay at default 4). */
+        
         this->search_workers = n;
     }
 
@@ -743,20 +721,20 @@ namespace daisy
         }
         delete[] record;
 
-        const char *index_path = "";                                               // in-memory: no directory
-        this->index_settings = isax_index_settings_init(index_path,                // INDEX DIRECTORY
-                                                        this->dim,                 // TIME SERIES SIZE
-                                                        this->paa_segments,        // PAA SEGMENTS
-                                                        this->sax_cardinality,     // SAX CARDINALITY IN BITS
-                                                        this->leaf_size,           // LEAF SIZE
-                                                        this->min_leaf_size,       // MIN LEAF SIZE
-                                                        this->initial_lbl_size,    // INITIAL LEAF BUFFER SIZE
-                                                        this->flush_limit,         // FLUSH LIMIT
-                                                        this->initial_fbl_size,    // INITIAL FBL BUFFER SIZE
-                                                        this->total_loaded_leaves, // Leaves to load at each fetch
-                                                        this->tight_bound,         // Tightness of leaf bounds
-                                                        this->aggressive_check,    // aggressive check
-                                                        1, 1);                     // new index, inmemory
+        const char *index_path = "";                                               
+        this->index_settings = isax_index_settings_init(index_path,                
+                                                        this->dim,                 
+                                                        this->paa_segments,        
+                                                        this->sax_cardinality,     
+                                                        this->leaf_size,           
+                                                        this->min_leaf_size,       
+                                                        this->initial_lbl_size,    
+                                                        this->flush_limit,         
+                                                        this->initial_fbl_size,    
+                                                        this->total_loaded_leaves, 
+                                                        this->tight_bound,         
+                                                        this->aggressive_check,    
+                                                        1, 1);                     
 
         this->index = isax_index_init_inmemory(this->index_settings);
         this->index->sax_cache_size = this->n_database;
@@ -917,7 +895,7 @@ namespace daisy
             searchIndex_DTW(query, n_query, k, I, D);
             return;
         }
-// Fallback: brute-force
+
 #pragma omp parallel num_threads(num_threads)
         {
 #pragma omp for
@@ -1044,7 +1022,7 @@ namespace daisy
             pass_tree_node_m(nodelist.nlist[i], index, NULL, &currentposition, index->sax_cache, saxarrarysort, positionmap);
         }
         offsetarray[nodelist.node_amount] = currentposition;
-        /* Se pass_tree_node_m non ha copiato nulla (foglie senza partial_buffer), fallback a split lineare e sax_cache. */
+        
         if (currentposition > 0)
         {
 #if SING_CUDA_ENABLED
@@ -1081,7 +1059,6 @@ namespace daisy
 #if !SING_CUDA_ENABLED
             std::memcpy(gqts, ts, sizeof(float) * (size_t)index->settings->timeseries_size);
 #endif
-            /* Con CUDA, LBDfloatstreamGPU copia paa (qts host) su gqts (device) al suo interno */
 
             pqueue_bsf *pq_bsf = pqueue_bsf_init((int)k);
             approximate_topk_SING(ts, paa, index, pq_bsf, this->database);
@@ -1194,7 +1171,6 @@ namespace daisy
             {
                 pthread_create(&threadid[i], NULL, exact_knn_SING_worker, (void *)&workerdata[i]);
             }
-            COUNT_CAL_TIME_START
             for (int i = 0; i < loopnumber; i++)
             {
                 if (activechunk[i])
@@ -1203,7 +1179,6 @@ namespace daisy
                 }
                 gpuoffset = (unsigned long int)((i + 1) * index->sax_cache_size / loopnumber);
             }
-            COUNT_CAL_TIME_END
 
             for (int i = 0; i < maxquerythread; i++)
             {

@@ -39,12 +39,10 @@ INSTANTIATE_TEST_SUITE_P(
                "_idx" + std::to_string(info.index); 
     });
 
-// Additional manual tests for DTW-specific functionality
 TEST(BruteforceDTWManualTests, BasicDTWFunctionality)
 {
     printf("Testing BruteForce DTW integration...\n");
 
-    // Test 1: Basic functionality test
     {
         printf("Test 1: Basic DTW functionality...\n");
         daisy::idx_t n_database = 10;
@@ -84,7 +82,7 @@ TEST(BruteforceDTWManualTests, BasicDTWFunctionality)
 
 TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
 {
-    // Test 2: Compare DTW vs L2_SQUARED results are different
+    
     {
         printf("Test 2: DTW vs L2_SQUARED produce different results...\n");
         daisy::idx_t n_database = 20;
@@ -95,7 +93,6 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
         float *database = loadRandomData(n_database, dim, 100, true);
         float *query = loadRandomData(n_query, dim, 50, true);
 
-        // DTW search
         daisy::BruteForceSearch bf_search_dtw(daisy::DistanceType::DTW);
         daisy::InMemoryDataSource data_source_dtw(database, n_database, dim);
         bf_search_dtw.buildIndex(&data_source_dtw);
@@ -103,7 +100,6 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
         float *D_dtw = new float[n_query * k];
         bf_search_dtw.searchIndex(query, n_query, k, I_dtw, D_dtw);
 
-        // L2_SQUARED search
         daisy::BruteForceSearch bf_search_l2(daisy::DistanceType::L2_SQUARED);
         daisy::InMemoryDataSource data_source_l2(database, n_database, dim);
         bf_search_l2.buildIndex(&data_source_l2);
@@ -111,7 +107,6 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
         float *D_l2 = new float[n_query * k];
         bf_search_l2.searchIndex(query, n_query, k, I_l2, D_l2);
 
-        // Check if results are different (they should be)
         bool results_different = false;
         for (daisy::idx_t i = 0; i < k; i++)
         {
@@ -135,7 +130,7 @@ TEST(BruteforceDTWManualTests, DTWVsL2SquaredDifference)
 
 TEST(BruteforceDTWManualTests, DTWMultiThreading)
 {
-    // Test 3: Thread safety test
+    
     {
         printf("Test 3: DTW multi-threading...\n");
         daisy::idx_t n_database = 50;

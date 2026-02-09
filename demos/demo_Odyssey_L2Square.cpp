@@ -1,10 +1,4 @@
-/**
- * Demo Odyssey L2Square — IDENTICAL to demo_ParIS_L2Square.cpp
- * Same data, same queries, same flow (file -> build -> search) for result comparison.
- *
- * Run from project root: mpirun -np 4 ./demos/demo_Odyssey_L2Square
- * (use path in CWD so all ranks see the same file; /tmp is local per node in multi-node)
- */
+
 #include "../commons/dataloaders.hpp"
 #include "../lib/algos/hodyssey/Odyssey.hpp"
 #include "../lib/algos/DataSource.hpp"
@@ -24,15 +18,14 @@
 
 int main(int argc, char *argv[])
 {
-    // 0. Configuration of the variables — IDENTICAL to ParIS
+    
     daisy::idx_t n_database = 200000;
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
     daisy::idx_t k = 5;
 
-    std::string temp_db_file = "odyssey_l2square_db.bin";  // CWD: all ranks see the same file
+    std::string temp_db_file = "odyssey_l2square_db.bin";  
 
-    // Odyssey initializes MPI in constructor (if ODYSSEY_MPI): create BEFORE any MPI_* call
     daisy::OdysseyConfig config;
     config.search_workers = 2;
     config.index_threads = 4;
@@ -46,11 +39,10 @@ int main(int argc, char *argv[])
     int size = odyssey.getCommSz();
     (void)size;
 
-    // 1. Generate random data and queries — SAME SEED as ParIS (100, 50)
     float *database = nullptr;
     if (rank == 0)
     {
-        remove(temp_db_file.c_str());  // avoid leftover files from previous runs
+        remove(temp_db_file.c_str());  
         database = loadRandomData(n_database, dim, 100, true);
         printf("Loaded %llu database points with dimension %llu\n", n_database, dim);
     }
@@ -59,7 +51,6 @@ int main(int argc, char *argv[])
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
-    // 2. Write database to temporary file (rank 0 only)
     if (rank == 0)
     {
         FILE *fp = fopen(temp_db_file.c_str(), "wb");
@@ -85,7 +76,6 @@ int main(int argc, char *argv[])
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
-    // Absolute file path: rank 0 computes it and broadcasts to all (so all ranks open the same file)
     static const int PATH_MAX_MPI = 1024;
     char path_buf[PATH_MAX_MPI];
     std::memset(path_buf, 0, PATH_MAX_MPI);
@@ -105,18 +95,15 @@ int main(int argc, char *argv[])
 #endif
     std::string path_to_use(path_buf);
 
-    // Query: same seed as ParIS (50). Each rank generates the same sequence.
     float *query = loadRandomData(n_query, dim, 50, true);
     if (rank == 0)
         printf("Loaded %llu query points with dimension %llu\n", n_query, dim);
 
-    // 3. Build the index — FileDataSource as ParIS (file-based); all ranks use the same path
     daisy::FileDataSource data_source(path_to_use.c_str(), dim, n_database);
     odyssey.buildIndex(&data_source);
     if (rank == 0)
         printf(">>> Finished indexing\n");
 
-    // 4. Search the index
     daisy::idx_t *I = static_cast<daisy::idx_t *>(std::malloc(sizeof(daisy::idx_t) * static_cast<size_t>(n_query * k)));
     float *D = static_cast<float *>(std::malloc(sizeof(float) * static_cast<size_t>(n_query * k)));
     if (I == nullptr || D == nullptr)
@@ -133,7 +120,6 @@ int main(int argc, char *argv[])
     if (rank == 0)
         printf(">>> Finished search\n");
 
-    // 5. Print the results — SAME FORMAT as ParIS (indices per query)
     if (rank == 0)
     {
         for (daisy::idx_t i = 0; i < n_query; i++)
@@ -147,7 +133,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // 6. Clean up
     delete[] query;
     std::free(I);
     std::free(D);

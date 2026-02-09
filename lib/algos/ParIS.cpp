@@ -30,7 +30,6 @@ namespace daisy
         this->dim = data_source->getDim();
         this->n_database = data_source->getTotalRecords();
 
-        // ParIS requires FileDataSource
         FileDataSource *file_source = dynamic_cast<FileDataSource *>(data_source);
         if (file_source == nullptr)
         {
@@ -45,33 +44,30 @@ namespace daisy
             throw std::runtime_error("FileDataSource does not have a filename");
         }
 
-        this->index_settings = isax_index_settings_init("",                        // INDEX DIRECTORY
-                                                        this->dim,                 // TIME SERIES SIZE
-                                                        this->paa_segments,        // PAA SEGMENTS
-                                                        this->sax_cardinality,     // SAX CARDINALITY IN BITS
-                                                        this->leaf_size,           // LEAF SIZE
-                                                        this->min_leaf_size,       // MIN LEAF SIZE
-                                                        this->initial_lbl_size,    // INITIAL LEAF BUFFER SIZE
-                                                        this->flush_limit,         // FLUSH LIMIT
-                                                        this->initial_fbl_size,    // INITIAL FBL BUFFER SIZE
-                                                        this->total_loaded_leaves, // Leaves to load at each fetch
-                                                        this->tight_bound,         // Tightness of leaf bounds
-                                                        0,                         // aggressive check
-                                                        1,                         // new index
+        this->index_settings = isax_index_settings_init("",                        
+                                                        this->dim,                 
+                                                        this->paa_segments,        
+                                                        this->sax_cardinality,     
+                                                        this->leaf_size,           
+                                                        this->min_leaf_size,       
+                                                        this->initial_lbl_size,    
+                                                        this->flush_limit,         
+                                                        this->initial_fbl_size,    
+                                                        this->total_loaded_leaves, 
+                                                        this->tight_bound,         
+                                                        0,                         
+                                                        1,                         
                                                         0);
 
         this->index = isax_index_init(this->index_settings);
         isax_index *index = this->index;
 
-        // Use the multi-threaded file-based indexing function
         int ts_num = (this->n_database > 0) ? (int)this->n_database : 0;
         int calculate_thread = this->index_workers;
 
-        // If n_database is 0, we need to determine it from file size
-        // The isax_index_binary_file_m function will handle this
         if (ts_num == 0)
         {
-            // Get file size to determine number of records
+            
             FILE *temp_file = fopen(filename, "rb");
             if (temp_file != nullptr)
             {
@@ -88,10 +84,8 @@ namespace daisy
             }
         }
 
-        // Call the multi-threaded indexing function
         isax_index_binary_file_m(filename, ts_num, index, calculate_thread, this->read_block_length);
 
-        // Load sax_cache from sax_file for search
         if (index->sax_file != nullptr && index->total_records > 0)
         {
             rewind(index->sax_file);
@@ -148,30 +142,25 @@ namespace daisy
             return;
         }
 
-        // Compute query-independent things ONCE outside the loop
-        // Compute warping window if not set (default: 10% of time series length)
         int warpWind = (this->warping_window > 0) ? this->warping_window : std::max(1, static_cast<int>(this->dim * 0.1));
 
         for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
         {
-            // Get current query time series
+            
             const float *ts = query + q_loaded * this->dim;
 
-            // Query-dependent computations (paa, envelopes, paaU, paaL) are done inside exact_DTWknn_serial_ParIS
             pqueue_bsf result = exact_DTWknn_serial_ParIS(
                 (float *)ts,
                 index,
                 warpWind,
                 k);
 
-            // Extract results
             for (idx_t ik = 0; ik < k; ik++)
             {
                 D[q_loaded * k + ik] = result.knn[ik];
                 I[q_loaded * k + ik] = result.position[ik];
             }
 
-            // Free only the internal pointers, not the structure itself (it's on the stack)
             if (result.position != nullptr)
             {
                 free(result.position);
@@ -192,16 +181,13 @@ namespace daisy
         float minimum_distance = this->minimum_distance;
         int min_checked_leaves = this->min_checked_leaves;
 
-        // Compute query-dependent PAA representation
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
 
-        // Use file-based approximate function
         approximate_topk_dtw(ts, paa, index, pq_bsf, warpWind);
 
-        // Compute query-dependent Lemire envelopes and PAA representations for DTW
         ts_type *upperLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
         ts_type *lowerLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
         ts_type *paaU = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
@@ -219,7 +205,6 @@ namespace daisy
         unsigned long j;
         unsigned long i;
 
-        // Allocate thread array dynamically
         int maxquerythread = this->search_workers;
         pthread_t *threadid = (pthread_t *)malloc(sizeof(pthread_t) * maxquerythread);
         ParIS_LDCW_data *essdata = (ParIS_LDCW_data *)malloc(sizeof(ParIS_LDCW_data) * maxquerythread);
@@ -271,7 +256,6 @@ namespace daisy
             sum_of_lab += essdata[i].sum_of_lab;
         }
 
-        // Allocate read thread array dynamically
         pthread_t *readthread = (pthread_t *)malloc(sizeof(pthread_t) * maxquerythread * MAXREADTHREAD);
         ParIS_read_worker_data readpointer;
         unsigned long readcounter = 0;
@@ -312,7 +296,7 @@ namespace daisy
         free(ts_buffer);
 
         pqueue_bsf result = *pq_bsf;
-        // Don't free pq_bsf - caller will free result
+        
         return result;
     }
 
@@ -338,19 +322,16 @@ namespace daisy
         {
             const float *ts = query + q_loaded * this->dim;
 
-            // Parse ts and make PAA representation
             paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
             pqueue_bsf result = exact_topk_serial_ParIS((float *)ts, paa, index, this->minimum_distance, this->min_checked_leaves, k, this->search_workers);
 
-            // Extract results
             for (idx_t ik = 0; ik < k; ik++)
             {
                 D[q_loaded * k + ik] = result.knn[ik];
                 I[q_loaded * k + ik] = result.position[ik];
             }
 
-            // Free only the internal pointers, not the structure itself (it's on the stack)
             if (result.position != nullptr)
             {
                 free(result.position);
@@ -370,10 +351,9 @@ namespace daisy
 
     ParIS::~ParIS()
     {
-        // Save settings pointer before freeing index (they point to the same object)
+        
         isax_index_settings *settings_to_free = nullptr;
 
-        // Cleanup iSAX index structures
         if (index != nullptr)
         {
             if (index->sax_cache != nullptr)
@@ -396,18 +376,16 @@ namespace daisy
                 fclose(index->sax_file);
                 index->sax_file = nullptr;
             }
-            // Save settings pointer before freeing index
+            
             settings_to_free = index->settings;
             free(index);
             index = nullptr;
         }
 
-        // Clean up settings (index->settings and index_settings point to the same object)
-        // Use index_settings if settings_to_free is null (index was never created)
         isax_index_settings *settings = (settings_to_free != nullptr) ? settings_to_free : index_settings;
         if (settings != nullptr)
         {
-            // Free raw_filename if it was allocated
+            
             if (settings->raw_filename != nullptr)
             {
                 free(settings->raw_filename);
@@ -481,7 +459,7 @@ namespace daisy
         FILE *raw_file = fopen(index->settings->raw_filename, "rb");
         if (raw_file == NULL)
         {
-            return NULL; // Cannot open file
+            return NULL; 
         }
         fseek(raw_file, 0, SEEK_SET);
         ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
@@ -498,9 +476,9 @@ namespace daisy
         float *cb1 = (float *)calloc(index->settings->timeseries_size, sizeof(float));
         int length = 2 * warpWind + 1;
         float *tSum = (float *)malloc(sizeof(float) * length);
-        // pre_cost
+        
         float *pCost = (float *)malloc(sizeof(float) * length);
-        // raw distance
+        
         float *rDist = (float *)malloc(sizeof(float) * length);
 
         while (1)
@@ -518,12 +496,11 @@ namespace daisy
             p = ((ParIS_read_worker_data *)read_pointer)->load_point[t];
             if (minidisvector[t] < bsf)
             {
-                // Read time series from disk file (like topk_read_worker does)
+                
                 fseek(raw_file, p * index->settings->ts_byte_size, SEEK_SET);
                 size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
-                (void)items_read; // Suppress unused variable warning
+                (void)items_read; 
 
-                // Re-read BSF after file read, as it might have changed
                 pthread_rwlock_rdlock(((ParIS_read_worker_data *)read_pointer)->lock_bsf);
                 bsf = pq_bsf->knn[pq_bsf->k - 1];
                 pthread_rwlock_unlock(((ParIS_read_worker_data *)read_pointer)->lock_bsf);
@@ -541,7 +518,7 @@ namespace daisy
                     if (dist < pq_bsf->knn[pq_bsf->k - 1])
                     {
                         pthread_rwlock_wrlock(((ParIS_read_worker_data *)read_pointer)->lock_bsf);
-                        // Re-read BSF after acquiring lock, as it might have changed
+                        
                         bsf = pq_bsf->knn[pq_bsf->k - 1];
                         if (dist < bsf)
                         {
@@ -564,7 +541,6 @@ namespace daisy
         return NULL;
     }
 
-    // File-based calculate_node_topk (reads from disk files and in-memory buffers)
     void calculate_node_topk(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf)
     {
         FILE *raw_file = fopen(index->settings->raw_filename, "rb");
@@ -573,11 +549,10 @@ namespace daisy
             return;
         }
 
-        // Check in-memory buffers first (like in-memory version)
         if (node->buffer != NULL)
         {
             int i;
-            // Check full buffers
+            
             for (i = 0; i < node->buffer->full_buffer_size; i++)
             {
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
@@ -587,7 +562,7 @@ namespace daisy
                     pqueue_bsf_insert(pq_bsf, dist, 0, node);
                 }
             }
-            // Check temporary full buffers
+            
             for (i = 0; i < node->buffer->tmp_full_buffer_size; i++)
             {
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
@@ -597,14 +572,14 @@ namespace daisy
                     pqueue_bsf_insert(pq_bsf, dist, 0, node);
                 }
             }
-            // Check partial buffers (read from raw file)
+            
             for (i = 0; i < node->buffer->partial_buffer_size; i++)
             {
                 file_position_type pos = *node->buffer->partial_position_buffer[i];
                 fseek(raw_file, pos, SEEK_SET);
                 ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
                 size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
-                (void)items_read; // Suppress unused variable warning
+                (void)items_read; 
                 float dist = ts_euclidean_distance_SIMD(query, ts_buffer, index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
@@ -614,7 +589,6 @@ namespace daisy
             }
         }
 
-        // Check partial data file
         if (node->filename != NULL && node->has_partial_data_file)
         {
             FILE *node_file = fopen(node->filename, "rb");
@@ -625,7 +599,7 @@ namespace daisy
                 {
                     fseek(node_file, i * index->settings->partial_record_size, SEEK_SET);
                     size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, node_file);
-                    (void)items_read; // Suppress unused variable warning
+                    (void)items_read; 
                     float dist = ts_euclidean_distance_SIMD(query, ts_buffer, index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
                     if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                     {
@@ -638,14 +612,9 @@ namespace daisy
             }
         }
 
-        // Skip full data files in refine_topk_answer - they will be handled by mindistance_worker
-        // which scans the SAX cache and finds all candidates. This avoids position mapping issues.
-        // The in-memory buffers and partial data files should provide a good BSF for pruning.
-
         fclose(raw_file);
     }
 
-    // File-based calculate_node_topk_DTW (reads from disk files and in-memory buffers, uses DTW distance)
     void calculate_node_topk_dtw(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, int warpWind)
     {
         FILE *raw_file = fopen(index->settings->raw_filename, "rb");
@@ -654,14 +623,12 @@ namespace daisy
             return;
         }
 
-        // Allocate cb buffer for DTW (used for early abandoning in dtw function)
         float *cb = (float *)calloc(index->settings->timeseries_size, sizeof(float));
 
-        // Check in-memory buffers first (like in-memory version)
         if (node->buffer != NULL)
         {
             int i;
-            // Check full buffers
+            
             for (i = 0; i < node->buffer->full_buffer_size; i++)
             {
                 float dist = dtw(query, node->buffer->full_ts_buffer[i], cb,
@@ -671,7 +638,7 @@ namespace daisy
                     pqueue_bsf_insert(pq_bsf, dist, 0, node);
                 }
             }
-            // Check temporary full buffers
+            
             for (i = 0; i < node->buffer->tmp_full_buffer_size; i++)
             {
                 float dist = dtw(query, node->buffer->tmp_full_ts_buffer[i], cb,
@@ -681,14 +648,14 @@ namespace daisy
                     pqueue_bsf_insert(pq_bsf, dist, 0, node);
                 }
             }
-            // Check partial buffers (read from raw file)
+            
             for (i = 0; i < node->buffer->partial_buffer_size; i++)
             {
                 file_position_type pos = *node->buffer->partial_position_buffer[i];
                 fseek(raw_file, pos, SEEK_SET);
                 ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
                 size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
-                (void)items_read; // Suppress unused variable warning
+                (void)items_read; 
                 float dist = dtw(query, ts_buffer, cb, index->settings->timeseries_size, warpWind, pq_bsf->knn[pq_bsf->k - 1]);
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
@@ -698,7 +665,6 @@ namespace daisy
             }
         }
 
-        // Check partial data file
         if (node->filename != NULL && node->has_partial_data_file)
         {
             FILE *node_file = fopen(node->filename, "rb");
@@ -709,7 +675,7 @@ namespace daisy
                 {
                     fseek(node_file, i * index->settings->partial_record_size, SEEK_SET);
                     size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, node_file);
-                    (void)items_read; // Suppress unused variable warning
+                    (void)items_read; 
                     float dist = dtw(query, ts_buffer, cb, index->settings->timeseries_size, warpWind, pq_bsf->knn[pq_bsf->k - 1]);
                     if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                     {
@@ -722,15 +688,10 @@ namespace daisy
             }
         }
 
-        // Skip full data files in refine_topk_answer - they will be handled by mindistance_worker
-        // which scans the SAX cache and finds all candidates. This avoids position mapping issues.
-        // The in-memory buffers and partial data files should provide a good BSF for pruning.
-
         free(cb);
         fclose(raw_file);
     }
 
-    // File-based calculate_minimum_distance
     float calculate_minimum_distance(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query)
     {
         float bsfLeaf = minidist_paa_to_isax(query, node->isax_values,
@@ -754,7 +715,7 @@ namespace daisy
                     {
                         fseek(node_file, i * index->settings->partial_record_size, SEEK_SET);
                         size_t items_read = fread(sax_buffer, index->settings->sax_byte_size, 1, node_file);
-                        (void)items_read; // Suppress unused variable warning
+                        (void)items_read; 
                         float mindist = minidist_paa_to_isax_raw_SIMD(query, sax_buffer, index->settings->max_sax_cardinalities,
                                                                       index->settings->sax_bit_cardinality,
                                                                       index->settings->sax_alphabet_cardinality,
@@ -774,7 +735,6 @@ namespace daisy
         return (bsfLeaf < bsfRecord) ? bsfLeaf : bsfRecord;
     }
 
-    // File-based approximate_topk (uses sax_cache loaded from sax_file)
     void approximate_topk(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf)
     {
         sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments);
@@ -788,10 +748,7 @@ namespace daisy
         if (index->fbl->soft_buffers[(int)root_mask].initialized)
         {
             isax_node *node = index->fbl->soft_buffers[(int)root_mask].node;
-            // Traverse tree
 
-            // Adaptive splitting
-            // For file-based indexing, skip adaptive splitting if node has file data
             if (node->is_leaf && !node->has_full_data_file &&
                 !node->has_partial_data_file &&
                 (node->leaf_size > index->settings->min_leaf_size) &&
@@ -819,8 +776,6 @@ namespace daisy
                     node = node->left_child;
                 }
 
-                // Adaptive splitting
-                // For file-based indexing, skip adaptive splitting if node has file data
                 if (node->is_leaf && !node->has_full_data_file &&
                     !node->has_partial_data_file &&
                     (node->leaf_size > index->settings->min_leaf_size) &&
@@ -846,7 +801,6 @@ namespace daisy
         free(sax);
     }
 
-    // File-based approximate_topk (uses sax_cache loaded from sax_file)
     void approximate_topk_dtw(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, int warpWind)
     {
         sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments);
@@ -860,10 +814,7 @@ namespace daisy
         if (index->fbl->soft_buffers[(int)root_mask].initialized)
         {
             isax_node *node = index->fbl->soft_buffers[(int)root_mask].node;
-            // Traverse tree
 
-            // Adaptive splitting
-            // For file-based indexing, skip adaptive splitting if node has file data
             if (node->is_leaf && !node->has_full_data_file &&
                 !node->has_partial_data_file &&
                 (node->leaf_size > index->settings->min_leaf_size) &&
@@ -891,8 +842,6 @@ namespace daisy
                     node = node->left_child;
                 }
 
-                // Adaptive splitting
-                // For file-based indexing, skip adaptive splitting if node has file data
                 if (node->is_leaf && !node->has_full_data_file &&
                     !node->has_partial_data_file &&
                     (node->leaf_size > index->settings->min_leaf_size) &&
@@ -918,7 +867,6 @@ namespace daisy
         free(sax);
     }
 
-    // File-based refine_topk_answer (reads from files instead of in-memory)
     void refine_topk_answer(ts_type *ts, ts_type *paa, isax_index *index,
                             pqueue_bsf *pq_bsf,
                             float minimum_distance, int limit)
@@ -929,7 +877,6 @@ namespace daisy
         pqueue_t *pq = pqueue_init(index->settings->root_nodes_size,
                                    cmp_pri, get_pri, set_pri, get_pos, set_pos);
 
-        // Insert all root nodes in heap.
         isax_node *current_root_node = index->first_node;
         while (current_root_node != NULL)
         {
@@ -956,7 +903,7 @@ namespace daisy
         int checks = 0;
         while ((n = (query_result *)pqueue_pop(pq)))
         {
-            // The best node has a worse mindist, so search is finished!
+            
             if (n->distance >= pq_bsf->knn[pq_bsf->k - 1] || n->distance > minimum_distance)
             {
                 pqueue_insert(pq, n);
@@ -964,12 +911,10 @@ namespace daisy
             }
             else
             {
-                // If it is a leaf, check its real distance.
+                
                 if (n->node->is_leaf)
                 {
-                    // *** ADAPTIVE SPLITTING ***
-                    // For file-based indexing, skip adaptive splitting if node has file data
-                    // to avoid double-free issues with FBL-managed memory
+
                     if (!n->node->has_full_data_file &&
                         !n->node->has_partial_data_file &&
                         (n->node->leaf_size > index->settings->min_leaf_size) &&
@@ -979,12 +924,12 @@ namespace daisy
                          n->node->buffer->tmp_full_buffer_size > 0 ||
                          n->node->buffer->tmp_partial_buffer_size > 0))
                     {
-                        // Split and push again in the queue
+                        
                         split_node(index, n->node);
                         pqueue_insert(pq, n);
                         continue;
                     }
-                    // *** EXTRA BOUNDING ***
+                    
                     if (tight_bound)
                     {
                         float mindistance = calculate_minimum_distance(index, n->node, ts, paa);
@@ -994,18 +939,14 @@ namespace daisy
                             continue;
                         }
                     }
-                    // *** REAL DISTANCE ***
+                    
                     checks++;
                     calculate_node_topk(index, n->node, ts, pq_bsf);
 
-                    // Continue searching - the termination condition at line 440 will handle stopping
-                    // when no node can improve the results (n->distance >= pq_bsf->knn[pq_bsf->k-1])
-                    // Don't break early here, as there might be better candidates still in the queue
                 }
                 else
                 {
-                    // If it is an intermediate node calculate mindist for children
-                    // and push them in the queue
+
                     if (n->node->left_child != NULL && n->node->left_child->isax_cardinalities != NULL)
                     {
                         if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
@@ -1063,15 +1004,14 @@ namespace daisy
                 }
             }
 
-            // Free the node currently popped.
             free(n);
         }
-        // Free the nodes that where not popped.
+        
         while ((n = (query_result *)pqueue_pop(pq)))
         {
             free(n);
         }
-        // Free the priority queue.
+        
         for (int i = 0; i < pq_bsf->k - 1; ++i)
         {
             pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
@@ -1139,36 +1079,28 @@ namespace daisy
         while (1)
         {
 
-            // pthread_rwlock_rdlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf);
             bsf = pq_bsf->knn[pq_bsf->k - 1];
-            // printf(" t is %ld\n",*(((ParIS_read_worker_data*)read_pointer)->counter));
 
-            // pthread_rwlock_unlock(((ParIS_read_worker_data*)read_pointer)->lock_bsf);
-            // t=*(((ParIS_read_worker_data*)read_pointer)->counter);
-            //*(((ParIS_read_worker_data*)read_pointer)->counter)=*(((ParIS_read_worker_data*)read_pointer)->counter)+1;
             t = __sync_fetch_and_add(((ParIS_read_worker_data *)read_pointer)->counter, 1);
-            // printf("%ld\n", ((ParIS_read_worker_data*)read_pointer)->sum_of_lab);
+            
             if (t >= sum_of_lab)
             {
                 break;
             }
 
             p = ((ParIS_read_worker_data *)read_pointer)->load_point[t];
-            // printf("t is %ld!!!\n",p );
-            //  Always check candidates selected by mindistance_worker
-            //  The lower bound check was already done in mindistance_worker, so we verify the actual distance here
-            //  We read the BSF dynamically to use the most current value for pruning during distance calculation
+
             fseek(raw_file, p * index->settings->ts_byte_size, SEEK_SET);
             size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
-            (void)items_read; // Suppress unused variable warning
-            // Read current BSF for pruning in distance calculation
+            (void)items_read; 
+            
             bsf = pq_bsf->knn[pq_bsf->k - 1];
             dist = ts_euclidean_distance_SIMD(ts, ts_buffer, index->settings->timeseries_size, bsf);
-            // printf("the distance is %f!!\n", dist);
+            
             if (dist <= bsf)
             {
                 pthread_rwlock_wrlock(((ParIS_read_worker_data *)read_pointer)->lock_bsf);
-                // Re-read BSF after acquiring lock, as it might have changed
+                
                 bsf = pq_bsf->knn[pq_bsf->k - 1];
                 if (dist <= bsf)
                 {
@@ -1176,7 +1108,7 @@ namespace daisy
                 }
                 pthread_rwlock_unlock(((ParIS_read_worker_data *)read_pointer)->lock_bsf);
             }
-            // printf("the t is :%ld  !!!!!\n",t);
+            
         }
 
         free(ts_buffer);
@@ -1192,7 +1124,7 @@ namespace daisy
             fprintf(stderr, "Error: Could not open raw file for search\n");
             pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
             pqueue_bsf result = *pq_bsf;
-            // Don't free pq_bsf - caller will free result
+            
             return result;
         }
         fseek(raw_file, 0, SEEK_SET);
@@ -1204,28 +1136,20 @@ namespace daisy
 
         int sum_of_lab = 0;
 
-        // Early termination - perfect match found (distance = 0)
         if (pq_bsf->knn[k - 1] == 0)
         {
             free(ts_buffer);
             free(threadid);
             fclose(raw_file);
             pqueue_bsf result = *pq_bsf;
-            // Don't free pq_bsf - caller will free result
+            
             return result;
         }
 
-        // Save approximate BSF before refinement
         float approximate_bsf = pq_bsf->knn[k - 1];
 
-        // Always refine to improve the results in pq_bsf
-        // This tightens the BSF and finds better candidates
         refine_topk_answer(ts, paa, index, pq_bsf, minimum_distance, min_checked_leaves);
 
-        // For mindistance_worker, use FLT_MAX if approximate BSF was FLT_MAX (no initial results found)
-        // Otherwise, use a value that's guaranteed to not prune valid candidates
-        // We use the approximate BSF if it's valid, as it's a safe upper bound
-        // If approximate was FLT_MAX, we must check all candidates, so use FLT_MAX
         float bsf_for_mindistance = (approximate_bsf != FLT_MAX) ? approximate_bsf : FLT_MAX;
 
         unsigned long i;
@@ -1309,9 +1233,7 @@ namespace daisy
         fclose(raw_file);
 
         pqueue_bsf result = *pq_bsf;
-        // Note: We return by value (stack copy), but the internal pointers (knn, position, node) point to heap memory
-        // The caller should free only the internal pointers, not the structure itself
-        // Don't free pq_bsf here - the caller will free the internal pointers from the returned copy
+
         return result;
     }
 }

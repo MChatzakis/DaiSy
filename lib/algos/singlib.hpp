@@ -7,7 +7,6 @@
 extern "C" {
 #endif
 
-/* SAX type per interfaccia singlib (unsigned char, come iSAXTypes) */
 typedef unsigned char singlib_sax_t;
 
 void initialdevice(void);
@@ -29,4 +28,4 @@ void LBDfloatstreamGPU(singlib_sax_t *saxarray, float *posbitmap, float *qts, fl
 }
 #endif
 
-#endif /* SINGLIB_HPP */
+#endif 

@@ -22,7 +22,7 @@ TEST_P(OdysseyParameterizedTest, AllConfigurations)
     odyssey_config.leaf_size = 1000;
     odyssey_config.paa_segments = 16;
     odyssey_config.replication_groups = 0;
-    odyssey_config.warping_window = 10;  // match typical ground truth (e.g. max(1, dim*0.1))
+    odyssey_config.warping_window = 10;  
 
     daisy::Odyssey search(odyssey_config, dist_DTW, g_argc, g_argv);
 

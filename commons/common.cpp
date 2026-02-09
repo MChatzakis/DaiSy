@@ -4,7 +4,6 @@
 #include <cstring>
 #include <cmath>
 
-/* Sigmoid parameters for query execution time prediction (set by initialize_basis_function). */
 static double SIG_m = 0.0, SIG_M = 0.0, SIG_b = 0.0, SIG_c = 0.0, SIG_d = 0.0;
 
 static double sigmoid_parameterized_chatzakis(double x)

@@ -14,21 +14,9 @@
 #include <stdlib.h>
 #endif
 
-/**
- * Demo Odyssey: build index + search (DTW).
- * Same data and queries as demo_ParIS_DTW for result comparison.
- *
- * Parameters identical to demo_ParIS_DTW: 200000 series, dim 96, 10 queries, k=5, seed 100/50.
- * Warping window: max(1, dim*0.1) = 10 (as ParIS).
- * File: /tmp/paris_test_db.bin (same path as ParIS).
- *
- * To compare: 1) ./demos/demo_ParIS_DTW  2) mpirun -np 4 ./demos/demo_Odyssey_DTW
- */
 int main(int argc, char *argv[])
 {
-    // ========================================================================
-    // 1. CONFIGURATION — IDENTICAL to demo_ParIS_DTW
-    // ========================================================================
+
     daisy::idx_t n_database = 200000;
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
@@ -36,9 +24,6 @@ int main(int argc, char *argv[])
     std::string temp_db_file = "/tmp/paris_test_db.bin";
     int warp_window = std::max(1, static_cast<int>(dim * 0.1));
 
-    // ========================================================================
-    // 2. CREATE ODYSSEY OBJECT FIRST (initializes MPI)
-    // ========================================================================
     daisy::OdysseyConfig config;
     config.search_workers = 2;
     config.index_threads = 2;
@@ -58,9 +43,6 @@ int main(int argc, char *argv[])
         rank = odyssey.getMyRank();
         size = odyssey.getCommSz();
 
-    // ========================================================================
-    // 3. GENERATE AND WRITE DATA TO FILE
-    // ========================================================================
     if (rank == 0)
     {
         float *database = loadRandomData(n_database, dim, 100, true);
@@ -89,7 +71,6 @@ int main(int argc, char *argv[])
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
-    // Absolute path: rank 0 computes it and broadcasts to all
     static const int PATH_MAX_MPI = 1024;
     char path_buf[PATH_MAX_MPI];
     std::memset(path_buf, 0, PATH_MAX_MPI);
@@ -132,9 +113,6 @@ int main(int argc, char *argv[])
     }
 #endif
 
-        // ========================================================================
-        // 4. BUILD THE INDEX
-        // ========================================================================
         try
         {
             daisy::FileDataSource data_source(path_to_use.c_str(), dim, n_database);
@@ -155,9 +133,6 @@ int main(int argc, char *argv[])
                 return 1;
             }
 
-            // ========================================================================
-            // 5. DTW SEARCH (as in demo ParIS DTW)
-            // ========================================================================
             if (rank == 0)
             {
                 printf("@ Starting search\n");
@@ -215,9 +190,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // ========================================================================
-    // 7. CLEANUP
-    // ========================================================================
 #if ODYSSEY_MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif

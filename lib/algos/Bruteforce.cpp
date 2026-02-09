@@ -34,11 +34,9 @@ namespace daisy
         this->dim = data_source->getDim();
         this->n_database = data_source->getTotalRecords();
 
-        // For bruteforce, we need all data in memory, so load it all
         if (this->n_database == 0)
         {
-            // If total records unknown, we need to count first
-            // Reset and count
+
             data_source->reset();
             idx_t count = 0;
             float *dummy = new float[this->dim];
@@ -51,7 +49,6 @@ namespace daisy
             data_source->reset();
         }
 
-        // Allocate and load all data
         this->database = new float[this->n_database * this->dim];
         float *record = new float[this->dim];
         idx_t idx = 0;
@@ -65,10 +62,10 @@ namespace daisy
 
     void BruteForceSearch::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        // Validate input parameters
+        
         if (!validateSearchParams(k, n_query))
         {
-            return; // Early return on validation failure
+            return; 
         }
 
 #pragma omp parallel num_threads(num_threads)
@@ -79,7 +76,7 @@ namespace daisy
                 std::priority_queue<std::pair<float, idx_t>> pq;
                 const float *q_vec = query + qi * dim;
 
-                float bound = FLT_MAX; // initialize bound to max float
+                float bound = FLT_MAX; 
 
                 for (idx_t dbi = 0; dbi < n_database; ++dbi)
                 {
@@ -88,19 +85,18 @@ namespace daisy
                                                                        const_cast<float *>(db_vec),
                                                                        dim,
                                                                        bound);
-                    if ((idx_t)pq.size() < k) // maintain max-heap
+                    if ((idx_t)pq.size() < k) 
                     {
-                        pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
+                        pq.emplace(dist, dbi); 
                     }
                     else if (dist < pq.top().first)
                     {
                         pq.pop();
                         pq.emplace(dist, dbi);
-                        bound = pq.top().first; // update the `bound` variable
+                        bound = pq.top().first; 
                     }
                 }
 
-                // store top-k results in reverse order
                 for (idx_t j = k; j > 0; --j)
                 {
                     D[qi * k + (j - 1)] = pq.top().first;
@@ -113,10 +109,10 @@ namespace daisy
 
     void BruteForceSearch::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        // Validate input parameters
+        
         if (!validateSearchParams(k, n_query))
         {
-            return; // Early return on validation failure
+            return; 
         }
 
 #pragma omp parallel num_threads(num_threads)
@@ -127,7 +123,7 @@ namespace daisy
                 std::priority_queue<std::pair<float, idx_t>> pq;
                 const float *q_vec = query + qi * dim;
 
-                float bound = FLT_MAX; // initialize bound to max float
+                float bound = FLT_MAX; 
 
                 for (idx_t dbi = 0; dbi < n_database; ++dbi)
                 {
@@ -136,19 +132,18 @@ namespace daisy
                                                                        const_cast<float *>(db_vec),
                                                                        dim,
                                                                        bound);
-                    if ((idx_t)pq.size() < k) // maintain max-heap
+                    if ((idx_t)pq.size() < k) 
                     {
-                        pq.emplace(dist, dbi); // equivalent to pq.push(make_pair(dist, dbi));
+                        pq.emplace(dist, dbi); 
                     }
                     else if (dist < pq.top().first)
                     {
                         pq.pop();
                         pq.emplace(dist, dbi);
-                        bound = pq.top().first; // update the `bound` variable
+                        bound = pq.top().first; 
                     }
                 }
 
-                // store top-k results in reverse order
                 for (idx_t j = k; j > 0; --j)
                 {
                     D[qi * k + (j - 1)] = pq.top().first;

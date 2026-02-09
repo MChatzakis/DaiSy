@@ -11,7 +11,6 @@
 namespace daisy
 {
 
-    // Helper macro for allocation checking (if not defined elsewhere)
     #ifndef CHECK_ALLOC
     #define CHECK_ALLOC(ptr, rank) \
         if ((ptr) == nullptr) { \
@@ -20,23 +19,11 @@ namespace daisy
         }
     #endif
 
-    // ========================================================================
-    // index_creation_sequence_worker
-    //
-    // C++ port of:
-    //   void *index_creation_sequence_worker(void *transferdata)
-    //
-    // NOTE:
-    // - The znorm-related part (index->settings->znorm, index->means, index->stds)
-    //   was removed because in the C++ port these fields no longer exist
-    //   and Z-normalization is handled externally (data is already z-normalized).
-    // ========================================================================
     void *index_creation_sequence_worker(void *transferdata)
     {
         buffer_data_inmemory_ekosmas *input_data =
             static_cast<buffer_data_inmemory_ekosmas *>(transferdata);
 
-        // ::dinoLib::TimerManager *timer_manager = input_data->timer_manager;  // Commented out - only for profiling
         float *rawfile = input_data->rawfile;
 
         unsigned long ts_num = static_cast<unsigned long>(input_data->ts_num);
@@ -49,7 +36,7 @@ namespace daisy
 
         if (input_data->deterministic_index)
         {
-            // In deterministic mode each worker increments a local counter
+            
             next_block_to_process = &localcounterblock;
         }
 
@@ -60,13 +47,11 @@ namespace daisy
         sax_type *sax = static_cast<sax_type *>(std::malloc(static_cast<size_t>(sax_byte_size)));
         CHECK_ALLOC(sax, input_data->my_rank);
 
-        // In the C++ port we no longer handle internal znorm:
-        // current_series points directly into rawfile.
         ts_type *current_series = nullptr;
 
         if (input_data->workernumber == 0)
         {
-            // ::dinoLib::timer_start(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "BUFFER");  // Commented out - only for profiling
+            
         }
 
         unsigned long i, block_num, my_ts_start, my_ts_end;
@@ -90,7 +75,7 @@ namespace daisy
             my_ts_start = block_num * static_cast<unsigned long>(input_data->readblock);
             if (block_num == total_blocks)
             {
-                // Last block: may contain fewer series than readblock
+                
                 my_ts_end = ts_num;
             }
             else
@@ -114,7 +99,6 @@ namespace daisy
                     pos = static_cast<file_position_type>(
                         i * static_cast<unsigned long>(index->settings->timeseries_size));
 
-                    // Insert the SAX record into the index using the EKOSMAS version
                     isax_pRecBuf_index_insert_inmemory_ekosmas(
                         index,
                         sax,
@@ -135,40 +119,13 @@ namespace daisy
 
         std::free(sax);
 
-        // Wait for all workers to finish populating buffers before processing
         pthread_barrier_wait(input_data->wait_summaries_to_compute);
 
-        // Timer calls commented out - only for profiling
-        // if (input_data->workernumber == 0)
-        // {
-        //     ::dinoLib::timer_stop(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "BUFFER");
-        //     ::dinoLib::timer_start(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "INDEX");
-        // }
-
-        // Process the populated buffers to build the iSAX tree
         tree_index_creation_from_pRecBuf_fai_blocking(transferdata);
-
-        // Timer calls commented out - only for profiling
-        // if (input_data->workernumber == 0)
-        // {
-        //     ::dinoLib::timer_stop(reinterpret_cast<::dinoLib::timer_manager_t*>(timer_manager), "INDEX");
-        // }
 
         return nullptr;
     }
 
-    // ========================================================================
-    // tree_index_creation_from_pRecBuf_fai_blocking
-    //
-    // C++ port of:
-    //   void tree_index_creation_from_pRecBuf_fai_blocking(void *transferdata)
-    //
-    // PURPOSE:
-    //   Processes all buffers in the parallel_first_buffer_layer_ekosmas
-    //   and inserts records into the iSAX tree structure.
-    //   Uses FAI (First Available Index) blocking approach where each worker
-    //   atomically increments a counter to get the next buffer to process.
-    // ========================================================================
     void tree_index_creation_from_pRecBuf_fai_blocking(void *transferdata)
     {
         buffer_data_inmemory_ekosmas *input_data =
@@ -187,7 +144,7 @@ namespace daisy
         
         while (true)
         {
-            // Atomically get next buffer index to process (FAI - First Available Index)
+            
             j = __sync_fetch_and_add(input_data->node_counter, 1);
             if (j >= index->fbl->number_of_buffers)
             {
@@ -203,25 +160,22 @@ namespace daisy
                 continue;
             }
 
-            // Process all records from all workers for this buffer
             for (int k = 0; k < input_data->index_threads; k++)
             {
                 for (int i = 0; i < current_fbl_node->buffer_size[k]; i++)
                 {
-                    // Set up record structure pointing to SAX and position in buffer
+                    
                     r->sax = static_cast<sax_type *>(
                         &(current_fbl_node->sax_records[k][i * index->settings->paa_segments]));
                     r->position = static_cast<file_position_type *>(
                         &(static_cast<file_position_type *>(current_fbl_node->pos_records[k])[i]));
                     r->insertion_mode = static_cast<insertion_mode>(NO_TMP | PARTIAL);
 
-                    // Add record to index tree using in-memory version (no disk files)
                     worker_inserts++;
-                    
-                    // Check if node exists before insertion
+
                     if (current_fbl_node->node == nullptr)
                     {
-                        // Skip this record - cannot insert without a root node
+                        
                         continue;
                     }
                     
@@ -230,11 +184,10 @@ namespace daisy
                         static_cast<isax_node *>(current_fbl_node->node), 
                         r, 
                         1);
-                    
-                    // Verify node was created/updated
+
                     if (result_node == nullptr)
                     {
-                        continue; // Skip this record
+                        continue; 
                     }
                 }
             }
@@ -248,7 +201,6 @@ namespace daisy
         std::free(r);
     }
 
-    // Helper functions for tree analysis (faithful C++ port from original C code)
     long int find_total_nodes(isax_node *root_node)
     {
         long int c = 1;
@@ -317,9 +269,7 @@ namespace daisy
         }
         else
         {
-            // Leaf node: return leaf_size (simplified version - original code had more complex logic)
-            // NOTE: Original code checked for LOCKFREE_PARALLELISM_IN_SUBTREE flags and fai_leaf_size,
-            // but these are not present in our simplified EKOSMAS version
+
             return root_node->leaf_size;
         }
     }
@@ -361,7 +311,6 @@ namespace daisy
         }
     }
 
-    // Debug function to print index statistics (faithful C++ port from original C code)
     void print_index_stats(isax_index *index, int my_rank)
     {
         long int empty_subtrees_buffers = 0;
@@ -369,11 +318,9 @@ namespace daisy
 
         long int total_nodes = 0;
         long int tree_height = 0;
-        // long int total_tree_leafs_depths = 0;
 
         long int total_leafs_nodes = 0;
 
-        // Cast fbl to parallel_first_buffer_layer_ekosmas (EKOSMAS version)
         parallel_first_buffer_layer_ekosmas *fbl_ekosmas = 
             reinterpret_cast<parallel_first_buffer_layer_ekosmas *>(index->fbl);
 
@@ -402,7 +349,6 @@ namespace daisy
                 printf("Subtree[%d]: (height=%lu, nodes=%lu, leafs=%lu)\n", i, subtree_height, subtree_nodes, subtree_leafs);
             }
 
-            // total_tree_leafs_depths += find_total_tree_leafs_depths(subtree_root, 0);
         }
 
         printf("\n--------------------\n[Node %d]: Tree Stats:\n"
@@ -410,8 +356,7 @@ namespace daisy
                "Total tree nodes: %ld\n"
                "Total leafs nodes: %ld\n"
                "Average subtree height: %f\n"
-               // "Total tree leafs depth: %ld\n"
-               // "Average leaf depth: %Lf\n"
+
                "Empty subtrees: %ld\n"
                "Non Empty subtrees: %d\n-------------------\n",
                my_rank,
@@ -419,16 +364,14 @@ namespace daisy
                total_nodes,
                total_leafs_nodes,
                non_empty_subtrees_cnt > 0 ? (float)tree_height / non_empty_subtrees_cnt : 0.0f,
-               // total_tree_leafs_depths,
-               // (long double)total_tree_leafs_depths / total_leafs_nodes,
+
                empty_subtrees_buffers,
                non_empty_subtrees_cnt);
     }
 
-    // Function to create subtree batches for query answering (faithful C++ port from original C code)
     BatchList* create_subtree_batches(NodeList *nodelist, int number_of_batches_to_create, int pq_th)
     {
-        // printf("[Node %d]: Node amount: %d\n", MY_RANK, nodelist->node_amount);
+        
         if (nodelist->node_amount < number_of_batches_to_create)
         {
             number_of_batches_to_create = nodelist->node_amount;
@@ -442,7 +385,7 @@ namespace daisy
         }
 
         batchlist->batch_amount = number_of_batches_to_create;
-        // printf("[Node %d]: Batches to create: %d\n",MY_RANK, number_of_batches_to_create);
+        
         batchlist->batches = static_cast<SubtreeBatch *>(std::malloc(sizeof(SubtreeBatch) * number_of_batches_to_create));
         if (batchlist->batches == nullptr)
         {
@@ -461,18 +404,10 @@ namespace daisy
             batchlist->batches[i].nodelist = nodelist;
             batchlist->batches[i].pq_th = pq_th;
 
-            // patches
-            // batchlist->batches[i].pq_amount = 0;
-            // batchlist->batches[i].current_subtree_to_process = 0;
-            // batchlist->batches[i].current_pq_to_process = 0;
-            // batchlist->batches[i].is_getting_help_phase1 = 0;
-            // batchlist->batches[i].is_getting_help_phase2 = 0;
-            // batchlist->batches[i].is_stolen = 0;
-
             if (i == number_of_batches_to_create - 1)
             {
-                batchlist->batches[i].to = nodelist->node_amount;                    //! padding-like
-                batchlist->batches[i].size = nodelist->node_amount - i * batch_size; //! einai swsto auto?
+                batchlist->batches[i].to = nodelist->node_amount;                    
+                batchlist->batches[i].size = nodelist->node_amount - i * batch_size; 
             }
             else
             {
@@ -485,18 +420,10 @@ namespace daisy
             batchlist->batches[i].max_pq_index = 0;
             batchlist->batches[i].min_pq_index = INT32_MAX;
 
-            // NULLIFY all the priority queues
-            // for (int j = 0; j < MAX_PQs_WORKSTEALING; j++)
-            //{
-            //    batchlist->batches[i].pq[j] = NULL;
-            //}
-            // batchlist->batches[i].pq[0] = NULL;
         }
-
-        // printf("Created %d batches\n", number_of_batches_to_create);
 
         return batchlist;
     }
 
-} // namespace daisy
+} 
 

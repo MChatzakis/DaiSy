@@ -16,7 +16,7 @@ namespace daisy
 {
     void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue)
     {
-        // Skip nodes with uninitialized SAX data to avoid segfault
+        
         if (node == NULL || node->isax_values == NULL || node->isax_cardinalities == NULL)
         {
             return;
@@ -63,7 +63,7 @@ namespace daisy
 
     void insert_tree_node_m_hybridpqueue_DTW(float *paaU, float *paaL, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue)
     {
-        // Skip nodes with uninitialized SAX data to avoid segfault
+        
         if (node == NULL || node->isax_values == NULL || node->isax_cardinalities == NULL)
         {
             return;
@@ -108,20 +108,18 @@ namespace daisy
 
     void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
-        // Bail out if node or buffer is missing
+        
         if (node == NULL || node->buffer == NULL)
         {
             return;
         }
-        // COUNT_CHECKED_NODE()
-        //  Node has buffered data (already checked above)
+
         {
             int i;
             for (i = 0; i < node->buffer->full_buffer_size; i++)
             {
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-                //__sync_fetch_and_add(&RDcalculationnumber, 1);
 
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
@@ -141,7 +139,6 @@ namespace daisy
             {
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-                //__sync_fetch_and_add(&RDcalculationnumber, 1);
 
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
@@ -168,14 +165,13 @@ namespace daisy
                 {
                     float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                                                             index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-                    //__sync_fetch_and_add(&RDcalculationnumber, 1);
 
                     if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                     {
                         pthread_rwlock_wrlock(lock_queue);
-                        // COUNT_QUEUE_TIME_START
+                        
                         pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
-                        // COUNT_QUEUE_TIME_END
+                        
                         pthread_rwlock_unlock(lock_queue);
                     }
                 }
@@ -185,25 +181,23 @@ namespace daisy
 
     void calculate_node_DTW2knn_inmemory(isax_index *index, isax_node *node, ts_type *query, float *uo, float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf, int warpWind, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
-        // Bail out if node or buffer is missing
+        
         if (node == NULL || node->buffer == NULL)
         {
             return;
         }
 
-        // COUNT_CHECKED_NODE()
         float distmin;
         int k;
         float *cb = (float *)malloc(sizeof(float) * index->settings->timeseries_size);
         float *cb1 = (float *)malloc(sizeof(float) * index->settings->timeseries_size);
         int length = 2 * warpWind + 1;
         float *tSum = (float *)malloc(sizeof(float) * length);
-        // pre_cost
+        
         float *pCost = (float *)malloc(sizeof(float) * length);
-        // raw distance
+        
         float *rDist = (float *)malloc(sizeof(float) * length);
 
-        // Node has partial-buffered data (original implementation only uses partial_buffer)
         for (int i = 0; i < node->buffer->partial_buffer_size; i++)
         {
             distmin = minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, node->buffer->partial_sax_buffer[i],
@@ -266,7 +260,7 @@ namespace daisy
         while (1)
         {
             current_root_node_number = __sync_fetch_and_add(((MESSI_workerdata *)rfdata)->node_counter, 1);
-            // printf("the number is %d\n",current_root_node_number );
+            
             if (current_root_node_number >= ((MESSI_workerdata *)rfdata)->amountnode)
                 break;
             current_root_node = ((MESSI_workerdata *)rfdata)->nodelist[current_root_node_number];
@@ -334,18 +328,18 @@ namespace daisy
                         }
                         else
                         {
-                            // If it is a leaf, check its real distance.
+                            
                             if (n->node->is_leaf)
                             {
                                 checks++;
-                                // float distance = calculate_node_distance2_inmemory(index, n->node, ts,paa, bsfdisntance);
+                                
                                 calculate_node2_topk_inmemory(index, n->node, ts, paa, pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf, rawfile);
                             }
                         }
-                        // add
+                        
                         free(n);
                     }
-                    // mark queue as drained so other threads can exit the outer loop
+                    
                     ((MESSI_workerdata *)rfdata)->allqueuelabel[i] = 0;
                 }
             }
@@ -355,7 +349,7 @@ namespace daisy
             }
         }
 
-        return nullptr; // pthread function should return a pointer
+        return nullptr; 
     }
 
     void *MESSI_topk_search_worker_DTW(void *rfdata)
@@ -372,7 +366,7 @@ namespace daisy
         ts_type *lo = ((MESSI_workerdata *)rfdata)->lo;
         pqueue_t *pq = ((MESSI_workerdata *)rfdata)->pq;
         int n_pqueue = ((MESSI_workerdata *)rfdata)->n_pqueue;
-        float *rawfile = ((MESSI_workerdata *)rfdata)->rawfile; // todo: initialize it in the call
+        float *rawfile = ((MESSI_workerdata *)rfdata)->rawfile; 
         query_result *do_not_remove = ((MESSI_workerdata *)rfdata)->bsf_result;
         float minimum_distance = ((MESSI_workerdata *)rfdata)->minimum_distance;
         int limit = ((MESSI_workerdata *)rfdata)->limit;
@@ -387,25 +381,21 @@ namespace daisy
         int calculate_node = 0, calculate_node_quque = 0;
         int tnumber = rand() % n_pqueue;
         int startqueuenumber = ((MESSI_workerdata *)rfdata)->startqueuenumber;
-        // COUNT_QUEUE_TIME_START
 
         while (1)
         {
             current_root_node_number = __sync_fetch_and_add(((MESSI_workerdata *)rfdata)->node_counter, 1);
-            // printf("the number is %d\n",current_root_node_number );
+            
             if (current_root_node_number >= ((MESSI_workerdata *)rfdata)->amountnode)
                 break;
             current_root_node = ((MESSI_workerdata *)rfdata)->nodelist[current_root_node_number];
-            // insert_tree_node_m_hybridpqueue(paaU,current_root_node,index,bsfdisntance,((MESSI_workerdata*)rfdata)->allpq,((MESSI_workerdata*)rfdata)->alllock,&tnumber);
+            
             insert_tree_node_m_hybridpqueue_DTW(paaU, paaL, current_root_node, index, bsfdisntance, ((MESSI_workerdata *)rfdata)->allpq, ((MESSI_workerdata *)rfdata)->alllock, &tnumber, n_pqueue);
-            // insert_tree_node_mW(paa,current_root_node,index,bsfdisntance,pq,((MESSI_workerdata*)rfdata)->lock_queue);
+            
         }
 
-        // COUNT_QUEUE_TIME_END
-        // calculate_node_quque=pq->size;
-
         pthread_barrier_wait(((MESSI_workerdata *)rfdata)->lock_barrier);
-        // printf("the size of quque is %d \n",pq->size);
+        
         while (1)
         {
             pthread_mutex_lock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
@@ -413,10 +403,8 @@ namespace daisy
             pthread_mutex_unlock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
             if (n == NULL)
                 break;
-            // pthread_rwlock_rdlock(((MESSI_workerdata*)rfdata)->lock_bsf);
+            
             bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
-            // pthread_rwlock_unlock(((MESSI_workerdata*)rfdata)->lock_bsf);
-            //  The best node has a worse mindist, so search is finished!
 
             if (n->distance > bsfdisntance || n->distance > minimum_distance)
             {
@@ -424,7 +412,7 @@ namespace daisy
             }
             else
             {
-                // If it is a leaf, check its real distance.
+                
                 if (n->node->is_leaf)
                 {
                     checks++;
@@ -462,7 +450,7 @@ namespace daisy
                         pthread_mutex_unlock(&(((MESSI_workerdata *)rfdata)->alllock[i]));
                         if (n == NULL)
                             break;
-                        // Update bsfdisntance BEFORE pruning check (fixes stale BSF bug)
+                        
                         bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
                         if (n->distance > bsfdisntance || n->distance > minimum_distance)
                         {
@@ -470,17 +458,17 @@ namespace daisy
                         }
                         else
                         {
-                            // If it is a leaf, check its real distance.
+                            
                             if (n->node->is_leaf)
                             {
                                 checks++;
                                 calculate_node_DTW2knn_inmemory(index, n->node, ts, uo, lo, paa, paaU, paaL, bsfdisntance, warpWind, pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf, rawfile);
                             }
                         }
-                        // add
+                        
                         free(n);
                     }
-                    // mark queue as drained so other threads can exit the outer loop
+                    
                     ((MESSI_workerdata *)rfdata)->allqueuelabel[i] = 0;
                 }
             }
@@ -490,7 +478,7 @@ namespace daisy
             }
         }
 
-        return nullptr; // pthread function should return a pointer
+        return nullptr; 
     }
 
     Messi::Messi(DistanceType distance_type)
@@ -520,7 +508,7 @@ namespace daisy
         ts_type *ts = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
         int paa_segments = ((buffer_data_inmemory *)transferdata)->index->settings->paa_segments;
 
-        int read_block_length = ((buffer_data_inmemory *)transferdata)->read_block_length; // this->read_block_length;
+        int read_block_length = ((buffer_data_inmemory *)transferdata)->read_block_length; 
 
         unsigned long i = 0;
         float *raw_file = ((buffer_data_inmemory *)transferdata)->ts;
@@ -614,10 +602,9 @@ namespace daisy
         this->dim = data_source->getDim();
         this->n_database = data_source->getTotalRecords();
 
-        // For Messi, we need all data in memory for worker threads, so load it all
         if (this->n_database == 0)
         {
-            // If total records unknown, we need to count first
+            
             data_source->reset();
             idx_t count = 0;
             float *dummy = new float[this->dim];
@@ -630,8 +617,7 @@ namespace daisy
             data_source->reset();
         }
 
-        // Allocate and load all data
-        data_source->reset(); // IMPORTANT: Reset to beginning before reading
+        data_source->reset(); 
         this->database = new float[this->n_database * this->dim];
         float *record = new float[this->dim];
         idx_t idx = 0;
@@ -642,20 +628,20 @@ namespace daisy
         }
         delete[] record;
 
-        this->index_settings = isax_index_settings_init("",                        // INDEX DIRECTORY
-                                                        this->dim,                 // TIME SERIES SIZE
-                                                        this->paa_segments,        // PAA SEGMENTS
-                                                        this->sax_cardinality,     // SAX CARDINALITY IN BITS
-                                                        this->leaf_size,           // LEAF SIZE
-                                                        this->min_leaf_size,       // MIN LEAF SIZE
-                                                        this->initial_lbl_size,    // INITIAL LEAF BUFFER SIZE
-                                                        this->flush_limit,         // FLUSH LIMIT
-                                                        this->initial_fbl_size,    // INITIAL FBL BUFFER SIZE
-                                                        this->total_loaded_leaves, // Leaves to load at each fetch
-                                                        this->tight_bound,         // Tightness of leaf bounds
-                                                        0,                         // aggressive check
+        this->index_settings = isax_index_settings_init("",                        
+                                                        this->dim,                 
+                                                        this->paa_segments,        
+                                                        this->sax_cardinality,     
+                                                        this->leaf_size,           
+                                                        this->min_leaf_size,       
+                                                        this->initial_lbl_size,    
+                                                        this->flush_limit,         
+                                                        this->initial_fbl_size,    
+                                                        this->total_loaded_leaves, 
+                                                        this->tight_bound,         
+                                                        0,                         
                                                         1,
-                                                        1); // new index
+                                                        1); 
 
         this->index = isax_index_init_inmemory(this->index_settings);
         isax_index *index = this->index;
@@ -677,7 +663,6 @@ namespace daisy
         destroy_fbl(index->fbl);
         index->fbl = (first_buffer_layer *)initialize_pRecBuf(index->settings->initial_fbl_buffer_size, pow(2, index->settings->paa_segments), index->settings->max_total_buffer_size + DISK_BUFFER_SIZE * (PROGRESS_CALCULATE_THREAD_NUMBER - 1), index, this->index_workers);
 
-        // Use heap allocation instead of VLAs to avoid stack overflow
         int *nodeid = (int *)malloc(sizeof(int) * index->fbl->number_of_buffers);
         int *nodesize = (int *)malloc(sizeof(int) * index->fbl->number_of_buffers);
 
@@ -719,7 +704,6 @@ namespace daisy
         index->sax_cache_size = index->total_records;
         fprintf(stderr, ">>> Finished indexing\n");
 
-        // Clean up pthread resources
         pthread_barrier_destroy(&lock_barrier1);
         pthread_barrier_destroy(&lock_barrier2);
 
@@ -737,7 +721,6 @@ namespace daisy
         nodelist.node_amount = 0;
         isax_node *current_root_node = index->first_node;
 
-        //---
         while (1)
         {
             if (current_root_node != NULL)
@@ -756,12 +739,10 @@ namespace daisy
 
             const float *ts = query + q_loaded * this->dim;
 
-            //  Parse ts and make PAA representation
             paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
             pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k);
 
-            /* Collect valid (position, distance) pairs, sort by (distance, position), deduplicate by index (same series can appear from multiple leaves), then copy and pad. */
             std::vector<std::pair<float, long>> pairs;
             pairs.reserve(static_cast<size_t>(k));
             for (idx_t ik = 0; ik < k; ik++)
@@ -794,7 +775,6 @@ namespace daisy
                 D[q_loaded * k + ik] = last_dist;
             }
 
-            // Free the internal arrays of result
             free(result.position);
             free(result.knn);
             free(result.node);
@@ -810,7 +790,6 @@ namespace daisy
     {
         isax_index *index = this->index;
 
-        // Compute query-independent things ONCE outside the loop
         node_list nodelist;
         nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * pow(2, index->settings->paa_segments));
         nodelist.node_amount = 0;
@@ -831,15 +810,11 @@ namespace daisy
 
         for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
         {
-            // COUNT_INPUT_TIME_START
-            // fread(ts, sizeof(ts_type), index->settings->timeseries_size, ifile);
-            float *ts = (float *)&query[q_loaded * this->dim];
-            // COUNT_INPUT_TIME_END
 
-            // Query-dependent computations (paa, envelopes, paaU, paaL) are done inside MESSI_search_topk_DTW
+            float *ts = (float *)&query[q_loaded * this->dim];
+
             pqueue_bsf result = MESSI_search_topk_DTW((float *)ts, &nodelist, k);
 
-            /* Collect valid (position, distance) pairs, sort by (distance, position), deduplicate by index, then copy and pad. */
             std::vector<std::pair<float, long>> pairs;
             pairs.reserve(static_cast<size_t>(k));
             for (idx_t ik = 0; ik < k; ik++)
@@ -872,7 +847,6 @@ namespace daisy
                 D[q_loaded * k + ik] = last_dist;
             }
 
-            // Free the internal arrays of result
             free(result.position);
             free(result.knn);
             free(result.node);
@@ -919,7 +893,7 @@ namespace daisy
 
         pthread_mutex_t ququelock[this->n_pqueue];
         int queuelabel[this->n_pqueue];
-        // Insert all root nodes in heap.
+        
         isax_node *current_root_node = index->first_node;
 
         pthread_t threadid[this->search_workers];
@@ -972,8 +946,6 @@ namespace daisy
         }
         this->minimum_distance = pq_bsf->knn[k - 1];
 
-        // Free the nodes that where not popped.
-        // Free the priority queue.
         pthread_barrier_destroy(&lock_barrier);
 
         for (int i = 0; i < this->n_pqueue; i++)
@@ -982,9 +954,8 @@ namespace daisy
         }
         free(allpq);
 
-        // Copy result before freeing pq_bsf structure
         pqueue_bsf result = *pq_bsf;
-        free(pq_bsf); // Free the struct itself (internal arrays are now owned by result)
+        free(pq_bsf); 
         return result;
     }
 
@@ -994,12 +965,9 @@ namespace daisy
         int warpWind = this->warping_window;
         float *rawfile = this->database;
 
-        // Compute query-dependent PAA representation
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
-        // RDcalculationnumber = 0;
-        // LBDcalculationnumber = 0;
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
         approximate_DTWtopk_inmemory(ts, paa, index, warpWind, pq_bsf, rawfile);
         this->minimum_distance = pq_bsf->knn[k - 1];
@@ -1010,7 +978,6 @@ namespace daisy
 
         pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
 
-        // Compute query-dependent Lemire envelopes and PAA representations for DTW
         ts_type *upperLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
         ts_type *lowerLemire = (ts_type *)malloc(sizeof(ts_type) * index->settings->timeseries_size);
         ts_type *paaU = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
@@ -1055,7 +1022,7 @@ namespace daisy
             workerdata[i].minimum_distance = minimum_distance;
             workerdata[i].node_counter = &node_counter;
             workerdata[i].pq = allpq[i];
-            // workerdata[i].bsf_result = &bsf_result;
+            
             workerdata[i].lock_barrier = &lock_barrier;
             workerdata[i].alllock = ququelock;
             workerdata[i].allqueuelabel = queuelabel;
@@ -1078,11 +1045,8 @@ namespace daisy
         }
         this->minimum_distance = pq_bsf->knn[k - 1];
 
-        // Free the nodes that where not popped.
-        // Free the priority queue.
         pthread_barrier_destroy(&lock_barrier);
 
-        // pqueue_free(pq);
         for (int i = 0; i < this->n_pqueue; i++)
         {
             pqueue_free(allpq[i]);
@@ -1094,9 +1058,8 @@ namespace daisy
         free(paaL);
         free(paa);
 
-        // Copy result before freeing pq_bsf structure
         pqueue_bsf result = *pq_bsf;
-        free(pq_bsf); // Free the struct itself (internal arrays are now owned by result)
+        free(pq_bsf); 
         return result;
     }
 
@@ -1104,7 +1067,6 @@ namespace daisy
     {
         delete[] database;
 
-        // Cleanup iSAX index structures
         if (index != nullptr)
         {
             if (index->sax_cache != nullptr)
@@ -1117,7 +1079,7 @@ namespace daisy
             }
             if (index->fbl != nullptr)
             {
-                // Use parallel FBL destructor since we use initialize_pRecBuf
+                
                 destroy_parallel_fbl((parallel_first_buffer_layer *)index->fbl);
             }
             if (index->sax_file != nullptr)

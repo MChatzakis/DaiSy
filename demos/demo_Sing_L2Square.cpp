@@ -5,7 +5,7 @@
 #include <cstdio>
 
 int main(){
-    // 0. Configuration (stesso dataset della demo Messi)
+    
     daisy::idx_t n_database = 200000;
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
@@ -14,15 +14,12 @@ int main(){
     printf("=== Sing L2Square demo (stesso dataset di demo_Messi_L2Square) ===\n");
     printf("n_database=%llu dim=%llu n_query=%llu k=%llu\n", n_database, dim, n_query, k);
 
-    // 1. Generate random data and queries (stessi seed di Messi: 100 database, 50 query)
     float *database = loadRandomData(n_database, dim, 100, true);
     float *query = loadRandomData(n_query, dim, 50, true);
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
-    // 2. Create Sing search object
     daisy::Sing sing_search(daisy::DistanceType::L2_SQUARED);
 
-    // 3. Build the index (con stampe di debug dai worker)
     daisy::InMemoryDataSource data_source(database, n_database, dim);
     auto t0 = std::chrono::steady_clock::now();
     sing_search.buildIndex(&data_source);
@@ -32,7 +29,6 @@ int main(){
 
     sing_search.printBuildIndexDebug();
 
-    // 4. Search the index
     daisy::idx_t *I = new daisy::idx_t[n_query * k];
     float *D = new float[n_query * k];
     printf("Starting search (n_query=%llu, k=%llu)...\n", n_query, k);
@@ -42,7 +38,6 @@ int main(){
     double search_ms = 1e-6 * (double)std::chrono::duration_cast<std::chrono::microseconds>(t_search1 - t_search0).count();
     printf("Search done in %.2f ms (%.2f ms/query)\n", search_ms, search_ms / (double)n_query);
 
-    // 5. Print the results — same format as demo_Odyssey_L2Square (indices per query)
     for (daisy::idx_t i = 0; i < n_query; i++)
     {
         printf("Query %llu: ", static_cast<unsigned long long>(i));
@@ -53,7 +48,6 @@ int main(){
         printf("\n");
     }
 
-    // 6. Clean up
     delete[] database;
     delete[] query;
     delete[] I;

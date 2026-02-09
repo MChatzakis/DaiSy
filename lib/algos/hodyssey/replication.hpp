@@ -8,7 +8,7 @@
 
 namespace daisy
 {
-    // Use idx_t from SimilaritySearchAlgorithm.hpp as data_size_type
+    
     using idx_t = unsigned long long;
 
     struct SystemNode
@@ -20,13 +20,13 @@ namespace daisy
 
     struct ReplicationGroup
     {
-        int group_id; // group id
+        int group_id; 
 
-        int total_nodes;      // how many nodes this group has
-        int coordinator_node; // coordinator node id
+        int total_nodes;      
+        int coordinator_node; 
         std::vector<SystemNode> nodes;
 
-        idx_t total_time_series; // how many data series this group works on
+        idx_t total_time_series; 
 
         int index_threads_total;
         int query_threads_total;
@@ -41,13 +41,11 @@ namespace daisy
         std::vector<int> node_group_mappings;
     };
 
-    // Replication initialization and management functions
     void rep_init(ReplicationData &replication_data, idx_t dataset_size, int my_rank, int comm_sz, 
                   int &index_threads, int &query_threads);
     
     void rep_destroy(ReplicationData &replication_data);
 
-    /* Replication group init and management */
     void rep_init_from_file(ReplicationData &replication_data, idx_t dataset_size, int my_rank, 
                             int comm_sz, int &index_threads, int &query_threads);
     
@@ -59,7 +57,6 @@ namespace daisy
     long rep_allocate_data_series_default(ReplicationData &replication_data, int group_id, 
                                           idx_t dataset_size);
 
-    /* Replication group navigation functions */
     int rep_find_group(const ReplicationData &replication_data, int rank);
     
     int rep_find_coordinator_node_rank(const ReplicationData &replication_data, int rank);
@@ -70,6 +67,6 @@ namespace daisy
     
     idx_t rep_get_time_series_offset(const ReplicationData &replication_data, int rank);
 
-} // namespace daisy
+} 
 
-#endif // REPLICATION_GROUP_HPP
+#endif 

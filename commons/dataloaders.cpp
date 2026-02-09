@@ -38,7 +38,6 @@ float *loadBinData(const char *filename, unsigned long long n, unsigned long lon
     return normalized_data;
 }
 
-// Private helper function for z-normalization
 static float *z_normalize(const float *data, unsigned long long n, unsigned long long dim)
 {
     float *normalized_data = new float[n * dim];

@@ -49,8 +49,8 @@ namespace daisy
         unsigned long int *gpuoffset;
         unsigned long int *seriesnumber;
         unsigned long int rawdatanumber;
-        int n_pqueue;   /**< number of priority queues (for insert_tree_node_m_hybridpqueue) */
-        float *rawfile; /**< raw database for calculate_node2_topk_inmemory */
+        int n_pqueue;   
+        float *rawfile; 
     } SING_workerdata;
 
     typedef struct gap_workerdata
@@ -75,70 +75,38 @@ namespace daisy
 
     struct SingConfig
     {
-        int search_workers = 4;  // threads for querying
-        int index_workers = 4;   // threads for indexing
-        int warping_window = 10; // warping window size (typically 10% of time series length)
+        int search_workers = 4;  
+        int index_workers = 4;   
+        int warping_window = 10; 
         int leaf_size = 128;
         int paa_segments = 16;
     };
 
-    /** Inserisce nodi nell’albero nelle code di priorità usando minidist_paa_to_isax_Breakpoly (da implementare). */
     void insert_tree_node_m_hybridpqueueBreakpolyroot(float *paa, isax_node *node, isax_index *index, float bsf,
                                                       pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue);
 
-    /** Top-k su singolo nodo foglia usando lbdarray e ts_euclidean_distance_SIMD (da SAX). */
     void calculate_node_topk_SING(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
                                   pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
 
-    /** Top-k su nodo in-memory: full_ts_buffer, tmp_full_ts_buffer, partial con minidist + rawfile. */
     void calculate_node_cal_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
                                           pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
 
-    /** Min-dist PAA–iSAX con breakpoints (sax_breakpointsnew3); usata da insert_tree_node_m_hybridpqueueBreakpolyroot. */
     float minidist_paa_to_isax_Breakpoly(float *paa, sax_type *sax, sax_type *sax_cardinalities,
                                          sax_type max_bit_cardinality, int max_cardinality, int number_of_segments,
                                          int min_val, int max_val, float ratio_sqrt);
 
-    /**
-     * @class Sing
-     * @brief GPU-accelerated indexed similarity search with optimized breakpoint computations
-     *
-     * High-performance algorithm combining iSAX indexing with optional CUDA GPU acceleration
-     * for index creation and distance computations. Uses breakpoint-based PAA-to-iSAX distance
-     * calculations and SIMD optimizations. Supports both L2 and DTW metrics with configurable
-     * search workers and warping window.
-     *
-     * @note Enable GPU support with SING_CUDA_ENABLED. Configure via SingConfig or setters.
-     */
     class Sing : public SimilaritySearchAlgorithm
     {
     private:
-        int num_threads = 1;
-
-        int paa_segments = 16;
-        int sax_cardinality = 8;
-        int leaf_size = 2000;
-        int min_leaf_size = 10;
-        int initial_lbl_size = 2000;
-        int flush_limit = 200000;
-        int initial_fbl_size = 100;
-        int total_loaded_leaves = 1;
-        int tight_bound = 0;
-        int aggressive_check = 0; // NO
-        float minimum_distance = FLT_MAX;
-        int serial_scan = 0; // NO
-        int min_checked_leaves = -1;
-        int cpu_control_type = 81; // NO
-        int calculate_thread = 8;  // NO
+        int aggressive_check = 0;
+        int serial_scan = 0;
+        int cpu_control_type = 81;
+        int calculate_thread = 8;
 
         int read_block_length = 100000;
         int search_workers = 4;
         int index_workers = 4;
         int n_pqueue = 42;
-        int warping_window = 10; // warping window size (typically 10% of time series length)
-
-        isax_index_settings *index_settings = nullptr;
-        isax_index *index = nullptr;
 
         void index_creation_gpu(float *dataset, idx_t dataset_size, isax_index *idx);
 
@@ -158,12 +126,11 @@ namespace daisy
         void buildIndex(DataSource *data_source) override;
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
-        /** Debug: stampa statistiche dell'indice dopo buildIndex (FBL, buffer, sax_cache). */
         void printBuildIndexDebug() const;
 
         ~Sing();
     };
 
-} // namespace daisy
+} 
 
-#endif // SINGSEARCH_HPP
+#endif 

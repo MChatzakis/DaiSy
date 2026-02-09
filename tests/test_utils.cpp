@@ -31,7 +31,6 @@ void SimilaritySearchTest::runSST(daisy::SimilaritySearchAlgorithm *search,
     float *database = loadBinData(dataset_path.c_str(), n_database, dim, false);
     float *query = loadBinData(query_path.c_str(), n_query, dim, false);
 
-    // Odyssey requires FileDataSource and MPI (argc/argv passed in test main)
 #if ODYSSEY_MPI
     daisy::Odyssey *odyssey_search = dynamic_cast<daisy::Odyssey *>(search);
     if (odyssey_search != nullptr) {
@@ -39,11 +38,11 @@ void SimilaritySearchTest::runSST(daisy::SimilaritySearchAlgorithm *search,
         search->buildIndex(&data_source);
     } else
 #endif
-    // ParIS uses file-based buildIndex
+    
     if (dynamic_cast<daisy::ParIS *>(search) != nullptr) {
         search->buildIndex(dataset_path, dim, n_database);
     } else {
-        // Other algorithms use in-memory buildIndex
+        
         search->buildIndex(database, n_database, dim);
     }
     
@@ -53,7 +52,6 @@ void SimilaritySearchTest::runSST(daisy::SimilaritySearchAlgorithm *search,
     float *D = new float[n_query * k];
     search->searchIndex(query, n_query, k, I, D);
 
-    /* For MPI (e.g. Odyssey) only rank 0 has merged results to compare; other ranks skip. */
     if (search->getResultCompareRank() == 0)
         compareWithGroundTruth(gt_I, gt_D, I, D, n_query, k);
 

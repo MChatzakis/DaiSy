@@ -12,14 +12,11 @@ namespace daisy
             return;
         }
 
-        // Force S_WS type (only supported workstealing type)
         workstealing_data.ws_type = WorkstealingType::S_WS;
 
-        // Set default values for workstealing
         workstealing_data.items_to_send = 4;
         workstealing_data.deterministic_index = false;
 
-        // Resize vector to comm_sz (no malloc needed with std::vector)
         workstealing_data.global_helper_requests.clear();
         workstealing_data.global_helper_requests.resize(comm_sz);
     }
@@ -31,13 +28,12 @@ namespace daisy
             return;
         }
 
-        // std::vector will be automatically cleaned up, but we can clear explicitly
         workstealing_data.global_helper_requests.clear();
     }
 
     int ws_cmp_isax_nodes(isax_index *index, isax_node *node_1, isax_node *node_2)
     {
-        return node_1 == node_2 ? 1 : 0;  // Returns 1 if same pointer, 0 otherwise
+        return node_1 == node_2 ? 1 : 0;  
     }
 
     isax_node *ws_compute_lca(isax_index *index, isax_node *node_1, isax_node *node_2)
@@ -61,7 +57,6 @@ namespace daisy
         long int depth_1 = 0;
         long int depth_2 = 0;
 
-        // Find the depth of each node.
         while (node_1_tracker->parent != nullptr)
         {
             node_1_tracker = node_1_tracker->parent;
@@ -74,7 +69,6 @@ namespace daisy
             depth_2++;
         }
 
-        // In case one of the nodes is the root.
         if (depth_1 == 0)
         {
             return node_1_tracker;
@@ -85,11 +79,9 @@ namespace daisy
             return node_2_tracker;
         }
 
-        // Reset the trackers.
         node_1_tracker = node_1;
         node_2_tracker = node_2;
 
-        // Adjust the depths so that they are the same.
         while (depth_1 > depth_2)
         {
             node_1_tracker = node_1_tracker->parent;
@@ -102,7 +94,6 @@ namespace daisy
             depth_2--;
         }
 
-        // Advance nodes together till they meet.
         int depth = depth_1;
         while (ws_cmp_isax_nodes(index, node_1_tracker, node_2_tracker) != 1)
         {
@@ -124,13 +115,12 @@ namespace daisy
 
     int ws_deep_cmp_isax_nodes(isax_index *index, isax_node *node1, isax_node *node2)
     {
-        // Check if nodes are valid
+        
         if (node1 == nullptr || node2 == nullptr)
         {
             return 0;
         }
 
-        // Check if isax_values and isax_cardinalities are valid
         if (node1->isax_values == nullptr || node2->isax_values == nullptr ||
             node1->isax_cardinalities == nullptr || node2->isax_cardinalities == nullptr)
         {
@@ -165,7 +155,6 @@ namespace daisy
         root_mask_type root_mask = 0;
         CREATE_MASK(root_mask, index, sax);
 
-        // Odyssey uses parallel_first_buffer_layer_ekosmas (EKOSMAS version)
         parallel_first_buffer_layer_ekosmas *p_fbl = (parallel_first_buffer_layer_ekosmas *)(index->fbl);
         
         if (p_fbl == nullptr)
@@ -192,10 +181,9 @@ namespace daisy
                 exit(EXIT_FAILURE);
             }
 
-            // Traverse tree
             while (node != nullptr && ws_deep_cmp_isax_nodes(index, node, node_to_locate) != 1)
             {
-                // Break if leaf
+                
                 if (node->right_child == nullptr && node->left_child == nullptr)
                 {
                     break;
@@ -243,4 +231,4 @@ namespace daisy
         return nullptr;
     }
 
-} // namespace daisy
+} 

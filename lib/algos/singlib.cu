@@ -1,24 +1,18 @@
-/*
- * singlib.cu - CUDA kernels and host code for Sing (LBD lower-bound distance).
- * Compilato con nvcc quando SING_CUDA è abilitato.
- */
+
 
 #include "singlib.hpp"
 #include <float.h>
 #include <cuda_runtime.h>
 
-/* Per i kernel (singlib_sax_t = unsigned char) */
 typedef singlib_sax_t sax_type;
 
 #define streamnumber 20
-#define PAA_SEGMENTS_SAX 16  /* usato per size SAX in initialgsaxarray/gpumemcpy; deve coincidere con paa_segments se possibile */
+#define PAA_SEGMENTS_SAX 16  
 
-/* Thread per block: multiplo di 32 (warp), adatto a A100 (sm_80) e altre architetture. */
 #define LBD_THREADS_PER_BLOCK 256
-/* Max blocchi: A100 ha 108 SMs, fino a 32 blocchi/SM; limitiamo a 4096 per non eccedere. */
+
 #define LBD_MAX_BLOCKS 4096
 
-/* --- Init / copy / free (da singlib originale) --- */
 extern "C" void initialdevice(void)
 {
     cudaSetDevice(0);
@@ -74,9 +68,6 @@ extern "C" void gpumemcpy(singlib_sax_t *gsaxarray, const singlib_sax_t *saxarra
     cudaMemcpy(gsaxarray, saxarray, sizeof(singlib_sax_t) * (size_t)datasize * PAA_SEGMENTS_SAX, cudaMemcpyHostToDevice);
 }
 
-/*
- * Kernel calculate_lbdfloat dall'originale: lower-bound distance (LBD) su blocco SAX.
- */
 __global__ void calculate_lbdfloat(
     const sax_type * const saxarray,
     const float * const paa,
@@ -170,7 +161,7 @@ extern "C" void LBDfloatstreamGPU(
     for (int i = 0; i < streamnumber; i++)
     {
         long int M = (long int)(datasize / streamnumber);
-        /* Grid size: coprire M elementi; almeno 1 blocco, al massimo LBD_MAX_BLOCKS (adatto a A100 e simili). */
+        
         int num_blocks = (M <= 0) ? 1 : (int)((M + (long int)LBD_THREADS_PER_BLOCK - 1) / (long int)LBD_THREADS_PER_BLOCK);
         if (num_blocks > LBD_MAX_BLOCKS)
             num_blocks = LBD_MAX_BLOCKS;

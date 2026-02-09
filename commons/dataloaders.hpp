@@ -5,4 +5,4 @@ float *loadBinData(const char *filename, unsigned long long n, unsigned long lon
 
 float *loadRandomData(unsigned long long n, unsigned long long dim, int seed = 0, bool do_z_normalize = true);
 
-#endif // DATALOADERS_HPP
+#endif 

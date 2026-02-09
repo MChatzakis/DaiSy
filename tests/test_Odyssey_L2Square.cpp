@@ -7,7 +7,6 @@
 
 std::string prefix = "bruteForce";
 
-// Odyssey needs argc/argv for MPI_Init; store them in main() and use in tests
 static int g_argc = 0;
 static char **g_argv = nullptr;
 

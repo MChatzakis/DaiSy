@@ -64,8 +64,7 @@ namespace daisy
 
     void rep_destroy(ReplicationData &replication_data)
     {
-        // With std::vector, no manual free needed - vectors will be automatically cleaned up
-        // But we can clear them explicitly for clarity
+
         replication_data.node_groups.clear();
         replication_data.node_group_mappings.clear();
     }
@@ -73,8 +72,6 @@ namespace daisy
     void rep_init_from_params(ReplicationData &replication_data, idx_t dataset_size, int my_rank, 
                               int comm_sz, int &index_threads, int &query_threads)
     {
-        // This function is called when only replication_data->total_groups is provided, 
-        // and no conf file is present
 
         replication_data.node_groups.clear();
         replication_data.node_groups.resize(replication_data.total_groups);
@@ -123,8 +120,6 @@ namespace daisy
             replication_data.node_groups[i].total_time_series = rep_allocate_data_series_default(replication_data, i, dataset_size);
         }
 
-        // Checking if the configuration makes sense.
-        // The checks are minimalistic and do not cover all cases where something could be wrong.
         long time_series_sum = 0;
         int nodes_sum = 0;
         for (int i = 0; i < replication_data.total_groups; i++)
@@ -231,8 +226,6 @@ namespace daisy
                 exit(EXIT_FAILURE);
             }
 
-            // Configuration could give any number of time series to each group.
-            // In case we have a negative number, we allocate the time series automatically.
             if (total_time_series >= 0)
                 replication_data.node_groups[i].total_time_series = total_time_series;
             else
@@ -241,8 +234,6 @@ namespace daisy
 
         fclose(conf);
 
-        // Checking if the configuration makes sense.
-        // The checks are minimalistic and do not cover all cases where something could be wrong.
         long time_series_sum = 0;
         int nodes_sum = 0;
         for (int i = 0; i < replication_data.total_groups; i++)
@@ -285,7 +276,7 @@ namespace daisy
     {
         if (rank < 0 || rank >= (int)replication_data.node_group_mappings.size())
         {
-            return -1;  // Invalid rank
+            return -1;  
         }
         return replication_data.node_group_mappings[rank];
     }
@@ -295,7 +286,7 @@ namespace daisy
         int group_id = rep_find_group(replication_data, rank);
         if (group_id < 0 || group_id >= (int)replication_data.node_groups.size())
         {
-            return -1;  // Invalid group
+            return -1;  
         }
         return replication_data.node_groups[group_id].coordinator_node;
     }
@@ -339,4 +330,4 @@ namespace daisy
         return offset;
     }
 
-} // namespace daisy
+} 

@@ -24,12 +24,11 @@
 
 namespace daisy
 {
-    // Bring profiling timer type from utils into this namespace when needed
+    
     using ::daisy::TimerManager;
-    // Forward declaration
+    
     class Odyssey;
 
-    // Priority queue helper functions (inline for header-only usage)
     inline int cmp_pri(double next, double curr)
     {
         return (next > curr);
@@ -62,7 +61,7 @@ namespace daisy
         ts_type *paa;
         double initial_estimation;
         pqueue_bsf *initial_pq_bsfs;
-        // DTW-only: upper/lower envelope PAA (NULL for L2)
+        
         ts_type *paaU;
         ts_type *paaL;
     };
@@ -73,13 +72,13 @@ namespace daisy
         ts_type *ts;
         ts_type *paa;
         isax_index *index;
-        NodeList *nodelist;  // Changed from node_list to NodeList
+        NodeList *nodelist;  
         float minimum_distance;
 
         double (*estimation_func)(double);
-        CommunicationModuleData *comm_data;  // Changed from communication_module_data to CommunicationModuleData
+        CommunicationModuleData *comm_data;  
 
-        std::vector<BsfMessage> *shared_bsf_results;  // Changed from bsf_msg* to std::vector<BsfMessage>*
+        std::vector<BsfMessage> *shared_bsf_results;  
         pqueue_bsf *precomputed_bsfs;
 
         int k;
@@ -93,14 +92,12 @@ namespace daisy
         int pq_th_div_factor;
         float corr_threshold;
 
-        // TimerManager *timer_manager;  // Commented out - only for profiling
-        BsfSharingData *bsf_sharing_data;  // Changed from bsf_sharing_data_t to BsfSharingData
-        WorkstealingData *workstealing_data;  // Changed from workstealing_data_t to WorkstealingData
-        ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
+        BsfSharingData *bsf_sharing_data;  
+        WorkstealingData *workstealing_data;  
+        ReplicationData *replication_data;  
 
-        std::string output_file;  // Changed from char* to std::string
+        std::string output_file;  
 
-        // DTW-only (ignored for L2)
         int warp_window;
         ts_type *paaU;
         ts_type *paaL;
@@ -113,16 +110,16 @@ namespace daisy
         ts_type *paa;
         isax_index *index;
         isax_node *lca_node;
-        NodeList *nodelist;  // Changed from node_list to NodeList
+        NodeList *nodelist;  
         float minimum_distance;
         float bsf;
         file_position_type bsf_pos;
         int *batch_ids;
         double (*estimation_func)(double);
 
-        CommunicationModuleData *comm_data;  // Changed from communication_module_data to CommunicationModuleData
+        CommunicationModuleData *comm_data;  
 
-        std::vector<BsfMessage> *shared_bsf_results;  // Changed from bsf_msg* to std::vector<BsfMessage>*
+        std::vector<BsfMessage> *shared_bsf_results;  
         pqueue_bsf *precomputed_bsfs;
 
         int k;
@@ -136,14 +133,12 @@ namespace daisy
         int pq_th_div_factor;
         float corr_threshold;
 
-        // TimerManager *timer_manager;  // Commented out - only for profiling
-        BsfSharingData *bsf_sharing_data;  // Changed from bsf_sharing_data_t to BsfSharingData
-        WorkstealingData *workstealing_data;  // Changed from workstealing_data_t to WorkstealingData
-        ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
+        BsfSharingData *bsf_sharing_data;  
+        WorkstealingData *workstealing_data;  
+        ReplicationData *replication_data;  
 
-        std::string output_file;  // Changed from char* to std::string
+        std::string output_file;  
 
-        // DTW-only (ignored for L2)
         int warp_window;
         ts_type *paaU;
         ts_type *paaL;
@@ -159,7 +154,7 @@ namespace daisy
 
         query_result *bsf_result;
 
-        SubtreeBatch *batches;  // Changed from subtree_batch to SubtreeBatch
+        SubtreeBatch *batches;  
         int total_batches;
 
         volatile int *batch_counter;
@@ -179,9 +174,9 @@ namespace daisy
         int *pqs_stolen;
         int *processed_pqs;
 
-        CommunicationModuleData *comm_data;  // Changed from communication_module_data to CommunicationModuleData
+        CommunicationModuleData *comm_data;  
 
-        std::vector<BsfMessage> *shared_bsf_results;  // Changed from bsf_msg* to std::vector<BsfMessage>*
+        std::vector<BsfMessage> *shared_bsf_results;  
 
         int my_rank;
         int comm_sz;
@@ -195,14 +190,12 @@ namespace daisy
 
         bool verbose;
 
-        ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
-        WorkstealingData *workstealing_data;  // Changed from workstealing_data_t to WorkstealingData
-        BsfSharingData *bsf_sharing_data;  // Changed from bsf_sharing_data_t to BsfSharingData
-        // TimerManager *timer_manager;  // Commented out - only for profiling
+        ReplicationData *replication_data;  
+        WorkstealingData *workstealing_data;  
+        BsfSharingData *bsf_sharing_data;  
 
-        std::string output_file;  // Changed from char* to std::string
+        std::string output_file;  
 
-        // DTW-only (0 and nullptr for L2)
         int warp_window;
         ts_type *paaU;
         ts_type *paaL;
@@ -210,7 +203,7 @@ namespace daisy
 
     struct CoordinatorData
     {
-        CommunicationModuleData *comm_data;  // Changed from communication_module_data to CommunicationModuleData
+        CommunicationModuleData *comm_data;  
         volatile char *threads_finished;
     };
 
@@ -223,7 +216,7 @@ namespace daisy
         pthread_mutex_t *bsf_lock;
         query_result *bsf_result;
 
-        BatchList *batchlist;  // Changed from batch_list to BatchList
+        BatchList *batchlist;  
 
         int *pqs_stolen;
         int *workstealing_times;
@@ -245,47 +238,35 @@ namespace daisy
 
         bool verbose;
 
-        ReplicationData *replication_data;  // Changed from rep_data_t to ReplicationData
-        WorkstealingData *workstealing_data;  // Changed from workstealing_data_t to WorkstealingData
-        BsfSharingData *bsf_sharing_data;  // Changed from bsf_sharing_data_t to BsfSharingData
-        // TimerManager *timer_manager;  // Commented out - only for profiling
+        ReplicationData *replication_data;  
+        WorkstealingData *workstealing_data;  
+        BsfSharingData *bsf_sharing_data;  
 
-        std::string output_file;  // Changed from char* to std::string
+        std::string output_file;  
     };
 
-    // Search functions (moved from indexing.h)
-    // L2/DTW approximate/refine/node functions are declared in iSAXSearch.hpp (general, used by all systems).
     float calculate_minimum_distance_inmemory(isax_index *index, isax_node *node, ts_type *raw_query, ts_type *query);
     void refine_topk_answer_inmemory_dtw(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, isax_index *index, int warp_window, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, int merge_offset);
     void odyssey_compute_query_envelopes_dtw(OdysseyQuery *query, isax_index *index, int warping_window);
 
-    // Management Functions
     int process_pq_of_batch_chatzakis(int current_pq_index, QaWorkerData *input_data);
     void gather_sort_pqueues(QaWorkerData *in_data);
     int estimate_th(double x, double (*estimation_func)(double));
-    // COMMENTED: Threshold search not supported - only KNN queries supported
-    // int process_pq_of_batch_threshold(int current_pq_index, QaWorkerData *input_data);
+
     void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa, int warp_window = 0, ts_type *paaU = nullptr, ts_type *paaL = nullptr);
     void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index, int warp_window = 0, ts_type *paaU = nullptr, ts_type *paaL = nullptr);
 
-    // Thread workers: Prototypes: void * func(void * args)
     void *workstealing_manager(void *rfdata);
     void *dynamic_query_scheduler(void *rfdata);
     void *qa_exact_search_messi_worker(void *rfdata);
     void *exact_search_worker_inmemory_hybridpqueue_parallel_chatzakis(void *rfdata);
     void *qa_exact_search_messi_dynamic_worker(void *rfdata);
     void *qa_exact_search_odyssey_worker(void *rfdata);
-    // COMMENTED: Threshold search not supported - only KNN queries supported
-    // void *qa_exact_search_odyssey_th_worker(void *rfdata);
 
-    // Query Answering functions: Prototypes: query_result = func(SearchFunctionParams)
-    query_result qa_exact_search_odyssey_knn(SearchFunctionParams args);  // Changed search_function_params to SearchFunctionParams
-    // query_result qa_exact_search_odyssey_th(SearchFunctionParams args);  // COMMENTED: Threshold search not supported
+    query_result qa_exact_search_odyssey_knn(SearchFunctionParams args);  
 
-    // Workstealing helper function
-    query_result qa_exact_search_odyssey_knn_workstealing(WsSearchFunctionParams ws_args);  // Changed ws_search_function_params to WsSearchFunctionParams
-    // query_result qa_exact_search_odyssey_th_workstealing(WsSearchFunctionParams ws_args);  // COMMENTED: Threshold search not supported
+    query_result qa_exact_search_odyssey_knn_workstealing(WsSearchFunctionParams ws_args);  
 
-} // namespace daisy
+} 
 
-#endif // QUERY_ANSWERING_HPP
+#endif 
