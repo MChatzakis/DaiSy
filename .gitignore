@@ -42,6 +42,7 @@ isax_file.sax
 build/
 dist/
 *.egg-info/
+build.log
 
 # Python packaging and build artifacts
 *.egg
@@ -124,3 +125,5 @@ venv.bak/
 !.vscode/launch.json
 !.vscode/tasks.json
 !.vscode/extensions.json
+
+daisy_exact_search.egg-info/

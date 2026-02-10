@@ -24,10 +24,10 @@
 #endif
 #include "../lib/algos/DataSource.hpp"
 
-// Define a Python module named 'daisy'
-PYBIND11_MODULE(daisy, m)
+// Define a Python module named 'daisy._core'
+PYBIND11_MODULE(_core, m)
 {
-    m.doc() = "daisy Python bindings";
+    m.doc() = "daisy C++ backend";
 
     ////// DISTANCETYPE //////
     pybind11::enum_<daisy::DistanceType>(m, "DistanceType")

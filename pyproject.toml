@@ -1,23 +1,25 @@
 [build-system]
 requires = [
-    "setuptools>=45",
-    "wheel",
-    "pybind11>=2.10.0",
-    "numpy>=1.19.0"
+    "setuptools>=62.0.0,<75.0.0",
+    "wheel>=0.37.0",
+    "pybind11>=3.0.0",
+    "numpy>=2.2.6"
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "diNo-lib"
+name = "daisy-exact-search"
 version = "1.0.0"
-description = "High-performance similarity search library for time series data"
+description = "DaiSy: A Library for Scalable Data Series Similarity Search"
 readme = "README.md"
-requires-python = ">=3.8"
-license = {file = "LICENSE"}
+requires-python = ">=3.10"
 authors = [
-    {name = ""},
+    {name = "Franscesca Del Gaudio"},
+    {name = "Manos Chatzakis"},
+    {name = "Gayathiri Ravendirane"},
+    {name = "Themis Palpanas"},
 ]
-keywords = ["similarity-search", "time-series", "nearest-neighbor", "dtw", "cuda", "mpi"]
+keywords = ["similarity-search", "data-series"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers", 
@@ -28,8 +30,6 @@ classifiers = [
     "Operating System :: Microsoft :: Windows", 
     "Programming Language :: C++",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9", 
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -37,18 +37,29 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "numpy>=1.19.0",
-    "pybind11>=2.10.0",
+    "numpy>=2.2.6",
+    "pybind11>=3.0.0",
+    "mpi4py>=4.0.3",
 ]
 
 [project.optional-dependencies]
-mpi = ["mpi4py>=4.0.0"]
-dev = ["pytest", "cmake"]
+dev = [
+    "build>=1.0.0",
+    "cmake>=3.15",
+    "pip>=24.0.0",
+    "pytest>=7.0.0",
+    "setuptools>=80.9.0",
+    "twine>=4.0.0",
+    "wheel>=0.45.1",
+]
 
 [project.urls]
-Homepage = "https://github.com/MChatzakis/diNo-lib"
-Repository = "https://github.com/MChatzakis/diNo-lib"
-Issues = "https://github.com/MChatzakis/diNo-lib/issues"
+Homepage = "https://github.com/MChatzakis/DaiSy"
+Repository = "https://github.com/MChatzakis/DaiSy"
+Issues = "https://github.com/MChatzakis/DaiSy/issues"
 
 [tool.setuptools]
 packages = []
+
+[tool.wheel]
+universal = false

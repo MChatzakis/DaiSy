@@ -1,6 +1,6 @@
 include README.md
-include LICENSE
 include requirements_DaiSy.txt
+recursive-include daisy *.py
 recursive-include lib *.hpp *.cpp
 recursive-include commons *.hpp *.cpp
 recursive-include pybinds *.cpp

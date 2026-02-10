@@ -14,11 +14,11 @@ __version__ = "1.0.0"
 __author__ = ""
 
 try:
-    from .daisy import *
+    from ._core import *
 except ImportError:
     import warnings
     warnings.warn(
-        "daisy extension not found. "
+        "daisy._core extension not found. "
         "The library may not have been compiled properly. "
         "Please check the installation instructions.",
         ImportWarning
