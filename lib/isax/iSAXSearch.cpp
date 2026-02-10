@@ -362,7 +362,7 @@ namespace daisy
             for (i = 0; i < node->buffer->partial_buffer_size; i++)
             {
 
-                float dist = dtw(query, &(rawfile[*node->buffer->partial_position_buffer[i]]), cb, index->settings->timeseries_size, warp Wind, FLT_MAX);
+                float dist = dtw(query, &(rawfile[*node->buffer->partial_position_buffer[i]]), cb, index->settings->timeseries_size, warpWind, FLT_MAX);
 
                 pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
             }
