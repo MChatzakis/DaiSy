@@ -191,7 +191,7 @@ target_include_directories(bm_ParIS_L2Square
 )
 
 # ////// ODYSSEY (conditional on MPI) //////
-if(ODYSSEY_MPI_AVAILABLE)
+if(BUILD_ODYSSEY_AVAILABLE)
     if(DEBUG_MSG)
         message(STATUS "---")
         message(STATUS "## Benchmark: Odyssey L2Square")
@@ -220,7 +220,7 @@ if(ODYSSEY_MPI_AVAILABLE)
 endif()
 
 # ////// SING (conditional on CUDA) //////
-if(SING_CUDA_AVAILABLE)
+if(BUILD_SING_AVAILABLE)
     if(DEBUG_MSG)
         message(STATUS "---")
         message(STATUS "## Benchmark: Sing L2Square")

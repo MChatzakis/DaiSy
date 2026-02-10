@@ -53,9 +53,9 @@ if(DEBUG_MSG)
 endif()
 
 # ////// ODYSSEY //////
-if (ODYSSEY_MPI_AVAILABLE)
+if (BUILD_ODYSSEY_AVAILABLE)
     if(DEBUG_MSG)
-        message(STATUS "ODYSSEY_MPI_AVAILABLE is TRUE. Configuring MPI for Odyssey.")
+        message(STATUS "BUILD_ODYSSEY_AVAILABLE is TRUE. Configuring MPI for Odyssey.")
         message(STATUS "Adding MPI C include directories to dino_lib...")
     endif()
     target_include_directories(dino_lib PUBLIC
@@ -81,7 +81,7 @@ if (ODYSSEY_MPI_AVAILABLE)
     endif()
 else()
     if(DEBUG_MSG)
-        message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. MPI configuration for Odyssey skipped.")
+        message(STATUS "BUILD_ODYSSEY_AVAILABLE is FALSE. MPI configuration for Odyssey skipped.")
     endif()
     target_compile_definitions(dino_lib PUBLIC ODYSSEY_MPI=0)
 endif()
@@ -93,8 +93,8 @@ if(ODYSSEY_DEBUG_RESULTS)
     endif()
 endif()
 
-# Odyssey sources require MPI; only add them when ODYSSEY_MPI_AVAILABLE
-if(ODYSSEY_MPI_AVAILABLE)
+# Odyssey sources require MPI; only add them when BUILD_ODYSSEY_AVAILABLE
+if(BUILD_ODYSSEY_AVAILABLE)
 if(DEBUG_MSG)
     message(STATUS "Adding Odyssey.cpp to dino_lib sources.")
 endif()

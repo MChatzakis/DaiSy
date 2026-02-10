@@ -45,9 +45,9 @@ if(DEBUG_MSG)
     message(STATUS "Public include directories set for dino_lib.")
 endif()
 
-if (ODYSSEY_MPI_AVAILABLE)
+if (BUILD_ODYSSEY_AVAILABLE)
     if(DEBUG_MSG)
-        message(STATUS "ODYSSEY_MPI_AVAILABLE is TRUE. Adding MPI includes and libraries to dino_lib.")
+        message(STATUS "BUILD_ODYSSEY_AVAILABLE is TRUE. Adding MPI includes and libraries to dino_lib.")
     endif()
 
     # Add MPI include directories so the compiler can find <mpi.h>
@@ -73,7 +73,7 @@ if (ODYSSEY_MPI_AVAILABLE)
     endif()
 else()
     if(DEBUG_MSG)
-        message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. MPI dependencies will NOT be added to dino_lib.")
+        message(STATUS "BUILD_ODYSSEY_AVAILABLE is FALSE. MPI dependencies will NOT be added to dino_lib.")
     endif()
 endif()
 

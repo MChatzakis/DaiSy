@@ -48,8 +48,8 @@ jobs:
           cd build
           cmake .. \
             -DCMAKE_BUILD_TYPE=Release \
-            -DODYSSEY_MPI=OFF \
-            -DSING_CUDA=OFF \
+            -DBUILD_ODYSSEY=OFF \
+            -DBUILD_SING=OFF \
             -DBUILD_PYTHON=OFF \
             -DBUILD_BENCHMARK=OFF \
             -DBUILD_DEMO=OFF

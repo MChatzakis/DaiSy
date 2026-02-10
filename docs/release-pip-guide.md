@@ -180,7 +180,7 @@ ext_modules = [
         cxx_std=17,
         define_macros=[
             ("VERSION_INFO", '"' + __version__ + '"'),
-            ("ODYSSEY_MPI", "1" if ENABLE_MPI else "0"),  # Enabled if mpi4py is available
+            ("BUILD_ODYSSEY", "1" if ENABLE_MPI else "0"),  # Enabled if mpi4py is available
             ("SING_CUDA_ENABLED", "0"),  # CUDA disabled by default (optional feature)
         ],
         extra_compile_args=["-fopenmp", "-mavx", "-march=native"],

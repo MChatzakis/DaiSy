@@ -165,7 +165,7 @@ try:
     
     define_macros = [
         ("VERSION_INFO", '"' + __version__ + '"'),
-        ("ODYSSEY_MPI", "1" if ODYSSEY_ENABLED else "0"),
+        ("BUILD_ODYSSEY", "1" if ODYSSEY_ENABLED else "0"),
         ("SING_CUDA_ENABLED", "0"),
     ]
     

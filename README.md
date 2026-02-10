@@ -1,5 +1,5 @@
 # DaiSy: A Library for Scalable Data Series Similarity Search
-DaiSy (DAta series sImilarity sSearch librarY) is a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework, developed at LIPADE, Université Paris Cité.
+DaiSy (**Da**ta series s**i**milarity **S**earch librar**Y**) is a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework, developed at LIPADE, Université Paris Cité.
 It supports a wide range approaches tailored for different execution environments, including disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search. 
 DaiSy is implemented in C++, while it also offers a convenient Python interface for ease of use and integration with data science workflows.
 
@@ -55,12 +55,12 @@ git submodule update --init --recursive
 Based on the available hardware, you can specify the below arguments to enable/disable features.
 | Flag | Description | Default | Dependencies |
 |------|-------------|---------|--------------|
-| `BUILD_PYTHON` | Enable Python bindings | `ON` | Python 3.10+ |
-| `BUILD_BENCHMARK` | Build benchmarking tools | `ON` | GoogleBenchmark |
-| `BUILD_TESTS` | Build test suite | `ON` | GoogleTest |
+| `BUILD_PYTHON` | Enable Python bindings | `OFF` | Python 3.10+ |
+| `BUILD_BENCHMARK` | Build benchmarking tools | `OFF` | GoogleBenchmark |
+| `BUILD_TESTS` | Build test suite | `OFF` | GoogleTest |
 | `BUILD_DEMO` | Build demonstration applications | `ON` | Core library |
-| `ODYSSEY_MPI` | Enable MPI for distributed computing | `ON` | OpenMPI/MPICH |
-| `SING_CUDA` | Enable CUDA for GPU acceleration | `ON` | CUDA Toolkit |
+| `BUILD_ODYSSEY` | Enable MPI for distributed computing | `OFF` | OpenMPI/MPICH |
+| `BUILD_SING` | Enable CUDA for GPU acceleration | `OFF` | CUDA Toolkit |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
 
 To compile:
@@ -97,9 +97,9 @@ Richiede **CUDA Toolkit** installato (`nvcc --version` e `nvidia-smi` funzionant
 ```bash
 mkdir -p build && cd build
 # Se non usi MPI (consigliato per test locali):
-cmake .. -DODYSSEY_MPI=OFF -DSING_CUDA=ON -DBUILD_DEMO=ON
+cmake .. -DBUILD_ODYSSEY=OFF -DBUILD_SING=ON -DBUILD_DEMO=ON
 # Oppure con MPI:
-# cmake .. -DSING_CUDA=ON -DBUILD_DEMO=ON
+# cmake .. -DBUILD_SING=ON -DBUILD_DEMO=ON
 
 cmake --build . -j
 ./demos/demo_Sing_L2Square
