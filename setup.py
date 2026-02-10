@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import shutil
+import platform
 from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_py import build_py as _build_py
@@ -11,6 +12,44 @@ from setuptools.command.build_ext import build_ext as _build_ext
 
 # Version
 __version__ = "1.0.0"
+
+# Detect platform
+IS_MACOS = sys.platform == "darwin"
+IS_WINDOWS = sys.platform == "win32"
+IS_LINUX = sys.platform.startswith("linux")
+
+def check_mpi_available():
+    """Check if MPI development libraries are available on the system"""
+    import subprocess
+    import os
+    
+    # Check if mpi.h exists
+    conda_prefix = os.environ.get("CONDA_PREFIX")
+    if conda_prefix:
+        mpi_header = os.path.join(conda_prefix, "include", "mpi.h")
+        if os.path.exists(mpi_header):
+            return True
+    
+    # Check common system paths
+    for path in ["/usr/include", "/usr/local/include", "/opt/local/include", "/sw/include"]:
+        if os.path.exists(os.path.join(path, "mpi.h")):
+            return True
+    
+    # Try to run mpicc
+    try:
+        result = subprocess.run(["mpicc", "--version"], capture_output=True, timeout=5)
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    
+    # Try to import mpi4py  
+    try:
+        import mpi4py
+        return True
+    except ImportError:
+        pass
+    
+    return False
 
 def get_long_description():
     """Get long description from README"""
@@ -39,6 +78,13 @@ try:
                 shutil.copy(str(src_file), str(dst_file))
     
     # Define the extension module using pybind11
+    # Odyssey requires MPI - skip on macOS, enable on Linux/Windows
+    # Note: On Linux, the build expects MPI to be available. Install with:
+    #   Linux: sudo apt-get install libopenmpi-dev openmpi-bin (or conda install openmpi)
+    #   macOS: MPI not supported - will compile without Odyssey
+    #   Windows: MPI not supported - will compile without Odyssey
+    ODYSSEY_ENABLED = not IS_MACOS and not IS_WINDOWS
+    
     sources = [
         "pybinds/setup.cpp",
         # commons
@@ -60,15 +106,20 @@ try:
         "lib/algos/Messi.cpp",
         "lib/algos/ParIS.cpp",
         "lib/algos/Sing.cpp",
-        # Odyssey - MPI-based distributed search (now required)
-        "lib/algos/odyssey/Odyssey.cpp",
-        "lib/algos/odyssey/bsf_sharing.cpp",
-        "lib/algos/odyssey/indexing.cpp",
-        "lib/algos/odyssey/replication.cpp",
-        "lib/algos/odyssey/workstealing.cpp",
     ]
     
-    # Get MPI include directories from mpi4py
+    # Add Odyssey sources only if MPI is available
+    if ODYSSEY_ENABLED:
+        odyssey_sources = [
+            "lib/algos/odyssey/Odyssey.cpp",
+            "lib/algos/odyssey/bsf_sharing.cpp",
+            "lib/algos/odyssey/indexing.cpp",
+            "lib/algos/odyssey/replication.cpp",
+            "lib/algos/odyssey/workstealing.cpp",
+        ]
+        sources.extend(odyssey_sources)
+    
+    # Get MPI include directories from mpi4py (only if available)
     mpi_include_dirs = [
         "lib",
         "lib/algos", 
@@ -78,36 +129,57 @@ try:
         "commons",
     ]
     
-    # Add mpi4py include directories
-    try:
-        from mpi4py import get_include
-        mpi_include_dirs.append(get_include())
-    except Exception:
-        pass
+    library_dirs = []
+    libraries = []
     
-    # Add system MPI headers (from conda or system install)
-    import os
-    conda_prefix = os.environ.get("CONDA_PREFIX")
-    if conda_prefix:
-        conda_mpi_include = os.path.join(conda_prefix, "include")
-        if conda_mpi_include not in mpi_include_dirs:
-            mpi_include_dirs.append(conda_mpi_include)
+    if ODYSSEY_ENABLED:
+        # Add mpi4py include directories
+        try:
+            from mpi4py import get_include
+            mpi_include_dirs.append(get_include())
+        except Exception:
+            pass
+        
+        # Add system MPI headers (from conda or system install)
+        conda_prefix = os.environ.get("CONDA_PREFIX")
+        if conda_prefix:
+            conda_mpi_include = os.path.join(conda_prefix, "include")
+            if conda_mpi_include not in mpi_include_dirs:
+                mpi_include_dirs.append(conda_mpi_include)
+            library_dirs.append(os.path.join(conda_prefix, "lib"))
+        
+        libraries.append("mpi")
+    
+    # Determine compiler flags based on platform
+    compile_args = ["-std=c++17"]
+    link_args = []
+    
+    # OpenMP support (not available on standard macOS clang)
+    if not IS_MACOS:
+        compile_args.append("-fopenmp")
+        link_args.append("-fopenmp")
+    
+    # SIMD optimizations (not reliable on ARM64 Macs)
+    if not (IS_MACOS and platform.machine() in ("arm64", "aarch64")):
+        compile_args.extend(["-mavx", "-march=native"])
+    
+    define_macros = [
+        ("VERSION_INFO", '"' + __version__ + '"'),
+        ("ODYSSEY_MPI", "1" if ODYSSEY_ENABLED else "0"),
+        ("SING_CUDA_ENABLED", "0"),
+    ]
     
     ext_modules = [
         Pybind11Extension(
             "daisy._core",
             sources,
             include_dirs=mpi_include_dirs,
-            library_dirs=[os.path.join(conda_prefix, "lib")] if conda_prefix else [],
-            libraries=["mpi"],  # Link against MPI library
+            library_dirs=library_dirs,
+            libraries=libraries,
             cxx_std=17,
-            define_macros=[
-                ("VERSION_INFO", '"' + __version__ + '"'),
-                ("ODYSSEY_MPI", "1"),  # MPI always enabled
-                ("SING_CUDA_ENABLED", "0"),
-            ],
-            extra_compile_args=["-fopenmp", "-mavx", "-march=native"],
-            extra_link_args=["-fopenmp"],
+            define_macros=define_macros,
+            extra_compile_args=compile_args,
+            extra_link_args=link_args,
         ),
     ]
     
@@ -149,9 +221,9 @@ setup(
     install_requires=[
         "numpy>=2.2.6",
         "pybind11>=3.0.0",
-        "mpi4py>=4.0.3",  # Required for Odyssey distributed search
     ],
     extras_require={
+        "mpi": ["mpi4py>=4.0.3"],  # Optional: for Odyssey distributed search
         "dev": [
             "build>=1.0.0",
             "cmake>=3.15",

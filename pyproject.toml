@@ -3,7 +3,8 @@ requires = [
     "setuptools>=62.0.0,<75.0.0",
     "wheel>=0.37.0",
     "pybind11>=3.0.0",
-    "numpy>=2.2.6"
+    "numpy>=2.2.6",
+    "mpi4py>=4.0.3;sys_platform=='linux'"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -39,10 +40,10 @@ classifiers = [
 dependencies = [
     "numpy>=2.2.6",
     "pybind11>=3.0.0",
-    "mpi4py>=4.0.3",
 ]
 
 [project.optional-dependencies]
+mpi = ["mpi4py>=4.0.3"]
 dev = [
     "build>=1.0.0",
     "cmake>=3.15",
