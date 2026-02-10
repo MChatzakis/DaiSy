@@ -60,7 +60,7 @@ jobs:
           cd build
           cmake .. \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
-            -DODYSSEY_MPI=OFF \
+            -DODYSSEY_MPI=ON \
             -DSING_CUDA=OFF \
             -DBUILD_PYTHON=ON \
             -DBUILD_BENCHMARK=ON \
