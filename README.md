@@ -73,14 +73,19 @@ cmake ..
 make
 ```
 
-### Enable Python
+### DaiSy with Python
+```bash
+pip install daisy-exact-search
+```
 
+<!--
 ```bash
 python3.12 -m venv DaiSy_env
 
 source DaiSy_env/bin/activate 
 pip install -r requirements_DaiSy.txt
 ```
+-->
 
 
 ### Example Usage
