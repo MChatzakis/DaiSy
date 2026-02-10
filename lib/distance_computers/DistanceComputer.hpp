@@ -1,7 +1,7 @@
 #ifndef DISTANCECOMPUTER_HPP
 #define DISTANCECOMPUTER_HPP
 
-#include "immintrin.h"
+#include "../utils/SIMD.hpp"
 #include <cmath>
 #include <unordered_map>
 #include <iostream>

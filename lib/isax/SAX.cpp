@@ -2,7 +2,7 @@
 #include <float.h>
 
 #include "SAX.hpp"
-#include "immintrin.h"
+#include "../utils/SIMD.hpp"
 
 namespace daisy
 {
@@ -173,6 +173,7 @@ namespace daisy
         return distance;
     }
 
+#if DAISY_SIMD_AVAILABLE
     float minidist_paa_to_isax_raw_SIMD(float *paa, sax_type *sax,
                                         sax_type *sax_cardinalities,
                                         sax_type max_bit_cardinality,
@@ -321,6 +322,19 @@ namespace daisy
 
         return (distancef[0] + distancef[4]) * ratio_sqrt;
     }
+#else
+    float minidist_paa_to_isax_raw_SIMD(float *paa, sax_type *sax,
+                                        sax_type *sax_cardinalities,
+                                        sax_type max_bit_cardinality,
+                                        int max_cardinality,
+                                        int number_of_segments,
+                                        int min_val,
+                                        int max_val,
+                                        float ratio_sqrt)
+    {
+        THROW_SIMD_NOT_AVAILABLE("minidist_paa_to_isax_raw_SIMD");
+    }
+#endif
 
     float ts_euclidean_distance(ts_type *t, ts_type *s, int size, float bound)
     {
@@ -334,6 +348,7 @@ namespace daisy
         return distance;
     }
 
+#if DAISY_SIMD_AVAILABLE
     float ts_euclidean_distance_SIMD(ts_type *t, ts_type *s, int size, float bound)
     {
         float distance = 0;
@@ -360,7 +375,15 @@ namespace daisy
 
         return distance;
     }
+#else
+    float ts_euclidean_distance_SIMD(ts_type *t, ts_type *s, int size, float bound)
+    {
+        THROW_SIMD_NOT_AVAILABLE("ts_euclidean_distance_SIMD");
+    }
+#endif
 
+
+#if DAISY_SIMD_AVAILABLE
     float minidist_paa_to_isax_rawa_SIMD(float *paa, sax_type *sax,
                                          sax_type *sax_cardinalities,
                                          sax_type max_bit_cardinality,
@@ -439,46 +462,14 @@ namespace daisy
         __m256 minvalv = _mm256_set1_ps(min_val);
 
         __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpoints, region_lowerv_0_offset, 4);
-        //__m256 lsax_breakpoints_shiftv_0= _mm256_set_ps (sax_breakpoints[region_lower[7]],
-        // sax_breakpoints[region_lower[6]],
-        // sax_breakpoints[region_lower[5]],
-        // sax_breakpoints[region_lower[4]],
-        // sax_breakpoints[region_lower[3]],
-        // sax_breakpoints[region_lower[2]],
-        // sax_breakpoints[region_lower[1]],
-        // sax_breakpoints[region_lower[0]]);
         __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpoints, region_lowerv_1_offset, 4);
-        //__m256 lsax_breakpoints_shiftv_1= _mm256_set_ps (sax_breakpoints[region_lower[15]],
-        // sax_breakpoints[region_lower[14]],
-        // sax_breakpoints[region_lower[13]],
-        // sax_breakpoints[region_lower[12]],
-        // sax_breakpoints[region_lower[11]],
-        // sax_breakpoints[region_lower[10]],
-        // sax_breakpoints[region_lower[9]],
-        // sax_breakpoints[region_lower[8]]);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_0, (__m256i)lsax_breakpoints_shiftv_0));
         __m256 breakpoint_lowerv_1 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
         // uper
         __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpoints, region_upperv_0_offset, 4);
-        //__m256 usax_breakpoints_shiftv_0= _mm256_set_ps (sax_breakpoints[region_upper[7]],
-        // sax_breakpoints[region_upper[6]],
-        // sax_breakpoints[region_upper[5]],
-        // sax_breakpoints[region_upper[4]],
-        // sax_breakpoints[region_upper[3]],
-        // sax_breakpoints[region_upper[2]],
-        // sax_breakpoints[region_upper[1]],
-        // sax_breakpoints[region_upper[0]]);
         __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpoints, region_upperv_1_offset, 4);
-        //__m256 usax_breakpoints_shiftv_1= _mm256_set_ps (sax_breakpoints[region_upper[15]],
-        // sax_breakpoints[region_upper[14]],
-        // sax_breakpoints[region_upper[13]],
-        // sax_breakpoints[region_upper[12]],
-        // sax_breakpoints[region_upper[11]],
-        // sax_breakpoints[region_upper[10]],
-        // sax_breakpoints[region_upper[9]],
-        // sax_breakpoints[region_upper[8]]);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -501,9 +492,6 @@ namespace daisy
         __m256 dis_juge_lov_0 = _mm256_cmp_ps(breakpoint_upperv_0, paav_0, _CMP_LT_OS);
         __m256 dis_juge_lov_1 = _mm256_cmp_ps(breakpoint_upperv_1, paav_1, _CMP_LT_OS);
 
-        // __m256 dis_juge_lov_0=(__m256)_mm256_and_si256 ((__m256i)_mm256_cmp_ps (breakpoint_lowerv_0, paav_0, _CMP_NGT_US),(__m256i)_mm256_cmp_ps (breakpoint_upperv_0, paav_0, _CMP_LT_OS))  ;
-        // __m256 dis_juge_lov_1=(__m256)_mm256_and_si256 ((__m256i)_mm256_cmp_ps (breakpoint_lowerv_1, paav_1, _CMP_NGT_US),(__m256i)_mm256_cmp_ps (breakpoint_upperv_1, paav_1, _CMP_LT_OS));
-
         __m256 dis_juge_elv_0 = (__m256)_mm256_andnot_si256(_mm256_or_si256((__m256i)dis_juge_upv_0, (__m256i)dis_juge_lov_0), vectorsignbit);
         __m256 dis_juge_elv_1 = (__m256)_mm256_andnot_si256(_mm256_or_si256((__m256i)dis_juge_upv_1, (__m256i)dis_juge_lov_1), vectorsignbit);
 
@@ -518,16 +506,27 @@ namespace daisy
         __m256 distancesum_0 = _mm256_dp_ps(distancev_0, distancev_0, 0xff);
         __m256 distancesum_1 = _mm256_dp_ps(distancev_1, distancev_1, 0xff);
         __m256 distancevf = _mm256_add_ps(distancesum_0, distancesum_1);
-        //__m256 distancev2 = _mm256_hadd_ps (distancev, distancev);
-        //__m256 distancevf = _mm256_hadd_ps (distancev2, distancev2);
-        //__m256 _mm256_dp_ps (__m256 a, __m256 b, const int imm8);
 
         _mm256_storeu_ps(distancef, distancevf);
-        //_mm256_storeu_ps (&checkvalue[8] ,distancev_1);
 
         return (distancef[0] + distancef[4]) * ratio_sqrt;
     }
+#else
+    float minidist_paa_to_isax_rawa_SIMD(float *paa, sax_type *sax,
+                                         sax_type *sax_cardinalities,
+                                         sax_type max_bit_cardinality,
+                                         int max_cardinality,
+                                         int number_of_segments,
+                                         int min_val,
+                                         int max_val,
+                                         float ratio_sqrt)
+    {
+        THROW_SIMD_NOT_AVAILABLE("minidist_paa_to_isax_rawa_SIMD");
+    }
+#endif
 
+
+#if DAISY_SIMD_AVAILABLE
     float minidist_paa_to_isax_raw_DTW_SIMD(float *paaU, float *paaL, sax_type *sax,
                                             sax_type *sax_cardinalities,
                                             sax_type max_bit_cardinality,
@@ -699,7 +698,22 @@ namespace daisy
 
         return (distancef[0] + distancef[4]) * ratio_sqrt;
     }
+#else
+    float minidist_paa_to_isax_raw_DTW_SIMD(float *paaU, float *paaL, sax_type *sax,
+                                            sax_type *sax_cardinalities,
+                                            sax_type max_bit_cardinality,
+                                            int max_cardinality,
+                                            int number_of_segments,
+                                            int min_val,
+                                            int max_val,
+                                            float ratio_sqrt)
+    {
+        THROW_SIMD_NOT_AVAILABLE("minidist_paa_to_isax_raw_DTW_SIMD");
+    }
+#endif
 
+
+#if DAISY_SIMD_AVAILABLE
     float lb_keogh_data_bound(float *qo, float *tu, float *tl, float *cb, int len, float bsf)
     {
         float lb = 0;
@@ -765,6 +779,12 @@ namespace daisy
         free(cbtmp);
         return lb;
     }
+#else
+    float lb_keogh_data_bound(float *qo, float *tu, float *tl, float *cb, int len, float bsf)
+    {
+        THROW_SIMD_NOT_AVAILABLE("lb_keogh_data_bound");
+    }
+#endif
 
     float dtwsimdPruned(float *A, float *B, float *cb, int m, int r, float bsf, float *tSum, float *pCost, float *rDist)
     {

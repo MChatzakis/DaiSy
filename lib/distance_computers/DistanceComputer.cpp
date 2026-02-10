@@ -12,6 +12,7 @@ namespace daisy
 
     float DistanceComputer::l2_dist(float *t, float *s, int dim, float bound)
     {
+#if DAISY_SIMD_AVAILABLE
         if (dim % 8 == 0)
         {
             return l2_dist_SIMD(t, s, dim, bound);
@@ -20,8 +21,12 @@ namespace daisy
         {
             return l2_dist_naive(t, s, dim, bound);
         }
+#else
+        return l2_dist_naive(t, s, dim, bound);
+#endif
     }
 
+#if DAISY_SIMD_AVAILABLE
     float DistanceComputer::l2_dist_SIMD(float *t, float *s, int dim, float bound)
     {
         float distance = 0;
@@ -48,6 +53,13 @@ namespace daisy
 
         return distance;
     }
+#else
+    float DistanceComputer::l2_dist_SIMD(float *t, float *s, int dim, float bound)
+    {
+        // SIMD not available, fall back to naive implementation
+        return l2_dist_naive(t, s, dim, bound);
+    }
+#endif
 
     float DistanceComputer::l2_dist_naive(float *t, float *s, int dim, float bound)
     {
@@ -121,7 +133,12 @@ namespace daisy
 
     float DistanceComputer::compute_dist_SIMD(float *t, float *s, int dim, float bound)
     {
+#if DAISY_SIMD_AVAILABLE
         return l2_dist_SIMD(t, s, dim, bound);
+#else
+        // Fall back to naive implementation when SIMD is not available
+        return l2_dist_naive(t, s, dim, bound);
+#endif
     }
 
     ////// Wrapper Methods's definition for SAX.hpp functions //////

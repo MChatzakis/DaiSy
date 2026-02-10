@@ -6,7 +6,7 @@
 #include "../isax/iSAXPqueue.hpp"
 #include "../isax/SAX.hpp"
 #include "../isax/SAXBreakpoints.hpp"
-#include <immintrin.h>
+#include "../utils/SIMD.hpp"
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
@@ -44,6 +44,8 @@ namespace daisy
                           unsigned long int *currentposition, sax_type *saxarray, sax_type *sortsaxarray,
                           float *lbdarray);
 
+
+#if DAISY_SIMD_AVAILABLE
     float minidist_paa_to_isax_raw_SING_SIMD(float *paa, sax_type *sax, sax_type *sax_cardinalities,
                                              sax_type max_bit_cardinality, int max_cardinality,
                                              int number_of_segments, int min_val, int max_val, float ratio_sqrt)
@@ -158,6 +160,14 @@ namespace daisy
 
         return (distancef[0] + distancef[4]) * ratio_sqrt;
     }
+#else
+    float minidist_paa_to_isax_raw_SING_SIMD(float *paa, sax_type *sax, sax_type *sax_cardinalities,
+                                             sax_type max_bit_cardinality, int max_cardinality,
+                                             int number_of_segments, int min_val, int max_val, float ratio_sqrt)
+    {
+        THROW_SIMD_NOT_AVAILABLE("minidist_paa_to_isax_raw_SING_SIMD");
+    }
+#endif
 
     void approximate_topk_SING(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float *rawfile)
     {
