@@ -1,18 +1,19 @@
 # Scripts Module
 
-The scripts module provides essential utilities that support the development, testing, and usage of the diNo library. These tools help with data preparation, parameter configuration, visualization, and validation of similarity search results.
+The scripts module provides essential utilities that support the development, testing, and usage of the DaiSy library. 
+These tools help with data preparation, parameter configuration, visualization, and validation of similarity search results.
 
 ## Core Components
 
-### Data Sampling Tool (`data_sampler.py`)
+### Data Sampling Tool ([`data_sampler.py`](data_sampler.py))
 
-A comprehensive utility for processing, sampling, and preparing time series datasets for use with the diNo library.
+A comprehensive utility for processing, sampling, and preparing time series datasets for use with the DaiSy library.
 
-### GUI Configuration Tool (`gui_config_param.py`)
+### GUI Configuration Tool ([`gui_config_param.py`](gui_config_param.py))
 
-An interactive graphical interface for configuring algorithm parameters and exploring the diNo library's capabilities.
+An interactive graphical interface for configuring algorithm parameters and exploring the DaiSy library's capabilities.
 
-### Ground Truth Generation (`groundtruth/`)
+### Ground Truth Generation ([`groundtruth/`](groundtruth/))
 
 Tools and utilities for generating and validating ground truth results for similarity search evaluation.
 
