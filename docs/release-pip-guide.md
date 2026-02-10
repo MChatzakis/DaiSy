@@ -8,6 +8,8 @@ The goal is to create distribution-ready packages (wheel and source) that can be
 
 ## Step-by-Step Process
 
+> **Note:** The steps below describe the conceptual approach. The actual implementation in setup.py version 1.0.0+ includes additional platform detection to disable incompatible compiler flags on macOS and Windows. See the "Platform Compatibility" section above for details.
+
 ### 1. Clean All Previous Build Artifacts
 
 Remove all existing build outputs and installation artifacts:
@@ -266,52 +268,107 @@ pip install --force-reinstall --no-deps /home/mchatzakis/diNoSimilaritySearch/di
 Verify the package works correctly:
 
 ```bash
-python -c "import daisy; print('Version:', daisy.__version__); print('Available:', [x for x in dir(daisy) if not x.startswith('_')][:8])"
+python -c "import daisy; print('Version:', daisy.__version__); algs = [x for x in dir(daisy) if not x.startswith('_')]; print('Algorithms:', algs[:10])"
 ```
 
-Expected output:
+**Expected output on Linux with MPI:**
 ```
 Version: 1.0.0
-Available: ['BruteForceSearch', 'DTW', 'DistanceType', 'L2_SQUARED', 'LbBruteforce', 'Messi', 'Odyssey', 'ParIS']
+Algorithms: ['BruteForceSearch', 'DTW', 'DistanceType', 'L2_SQUARED', 'LbBruteforce', 'Messi', 'Odyssey', 'ParIS']
 ```
+
+**Expected output on macOS (without MPI):**
+```
+Version: 1.0.0
+Algorithms: ['BruteForceSearch', 'DTW', 'DistanceType', 'L2_SQUARED', 'LbBruteforce', 'Messi', 'ParIS']
+```
+
+---
+
+## Platform Compatibility
+
+### Cross-Platform Build Strategy
+
+Starting with version 1.0.0, DaiSy automatically adapts compilation flags based on the target platform:
+
+**Linux (x86_64):**
+- ✅ Full OpenMP support (`-fopenmp`)
+- ✅ SIMD optimizations (`-mavx -march=native`)
+- ✅ MPI/Odyssey supported (if mpi4py installed)
+- ✅ All algorithms available
+
+**macOS (Intel & ARM64):**
+- ⚠️ No `-fopenmp` (clang limitation; uses std::thread instead)
+- ⚠️ No `-mavx` on ARM64 (not supported; x86-64 uses native flags)
+- ❌ MPI/Odyssey disabled by default (use optional[mpi] if needed)
+- ✅ Core algorithms available: BruteForceSearch, LbBruteforce, MESSI, ParIS
+
+**Windows:**
+- ⚠️ No OpenMP external dependency (uses MSVC parallel)
+- ❌ MPI/Odyssey disabled by default
+- ✅ Core algorithms available: BruteForceSearch, LbBruteforce, MESSI, ParIS
 
 ---
 
 ## Available Algorithms
 
-### Default Build (Now Includes Odyssey!)
+### Default Build (Cross-Platform Compatible)
 
-The pip-ready package includes these algorithms **by default**:
+The pip-ready package includes these algorithms **by default on all platforms**:
 
-| Algorithm | Type | Distance | Status |
+| Algorithm | Type | Distance | Availability |
 |-----------|------|----------|--------|
-| **BruteForceSearch** | Exact | L2, DTW | ✅ Always Available |
-| **LbBruteforce** | Exact + LB | L2, DTW | ✅ Always Available |
-| **MESSI** | Indexed | L2, DTW | ✅ Always Available |
-| **PARIS** | Disk-based | L2, DTW | ✅ Always Available |
-| **Odyssey** | Distributed MPI | L2, DTW | ✅ **NEW** - Now Required (mpi4py) |
+| **BruteForceSearch** | Exact | L2, DTW | ✅ All platforms |
+| **LbBruteforce** | Exact + LB | L2, DTW | ✅ All platforms |
+| **MESSI** | Indexed | L2, DTW | ✅ All platforms |
+| **ParIS** | Disk-based | L2, DTW | ✅ All platforms |
 
-### Optional Algorithms (Require Additional Setup)
+### Optional Algorithms
 
-| Algorithm | Requires | Status |
-|-----------|----------|--------|
-| **SING** | CUDA Toolkit | ❌ Disabled by default |
+| Algorithm | Requires | Platform Support | Status |
+|-----------|----------|-----|--------|
+| **Odyssey** | mpi4py + MPI libs | Linux only | ⚠️ Optional (install with `[mpi]`) |
+| **SING** | CUDA Toolkit | Linux, macOS, Windows | ❌ Disabled by default |
+
+### Installing with Optional Features
+
+**For Odyssey (Distributed MPI Search) on Linux:**
+```bash
+pip install daisy-exact-search[mpi]
+# Then install MPI libraries:
+# Ubuntu/Debian: sudo apt-get install libopenmpi-dev openmpi-bin
+# Conda: conda install openmpi
+```
+
+**For SING (GPU Search) - requires building from source:**
+```bash
+pip install daisy-exact-search --no-binary :all:
+# Set CUDA_HOME and modify setup.py as described below
+```
 
 ---
 
 ## Dependencies
 
-### Required
-- **mpi4py >= 4.0.3** - NOW REQUIRED for Odyssey distributed search
+### Required (All Platforms)
 - **numpy >= 2.2.6**
 - **pybind11 >= 3.0.0**
 
+### Optional
+- **mpi4py >= 4.0.3** - For Odyssey distributed search (Linux only)
+  - Install with: `pip install daisy-exact-search[mpi]`
+
 ### System Requirements for Building
-- **MPI Libraries** (OpenMPI or MPICH)
+- **C++17 compatible compiler:**
+  - Linux: GCC 5.3+ or Clang 3.4+
+  - macOS: Xcode 9.1+ (includes Clang)
+  - Windows: MSVC 2015+
+
+- **MPI Libraries** (only needed for Odyssey on Linux):
   - Ubuntu/Debian: `sudo apt-get install libopenmpi-dev openmpi-bin`
-  - macOS: `brew install open-mpi`
-  - Windows: Download from [Microsoft HPC Pack](https://www.microsoft.com/en-us/download/details.aspx?id=100593)
   - Conda: `conda install openmpi`
+  - macOS: `brew install open-mpi` (optional, for manual MPI builds)
+  - Windows: Not commonly used with DaiSy
 
 ---
 
@@ -350,119 +407,180 @@ The pip-ready packages are located at:
 
 ```
 /home/mchatzakis/diNoSimilaritySearch/dist/
-├── daisy-1.0.0-cp312-cp312-linux_x86_64.whl    (1.1 MB)  [Binary wheel with Odyssey]
-└── daisy-1.0.0.tar.gz                          (957 KB)  [Source distribution with Odyssey]
+├── daisy_exact_search-1.0.0-cp312-cp312-manylinux_2_34_x86_64.whl    (4.2 MB)  [Binary wheel, Linux]
+└── daisy_exact_search-1.0.0.tar.gz                                   (957 KB)  [Source, all platforms]
 ```
 
-### What's Now Included By Default
+### What's Included By Default
 
-**All installations now include:**
+**All installations (macOS, Linux, Windows) include:**
 - ✅ BruteForceSearch  
 - ✅ LbBruteforce
 - ✅ MESSI
 - ✅ ParIS
-- ✅ **Odyssey** (Distributed MPI-based search) - **NEWLY REQUIRED!**
 - ✅ L2-Squared and DTW distance metrics
 
-**Optional (requires additional setup):**
-- ❌ SING (requires: CUDA Toolkit)
+**Platform-Specific Features:**
+- Linux: Full OpenMP + SIMD optimizations
+- macOS: Compatible (no OpenMP, no aggressive SIMD on ARM64)
+- Windows: Compatible
 
-To enable SING (GPU acceleration), see "Building with CUDA Support" section above.
+**Optional (requires `[mpi]` extra):**
+- ⚠️ Odyssey (Linux only, requires MPI + mpi4py)
+- ❌ SING (requires CUDA Toolkit, needs rebuild from source)
 
 ## Installation for End Users
 
-DaiSy now requires MPI for Odyssey distributed search. Install with:
+**Basic Installation (Works on macOS, Linux, Windows):**
 
 ```bash
-# Ubuntu/Debian: Install MPI libraries first  
-sudo apt-get install libopenmpi-dev openmpi-bin
+# From PyPI
+pip install daisy-exact-search
 
-# macOS: Install MPI via Homebrew
-brew install open-mpi
-
-# Conda: Install OpenMPI
-conda install openmpi
-
-# Then install DaiSy
-# From wheel (fastest - includes Odyssey)
-pip install daisy-1.0.0-cp312-cp312-linux_x86_64.whl
+# From wheel (pre-compiled, fastest)
+pip install daisy_exact_search-1.0.0-cp312-cp312-manylinux_2_34_x86_64.whl
 
 # From source (requires compilation)
-pip install daisy-1.0.0.tar.gz
-
-# Or from PyPI (once uploaded)
-pip install daisy
+pip install daisy_exact_search-1.0.0.tar.gz
 ```
 
-## Important: MPI Requirement
+**Installation with Optional Odyssey Support (Linux only):**
 
-**Starting with version 1.0.0, DaiSy requires MPI libraries to build and run.**
+```bash
+# Install with MPI support - on Linux only
+pip install daisy-exact-search[mpi]
 
-This is because Odyssey (distributed search) is now a required component. When you install the wheel, mpi4py will be automatically installed, but you need MPI libraries on your system:
+# Then ensure MPI libraries are installed:
+sudo apt-get install libopenmpi-dev openmpi-bin  # Ubuntu/Debian
+# or
+conda install openmpi  # Conda
+```
 
-- **Linux**: `libopenmpi-dev` / `mpich-devel` (system package)
-- **macOS**: Install via Homebrew
-- **Windows**: Microsoft HPC Pack
-- **Conda environment**: `conda install openmpi`
+### Platform Behavior After Installation
+
+**All platforms get:**
+- ✅ BruteForceSearch
+- ✅ LbBruteforce  
+- ✅ MESSI
+- ✅ ParIS
+- ✅ L2-Squared and DTW distance metrics
+
+**Linux with `[mpi]` extras gets:**
+- ✅ **Odyssey** (distributed search via MPI)
+
+**macOS/Windows:**
+- ❌ Odyssey not available (MPI not commonly installed)
+- ⚠️ OpenMP disabled (uses std::thread; full compatibility)
+
+---
+
+## Important: The Package Name Changed
+
+**Previous name:** `daisy` (now taken on PyPI)
+**Current name:** `daisy-exact-search`
+
+Note: The Python import remains `import daisy` - only the pip package name changed.
+
+```bash
+# Install
+pip install daisy-exact-search
+
+# Use
+import daisy
+model = daisy.BruteForceSearch(daisy.DistanceType.L2_SQUARED)
+```
 
 ## Quick Reference: One-Command Summary
 
+**Linux (full build with Odyssey):**
 ```bash
-# Full rebuild from scratch (with MPI)
 cd /home/mchatzakis/diNoSimilaritySearch && \
-pip uninstall -y daisy && \
+pip uninstall -y daisy-exact-search && \
+rm -rf build/ dist/ *.egg-info && \
+conda install openmpi &&  # Ensure MPI available \
+python -m build && \
+pip install --force-reinstall --no-deps dist/daisy_exact_search-*.whl && \
+python -c "import daisy; print('✓ DaiSy installed'); print('✓ Odyssey:', hasattr(daisy, 'Odyssey')); print('✓ Algorithms:', len([x for x in dir(daisy) if not x.startswith('_')]))"
+```
+
+**macOS (core algorithms only):**
+```bash
+cd /home/mchatzakis/diNoSimilaritySearch && \
+pip uninstall -y daisy-exact-search && \
 rm -rf build/ dist/ *.egg-info && \
 python -m build && \
-pip install --force-reinstall --no-deps dist/daisy-1.0.0-cp312-cp312-linux_x86_64.whl && \
-python -c "import daisy; print('✓ DaiSy', daisy.__version__, 'installed successfully'); print('✓ Odyssey available:', hasattr(daisy, 'Odyssey'))"
+pip install --force-reinstall --no-deps dist/daisy_exact_search-*.whl && \
+python -c "import daisy; print('✓ DaiSy installed on macOS'); print('✓ Algorithms:', len([x for x in dir(daisy) if not x.startswith('_')]))"
 ```
 
 ## Troubleshooting
 
-If the build fails:
+### Installation Issues
 
-1. **Missing pybind11**: Ensure it's installed: `pip install pybind11>=3.0.0`
-2. **Missing numpy**: Install it: `pip install numpy>=2.2.6`
-3. **Missing MPI headers**: Install MPI development libraries (see "Important: MPI Requirement" above)
-4. **Compiler issues**: Ensure you have a C++17 compatible compiler (GCC 6+, Clang 3.4+, MSVC 2015+)
-5. **Stale builds**: Always clean before rebuilding: `rm -rf build/ dist/ *.egg-info`
+If `pip install daisy-exact-search` fails:
+
+1. **Missing pybind11**: `pip install pybind11>=3.0.0`
+2. **Missing numpy**: `pip install numpy>=2.2.6`
+3. **Compiler issues**: Ensure C++17 compiler (GCC 5.3+, Clang 3.4+, MSVC 2015+)
+4. **Stale builds**: Always clean: `rm -rf build/ dist/ *.egg-info`
+5. **macOS specific**: Ensure Xcode Command Line Tools are installed:
+   ```bash
+   xcode-select --install
+   ```
+
+### Build Failures
+
+**"error: unsupported option '-fopenmp'" on macOS:**
+This is expected - DaiSy automatically disables OpenMP on macOS and uses std::thread instead. The build should still succeed.
+
+**"fatal error: mpi.h: No such file or directory" on Linux:**
+MPI development headers aren't installed. Install on Linux only:
+```bash
+# Ubuntu/Debian
+sudo apt-get install libopenmpi-dev openmpi-bin
+
+# Fedora/RHEL  
+sudo dnf install openmpi-devel
+
+# Conda
+conda install openmpi
+
+# Then rebuild
+rm -rf build/ dist/ *.egg-info
+python -m build
+```
+
+Note: This error is expected and harmless on macOS/Windows (Odyssey will be disabled).
 
 ### Odyssey Not Available
 
 If `daisy.Odyssey` is missing:
 
-1. **Check MPI is installed**: `mpicc --version` or `mpirun --version`
-2. **Reinstall MPI libraries** and rebuild
-3. **Check mpi4py is available**: `python -c "import mpi4py"`
+**On macOS/Windows:** This is expected behavior - Odyssey requires MPI which is not commonly installed on these platforms.
 
-To verify algorithms are available:
-
+**On Linux:** Install MPI and rebuild:
 ```bash
-python -c "import daisy; algs = [x for x in dir(daisy) if not x.startswith('_')]; print('Available:', algs); print('Has Odyssey:', 'Odyssey' in algs)"
-```
-
-### Build Fails with "mpi.h: No such file"
-
-The MPI development headers aren't installed on your system.
-
-**Solution**: Install MPI development libraries:
-```bash
-# Ubuntu/Debian
+# Option 1: System package
 sudo apt-get install libopenmpi-dev openmpi-bin
 
-# macOS
-brew install open-mpi
-
-# Fedora/RHEL
-sudo dnf install openmpi-devel
-
-# Conda
+# Option 2: Conda
 conda install openmpi
-```
 
-Then rebuild:
-```bash
-cd /home/mchatzakis/diNoSimilaritySearch
+# Then rebuild
 rm -rf build/ dist/ *.egg-info
 python -m build
+pip install --force-reinstall --no-deps dist/daisy_exact_search-*.whl
 ```
+
+To verify available algorithms:
+```bash
+python -c "import daisy; algs = [x for x in dir(daisy) if not x.startswith('_')]; print('Available algorithms:', algs)"
+```
+
+### Package Name vs Import Name
+
+Remember:
+- **pip package name:** `daisy-exact-search`
+- **Python import name:** `daisy` (unchanged)
+
+So you install with `pip install daisy-exact-search` but import with `import daisy`.
