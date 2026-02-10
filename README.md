@@ -72,8 +72,14 @@ make
 ```
 
 ### DaiSy with Python
+If you intent to use only the Python interface, you can install the library directly from PyPI using pip:
 ```bash
 pip install daisy-exact-search
+```
+
+If you want to use Odyssey, you will need to install mpi:
+```bash
+pip install daisy-exact-search[mpi]
 ```
 
 ### Compatibility issues
