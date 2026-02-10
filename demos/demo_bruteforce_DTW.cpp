@@ -1,5 +1,5 @@
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/Bruteforce.hpp"
+#include "../lib/daisy.hpp"
 
 int main()
 {

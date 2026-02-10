@@ -1,6 +1,6 @@
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/Sing.hpp"
-#include "../lib/algos/DataSource.hpp"
+#include "../lib/daisy.hpp"
+
 #include <chrono>
 #include <cstdio>
 
@@ -10,9 +10,6 @@ int main(){
     unsigned long long dim = 96;
     unsigned long long n_query = 10;
     daisy::idx_t k = 5;
-
-    printf("=== Sing L2Square demo (stesso dataset di demo_Messi_L2Square) ===\n");
-    printf("n_database=%llu dim=%llu n_query=%llu k=%llu\n", n_database, dim, n_query, k);
 
     float *database = loadRandomData(n_database, dim, 100, true);
     float *query = loadRandomData(n_query, dim, 50, true);

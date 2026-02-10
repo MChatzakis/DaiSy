@@ -1,5 +1,5 @@
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/ParIS.hpp"
+#include "../lib/daisy.hpp"
 #include <cstdio>
 #include <cstring>
 #include <string>

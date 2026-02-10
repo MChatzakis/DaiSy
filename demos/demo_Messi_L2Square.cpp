@@ -1,5 +1,5 @@
 #include "../commons/dataloaders.hpp"
-#include "../lib/algos/Messi.hpp"
+#include "../lib/daisy.hpp"
 #include <chrono>
 
 int main(){
