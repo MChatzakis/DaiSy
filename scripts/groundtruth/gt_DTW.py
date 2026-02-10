@@ -1,4 +1,5 @@
 import numpy as np
+# this will require pip install tslearn and joblib
 from tslearn.metrics import dtw
 from joblib import Parallel, delayed
 from gt_utils import formatFile_db, formatFile_query, saveOutput, run_all_datasets

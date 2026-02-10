@@ -1,4 +1,5 @@
 import numpy as np
+# this will require pip install faiss-cpu (or faiss-gpu if you have a compatible GPU)
 import faiss
 from gt_utils import formatFile_db, formatFile_query, saveOutput, run_all_datasets
 

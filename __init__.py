@@ -16,7 +16,6 @@ __author__ = ""
 try:
     from .daisy import *
 except ImportError:
-    # If the compiled extension is not available, provide a helpful message
     import warnings
     warnings.warn(
         "daisy extension not found. "

@@ -70,7 +70,7 @@ To compile:
 mkdir build && cd build
 
 cmake ..
-cmake --build .
+make
 ```
 
 ### Enable Python
@@ -80,13 +80,6 @@ python3.12 -m venv DaiSy_env
 
 source DaiSy_env/bin/activate 
 pip install -r requirements_DaiSy.txt
-```
-
-#### Conda Environment
-
-```bash
-conda env create -f environment_DaiSy.yml
-conda activate DaiSy_env
 ```
 
 
