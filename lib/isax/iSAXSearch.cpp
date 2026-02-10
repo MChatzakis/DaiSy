@@ -14,7 +14,6 @@ namespace daisy
         {
             return;
         }
-        // COUNT_CHECKED_NODE()
         //  If node has buffered data
         if (node->buffer != NULL)
         {
@@ -353,7 +352,6 @@ namespace daisy
 
     void calculate_node_DTWknn_inmemory(isax_index *index, isax_node *node, ts_type *query, int warpWind, pqueue_bsf *pq_bsf, float *rawfile)
     {
-        // COUNT_CHECKED_NODE()
         //  If node has buffered data
 
         if (node->buffer != NULL)
@@ -364,10 +362,7 @@ namespace daisy
             for (i = 0; i < node->buffer->partial_buffer_size; i++)
             {
 
-                float dist = dtw(query, &(rawfile[*node->buffer->partial_position_buffer[i]]), cb, index->settings->timeseries_size, warpWind, FLT_MAX);
-
-                // ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
-                //                                   index->settings->timeseries_size, bsf);
+                float dist = dtw(query, &(rawfile[*node->buffer->partial_position_buffer[i]]), cb, index->settings->timeseries_size, warp Wind, FLT_MAX);
 
                 pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
             }

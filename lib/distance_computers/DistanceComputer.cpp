@@ -46,11 +46,6 @@ namespace daisy
             distance += distancef[0] + distancef[4];
         }
 
-        // if (apply_sqrt)
-        //{
-        // distance = sqrtf(distance);
-        //}
-
         return distance;
     }
 
@@ -102,7 +97,6 @@ namespace daisy
                                                int ts_values_per_segment)
     {
         paa_from_ts(
-            // const_cast<float*>(ts),
             ts,
             paa,
             paa_segments,

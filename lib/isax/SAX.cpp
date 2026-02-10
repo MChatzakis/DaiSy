@@ -12,7 +12,6 @@ namespace daisy
         float *c = (float *)b - 1;
         if (*(float *)a > *(float *)c && *(float *)a <= *(float *)b)
         {
-            // printf("Found %lf between %lf and %lf\n",*(float*)a,*(float*)c,*(float*)b);
             return 0;
         }
         else if (*(float *)a <= *(float *)c)
@@ -44,9 +43,6 @@ namespace daisy
                 paa[s] += ts_in[(s * ts_values_per_segment) + i];
             }
             paa[s] /= ts_values_per_segment;
-            // #ifdef DEBUG
-            // printf("%d: %lf\n", s, paa[s]);
-            // #endif
         }
 
         // Convert PAA to SAX
@@ -55,7 +51,6 @@ namespace daisy
         //       FROM (c - 1) * (c - 2) / 2
         //       TO   (c - 1) * (c - 2) / 2 + c - 1
         int offset = ((cardinality - 1) * (cardinality - 2)) / 2;
-        // printf("FROM %lf TO %lf\n", sax_breakpoints[offset], sax_breakpoints[offset + cardinality - 2]);
 
         int si;
         for (si = 0; si < segments; si++)
@@ -74,25 +69,9 @@ namespace daisy
                 sax_out[si] = cardinality - 1;
         }
 
-        // sax_print(sax_out, segments, cardinality);
         free(paa);
         return SUCCESS;
     }
-
-    // enum response paa_from_ts(ts_type *ts_in, ts_type *paa_out, int segments, int ts_values_per_segment)
-    // {
-    //     int s, i;
-    //     for (s = 0; s < segments; s++)
-    //     {
-    //         paa_out[s] = 0;
-    //         for (i = 0; i < ts_values_per_segment; i++)
-    //         {
-    //             paa_out[s] += ts_in[(s * ts_values_per_segment) + i];
-    //         }
-    //         paa_out[s] /= ts_values_per_segment;
-    //     }
-    //     return SUCCESS;
-    // }
 
     enum response paa_from_ts(const ts_type *ts_in, ts_type *paa_out, int segments, int ts_values_per_segment)
     {
@@ -112,7 +91,6 @@ namespace daisy
     enum response sax_from_paa(ts_type *paa, sax_type *sax, int segments, int cardinality, int bit_cardinality)
     {
         int offset = ((cardinality - 1) * (cardinality - 2)) / 2;
-        // printf("FROM %lf TO %lf\n", sax_breakpoints[offset], sax_breakpoints[offset + cardinality - 2]);
 
         int si;
         for (si = 0; si < segments; si++)
@@ -158,11 +136,9 @@ namespace daisy
 
             sax_type c_m = max_bit_cardinality;
             sax_type v = sax[i];
-            // sax_print(&v, 1, c_m);
 
             sax_type region_lower = (v << (c_m - c_c));
             sax_type region_upper = (~((int)MAXFLOAT << (c_m - c_c)) | region_lower);
-            // printf("[%d, %d] %d -- %d\n", sax[i], c_c, region_lower, region_upper);
             float breakpoint_lower = 0; // <-- TODO: calculate breakpoints.
             float breakpoint_upper = 0; // <-- - || -
 
@@ -182,15 +158,6 @@ namespace daisy
             {
                 breakpoint_upper = sax_breakpoints[offset + region_upper];
             }
-            // printf("\n%d.%d is from %d to %d, %lf - %lf\n", v, c_c, region_lower, region_upper,
-            //        breakpoint_lower, breakpoint_upper);
-
-            // printf("FROM: \n");
-            // sax_print(&region_lower, 1, c_m);
-            // printf("TO: \n");
-            // sax_print(&region_upper, 1, c_m);
-
-            // printf ("\n---------\n");
 
             if (breakpoint_lower > paa[i])
             {
@@ -200,12 +167,8 @@ namespace daisy
             {
                 distance += pow(breakpoint_upper - paa[i], 2);
             }
-            //        else {
-            //            printf("%lf is between: %lf and %lf\n", paa[i], breakpoint_lower, breakpoint_upper);
-            //        }
         }
 
-        // distance = ratio_sqrt * sqrtf(distance);
         distance = ratio_sqrt * distance;
         return distance;
     }
@@ -226,8 +189,6 @@ namespace daisy
 
         __m256i vectorsignbit = _mm256_set1_epi32(0xffffffff);
 
-        //__m256i c_cv_0 = _mm256_set_epi32 ( sax_cardinalities[7] , sax_cardinalities[6] ,sax_cardinalities[5] ,sax_cardinalities[4] , sax_cardinalities[3] ,sax_cardinalities[2] ,sax_cardinalities[1],sax_cardinalities[0]);
-        //__m256i c_cv_1 = _mm256_set_epi32 ( sax_cardinalities[15], sax_cardinalities[14],sax_cardinalities[13],sax_cardinalities[12], sax_cardinalities[11],sax_cardinalities[10],sax_cardinalities[9],sax_cardinalities[8]);
         __m128i sax_cardinalitiesv8 = _mm_lddqu_si128((const __m128i *)sax_cardinalities);
         __m256i sax_cardinalitiesv16 = _mm256_cvtepu8_epi16(sax_cardinalitiesv8);
         __m128i sax_cardinalitiesv16_0 = _mm256_extractf128_si256(sax_cardinalitiesv16, 0);
@@ -370,8 +331,6 @@ namespace daisy
             distance += (t[size] - s[size]) * (t[size] - s[size]);
         }
 
-        //    distance = sqrtf(distance);
-
         return distance;
     }
 
@@ -398,8 +357,6 @@ namespace daisy
             _mm256_storeu_ps(distancef, distancev);
             distance += distancef[0] + distancef[4];
         }
-
-        //    distance = sqrtf(distance);
 
         return distance;
     }
@@ -955,15 +912,6 @@ namespace daisy
             {
                 breakpoint_upper = sax_breakpoints[offset + region_upper];
             }
-            // printf("\n%d.%d is from %d to %d, %lf - %lf\n", v, c_c, region_lower, region_upper,
-            //        breakpoint_lower, breakpoint_upper);
-
-            // printf("FROM: \n");
-            // sax_print(&region_lower, 1, c_m);
-            // printf("TO: \n");
-            // sax_print(&region_upper, 1, c_m);
-
-            // printf ("\n---------\n");
 
             if (breakpoint_lower > paaU[i])
             {
@@ -973,9 +921,6 @@ namespace daisy
             {
                 distance += pow(breakpoint_upper - paaL[i], 2);
             }
-            //        else {
-            //            printf("%lf is between: %lf and %lf\n", paa[i], breakpoint_lower, breakpoint_upper);
-            //        }
         }
 
         // distance = ratio_sqrt * sqrtf(distance);

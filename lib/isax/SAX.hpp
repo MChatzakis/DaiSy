@@ -12,7 +12,6 @@ namespace daisy
     int compare(const void *a, const void *b);
 
     enum response sax_from_ts(ts_type *ts_in, sax_type *sax_out, int ts_values_per_segment, int segments, int cardinality, int bit_cardinality);
-    // enum response paa_from_ts(ts_type *ts_in, ts_type *paa_out, int segments, int ts_values_per_segment);
     enum response paa_from_ts(const ts_type *ts_in, ts_type *paa_out, int segments, int ts_values_per_segment);
     enum response sax_from_paa(ts_type *paa, sax_type *sax, int segments, int cardinality, int bit_cardinality);
 

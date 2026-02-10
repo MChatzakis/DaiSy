@@ -31,7 +31,6 @@ namespace daisy
             }
             if (!inmemory_flag)
             {
-                // mkdir(root_directory, 0777);
             }
 
             settings->max_total_full_buffer_size = max_total_buffer_size;
@@ -192,7 +191,6 @@ namespace daisy
 
     void destroy_fbl2(first_buffer_layer2 *fbl)
     {
-        // free(fbl->hard_buffer);
         free(fbl->soft_buffers);
         free(fbl);
     }
@@ -452,7 +450,6 @@ namespace daisy
 
     isax_node *isax_leaf_node_init(int initial_buffer_size)
     {
-        // COUNT_NEW_NODE()
         isax_node *node = (isax_node *)malloc(sizeof(isax_node));
         if (node == NULL)
         {
@@ -488,7 +485,6 @@ namespace daisy
                                  file_position_type *pos, root_mask_type mask,
                                  isax_index *index, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber)
     {
-        // pthread_rwlock_wrlock(lockfbl);
         parallel_fbl_soft_buffer *current_buffer = &fbl->soft_buffers[(int)mask];
 
         file_position_type *filepointer;
@@ -517,9 +513,7 @@ namespace daisy
                 }
                 current_buffer->node = isax_root_node_init(mask, index->settings->initial_leaf_buffer_size);
                 current_buffer->node->is_leaf = 1;
-                // current_buffer->finished=1;
                 current_buffer->initialized = 1;
-                //__sync_synchronize();
                 if (index->first_node == NULL)
                 {
                     index->first_node = current_buffer->node;
@@ -603,7 +597,6 @@ namespace daisy
 
         CREATE_MASK(first_bit_mask, index, sax);
 
-        // insert_to_fbl_m(index->fbl, sax, pos,first_bit_mask, index,lock_firstnode,lock_fbl);
         insert_to_pRecBuf((parallel_first_buffer_layer *)(index->fbl), sax, pos, first_bit_mask, index, lock_firstnode, workernumber, total_workernumber);
         return first_bit_mask;
     }

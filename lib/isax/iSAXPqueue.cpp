@@ -189,7 +189,6 @@ namespace daisy
 
     int pqueue_remove_n(pqueue_t *q, int n)
     {
-        // size_t posn = q->getpos(d);
         void *d = q->d[n];
         q->d[n] = q->d[--q->size];
         if (q->cmppri(q->getpri(d), q->getpri(q->d[n])))
@@ -242,7 +241,6 @@ namespace daisy
     void *
     pqueue_peek_n(pqueue_t *q, int d)
     {
-        // size_t posn = q->getpos(d);
         void *ds;
         if (!q || q->size == d)
             return NULL;
@@ -479,10 +477,6 @@ namespace daisy
 
             if (data <= q->knn[i])
             {
-                // for (int w=0; w<q->k; w++) {
-                // printf("[%d] %f\n", w, q->knn[w]);
-                //}
-
                 for (j = q->k - 1; j > i; j--)
                 {
 
@@ -494,10 +488,6 @@ namespace daisy
                 q->knn[i] = data;
                 q->position[i] = position;
                 q->node[i] = node;
-
-                // for (int w=0; w<q->k; w++) {
-                // printf("[%d] %f\n", w, q->knn[w]);
-                //}
 
                 return;
             }
@@ -568,9 +558,6 @@ namespace daisy
                 }
                 q->knn[i] = data;
                 q->position[i] = position;
-                // for (int w=0; w<q->k; w++) {
-                // printf("[%d] %f\n", w, q->knn[w]);
-                //}
                 q->nowk++;
                 return;
             }
