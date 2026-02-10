@@ -137,8 +137,11 @@ cd build
 
 ## About
 DaiSy is developed by the [diNo research group at LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
+
 It is provided with no warranty, and we encourage contributions from the community to enhance its capabilities and performance. For questions, issues, or contributions, please open an issue or submit a pull request on GitHub.
 DaiSy licensed under the [MIT License](LICENSE).
+
+For questions and suggestions through mail, you can contact us at [manos.chatzaki@gmail.com](mailto:manos.chatzaki@gmail.com).
 
 
 
