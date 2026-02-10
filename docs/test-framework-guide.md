@@ -1,10 +1,12 @@
 # Tests Module
 
-This directory contains the comprehensive testing suite for the diNo library, including unit tests, integration tests, performance regression tests, and correctness validation for all similarity search algorithms.
+This directory contains the comprehensive testing suite for the DaiSy library, including unit tests, integration tests, performance regression tests, and correctness validation for all similarity search algorithms.
+
+See [tests](../tests/) for details.
 
 ## Testing Framework
 
-`test_utils.hpp/cpp`: Provides common utilities and infrastructure used across all test modules.
+[test_utils.hpp/cpp](../tests/test_utils.hpp): Provides common utilities and infrastructure used across all test modules.
 
 ## How to Add a Test
 

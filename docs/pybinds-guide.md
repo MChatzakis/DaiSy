@@ -1,10 +1,11 @@
 # Python Bindings Module
 
-The pybinds module uses pybind11 to create efficient Python bindings for the diNo library's C++ core. This enables Python developers to access high-performance time series similarity search algorithms while maintaining the convenience and flexibility of Python programming.
+The pybinds module uses pybind11 to create efficient Python bindings for the diNo library's C++ core. 
+This enables Python developers to access high-performance time series similarity search algorithms while maintaining the convenience and flexibility of Python programming.
 
 ## Core Components
 
-### Main Binding File (`setup.cpp`)
+### Main Binding File ([setup.cpp](../setup.cpp))
 
 The primary file that defines the Python API bindings for the DaiSy library.
 
@@ -18,7 +19,7 @@ First, ensure your algorithm is properly implemented in the C++ library.
 
 ### 2. **Add the Include Statement**
 
-In `setup.cpp`, add the include for your new algorithm.
+In [setup.cpp](../setup.cpp), add the include for your new algorithm.
 
 ### 3. **Create Python Bindings**
 

@@ -1,12 +1,12 @@
 # Benchmark Module
 
-This directory contains the benchmarking framework for the diNo library, providing performance evaluation tools for various similarity search algorithms on time series data.
+This directory contains the benchmarking framework for DaiSy, providing performance evaluation tools for various similarity search algorithms on time series data.
 
 ## Components
 
 ### Core Benchmarking Framework
 
-- **`bm_utils.hpp/cpp`**: Contains the main benchmarking infrastructure
+- **[bm_utils.hpp/cpp](../benchmark/bm_utils.hpp)**: Contains the main benchmarking infrastructure
   - `runSSTBenchmark()`: Core function that loads data, builds indices, and measures search performance
   - Timer management for precise performance measurements
   - Memory usage tracking capabilities
@@ -23,7 +23,7 @@ Each benchmark executable follows a consistent pattern:
 
 ## Usage
 
-[Look here..](../README.md#running-benchmarks)
+Benchmarks are built here: [benchmark](../benchmark/).
 
 ### Benchmark Parameters
 
