@@ -1,10 +1,11 @@
 # Demos Module
 
-The demos module provides practical examples of how to use the diNo library's algorithms for time series similarity search. Each demo illustrates a specific algorithm or specific distance metric. This module includes both C++ and Python implementations for various algorithms and use cases.
+The demos module provides practical examples of how to use the DaiSy library's algorithms for data series similarity search. 
+Each demo illustrates a specific algorithm or specific distance metric. This module includes both C++ and Python implementations for various algorithms and use cases.
 
 ## Demo Program Structure
 
-[Look here..](../README.md#usage)
+All demos are located in the [`demos/`](../demos/) directory.
 
 ## Configuration and Customization
 
