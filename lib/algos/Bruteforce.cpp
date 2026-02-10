@@ -62,10 +62,10 @@ namespace daisy
 
     void BruteForceSearch::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        
+
         if (!validateSearchParams(k, n_query))
         {
-            return; 
+            return;
         }
 
 #pragma omp parallel num_threads(num_threads)
@@ -76,7 +76,7 @@ namespace daisy
                 std::priority_queue<std::pair<float, idx_t>> pq;
                 const float *q_vec = query + qi * dim;
 
-                float bound = FLT_MAX; 
+                float bound = FLT_MAX;
 
                 for (idx_t dbi = 0; dbi < n_database; ++dbi)
                 {
@@ -85,15 +85,15 @@ namespace daisy
                                                                        const_cast<float *>(db_vec),
                                                                        dim,
                                                                        bound);
-                    if ((idx_t)pq.size() < k) 
+                    if ((idx_t)pq.size() < k)
                     {
-                        pq.emplace(dist, dbi); 
+                        pq.emplace(dist, dbi);
                     }
                     else if (dist < pq.top().first)
                     {
                         pq.pop();
                         pq.emplace(dist, dbi);
-                        bound = pq.top().first; 
+                        bound = pq.top().first;
                     }
                 }
 
@@ -109,10 +109,10 @@ namespace daisy
 
     void BruteForceSearch::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        
+
         if (!validateSearchParams(k, n_query))
         {
-            return; 
+            return;
         }
 
 #pragma omp parallel num_threads(num_threads)
@@ -123,7 +123,7 @@ namespace daisy
                 std::priority_queue<std::pair<float, idx_t>> pq;
                 const float *q_vec = query + qi * dim;
 
-                float bound = FLT_MAX; 
+                float bound = FLT_MAX;
 
                 for (idx_t dbi = 0; dbi < n_database; ++dbi)
                 {
@@ -132,15 +132,15 @@ namespace daisy
                                                                        const_cast<float *>(db_vec),
                                                                        dim,
                                                                        bound);
-                    if ((idx_t)pq.size() < k) 
+                    if ((idx_t)pq.size() < k)
                     {
-                        pq.emplace(dist, dbi); 
+                        pq.emplace(dist, dbi);
                     }
                     else if (dist < pq.top().first)
                     {
                         pq.pop();
                         pq.emplace(dist, dbi);
-                        bound = pq.top().first; 
+                        bound = pq.top().first;
                     }
                 }
 

@@ -3,6 +3,7 @@ DaiSy is a unified library for exact data series similarity search that integrat
 It supports a wide range approaches tailored for different execution environments, including disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search. 
 DaiSy is implemented in C++, while it also offers a convenient Python interface for ease of use and integration with data science workflows.
 
+<!--
 When using DaiSy, please consider citing the following paper:
 
 ```latex
@@ -13,6 +14,7 @@ When using DaiSy, please consider citing the following paper:
   year={2026}
 }
 ```
+-->
 
 
 ## Supported State-of-the-Art algorithms

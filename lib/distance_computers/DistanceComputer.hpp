@@ -164,6 +164,6 @@ namespace daisy
                                             float ratio_sqrt);
     };
 
-} // namespace diNoLib
+} // namespace daisy
 
 #endif // DISTANCECOMPUTER_HPP

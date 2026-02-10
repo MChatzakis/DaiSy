@@ -51,7 +51,7 @@ namespace daisy
         float *getDatabase() const { return database; }
         idx_t getNDatabase() const { return n_database; }
         idx_t getDim() const { return dim; }
-        isax_index *getIndex() const { return index; } 
+        isax_index *getIndex() const { return index; }
 
         virtual void buildIndex(DataSource *data_source) = 0;
 
@@ -68,7 +68,6 @@ namespace daisy
         }
 
     protected:
-
         bool validateSearchParams(const idx_t k, const idx_t n_query) const
         {
             if (k == 0)
@@ -95,7 +94,6 @@ namespace daisy
         }
 
     public:
-        
         virtual void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) = 0;
 
         virtual void setNumThreads(int num_threads) {}

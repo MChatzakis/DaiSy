@@ -12,7 +12,7 @@
 
 namespace daisy
 {
-    
+
     class LbBruteforce : public SimilaritySearchAlgorithm
     {
     public:
@@ -56,6 +56,6 @@ namespace daisy
         ~LbBruteforce();
     };
 
-} 
+}
 
-#endif 
+#endif

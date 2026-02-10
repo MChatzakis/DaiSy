@@ -49,8 +49,8 @@ namespace daisy
         unsigned long int *gpuoffset;
         unsigned long int *seriesnumber;
         unsigned long int rawdatanumber;
-        int n_pqueue;   
-        float *rawfile; 
+        int n_pqueue;
+        float *rawfile;
     } SING_workerdata;
 
     typedef struct gap_workerdata
@@ -75,9 +75,9 @@ namespace daisy
 
     struct SingConfig
     {
-        int search_workers = 4;  
-        int index_workers = 4;   
-        int warping_window = 10; 
+        int search_workers = 4;
+        int index_workers = 4;
+        int warping_window = 10;
         int leaf_size = 128;
         int paa_segments = 16;
     };
@@ -131,6 +131,6 @@ namespace daisy
         ~Sing();
     };
 
-} 
+}
 
-#endif 
+#endif

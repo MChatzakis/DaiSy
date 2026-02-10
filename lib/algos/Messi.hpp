@@ -15,9 +15,9 @@ namespace daisy
 
     struct MessiConfig
     {
-        int search_workers = 4;  
-        int index_workers = 2;   
-        int warping_window = 10; 
+        int search_workers = 4;
+        int index_workers = 2;
+        int warping_window = 10;
         int leaf_size = 2000;
         int paa_segments = 16;
     };
@@ -79,7 +79,7 @@ namespace daisy
         Messi(DistanceType distance_type, const MessiConfig &config);
 
         void setWarpingWindow(int w) { warping_window = w; }
-        void setWarpWindow(int w) { warping_window = w; } 
+        void setWarpWindow(int w) { warping_window = w; }
 
         using SimilaritySearchAlgorithm::buildIndex;
 
@@ -123,6 +123,6 @@ namespace daisy
         ~Messi();
     };
 
-} 
+}
 
-#endif 
+#endif

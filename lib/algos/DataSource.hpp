@@ -2,6 +2,7 @@
 #define DATASOURCE_HPP
 
 #include "../isax/iSAXTypes.hpp"
+
 #include <cstddef>
 #include <algorithm>
 #include <stdexcept>
@@ -10,9 +11,9 @@
 
 namespace daisy
 {
-    
+
     using idx_t = unsigned long long;
-    
+
     class DataSource
     {
     public:
@@ -40,7 +41,6 @@ namespace daisy
         idx_t current_pos;
 
     public:
-        
         InMemoryDataSource(const float *database, idx_t n_database, idx_t dim)
             : database(database), n_database(n_database), dim(dim), current_pos(0)
         {
@@ -89,11 +89,11 @@ namespace daisy
     {
     private:
         const char *filename;
-        idx_t n_database; 
+        idx_t n_database;
         idx_t dim;
         idx_t current_pos;
         FILE *file;
-        bool file_owned; 
+        bool file_owned;
 
         void determineTotalRecords()
         {
@@ -112,7 +112,6 @@ namespace daisy
         }
 
     public:
-        
         FileDataSource(const char *filename, idx_t dim, idx_t n_database = 0)
             : filename(filename), n_database(n_database), dim(dim), current_pos(0),
               file(nullptr), file_owned(true)
@@ -173,7 +172,7 @@ namespace daisy
             size_t items_read = fread(record_data, sizeof(float), dim, file);
             if (items_read != dim)
             {
-                return false; 
+                return false;
             }
 
             current_pos++;
@@ -201,7 +200,7 @@ namespace daisy
                 size_t items_read = fread(&dummy, sizeof(float), 1, mutable_file);
                 if (items_read == 0)
                 {
-                    return false; 
+                    return false;
                 }
 
                 fseek(mutable_file, current_pos_saved, SEEK_SET);
@@ -244,6 +243,6 @@ namespace daisy
         }
     };
 
-} 
+}
 
-#endif 
+#endif

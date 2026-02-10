@@ -274,4 +274,4 @@ namespace daisy
         free(cb);
         return distance;
     }
-} // namespace diNoLib
+} // namespace daisy
