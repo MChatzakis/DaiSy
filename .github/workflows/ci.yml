@@ -58,7 +58,7 @@ jobs:
       - name: Configure CMake
         run: |
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DBUILD_ODYSSEY=ON -DBUILD_SING=OFF -DBUILD_PYTHON=ON -DBUILD_BENCHMARK=ON -DBUILD_DEMO=ON -DDEBUG_MSG=ON
+          cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} -DBUILD_ODYSSEY=ON -DBUILD_SING=OFF -DBUILD_PYTHON=ON -DBUILD_BENCHMARK=ON -DBUILD_DEMO=ON -DBUILD_TESTS=ON -DDEBUG_MSG=ON
 
       - name: Build project
         run: |
