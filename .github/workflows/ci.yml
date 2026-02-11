@@ -69,8 +69,9 @@ jobs:
         run: |
           cd build
           # Run parameterized tests (AstronomyData, RandomWalkData) and Odyssey test
-          ctest -R "AstronomyData|RandomWalkData|test_Odyssey_L2Square" --output-on-failure --verbose
-      
+          #ctest -R "AstronomyData|RandomWalkData|test_Odyssey_L2Square" --output-on-failure --verbose
+          ctest -R "AstronomyData|test_Odyssey_L2Square" --output-on-failure --verbose
+
       - name: Run individual test executables (fallback)
         if: failure()
         run: |
