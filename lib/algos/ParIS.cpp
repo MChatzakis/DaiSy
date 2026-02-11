@@ -88,6 +88,7 @@ namespace daisy
 
         if (index->sax_file != nullptr && index->total_records > 0)
         {
+            fflush(index->sax_file);
             rewind(index->sax_file);
             index->sax_cache = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments * index->total_records);
             if (index->sax_cache != nullptr)

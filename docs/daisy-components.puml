@@ -1,0 +1,27 @@
+@startuml DaiSy - Vista componenti (alto livello)
+!theme plain
+skinparam backgroundColor #FEFEFE
+
+title DaiSy - Vista componenti e dipendenze CMake
+
+rectangle "DaiSy (root)" {
+    component [commons\nparamSetup, dataloaders] as commons
+    component [lib / dino_lib\nalgos, isax, distance_computers, utils] as lib
+    component [demos\nC++ e Python] as demos
+    component [benchmark\nGoogle Benchmark] as benchmark
+    component [tests\nGoogle Test] as tests
+    component [pybinds\npybind11 → daisy.so] as pybinds
+}
+
+commons -down-> lib : link
+lib -down-> demos : BUILD_DEMO
+lib -down-> benchmark : BUILD_BENCHMARK
+lib -down-> tests : BUILD_TESTS
+lib -right-> pybinds : BUILD_PYTHON\n→ modulo Python
+
+note bottom of lib
+  Algoritmi: Bruteforce, LbBruteforce,
+  MESSI, ParIS, SING (CUDA), Odyssey (MPI)
+end note
+
+@enduml

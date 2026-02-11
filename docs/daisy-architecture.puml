@@ -1,0 +1,103 @@
+@startuml DaiSy - Architettura del progetto
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+
+title DaiSy - Architettura (componenti e classi principali)
+
+' ========== COMPONENTI / PACKAGE ==========
+package commons {
+        class common
+        class paramSetup
+        class dataloaders
+}
+
+package lib {
+    package algos {
+            class SimilaritySearchAlgorithm as SSA <<abstract>>
+            SSA : # database
+            SSA : # distance_computer
+            SSA : + buildIndex(DataSource)
+            SSA : + searchIndex(query, k, I, D)
+
+            class BruteForceSearch as BF
+            class LbBruteforce as LB
+            class Messi as MESSI
+            class ParIS as PARIS
+            class Sing as SING
+            class Odyssey as ODYSSEY
+
+            class DataSource as DS <<abstract>>
+            DS : + nextRecord() bool
+            DS : + hasNext() bool
+            DS : + getDim() idx_t
+            DS : + reset()
+            class InMemoryDataSource as IMDS
+            class FileDataSource as FDS
+
+            SSA <|-- BF : extends
+            SSA <|-- LB : extends
+            SSA <|-- MESSI : extends
+            SSA <|-- PARIS : extends
+            SSA <|-- SING : extends
+            SSA <|-- ODYSSEY : extends
+            DS <|-- IMDS : extends
+            DS <|-- FDS : extends
+            SSA --> DS : buildIndex()
+            SSA --> DC : uses
+            SSA ..> iSAXSearch : index optional
+    }
+
+    package distance_computers {
+            class DistanceComputer as DC
+            DC : - distance_type DistanceType
+            DC : + compute_dist()
+            DC : + compute_minidist_SIMD()
+            DC : + LB_Keogh()
+            enum DistanceType as DT {
+                L2_SQUARED
+                DTW
+            }
+            DC ..> DT : uses
+    }
+
+    package isax {
+            class iSAXTypes
+            class iSAXIndex
+            class iSAXSearch
+            class SAX
+            class iSAXPqueue
+    }
+
+    package utils {
+        class TimerManager
+    }
+}
+
+package pybinds {
+        class pybinds
+    note right of pybinds : pybind11 modulo Python daisy
+}
+
+package demos {
+    class demos_l2
+    class demos_dtw
+}
+
+package benchmark {
+    class bm
+}
+
+package tests {
+    class tests
+}
+
+' Dipendenze tra moduli (esempi)
+pybinds ..> BF : usa
+demos_l2 ..> BF : usa
+bm ..> BF : usa
+tests ..> BF : usa
+DC ..> SAX : uses
+
+@enduml
