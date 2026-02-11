@@ -89,20 +89,28 @@ namespace daisy
         if (index->sax_file != nullptr && index->total_records > 0)
         {
             fflush(index->sax_file);
-            rewind(index->sax_file);
-            index->sax_cache = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments * index->total_records);
-            if (index->sax_cache != nullptr)
+            char *sax_filename = (char *)malloc(strlen(index->settings->root_directory) + 15);
+            strcpy(sax_filename, index->settings->root_directory);
+            strcat(sax_filename, "isax_file.sax");
+            fclose(index->sax_file);
+            index->sax_file = fopen(sax_filename, "rb");
+            free(sax_filename);
+            if (index->sax_file != nullptr)
             {
-                size_t items_read = fread(index->sax_cache, index->settings->sax_byte_size, index->total_records, index->sax_file);
-                if (items_read == index->total_records)
+                index->sax_cache = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments * index->total_records);
+                if (index->sax_cache != nullptr)
                 {
-                    index->sax_cache_size = index->total_records;
-                }
-                else
-                {
-                    fprintf(stderr, "Warning: Could not read all SAX cache entries\n");
-                    free(index->sax_cache);
-                    index->sax_cache = nullptr;
+                    size_t items_read = fread(index->sax_cache, index->settings->sax_byte_size, index->total_records, index->sax_file);
+                    if (items_read == index->total_records)
+                    {
+                        index->sax_cache_size = index->total_records;
+                    }
+                    else
+                    {
+                        fprintf(stderr, "Warning: Could not read all SAX cache entries\n");
+                        free(index->sax_cache);
+                        index->sax_cache = nullptr;
+                    }
                 }
             }
         }
