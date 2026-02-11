@@ -2800,6 +2800,7 @@ namespace daisy
         free(pos);
         pthread_barrier_destroy(&lock_barrier1);
         pthread_barrier_destroy(&lock_barrier2);
+        index->total_records = (unsigned long long)ts_num;
         fclose(ifile);
     }
 

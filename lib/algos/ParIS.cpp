@@ -87,9 +87,19 @@ namespace daisy
 
         isax_index_binary_file_m(filename, ts_num, index, calculate_thread, this->read_block_length);
 
-        if (index->sax_file != nullptr && index->total_records > 0)
+        if (index->sax_file != nullptr)
         {
             fflush(index->sax_file);
+            if (index->total_records == 0)
+            {
+                fseek(index->sax_file, 0, SEEK_END);
+                long file_sz = ftell(index->sax_file);
+                rewind(index->sax_file);
+                if (file_sz > 0 && index->settings->sax_byte_size > 0)
+                    index->total_records = (unsigned long long)(file_sz / (long)index->settings->sax_byte_size);
+            }
+            if (index->total_records > 0)
+            {
             char *sax_path = (char *)malloc((strlen(index->settings->root_directory) + 15) * sizeof(char));
             strcpy(sax_path, index->settings->root_directory);
             strcat(sax_path, "isax_file.sax");
@@ -113,6 +123,7 @@ namespace daisy
                         index->sax_cache = nullptr;
                     }
                 }
+            }
             }
         }
 
