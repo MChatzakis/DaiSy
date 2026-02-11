@@ -85,8 +85,8 @@ jobs:
           done
           # Run Odyssey test under mpirun if present
           if [ -f ./tests/test_Odyssey_L2Square ]; then
-            echo "Running test_Odyssey_L2Square under mpirun"
-            if ! mpirun -np 4 ./tests/test_Odyssey_L2Square --gtest_filter="*AstronomyData*"; then
+            echo "Running test_Odyssey_L2Square under mpirun (--oversubscribe for limited cores)"
+            if ! mpirun --oversubscribe -np 4 ./tests/test_Odyssey_L2Square --gtest_filter="*AstronomyData*"; then
               echo "test_Odyssey_L2Square failed"
               exit 1
             fi
