@@ -45,7 +45,9 @@ def saveOutput(filename_prefix: str,
 =    @return: None
     @side_effects: Creates output directories and writes text files.
     """
-    base_folder = "./tests/groundtruth/"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.normpath(os.path.join(script_dir, '..', '..'))
+    base_folder = os.path.join(project_root, "tests", "groundtruth")
 
     if is_distance:
         folder = os.path.join(base_folder, "Distances")
@@ -128,7 +130,7 @@ def run_all_datasets(groundtruth_function,
                      default_num_queries_for_dtw: int = 10,
                      dtw_query_percentage: float = 0.1) -> None:
     """
-    @brief Run brute-force search on all dataset pairs found in './data' using a provided groundtruth function.
+    @brief Run brute-force search on all dataset pairs found in the project's 'data' directory using a provided groundtruth function.
 
     @param groundtruth_function: The function to call for generating ground truth (e.g., bruteForceSS_gt, bruteForceDTW_gt)
     @param override_num_queries: Optional override for number of queries per dataset
@@ -139,9 +141,8 @@ def run_all_datasets(groundtruth_function,
     @return: None
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_folder = os.path.join(script_dir, '..', '..', 'data')
-
-    data_folder = os.path.normpath(data_folder)
+    project_root = os.path.normpath(os.path.join(script_dir, '..', '..'))
+    data_folder = os.path.join(project_root, 'data')
 
     dataset_pairs = find_dataset_pairs(data_folder)
 

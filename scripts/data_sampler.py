@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import os
 
 DATA_SERIES_DATASET_PATH = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size270M_astronomy_len256_znorm.bin"
 DATA_SERIES_QUERIES_PATH = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_astronomy_len256_znorm.bin"
@@ -13,8 +14,11 @@ QUERIES_SIZE = 100
 DATASET_SAMPLE_SIZE = 50000
 QUERIES_SAMPLE_SIZE = 100
 
-DATASET_SAMPLE_OUTPUT_PATH = f"../data/{DATASET_NAME}.data.len{DIMS}.size{DATASET_SAMPLE_SIZE}.znorm.bin"
-QUERIES_SAMPLE_OUTPUT_PATH = f"../data/{DATASET_NAME}.query.len{DIMS}.size{DATASET_SAMPLE_SIZE}.znorm.bin"
+# Construct absolute paths from project root
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.normpath(os.path.join(script_dir, '..'))
+DATASET_SAMPLE_OUTPUT_PATH = os.path.join(project_root, "data", f"{DATASET_NAME}.data.len{DIMS}.size{DATASET_SAMPLE_SIZE}.znorm.bin")
+QUERIES_SAMPLE_OUTPUT_PATH = os.path.join(project_root, "data", f"{DATASET_NAME}.query.len{DIMS}.size{DATASET_SAMPLE_SIZE}.znorm.bin")
 
 np.random.seed(42)
 random.seed(42)

@@ -26,8 +26,12 @@ endif()
 target_include_directories(commons_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# Define PROJECT_ROOT_DIR as absolute path for path construction
+get_filename_component(PROJECT_ROOT_DIR "${CMAKE_SOURCE_DIR}" ABSOLUTE)
+target_compile_definitions(commons_lib PRIVATE PROJECT_ROOT_DIR="${PROJECT_ROOT_DIR}")
 if(DEBUG_MSG)
-    message(STATUS "Public include directories set for commons_lib.")
+    message(STATUS "PROJECT_ROOT_DIR set to: ${PROJECT_ROOT_DIR}")
 endif()
 
 # Optionally set flags for this library

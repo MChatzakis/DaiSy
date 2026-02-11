@@ -1,21 +1,54 @@
 #include "paramSetup.hpp"
+#include <string>
+#include <cstring>
 
-const char *astro_data = "../data/astronomy.data.len256.size50000.znorm.bin";
-const char *astro_query = "../data/astronomy.query.len256.size100.znorm.bin";
+#ifndef PROJECT_ROOT_DIR
+#error "PROJECT_ROOT_DIR must be defined by CMake"
+#endif
+
+// Helper function to construct absolute paths from project root
+static std::string make_absolute_path(const char* relative_path) {
+    std::string root(PROJECT_ROOT_DIR);
+    std::string rel(relative_path);
+    // Remove leading "../" from relative path
+    while (rel.substr(0, 3) == "../") {
+        rel = rel.substr(3);
+    }
+    return root + "/" + rel;
+}
+
+// Store paths as static strings to ensure they persist
+static std::string astro_data_str = make_absolute_path("data/astronomy.data.len256.size50000.znorm.bin");
+static std::string astro_query_str = make_absolute_path("data/astronomy.query.len256.size100.znorm.bin");
+static std::string astro_gt_data_str = make_absolute_path("tests/groundtruth/Indices/bruteForce_gtFAISS_I_astronomy_len256_size50000_q100_k");
+static std::string astro_gt_query_str = make_absolute_path("tests/groundtruth/Distances/bruteForce_gtFAISS_D_astronomy_len256_size50000_q100_k");
+
+static std::string random_data_str = make_absolute_path("data/random.data.randwalk.len96.size200000.znorm.bin");
+static std::string random_query_str = make_absolute_path("data/random.query.randwalk.len96.size1000.bin");
+static std::string random_gt_data_str = make_absolute_path("tests/groundtruth/Indices/bruteForce_gtFAISS_I_random_len96_size200000_q1000_k");
+static std::string random_gt_query_str = make_absolute_path("tests/groundtruth/Distances/bruteForce_gtFAISS_D_random_len96_size200000_q1000_k");
+
+static std::string astro_gt_dtw_data_str = make_absolute_path("tests/groundtruth/Indices/bruteForce_gtDTW_I_astronomy_len256_size50000_q100_k");
+static std::string astro_gt_dtw_query_str = make_absolute_path("tests/groundtruth/Distances/bruteForce_gtDTW_D_astronomy_len256_size50000_q100_k");
+static std::string random_gt_dtw_data_str = make_absolute_path("tests/groundtruth/Indices/bruteForce_gtDTW_I_random_len96_size200000_q1000_k");
+static std::string random_gt_dtw_query_str = make_absolute_path("tests/groundtruth/Distances/bruteForce_gtDTW_D_random_len96_size200000_q1000_k");
+
+const char *astro_data = astro_data_str.c_str();
+const char *astro_query = astro_query_str.c_str();
 const char *astro_name = "AstronomyData_q100";
-const char *astro_gt_data = "../tests/groundtruth/Indices/bruteForce_gtFAISS_I_astronomy_len256_size50000_q100_k";
-const char *astro_gt_query = "../tests/groundtruth/Distances/bruteForce_gtFAISS_D_astronomy_len256_size50000_q100_k";
+const char *astro_gt_data = astro_gt_data_str.c_str();
+const char *astro_gt_query = astro_gt_query_str.c_str();
 
-const char *random_data = "../data/random.data.randwalk.len96.size200000.znorm.bin";
-const char *random_query = "../data/random.query.randwalk.len96.size1000.bin";
+const char *random_data = random_data_str.c_str();
+const char *random_query = random_query_str.c_str();
 const char *random_name = "RandomWalkData_q1000";
-const char *random_gt_data = "../tests/groundtruth/Indices/bruteForce_gtFAISS_I_random_len96_size200000_q1000_k";
-const char *random_gt_query = "../tests/groundtruth/Distances/bruteForce_gtFAISS_D_random_len96_size200000_q1000_k";
+const char *random_gt_data = random_gt_data_str.c_str();
+const char *random_gt_query = random_gt_query_str.c_str();
 
-const char *astro_gt_dtw_data = "../tests/groundtruth/Indices/bruteForce_gtDTW_I_astronomy_len256_size50000_q100_k";
-const char *astro_gt_dtw_query = "../tests/groundtruth/Distances/bruteForce_gtDTW_D_astronomy_len256_size50000_q100_k";
-const char *random_gt_dtw_data = "../tests/groundtruth/Indices/bruteForce_gtDTW_I_random_len96_size200000_q1000_k";
-const char *random_gt_dtw_query = "../tests/groundtruth/Distances/bruteForce_gtDTW_D_random_len96_size200000_q1000_k";
+const char *astro_gt_dtw_data = astro_gt_dtw_data_str.c_str();
+const char *astro_gt_dtw_query = astro_gt_dtw_query_str.c_str();
+const char *random_gt_dtw_data = random_gt_dtw_data_str.c_str();
+const char *random_gt_dtw_query = random_gt_dtw_query_str.c_str();
 
 std::vector<SSTestConfig> generate_configs(
     const char *name,

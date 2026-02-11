@@ -53,9 +53,11 @@ def multiply_file_values(input_filename, output_filename, multiplier):
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
-# Define the base path and multiplier
-base_path = "./tests/groundtruth/Distances/"
-output_base_path = "./tests/groundtruth/Distances/" # New directory for output
+# Define the base path and multiplier (absolute paths from project root)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.normpath(os.path.join(script_dir, '..', '..'))
+base_path = os.path.join(project_root, "tests", "groundtruth", "Distances")
+output_base_path = os.path.join(project_root, "tests", "groundtruth", "Distances") # New directory for output
 
 factor = 10
 
@@ -63,7 +65,7 @@ factor = 10
 k_values = [1, 10, 100]
 
 for k in k_values:
-    input_file = f"{base_path}raw_bruteForce_gtDTW_D_astronomy_len256_size50000_q100_k{k}.txt"
-    output_file = f"{output_base_path}bruteForce_gtDTW_D_astronomy_len256_size50000_q100_k{k}.txt"
+    input_file = os.path.join(base_path, f"raw_bruteForce_gtDTW_D_astronomy_len256_size50000_q100_k{k}.txt")
+    output_file = os.path.join(output_base_path, f"bruteForce_gtDTW_D_astronomy_len256_size50000_q100_k{k}.txt")
     print(f"\nProcessing {input_file}...")
     multiply_file_values(input_file, output_file, factor)
