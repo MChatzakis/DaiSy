@@ -63,6 +63,31 @@ namespace daisy
         isax_index *index = this->index;
         index->sax_cache_size = 0;
 
+        /*
+         * If a previous ParIS run left an isax_file.sax on disk, the
+         * constructor opens it in read mode (it cannot know whether we are
+         * building a new index).  Subsequent fwrite calls inside
+         * isax_index_binary_file_m would then silently fail, leaving an
+         * outdated cache with fewer entries (e.g., the 100k vs 200k mismatch
+         * observed in the random‑walk tests).  Force a fresh truncateable
+         * handle here so indexing always writes the full sax cache.
+         */
+        if (index->sax_file != nullptr)
+        {
+            char *sax_path = (char *)malloc((strlen(index->settings->root_directory) + 15) * sizeof(char));
+            strcpy(sax_path, index->settings->root_directory);
+            strcat(sax_path, "isax_file.sax");
+
+            fclose(index->sax_file);
+            index->sax_file = fopen(sax_path, "w+b");
+            free(sax_path);
+
+            if (index->sax_file == nullptr)
+            {
+                throw std::runtime_error("ParIS: cannot open sax cache file for writing");
+            }
+        }
+
         int ts_num = (this->n_database > 0) ? (int)this->n_database : 0;
         int calculate_thread = this->index_workers;
 
