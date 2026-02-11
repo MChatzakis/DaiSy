@@ -68,17 +68,27 @@ jobs:
       - name: Run tests
         run: |
           cd build
-          ctest -R "AstronomyData" --output-on-failure --verbose
+          # Run parameterized tests (AstronomyData, RandomWalkData) and Odyssey test
+          ctest -R "AstronomyData|RandomWalkData|test_Odyssey_L2Square" --output-on-failure --verbose
       
       - name: Run individual test executables (fallback)
         if: failure()
         run: |
           cd build
-          # List all test executables and run them individually
-          find . -name "test_*" -type f -executable | while read test_exe; do
-            echo "Running $test_exe"
-            if ! $test_exe --gtest_output=xml:${test_exe##*/}_results.xml; then
+          # Run non-Odyssey test executables with AstronomyData filter
+          for test_exe in $(find . -name "test_*" -type f -executable ! -name "*Odyssey*"); do
+            echo "Running $test_exe (Astronomy only)"
+            if ! $test_exe --gtest_filter="*AstronomyData*" --gtest_output=xml:${test_exe##*/}_results.xml; then
               echo "Test $test_exe failed"
               exit 1
             fi
           done
+          # Run Odyssey test under mpirun if present
+          if [ -f ./tests/test_Odyssey_L2Square ]; then
+            echo "Running test_Odyssey_L2Square under mpirun"
+            if ! mpirun -np 4 ./tests/test_Odyssey_L2Square --gtest_filter="*AstronomyData*"; then
+              echo "test_Odyssey_L2Square failed"
+              exit 1
+            fi
+          fi
+

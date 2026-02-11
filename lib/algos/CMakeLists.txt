@@ -111,7 +111,7 @@ if(DEBUG_MSG)
 endif()
 else()
 if(DEBUG_MSG)
-    message(STATUS "ODYSSEY_MPI_AVAILABLE is FALSE. Skipping Odyssey sources (require MPI).")
+    message(STATUS "BUILD_ODYSSEY_AVAILABLE is FALSE. Skipping Odyssey sources (require MPI).")
 endif()
 endif()
 
