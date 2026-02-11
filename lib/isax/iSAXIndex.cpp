@@ -2787,6 +2787,7 @@ namespace daisy
         }
         pthread_mutex_lock(&lock_disk);
         fwrite(saxv1, index->settings->sax_byte_size, sax_save_number, index->sax_file);
+        fflush(index->sax_file);
         pthread_mutex_unlock(&lock_disk);
         __sync_fetch_and_add(&(index->fbl->current_record_index), sax_save_number);
         indexconstruction(index->fbl, index, &lock_index, &lock_disk, calculate_thread);
