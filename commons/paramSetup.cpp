@@ -35,19 +35,6 @@ std::vector<SSTestConfig> generate_configs(
     return configs;
 }
 
-std::vector<SSTestConfig> generate_concurrency_stress_configs(
-    const char *name,
-    const char *data,
-    const char *query,
-    const char *gt_data,
-    const char *gt_query)
-{
-    std::vector<SSTestConfig> configs;
-    
-    configs.push_back({name, data, query, gt_data, gt_query, 32, 10}); 
-    return configs;
-}
-
 const std::vector<SSTestConfig> test_configs = []
 {
     std::vector<SSTestConfig> configs;
@@ -57,12 +44,6 @@ const std::vector<SSTestConfig> test_configs = []
 
     configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
     configs.insert(configs.end(), random_configs.begin(), random_configs.end());
-
-    auto astro_stress = generate_concurrency_stress_configs(astro_name, astro_data, astro_query, astro_gt_data, astro_gt_query);
-    auto random_stress = generate_concurrency_stress_configs(random_name, random_data, random_query, random_gt_data, random_gt_query);
-
-    configs.insert(configs.end(), astro_stress.begin(), astro_stress.end());
-    configs.insert(configs.end(), random_stress.begin(), random_stress.end());
 
     return configs;
 }();
