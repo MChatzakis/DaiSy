@@ -2686,6 +2686,14 @@ namespace daisy
                 saxv2 = saxv;
                 saxv = saxv1;
                 saxv1 = saxv2;
+                /* Write first batch here (after first swap) so it is never skipped */
+                if (i == read_block_length * (calculate_thread - 1) * 2)
+                {
+                    pthread_mutex_lock(&lock_disk);
+                    fwrite(saxv1, index->settings->sax_byte_size, read_block_length * (calculate_thread - 1), index->sax_file);
+                    fflush(index->sax_file);
+                    pthread_mutex_unlock(&lock_disk);
+                }
 
                 prev_flush_time = now_flush_time;
                 for (j = 0; j < (calculate_thread - 1); j++)
@@ -2725,9 +2733,13 @@ namespace daisy
                 pthread_join(threadid[j], NULL);
             }
             /* Write the last full batch: workers have just finished it, SAX is in saxv */
-            pthread_mutex_lock(&lock_disk);
-            fwrite(saxv, index->settings->sax_byte_size, read_block_length * (calculate_thread - 1), index->sax_file);
-            pthread_mutex_unlock(&lock_disk);
+            {
+                size_t last_batch_count = (size_t)(read_block_length * (calculate_thread - 1));
+                pthread_mutex_lock(&lock_disk);
+                fwrite(saxv, index->settings->sax_byte_size, last_batch_count, index->sax_file);
+                fflush(index->sax_file);
+                pthread_mutex_unlock(&lock_disk);
+            }
         }
         *pos = ftell(ifile);
         size_t remainder_size = index->settings->timeseries_size * (ts_num % (read_block_length * (calculate_thread - 1)));
@@ -2765,14 +2777,7 @@ namespace daisy
             pthread_create(&(threadid[j]), NULL, indexbulkloadingworker, (void *)&(input_data[j]));
         }
 
-        /* Only write saxv1 (first batch) here when we had exactly one loop iteration (never wrote in loop) */
-        if (sax_fist_time_check && ts_num <= read_block_length * (calculate_thread - 1) * 2)
-        {
-            pthread_mutex_lock(&lock_disk);
-            fwrite(saxv1, index->settings->sax_byte_size, read_block_length * (calculate_thread - 1), index->sax_file);
-            pthread_mutex_unlock(&lock_disk);
-        }
-        else if (!sax_fist_time_check)
+        if (!sax_fist_time_check)
         {
             sax_fist_time_check = true;
         }
