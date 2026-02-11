@@ -207,6 +207,12 @@ else()
     endif()
 endif()
 
+if(BUILD_TESTS)
+  include(CTest)
+  enable_testing()
+endif()
+
+
 # Add subdirectories
 if(DEBUG_MSG)
     message(STATUS "----------------------------------------------------")

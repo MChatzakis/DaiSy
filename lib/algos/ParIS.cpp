@@ -112,19 +112,10 @@ namespace daisy
 
         isax_index_binary_file_m(filename, ts_num, index, calculate_thread, this->read_block_length);
 
-        if (index->sax_file != nullptr)
+        /* ParIS is on-disk: do not load SAX into memory. Reopen file for reading and set size. */
+        if (index->sax_file != nullptr && index->total_records > 0)
         {
             fflush(index->sax_file);
-            if (index->total_records == 0)
-            {
-                fseek(index->sax_file, 0, SEEK_END);
-                long file_sz = ftell(index->sax_file);
-                rewind(index->sax_file);
-                if (file_sz > 0 && index->settings->sax_byte_size > 0)
-                    index->total_records = (unsigned long long)(file_sz / (long)index->settings->sax_byte_size);
-            }
-            if (index->total_records > 0)
-            {
             char *sax_path = (char *)malloc((strlen(index->settings->root_directory) + 15) * sizeof(char));
             strcpy(sax_path, index->settings->root_directory);
             strcat(sax_path, "isax_file.sax");
@@ -133,23 +124,26 @@ namespace daisy
             free(sax_path);
             if (index->sax_file != nullptr)
             {
-                index->sax_cache = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments * index->total_records);
-                if (index->sax_cache != nullptr)
-                {
-                    size_t items_read = fread(index->sax_cache, (size_t)index->settings->sax_byte_size, (size_t)index->total_records, index->sax_file);
-                    if (items_read == (size_t)index->total_records)
-                    {
-                        index->sax_cache_size = index->total_records;
-                    }
-                    else
-                    {
-                        fprintf(stderr, "Warning: Could not read all SAX cache entries (read %zu, expected %llu)\n", items_read, (unsigned long long)index->total_records);
-                        free(index->sax_cache);
-                        index->sax_cache = nullptr;
-                    }
-                }
+                index->sax_cache_size = (unsigned long)index->total_records;
+                /* sax_cache stays nullptr: search will read SAX from sax_file on demand */
             }
+        }
+        else if (index->sax_file != nullptr && index->total_records == 0)
+        {
+            fseek(index->sax_file, 0, SEEK_END);
+            long file_sz = ftell(index->sax_file);
+            rewind(index->sax_file);
+            if (file_sz > 0 && index->settings->sax_byte_size > 0)
+            {
+                index->total_records = (unsigned long long)(file_sz / (long)index->settings->sax_byte_size);
+                index->sax_cache_size = (unsigned long)index->total_records;
             }
+            fclose(index->sax_file);
+            char *sax_path = (char *)malloc((strlen(index->settings->root_directory) + 15) * sizeof(char));
+            strcpy(sax_path, index->settings->root_directory);
+            strcat(sax_path, "isax_file.sax");
+            index->sax_file = fopen(sax_path, "rb");
+            free(sax_path);
         }
 
         fprintf(stderr, ">>> Finished indexing\n");
@@ -174,9 +168,9 @@ namespace daisy
 
     void ParIS::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        if (index == nullptr || index->sax_cache == nullptr)
+        if (index == nullptr || index->sax_file == nullptr || index->total_records == 0)
         {
-            fprintf(stderr, "Error: Index not built or sax_cache not loaded\n");
+            fprintf(stderr, "Error: Index not built or sax file not ready\n");
             for (idx_t qi = 0; qi < n_query; qi++)
             {
                 for (idx_t j = 0; j < k; j++)
@@ -348,9 +342,9 @@ namespace daisy
 
     void ParIS::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        if (index == nullptr || index->sax_cache == nullptr)
+        if (index == nullptr || index->sax_file == nullptr || index->total_records == 0)
         {
-            fprintf(stderr, "Error: Index not built or sax_cache not loaded\n");
+            fprintf(stderr, "Error: Index not built or sax file not ready\n");
             for (idx_t qi = 0; qi < n_query; qi++)
             {
                 for (idx_t j = 0; j < k; j++)
@@ -467,11 +461,31 @@ namespace daisy
         ((ParIS_LDCW_data *)essdata)->minidisvector = (float *)malloc(sizeof(float) * 10000);
         unsigned long max_number = 10000;
 
+        /* On-disk: open SAX file and read one record at a time (no in-memory sax_cache) */
+        char *sax_path = (char *)malloc((strlen(index->settings->root_directory) + 15) * sizeof(char));
+        strcpy(sax_path, index->settings->root_directory);
+        strcat(sax_path, "isax_file.sax");
+        FILE *sax_file = fopen(sax_path, "rb");
+        free(sax_path);
+        if (sax_file == nullptr)
+        {
+            return NULL;
+        }
+        sax_type *sax_buf = (sax_type *)malloc((size_t)index->settings->sax_byte_size);
+        if (sax_buf == nullptr)
+        {
+            fclose(sax_file);
+            return NULL;
+        }
+
         for (i = start_number; i < stop_number; i++)
         {
-            sax_type *sax = &index->sax_cache[i * index->settings->paa_segments];
+            if (fseek(sax_file, (long)(i * (unsigned long)index->settings->sax_byte_size), SEEK_SET) != 0)
+                continue;
+            if (fread(sax_buf, (size_t)index->settings->sax_byte_size, 1, sax_file) != 1)
+                continue;
 
-            mindist = minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, sax, index->settings->max_sax_cardinalities,
+            mindist = minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, sax_buf, index->settings->max_sax_cardinalities,
                                                         index->settings->sax_bit_cardinality,
                                                         index->settings->sax_alphabet_cardinality,
                                                         index->settings->paa_segments, MINVAL, MAXVAL,
@@ -495,6 +509,8 @@ namespace daisy
                 ((ParIS_LDCW_data *)essdata)->sum_of_lab++;
             }
         }
+        free(sax_buf);
+        fclose(sax_file);
         return NULL;
     }
 
@@ -1078,11 +1094,31 @@ namespace daisy
         ((ParIS_LDCW_data *)essdata)->minidisvector = (float *)malloc(sizeof(float) * 10000);
         unsigned long max_number = 10000;
 
+        /* On-disk: open SAX file and read one record at a time (no in-memory sax_cache) */
+        char *sax_path = (char *)malloc((strlen(index->settings->root_directory) + 15) * sizeof(char));
+        strcpy(sax_path, index->settings->root_directory);
+        strcat(sax_path, "isax_file.sax");
+        FILE *sax_file = fopen(sax_path, "rb");
+        free(sax_path);
+        if (sax_file == nullptr)
+        {
+            return NULL;
+        }
+        sax_type *sax_buf = (sax_type *)malloc((size_t)index->settings->sax_byte_size);
+        if (sax_buf == nullptr)
+        {
+            fclose(sax_file);
+            return NULL;
+        }
+
         for (i = start_number; i < stop_number; i++)
         {
-            sax_type *sax = &index->sax_cache[i * index->settings->paa_segments];
+            if (fseek(sax_file, (long)(i * (unsigned long)index->settings->sax_byte_size), SEEK_SET) != 0)
+                continue;
+            if (fread(sax_buf, (size_t)index->settings->sax_byte_size, 1, sax_file) != 1)
+                continue;
 
-            mindist = minidist_paa_to_isax_rawa_SIMD(paa, sax, index->settings->max_sax_cardinalities,
+            mindist = minidist_paa_to_isax_rawa_SIMD(paa, sax_buf, index->settings->max_sax_cardinalities,
                                                      index->settings->sax_bit_cardinality,
                                                      index->settings->sax_alphabet_cardinality,
                                                      index->settings->paa_segments, MINVAL, MAXVAL,
@@ -1106,6 +1142,8 @@ namespace daisy
                 ((ParIS_LDCW_data *)essdata)->sum_of_lab++;
             }
         }
+        free(sax_buf);
+        fclose(sax_file);
         return NULL;
     }
 
