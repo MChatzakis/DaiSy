@@ -2567,11 +2567,13 @@ namespace daisy
         file_position_type *pos = (file_position_type *)malloc(sizeof(file_position_type));
         pthread_t threadid[calculate_thread - 1];
         bool sax_fist_time_check = false;
+        bool is_first_loop_iteration = true;
         long int ts_loaded = 0;
         int j, conter = 0;
         long long int i;
         int prev_flush_time = 0, now_flush_time = 0;
         int sax_save_number;
+        const int sax_batch_size = read_block_length * (calculate_thread - 1);
         // initial the locks
         pthread_mutex_t lock_record = PTHREAD_MUTEX_INITIALIZER, lockfbl = PTHREAD_MUTEX_INITIALIZER,
                         lock_index = PTHREAD_MUTEX_INITIALIZER,
@@ -2687,10 +2689,11 @@ namespace daisy
                 saxv = saxv1;
                 saxv1 = saxv2;
                 /* Write first batch here (after first swap) so it is never skipped */
-                if (i == read_block_length * (calculate_thread - 1) * 2)
+                if (is_first_loop_iteration)
                 {
+                    is_first_loop_iteration = false;
                     pthread_mutex_lock(&lock_disk);
-                    fwrite(saxv1, index->settings->sax_byte_size, read_block_length * (calculate_thread - 1), index->sax_file);
+                    fwrite(saxv1, index->settings->sax_byte_size, (size_t)sax_batch_size, index->sax_file);
                     fflush(index->sax_file);
                     pthread_mutex_unlock(&lock_disk);
                 }
@@ -2734,9 +2737,8 @@ namespace daisy
             }
             /* Write the last full batch: workers have just finished it, SAX is in saxv */
             {
-                size_t last_batch_count = (size_t)(read_block_length * (calculate_thread - 1));
                 pthread_mutex_lock(&lock_disk);
-                fwrite(saxv, index->settings->sax_byte_size, last_batch_count, index->sax_file);
+                fwrite(saxv, index->settings->sax_byte_size, (size_t)sax_batch_size, index->sax_file);
                 fflush(index->sax_file);
                 pthread_mutex_unlock(&lock_disk);
             }
@@ -2811,6 +2813,8 @@ namespace daisy
         pthread_barrier_destroy(&lock_barrier1);
         pthread_barrier_destroy(&lock_barrier2);
         index->total_records = (unsigned long long)ts_num;
+        if (index->sax_file != nullptr)
+            fflush(index->sax_file);
         fclose(ifile);
     }
 
