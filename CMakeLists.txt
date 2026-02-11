@@ -72,6 +72,13 @@ message(STATUS "  BUILD_ODYSSEY: ${BUILD_ODYSSEY}")
 message(STATUS "  ODYSSEY_DEBUG_RESULTS: ${ODYSSEY_DEBUG_RESULTS}")
 message(STATUS "  BUILD_SING: ${BUILD_SING}")
 
+# Define PROJECT_ROOT_DIR for all targets (paramSetup.cpp is compiled by commons_lib and by benchmark executables)
+get_filename_component(PROJECT_ROOT_DIR "${CMAKE_SOURCE_DIR}" ABSOLUTE)
+add_compile_definitions(PROJECT_ROOT_DIR="${PROJECT_ROOT_DIR}")
+if(DEBUG_MSG)
+    message(STATUS "PROJECT_ROOT_DIR set to: ${PROJECT_ROOT_DIR}")
+endif()
+
 # Use ODYSSEY_DEBUG_RESULTS so CMake does not warn "variable not used", and propagate to C++
 if(ODYSSEY_DEBUG_RESULTS)
     add_compile_definitions(ODYSSEY_DEBUG_RESULTS=1)
