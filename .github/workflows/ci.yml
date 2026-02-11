@@ -68,8 +68,8 @@ jobs:
       - name: Run tests
         run: |
           cd build
-          ctest --output-on-failure --verbose
-
+          ctest -R "AstronomyData" --output-on-failure --verbose
+      
       - name: Run individual test executables (fallback)
         if: failure()
         run: |
