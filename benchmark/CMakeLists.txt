@@ -30,6 +30,14 @@ if(DEBUG_MSG)
     message(STATUS "FetchContent_MakeAvailable for 'benchmark' completed. Google Benchmark is now available.")
 endif()
 
+# ====== FAISS (CPU-only) for benchmarks ======
+set(FAISS_ENABLE_GPU OFF CACHE BOOL "" FORCE)
+set(FAISS_ENABLE_PYTHON OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(FAISS_ENABLE_EXTRAS OFF CACHE BOOL "" FORCE)
+set(FAISS_ENABLE_C_API OFF CACHE BOOL "" FORCE)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/faiss ${CMAKE_CURRENT_BINARY_DIR}/faiss)
+
 # ////// BRUTEFORCE //////
 if(DEBUG_MSG)
     message(STATUS "---")
@@ -164,6 +172,34 @@ target_include_directories(bm_Messi_L2Square
 if(DEBUG_MSG)
     message(STATUS "Include directories added for bm_Messi_L2Square.")
 endif()
+
+# ////// FAISS FLAT //////
+if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "## Benchmark: FAISS Flat L2Square")
+endif()
+
+add_executable(bm_FaissFlat_L2Square
+    bm_FaissFlat_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+
+target_link_libraries(bm_FaissFlat_L2Square
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+    faiss
+)
+
+target_include_directories(bm_FaissFlat_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
 
 # ////// PARIS //////
 if(DEBUG_MSG)
