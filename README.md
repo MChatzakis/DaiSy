@@ -86,11 +86,13 @@ If you want to use Odyssey, you will need to install mpi:
 pip install daisy-exact-search[mpi]
 ```
 
+<!--
 ### Compatibility issues
 Kindly note that we are aware for compatibility issues related to ARM processors and SIMD instructions.
 DaiSy utilizes SIMD instructions (e.g., AVX, AVX2) for performing efficient distance calculations.
 However, these instructions are not supported on ARM architectures (e.g., Apple M processors).
 We are currently working on a fix.
+-->
 
 
 <!--
