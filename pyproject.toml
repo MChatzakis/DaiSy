@@ -18,6 +18,8 @@ authors = [
     {name = "Franscesca Del Gaudio"},
     {name = "Manos Chatzakis"},
     {name = "Gayathiri Ravendirane"},
+    {name = "Botao Peng"},
+    {name = "Panagiota Fatourou"},
     {name = "Themis Palpanas"},
 ]
 keywords = ["similarity-search", "data-series"]
