@@ -1,5 +1,5 @@
 <p align="center">
-<img src="assets/logo.png" alt="DaiSy Logo coming soon!" height="250"> 
+<img src="assets/logo.png" alt="DaiSy Logo" height="250"> 
 </p>
 
 <h1 align="center">DaiSy</h1>
