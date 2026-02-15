@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daisy-exact-search"
-version = "1.0.1"
+version = "1.0.2"
 description = "DaiSy: A Library for Scalable Data Series Similarity Search"
 readme = "README.md"
 requires-python = ">=3.10"

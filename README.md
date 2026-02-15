@@ -92,14 +92,11 @@ If you want to use Odyssey, you will need to install mpi:
 pip install daisy-exact-search[mpi]
 ```
 
-<!--
-### Compatibility issues
-Kindly note that we are aware for compatibility issues related to ARM processors and SIMD instructions.
-DaiSy utilizes SIMD instructions (e.g., AVX, AVX2) for performing efficient distance calculations.
-However, these instructions are not supported on ARM architectures (e.g., Apple M processors).
-We are currently working on a fix.
--->
 
+### Compatibility issues
+Kindly note that we are aware for compatibility issues related to ARM processors (e.g., Apple MX processors). 
+Due to pthread-barriers and SIMD being unavailable on ARM, we currently noticing compilations failling on ARM machines.
+We are currently working on possible solutions, however we recommend using DaiSy on non-ARM machines for the time being.
 
 <!--
 ```bash
@@ -115,6 +112,8 @@ pip install -r requirements_DaiSy.txt
 We provide several usage examples in both C++ and Python under [`demos/`](demos/), demonstrating how to utilize the library for various similarity search tasks.
 We provide several troubleshooting guides and extra resources in the [`docs/`](docs/) directory. 
 In this directory, we also provide useful information about how to contribute to the project, and how to implement new algorithms.
+
+
 
 <!--
 

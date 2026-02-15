@@ -37,6 +37,9 @@
 
 namespace daisy
 {
+    // Debug flag for workstealing - can be used in all contexts
+    constexpr bool ENABLE_PRINTS_WORKSTEALING = false;
+
 #if ODYSSEY_MPI
     
     static void odyssey_merge_knn_results_mpi(int my_rank, int comm_sz, int q_num, int topk, idx_t *I, float *D)
@@ -607,7 +610,6 @@ namespace daisy
     constexpr int DISTRIBUTED_QUERIES_SEND_QUERY = 800;
     constexpr int DISTRIBUTED_QUERIES_REQUEST_QUERY = 801;
     constexpr int DYNAMIC_TERMINATION_MESSAGE = -1;
-    constexpr bool ENABLE_PRINTS_WORKSTEALING = false;
 
     static void shuffle_int_array(int *arr, int n)
     {
@@ -2564,7 +2566,7 @@ namespace daisy
             args.output_file = output_file;
             args.corr_threshold = corr_threshold;
             args.bsf_sharing_data = &bsf_sharing_data;
-            args.workstealing_data = &workstealing_data;
+            args.workstealing_data = workstealing_data;
             args.pq_th_div_factor = pq_th_div_factor;
             args.merge_offset = merge_offset;
             args.query_counter = q_loaded;
@@ -2898,7 +2900,7 @@ namespace daisy
             args.output_file = output_file;
             args.corr_threshold = corr_threshold;
             args.bsf_sharing_data = &bsf_sharing_data;
-            args.workstealing_data = &workstealing_data;
+            args.workstealing_data = workstealing_data;
             args.pq_th_div_factor = pq_th_div_factor;
             args.merge_offset = merge_offset;
             args.query_counter = q_loaded;

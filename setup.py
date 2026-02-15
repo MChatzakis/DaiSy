@@ -11,7 +11,7 @@ from setuptools.command.build_py import build_py as _build_py
 from setuptools.command.build_ext import build_ext as _build_ext
 
 # Version
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 # Detect platform
 IS_MACOS = sys.platform == "darwin"
@@ -163,10 +163,14 @@ try:
     if not (IS_MACOS and platform.machine() in ("arm64", "aarch64")):
         compile_args.extend(["-mavx", "-march=native"])
     
+    # Get the project root directory as absolute path
+    project_root = str(Path(__file__).parent.absolute())
+    
     define_macros = [
         ("VERSION_INFO", '"' + __version__ + '"'),
         ("BUILD_ODYSSEY", "1" if ODYSSEY_ENABLED else "0"),
         ("SING_CUDA_ENABLED", "0"),
+        ("PROJECT_ROOT_DIR", f'"{project_root}"'),
     ]
     
     ext_modules = [
