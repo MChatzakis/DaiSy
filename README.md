@@ -1,9 +1,10 @@
 <p align="center">
-<img src="assets/logo.png" alt="Odyssey Logo" height="250"> 
+<img src="assets/logo.png" alt="DaiSy Logo coming soon!" height="250"> 
 </p>
 
 <h1 align="center">DaiSy</h1>
 <h2 align="center">A Library for Scalable Data Series Similarity Search</h2>
+<h3 align="center">Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, </h3>
 
 DaiSy (**Da**ta series s**i**milarity **S**earch librar**y**) is a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework, developed at LIPADE, Université Paris Cité.
 It supports a wide range approaches tailored for different execution environments, including disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search. 
@@ -17,7 +18,6 @@ When using DaiSy, please consider citing the following paper:
 ```latex
 Coming Soon!
 ```
-
 
 
 ## Supported State-of-the-Art algorithms
@@ -104,8 +104,10 @@ pip install -r requirements_DaiSy.txt
 -->
 
 
-### Example Usage
+### Others
 We provide several usage examples in both C++ and Python under [`demos/`](demos/), demonstrating how to utilize the library for various similarity search tasks.
+We provide several troubleshooting guides and extra resources in the [`docs/`](docs/) directory. 
+In this directory, we also provide useful information about how to contribute to the project, and how to implement new algorithms.
 
 <!--
 
