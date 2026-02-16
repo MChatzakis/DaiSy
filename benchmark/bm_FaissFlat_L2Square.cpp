@@ -60,12 +60,16 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
 
         index = new faiss::IndexFlatL2(static_cast<int>(dim));
         index->add(static_cast<faiss::idx_t>(n_database), database);
+        fprintf(stderr, ">>> Finished indexing\n");
         delete[] database;
 
         k = static_cast<size_t>(config.k_value);
         n_query = static_cast<faiss::idx_t>(n_q);
         I = new faiss::idx_t[n_query * k];
         D = new float[n_query * k];
+
+        fprintf(stderr, "[FAISS] n_database=%zu n_query=%zu dim=%zu k=%zu threads=%d\n",
+                (size_t)n_database, (size_t)n_query, (size_t)dim, k, config.thread_count);
     }
 
     void TearDown(const benchmark::State&) override {
@@ -79,12 +83,13 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
 BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmark::State& state) {
     for (auto _ : state) {
         index->search(n_query, query, static_cast<faiss::idx_t>(k), D, I);
+        fprintf(stderr, ">>> Finished querying\n");
     }
 }
 
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
     ->Arg(0)   // Seismic 100M only
-    ->MinTime(2.0)
+    ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 
 BENCHMARK_MAIN();
