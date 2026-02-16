@@ -62,6 +62,6 @@ static void BM_FaissFlat(benchmark::State& state) {
     }
 }
 
-BENCHMARK(BM_FaissFlat)->DenseRange(0, 1)->MinTime(2.0)->Unit(benchmark::kMillisecond);
+BENCHMARK(BM_FaissFlat)->Arg(1)->MinTime(2.0)->Unit(benchmark::kMillisecond);
 
 BENCHMARK_MAIN();
