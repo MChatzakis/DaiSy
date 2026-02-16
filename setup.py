@@ -78,12 +78,10 @@ try:
                 shutil.copy(str(src_file), str(dst_file))
     
     # Define the extension module using pybind11
-    # Odyssey requires MPI - skip on macOS, enable on Linux/Windows
-    # Note: On Linux, the build expects MPI to be available. Install with:
-    #   Linux: sudo apt-get install libopenmpi-dev openmpi-bin (or conda install openmpi)
-    #   macOS: MPI not supported - will compile without Odyssey
-    #   Windows: MPI not supported - will compile without Odyssey
-    ODYSSEY_ENABLED = not IS_MACOS and not IS_WINDOWS
+    # Odyssey requires MPI - enable only when MPI is available (Linux/Windows).
+    # If MPI is not found, the package builds without Odyssey (other algos still work).
+    # To get Odyssey on Linux: sudo apt-get install libopenmpi-dev openmpi-bin (or conda install openmpi)
+    ODYSSEY_ENABLED = (not IS_MACOS and not IS_WINDOWS) and check_mpi_available()
     
     sources = [
         "pybinds/setup.cpp",
