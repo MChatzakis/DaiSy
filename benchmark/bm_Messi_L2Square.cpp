@@ -1,18 +1,45 @@
 #include <benchmark/benchmark.h>
+#include <cstdio>
 #include "bm_utils.hpp"
-#include "../lib/algos/Messi.hpp" 
+#include "../lib/algos/Messi.hpp"
 
-static void BM_Messi(benchmark::State& state) {
-    int config_idx = static_cast<int>(state.range(0));
-    const SSTestConfig& config = test_configs_large[config_idx];
+struct MessiSearchOnlyFixture : public benchmark::Fixture {
+    daisy::Messi* search = nullptr;
+    float* query = nullptr;
+    daisy::idx_t* I = nullptr;
+    float* D = nullptr;
+    daisy::idx_t n_query = 0;
+    size_t k = 0;
 
-    daisy::Messi search(daisy::DistanceType::L2_SQUARED);
+    void SetUp(const benchmark::State& state) override {
+        int config_idx = static_cast<int>(state.range(0));
+        const SSTestConfig& config = test_configs_large[config_idx];
 
+        search = new daisy::Messi(daisy::DistanceType::L2_SQUARED);
+        runSSTBenchmarkSetup(
+            search, config.dataset_path, config.query_path,
+            config.thread_count, static_cast<size_t>(config.k_value),
+            query, I, D, n_query);
+        k = static_cast<size_t>(config.k_value);
+    }
+
+    void TearDown(const benchmark::State&) override {
+        delete[] query;
+        delete[] I;
+        delete[] D;
+        delete search;
+    }
+};
+
+BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State& state) {
     for (auto _ : state) {
-        runSSTBenchmark(&search, config.dataset_path, config.query_path, config.thread_count, config.k_value);
+        search->searchIndex(query, n_query, k, I, D);
     }
 }
 
-BENCHMARK(BM_Messi)->Arg(0)->MinTime(2.0)->Unit(benchmark::kMillisecond); 
+BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
+    ->Arg(0)
+    ->MinTime(2.0)
+    ->Unit(benchmark::kMillisecond);
 
 BENCHMARK_MAIN();

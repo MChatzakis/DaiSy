@@ -7,61 +7,62 @@
 #include "../commons/paramSetup.hpp"
 #include "../commons/test_bm_utils.hpp"
 
-static void runFaissFlatBenchmark(
-    const std::string& dataset_path,
-    const std::string& query_path,
-    int num_thread,
-    size_t k)
-{
-    std::string dataset_filename = pathToFilename(dataset_path);
-    std::string query_filename = pathToFilename(query_path);
+struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
+    float* xb = nullptr;
+    float* xq = nullptr;
+    faiss::IndexFlatL2* index = nullptr;
+    faiss::idx_t* I = nullptr;
+    float* D = nullptr;
+    faiss::idx_t nq = 0;
+    faiss::idx_t k = 0;
 
-    daisy::idx_t dim, n_database, _, __;
-    if (!parseFilenameForConfig(dataset_filename, "bruteForce", dim, n_database, _, __)) {
-        return;
+    void SetUp(const benchmark::State& state) override {
+        int config_idx = static_cast<int>(state.range(0));
+        const SSTestConfig& config = test_configs_large[config_idx];
+
+        std::string dataset_filename = pathToFilename(config.dataset_path);
+        std::string query_filename = pathToFilename(config.query_path);
+
+        daisy::idx_t dim, nb, __, ___;
+        if (!parseFilenameForConfig(dataset_filename, "bruteForce", dim, nb, __, ___)) return;
+
+        daisy::idx_t dim_q, nq_val, ____, _____;
+        if (!parseFilenameForConfig(query_filename, "bruteForce", dim_q, nq_val, ____, _____)) return;
+        if (dim != dim_q) return;
+
+        k = static_cast<faiss::idx_t>(config.k_value);
+        nq = static_cast<faiss::idx_t>(nq_val);
+        omp_set_num_threads(config.thread_count);
+
+        xb = loadBinData(config.dataset_path.c_str(), nb, dim, false);
+        xq = loadBinData(config.query_path.c_str(), nq_val, dim, false);
+
+        index = new faiss::IndexFlatL2(static_cast<faiss::idx_t>(dim));
+        index->add(static_cast<faiss::idx_t>(nb), xb);
+        fprintf(stderr, ">>> Finished indexing\n");
+
+        I = new faiss::idx_t[nq * k];
+        D = new float[nq * k];
     }
 
-    daisy::idx_t dim_q, n_query, ___, ____;
-    if (!parseFilenameForConfig(query_filename, "bruteForce", dim_q, n_query, ___, ____)) {
-        return;
+    void TearDown(const benchmark::State&) override {
+        delete[] I;
+        delete[] D;
+        delete[] xb;
+        delete[] xq;
+        delete index;
     }
+};
 
-    if (dim != dim_q) return;
-
-    float* xb = loadBinData(dataset_path.c_str(), n_database, dim, false);
-    float* xq = loadBinData(query_path.c_str(), n_query, dim, false);
-
-    faiss::IndexFlatL2 index(static_cast<faiss::idx_t>(dim));
-    index.add(static_cast<faiss::idx_t>(n_database), xb);
-    fprintf(stderr, ">>> Finished indexing\n");
-
-    omp_set_num_threads(num_thread);
-
-    faiss::idx_t* I = new faiss::idx_t[n_query * k];
-    float* D = new float[n_query * k];
-
-    index.search(static_cast<faiss::idx_t>(n_query), xq, static_cast<faiss::idx_t>(k), D, I);
-    fprintf(stderr, ">>> Finished querying.\n");
-
-    delete[] xb;
-    delete[] xq;
-    delete[] I;
-    delete[] D;
-}
-
-static void BM_FaissFlat(benchmark::State& state) {
-    int config_idx = static_cast<int>(state.range(0));
-    const SSTestConfig& config = test_configs_large[config_idx];
-
+BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmark::State& state) {
     for (auto _ : state) {
-        runFaissFlatBenchmark(
-            config.dataset_path,
-            config.query_path,
-            config.thread_count,
-            static_cast<size_t>(config.k_value));
+        index->search(nq, xq, k, D, I);
     }
 }
 
-BENCHMARK(BM_FaissFlat)->Arg(0)->MinTime(2.0)->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
+    ->Arg(0)
+    ->MinTime(2.0)
+    ->Unit(benchmark::kMillisecond);
 
 BENCHMARK_MAIN();
