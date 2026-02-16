@@ -4,7 +4,7 @@
 
 static void BM_Messi(benchmark::State& state) {
     int config_idx = static_cast<int>(state.range(0));
-    const SSTestConfig& config = test_configs[config_idx];
+    const SSTestConfig& config = test_configs_large[config_idx];
 
     daisy::Messi search(daisy::DistanceType::L2_SQUARED);
 
@@ -13,6 +13,6 @@ static void BM_Messi(benchmark::State& state) {
     }
 }
 
-BENCHMARK(BM_Messi)->Arg(15)->MinTime(2.0)->Unit(benchmark::kMillisecond); 
+BENCHMARK(BM_Messi)->DenseRange(0, 1)->MinTime(2.0)->Unit(benchmark::kMillisecond); 
 
 BENCHMARK_MAIN();

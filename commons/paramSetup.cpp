@@ -1,6 +1,7 @@
 #include "paramSetup.hpp"
 #include <string>
 #include <cstring>
+#include <vector>
 
 #ifndef PROJECT_ROOT_DIR
 #error "PROJECT_ROOT_DIR must be defined by CMake"
@@ -67,6 +68,44 @@ std::vector<SSTestConfig> generate_configs(
     }
     return configs;
 }
+
+std::vector<SSTestConfig> generate_configs_custom(
+    const char *name,
+    const char *data,
+    const char *query,
+    const char *gt_data,
+    const char *gt_query,
+    std::vector<int> thread_counts,
+    std::vector<int> k_values)
+{
+    std::vector<SSTestConfig> configs;
+    for (int threads : thread_counts)
+    {
+        for (int k : k_values)
+        {
+            configs.push_back({name, data, query, gt_data, gt_query, threads, k});
+        }
+    }
+    return configs;
+}
+
+// Large datasets path (no ground truth - use empty strings)
+static const char *seismic_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size100M_seismic_len256_znorm.bin";
+static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_seismic_len256_znorm.bin";
+static const char *astro270M_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size270M_astronomy_len256_znorm.bin";
+static const char *astro270M_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_astronomy_len256_znorm.bin";
+
+const std::vector<SSTestConfig> test_configs_large = []
+{
+    std::vector<SSTestConfig> configs;
+    auto seismic_configs = generate_configs_custom(
+        "Seismic100M", seismic_data, seismic_query, "", "", {16}, {10});
+    auto astro_configs = generate_configs_custom(
+        "Astronomy270M", astro270M_data, astro270M_query, "", "", {16}, {10});
+    configs.insert(configs.end(), seismic_configs.begin(), seismic_configs.end());
+    configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
+    return configs;
+}();
 
 const std::vector<SSTestConfig> test_configs = []
 {

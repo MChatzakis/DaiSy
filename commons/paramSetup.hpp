@@ -28,7 +28,17 @@ std::vector<SSTestConfig> generate_configs(
     const char *gt_data,
     const char *gt_query);
 
+std::vector<SSTestConfig> generate_configs_custom(
+    const char *name,
+    const char *data,
+    const char *query,
+    const char *gt_data,
+    const char *gt_query,
+    std::vector<int> thread_counts,
+    std::vector<int> k_values = {1, 10, 100});
+
 extern const std::vector<SSTestConfig> test_configs;
+extern const std::vector<SSTestConfig> test_configs_large;
 extern const std::vector<SSTestConfig> test_configs_dtw;
 extern const std::vector<SSTestConfig> test_configs_random_light;
 extern const std::vector<SSTestConfig> test_configs_random_only;
