@@ -6,9 +6,9 @@ import sys
 import shutil
 import platform
 from pathlib import Path
-from setuptools import setup, Extension
-from setuptools.command.build_py import build_py as _build_py
-from setuptools.command.build_ext import build_ext as _build_ext
+from tools import , Extension
+from tools.command.build_py import build_py as _build_py
+from tools.command.build_ext import build_ext as _build_ext
 
 # Version
 __version__ = "1.0.1"
@@ -45,11 +45,11 @@ def check_mpi_available():
         pass
     
     # Try to import mpi4py  
-    try:
-        import mpi4py
-        return True
-    except ImportError:
-        pass
+    #try:
+    #    import mpi4py
+    #    return True
+    #except ImportError:
+    #    pass
     
     return False
 
@@ -62,10 +62,10 @@ def get_long_description():
 
 # Try to import pybind11
 try:
-    from pybind11.setup_helpers import Pybind11Extension, build_ext as pybind_build_ext
+    from pybind11._helpers import Pybind11Extension, build_ext as pybind_build_ext
     from pybind11 import get_cmake_dir
     import pybind11
-    from setuptools import find_packages
+    from tools import find_packages
     
     class build_ext(pybind_build_ext):
         """Custom build_ext that ensures daisy/__init__.py is in the lib directory"""
@@ -91,11 +91,11 @@ try:
     )
     
     sources = [
-        "pybinds/setup.cpp",
+        "pybinds/.cpp",
         # commons
         "commons/common.cpp",
         "commons/dataloaders.cpp",
-        "commons/paramSetup.cpp",
+        "commons/param.cpp",
         # lib - distance computers
         "lib/distance_computers/DistanceComputer.cpp",
         # lib - isax
@@ -209,7 +209,7 @@ class build_py(_build_py):
             dst_file.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(str(src_file), str(dst_file))
 
-setup(
+(
     name="daisy-exact-search",
     version=__version__,
     author="",
@@ -235,7 +235,7 @@ setup(
             "cmake>=3.15",
             "pip>=24.0.0",
             "pytest>=7.0.0",
-            "setuptools>=80.9.0",
+            "tools>=80.9.0",
             "twine>=4.0.0",
             "wheel>=0.45.1",
         ],
