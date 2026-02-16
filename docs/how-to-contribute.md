@@ -4,15 +4,22 @@ This guide walks you through the process of adding a new similarity search algor
 
 ## Our TODO list
 
-DaiSy is currently in active development. We are currently fixing bugs and installation issues, however we have a list of future algorithms we plan to implement. 
+DaiSy is currently in active development. We are currently fixing bugs and installation issues. We have a list of future algorithms we plan to implement. 
 If you are interested in contributing, please reach out to us to coordinate efforts and avoid duplication of work. 
-You may reach us by contacting the main authors of the project, [Francesca Del Gaudio](mailto:francescadelgaudio56@gmail.com) and [Manos Chatzaki](mailto:manos.chatzaki@gmail.com).
+You may reach us by contacting the main authors of the project, [Francesca Del Gaudio](mailto:francescadelgaudio56@gmail.com) and [Manos Chatzakis](mailto:manos.chatzaki@gmail.com).
+
+Here is a (non-exhaustive) mockup of our future and ongoing goals:
+
+- Extension of DaiSy for subsequence similarity search
+- Extension of DaiSy for more algorithms (e.g., SFA, Hercules, Coconut, Dumpy, etc.)
+- Implementation of a DaiSy autotuner to automatically optimize indexing and search parameters
+- Extension of DaiSy to support learned optimization approaches, e.g., LeaFi and ProS
 
 ## Prerequisites
 
 Before starting, ensure you have:
 - A working development environment with CMake, C++17 or later, and Python 3.7+
-- Familiarized yourself with the existing algorithms in `lib/algos/` (e.g., `Bruteforce.hpp/cpp`, `Messi.hpp/cpp`)
+- Familiarize yourself with the existing algorithms in `lib/algos/` (e.g., `Bruteforce.hpp/cpp`, `Messi.hpp/cpp`)
 - Understanding of the `SimilaritySearchAlgorithm` interface
 
 ## Step-by-Step Guide
