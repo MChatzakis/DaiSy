@@ -99,7 +99,7 @@ const std::vector<SSTestConfig> test_configs_large = []
 {
     std::vector<SSTestConfig> configs;
     auto seismic_configs = generate_configs_custom(
-        "Seismic100M", seismic_data, seismic_query, "", "", {58}, {1});
+        "Seismic100M", seismic_data, seismic_query, "", "", {48}, {1});
     auto astro_configs = generate_configs_custom(
         "Astronomy270M", astro270M_data, astro270M_query, "", "", {64}, {10});
     configs.insert(configs.end(), seismic_configs.begin(), seismic_configs.end());
