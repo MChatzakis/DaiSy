@@ -19,7 +19,8 @@ IS_WINDOWS = sys.platform == "win32"
 IS_LINUX = sys.platform.startswith("linux")
 
 def check_mpi_available():
-    """Check if MPI development libraries are available on the system"""
+    """Check if MPI development libraries are available on the system (mpi.h for C++ compilation).
+    Note: mpicc or mpi4py alone might not be sufficient."""
     import subprocess
     import os
     
@@ -38,7 +39,8 @@ def check_mpi_available():
     # Try to run mpicc
     try:
         result = subprocess.run(["mpicc", "--version"], capture_output=True, timeout=5)
-        return result.returncode == 0
+        if result.returncode == 0:
+            return True
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
     
@@ -78,10 +80,15 @@ try:
                 shutil.copy(str(src_file), str(dst_file))
     
     # Define the extension module using pybind11
-    # Odyssey requires MPI - enable only when MPI is available (Linux/Windows).
-    # If MPI is not found, the package builds without Odyssey (other algos still work).
-    # To get Odyssey on Linux: sudo apt-get install libopenmpi-dev openmpi-bin (or conda install openmpi)
-    ODYSSEY_ENABLED = (not IS_MACOS and not IS_WINDOWS) and check_mpi_available()
+    # Odyssey requires MPI - skip on macOS/Windows, enable on Linux only if MPI is available
+    # Note: On Linux, Odyssey is built only when MPI dev libraries are found. Install with:
+    #   Linux: sudo apt-get install libopenmpi-dev openmpi-bin (or conda install openmpi)
+    ODYSSEY_ENABLED = (
+        not IS_MACOS
+        and not IS_WINDOWS
+        and os.environ.get("DAISY_DISABLE_ODYSSEY", "") != "1"
+        and check_mpi_available()
+    )
     
     sources = [
         "pybinds/setup.cpp",
@@ -164,6 +171,7 @@ try:
     define_macros = [
         ("VERSION_INFO", '"' + __version__ + '"'),
         ("BUILD_ODYSSEY", "1" if ODYSSEY_ENABLED else "0"),
+        ("ODYSSEY_MPI", "1" if ODYSSEY_ENABLED else "0"),  # Used by pybinds and Odyssey headers
         ("SING_CUDA_ENABLED", "0"),
     ]
     
