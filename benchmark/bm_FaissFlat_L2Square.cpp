@@ -83,7 +83,8 @@ BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmar
 }
 
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
-    ->Arg(0)
+    ->Arg(0)   // Seismic 100M
+    ->Arg(1)   // Astronomy 270M
     ->MinTime(2.0)
     ->Unit(benchmark::kMillisecond);
 
