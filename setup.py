@@ -6,9 +6,9 @@ import sys
 import shutil
 import platform
 from pathlib import Path
-from tools import , Extension
-from tools.command.build_py import build_py as _build_py
-from tools.command.build_ext import build_ext as _build_ext
+from setuptools import setup, Extension
+from setuptools.command.build_py import build_py as _build_py
+from setuptools.command.build_ext import build_ext as _build_ext
 
 # Version
 __version__ = "1.0.1"
@@ -22,7 +22,7 @@ def check_mpi_available():
     """Check if MPI development libraries are available on the system (mpi.h for C++ compilation).
     Note: mpicc or mpi4py alone might not be sufficient."""
     import subprocess
-    import os
+    #import os
     
     # Check if mpi.h exists
     conda_prefix = os.environ.get("CONDA_PREFIX")
