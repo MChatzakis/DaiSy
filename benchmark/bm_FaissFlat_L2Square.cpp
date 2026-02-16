@@ -88,7 +88,7 @@ BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmar
 }
 
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
-    ->Arg(0)   // Seismic 100M only
+    ->Arg(1)   // Seismic 100M only
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 

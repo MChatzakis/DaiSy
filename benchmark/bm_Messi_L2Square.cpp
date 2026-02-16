@@ -21,12 +21,9 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
             config.thread_count, static_cast<size_t>(config.k_value),
             query, I, D, n_query);
         k = static_cast<size_t>(config.k_value);
-    }
+        fprintf(stderr, "[MESSI] n_query=%zu k=%zu threads=%d\n",
+                (size_t)n_query, k, config.thread_count);
 
-    void TearDown(const benchmark::State&) override {
-        delete[] query;
-        delete[] I;
-        delete[] D;
         delete search;
     }
 };
@@ -38,8 +35,8 @@ BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State
 }
 
 BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
-    ->Arg(0)   // Seismic 100M only
-    ->MinTime(2.0)
+    ->Arg(1)   // Seismic 100M only
+    ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 
 BENCHMARK_MAIN();
