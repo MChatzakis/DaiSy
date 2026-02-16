@@ -209,7 +209,7 @@ class build_py(_build_py):
             dst_file.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(str(src_file), str(dst_file))
 
-(
+setup(
     name="daisy-exact-search",
     version=__version__,
     author="",
@@ -235,7 +235,7 @@ class build_py(_build_py):
             "cmake>=3.15",
             "pip>=24.0.0",
             "pytest>=7.0.0",
-            "tools>=80.9.0",
+            "setuptools>=80.9.0",
             "twine>=4.0.0",
             "wheel>=0.45.1",
         ],
