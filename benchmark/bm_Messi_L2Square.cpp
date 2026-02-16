@@ -38,8 +38,7 @@ BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State
 }
 
 BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
-    ->Arg(0)   // Seismic 100M
-    ->Arg(1)   // Astronomy 270M
+    ->Arg(0)   // Seismic 100M only
     ->MinTime(2.0)
     ->Unit(benchmark::kMillisecond);
 
