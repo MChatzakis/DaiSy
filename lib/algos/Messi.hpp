@@ -93,7 +93,10 @@ namespace daisy
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
         int getNumThreads() const { return SimilaritySearchAlgorithm::num_threads; }
-        void setNumThreads(int n) { SimilaritySearchAlgorithm::num_threads = n; }
+        void setNumThreads(int n) {
+            SimilaritySearchAlgorithm::num_threads = n;
+            search_workers = n;
+        }
         int getPaaSegments() const { return paa_segments; }
         void setPaaSegments(int n) { paa_segments = n; }
         int getSaxCardinality() const { return sax_cardinality; }
