@@ -1,5 +1,6 @@
 #include <benchmark/benchmark.h>
 #include <cstdio>
+#include <string>
 #include "bm_utils.hpp"
 #include "../commons/dataloaders.hpp"
 #include "../commons/VectorDataLoader.h"
@@ -17,6 +18,9 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
     float* D = nullptr;
     faiss::idx_t n_query = 0;
     size_t k = 0;
+    std::string dataset_name;
+    size_t n_database = 0;
+    int thread_count = 0;
 
     static bool endsWith(const std::string& s, const std::string& suffix) {
         return s.size() >= suffix.size() &&
@@ -25,7 +29,7 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
 
     void SetUp(const benchmark::State& state) override {
         int config_idx = static_cast<int>(state.range(0));
-        const SSTestConfig& config = test_configs_large[config_idx];
+        const SSTestConfig& config = test_configs_messi_order[config_idx];
 
         const bool use_fvecs = endsWith(config.dataset_path, ".fvecs") || endsWith(config.query_path, ".fvecs");
         size_t dim_u = 0, n_database_u = 0, n_q_u = 0;
@@ -37,7 +41,9 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
                 std::cerr << "Failed to load dataset (fvecs)" << std::endl;
                 return;
             }
-            query = fvecs_read(config.query_path.c_str(), &dim_u, &n_q_u, 0);
+            // DEEP10M/SIFT10M use query.10K.fvecs; limit to 100 to match Astronomy/Seismic (ctrl100)
+            const size_t query_limit = (config.name == "DEEP10M" || config.name == "SIFT10M") ? 100 : 0;
+            query = fvecs_read(config.query_path.c_str(), &dim_u, &n_q_u, query_limit);
             if (!query) {
                 std::cerr << "Failed to load queries (fvecs)" << std::endl;
                 delete[] database;
@@ -96,6 +102,10 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
         I = new faiss::idx_t[n_query * k];
         D = new float[n_query * k];
 
+        dataset_name = config.name;
+        n_database = n_database_u;
+        thread_count = config.thread_count;
+
         fprintf(stderr, "[FAISS] n_database=%zu n_query=%zu dim=%zu k=%zu threads=%d\n",
                 n_database_u, n_query, dim_u, k, config.thread_count);
     }
@@ -110,15 +120,20 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
 
 BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmark::State& state) {
     for (auto _ : state) {
+        fprintf(stderr, "[FAISS] --- Query phase ---\n");
+        fprintf(stderr, "[FAISS]   dataset=%s  n_database=%zu\n", dataset_name.c_str(), n_database);
+        fprintf(stderr, "[FAISS]   search_threads=%d  n_query=%zu  k=%zu\n", thread_count, (size_t)n_query, k);
+        fflush(stderr);
         index->search(n_query, query, static_cast<faiss::idx_t>(k), D, I);
         fprintf(stderr, ">>> Finished querying\n");
     }
 }
 
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
-    //->Arg(0)   // Seismic100M
-    //->Arg(1)   // Astronomy270M
-    ->Arg(1)   // DEEP100M fvecs (first config: 1 thread, k=1)
+    // Order: Astronomy270M k=1,10,100,1000 | DEEP10M k=1,10,100,1000 | SIFT10M k=1,10,100,1000
+    ->Args({0})->Args({1})->Args({2})->Args({3})
+    ->Args({4})->Args({5})->Args({6})->Args({7})
+    ->Args({8})->Args({9})->Args({10})->Args({11})
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 

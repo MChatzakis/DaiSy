@@ -99,6 +99,12 @@ static const char *astro270M_query = "/mnt/hddhelp/mchatzakis/similarity-search-
 static const char *deep100m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/base.100M.fvecs";
 static const char *deep100m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/query.10K.fvecs";
 
+// DEEP10M and SIFT10M fvecs (for MESSI benchmark order)
+static const char *deep10m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP10M/base.10M.fvecs";
+static const char *deep10m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP10M/query.10K.fvecs";
+static const char *sift10m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/SIFT10M/base.10M.fvecs";
+static const char *sift10m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/SIFT10M/query.10K.fvecs";
+
 const std::vector<SSTestConfig> test_configs_large = []
 {
     std::vector<SSTestConfig> configs;
@@ -111,6 +117,22 @@ const std::vector<SSTestConfig> test_configs_large = []
     configs.insert(configs.end(), seismic_configs.begin(), seismic_configs.end());
     configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
     configs.insert(configs.end(), deep100m_configs.begin(), deep100m_configs.end());
+    return configs;
+}();
+
+// Order for MESSI benchmark: Astronomy270M k=1,10,100,1000 → DEEP10M k=1,10,100,1000 → SIFT10M k=1,10,100,1000
+const std::vector<SSTestConfig> test_configs_messi_order = []
+{
+    std::vector<SSTestConfig> configs;
+    auto astro = generate_configs_custom(
+        "Astronomy270M", astro270M_data, astro270M_query, "", "", {48}, {1, 10, 100, 1000});
+    auto deep10m = generate_configs_custom(
+        "DEEP10M", deep10m_data, deep10m_query, "", "", {48}, {1, 10, 100, 1000});
+    auto sift10m = generate_configs_custom(
+        "SIFT10M", sift10m_data, sift10m_query, "", "", {48}, {1, 10, 100, 1000});
+    configs.insert(configs.end(), astro.begin(), astro.end());
+    configs.insert(configs.end(), deep10m.begin(), deep10m.end());
+    configs.insert(configs.end(), sift10m.begin(), sift10m.end());
     return configs;
 }();
 
