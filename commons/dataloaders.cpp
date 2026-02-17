@@ -12,19 +12,15 @@ static float *z_normalize(const float *data, unsigned long long n, unsigned long
 
 float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool do_z_normalize)
 {
-    /* Same logic as fvecs_read: fopen "r", read int d, fstat for n, then read n*(d+1) floats (in loop for large files). */
-    FILE *f = fopen(filename, "rb");
+    /* Same logic as fvecs_read from VectorDataLoader: fopen "r", read int d, fstat, n = sz/((d+1)*4), read n*(d+1) floats, memmove to compact. */
+    FILE *f = fopen(filename, "r");
     if (!f)
     {
         throw std::runtime_error("(loadFvecsData) could not open " + std::string(filename));
     }
 
     int d;
-    if (fread(&d, sizeof(int), 1, f) != 1)
-    {
-        fclose(f);
-        throw std::runtime_error("(loadFvecsData) could not read dimension: " + std::string(filename));
-    }
+    fread(&d, 1, sizeof(int), f);
     if (d <= 0 || d > 1000000)
     {
         fclose(f);
@@ -47,8 +43,16 @@ float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool 
     }
     size_t n = sz / block;
 
-    float *x = new float[n * (d + 1)];
-    size_t total = n * (d + 1);
+    /* Use unsigned long long to avoid overflow for 100M * (d+1); then check it fits in size_t for allocation */
+    unsigned long long total_ull = static_cast<unsigned long long>(n) * static_cast<unsigned long long>(d + 1);
+    if (total_ull > static_cast<unsigned long long>(SIZE_MAX))
+    {
+        fclose(f);
+        throw std::runtime_error("(loadFvecsData) file too large for allocation: n=" + std::to_string(n) + " d+1=" + std::to_string(d + 1));
+    }
+    size_t total = static_cast<size_t>(total_ull);
+
+    float *x = new float[total];
     size_t nr = 0;
     while (nr < total)
     {
@@ -61,16 +65,23 @@ float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool 
     if (nr != total)
     {
         delete[] x;
-        throw std::runtime_error("(loadFvecsData) could not read whole file: read " + std::to_string(nr) + " of " + std::to_string(total) + " floats: " + std::string(filename));
+        throw std::runtime_error("(loadFvecsData) could not read whole file: read " + std::to_string(nr) + " of " + std::to_string(total) + ": " + std::string(filename));
     }
 
     for (size_t i = 0; i < n; i++)
     {
-        memmove(x + i * d, x + 1 + i * (d + 1), static_cast<size_t>(d) * sizeof(float));
+        memmove(x + i * d, x + 1 + i * (d + 1), d * sizeof(*x));
     }
 
-    float *out = new float[n * d];
-    std::memcpy(out, x, n * d * sizeof(float));
+    unsigned long long out_size_ull = static_cast<unsigned long long>(n) * static_cast<unsigned long long>(d);
+    size_t out_size = (out_size_ull <= static_cast<unsigned long long>(SIZE_MAX)) ? static_cast<size_t>(out_size_ull) : 0;
+    if (out_size == 0 && out_size_ull != 0)
+    {
+        delete[] x;
+        throw std::runtime_error("(loadFvecsData) result too large for size_t");
+    }
+    float *out = new float[out_size];
+    std::memcpy(out, x, out_size * sizeof(float));
     delete[] x;
 
     *dim_out = static_cast<size_t>(d);
