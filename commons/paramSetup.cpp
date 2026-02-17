@@ -95,6 +95,12 @@ static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-da
 static const char *astro270M_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size270M_astronomy_len256_znorm.bin";
 static const char *astro270M_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_astronomy_len256_znorm.bin";
 
+// DEEP10m fbin (format: 4B dim, 4B n, then n*dim floats)
+static std::string deep10m_base_str = make_absolute_path("mchatzakis/dataset/processed/DEEP10m/base.fbin");
+static std::string deep10m_query_str = make_absolute_path("mchatzakis/dataset/processed/DEEP10m/query.fbin");
+static const char *deep10m_data = deep10m_base_str.c_str();
+static const char *deep10m_query = deep10m_query_str.c_str();
+
 const std::vector<SSTestConfig> test_configs_large = []
 {
     std::vector<SSTestConfig> configs;
@@ -102,8 +108,11 @@ const std::vector<SSTestConfig> test_configs_large = []
         "Seismic100M", seismic_data, seismic_query, "", "", {48}, {10});
     auto astro_configs = generate_configs_custom(
         "Astronomy270M", astro270M_data, astro270M_query, "", "", {64}, {1});
+    auto deep10m_configs = generate_configs_custom(
+        "DEEP10m_fbin", deep10m_data, deep10m_query, "", "", {1, 4, 8}, {1, 10, 100});
     configs.insert(configs.end(), seismic_configs.begin(), seismic_configs.end());
     configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
+    configs.insert(configs.end(), deep10m_configs.begin(), deep10m_configs.end());
     return configs;
 }();
 

@@ -73,6 +73,11 @@ void runSSTBenchmark(
     delete[] D;
 }
 
+static bool ends_with(const std::string& s, const std::string& suffix) {
+    return s.size() >= suffix.size() &&
+           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 void runSSTBenchmarkSetup(
     daisy::SimilaritySearchAlgorithm* search,
     const std::string& dataset_path,
@@ -84,49 +89,70 @@ void runSSTBenchmarkSetup(
     float*& D_out,
     daisy::idx_t& n_query_out)
 {
-    std::string dataset_filename = pathToFilename(dataset_path);
-    std::string query_filename = pathToFilename(query_path);
+    const bool use_fbin = ends_with(dataset_path, ".fbin") || ends_with(query_path, ".fbin");
+    daisy::idx_t dim, n_database, n_query;
 
-    daisy::idx_t dim, n_database, _;
-    if (!parseFilenameForConfig(dataset_filename, "bruteForce", dim, n_database, _, _))
-    {
-        std::cerr << "Failed to parse dataset config from filename: " << dataset_filename << std::endl;
-        return;
-    }
-
-    daisy::idx_t dim_q, n_query, __, ___;
-    if (!parseFilenameForConfig(query_filename, "bruteForce", dim_q, n_query, __, ___))
-    {
-        std::cerr << "Failed to parse query config from filename: " << query_filename << std::endl;
-        return;
-    }
-
-    if (dim != dim_q)
-    {
-        std::cerr << "Dimension mismatch between dataset and queries" << std::endl;
-        return;
-    }
-
-    query_out = loadBinData(query_path.c_str(), n_query, dim, false);
-
-#if ODYSSEY_MPI
-    if (daisy::Odyssey* odyssey_search = dynamic_cast<daisy::Odyssey*>(search))
-    {
-        daisy::FileDataSource data_source(dataset_path.c_str(), dim, n_database);
-        search->buildIndex(&data_source);
-    }
-    else
-#endif
-    if (daisy::ParIS* paris_search = dynamic_cast<daisy::ParIS*>(search))
-    {
-        search->buildIndex(dataset_path, dim, n_database);
-    }
-    else
-    {
-        float* database = loadBinData(dataset_path.c_str(), n_database, dim, false);
+    if (use_fbin) {
+        size_t d_ds, n_ds, d_q, n_q;
+        float* database = loadFbinData(dataset_path.c_str(), &d_ds, &n_ds, false);
+        query_out = loadFbinData(query_path.c_str(), &d_q, &n_q, false);
+        dim = static_cast<daisy::idx_t>(d_ds);
+        n_database = static_cast<daisy::idx_t>(n_ds);
+        n_query = static_cast<daisy::idx_t>(n_q);
+        if (d_ds != d_q) {
+            std::cerr << "Dimension mismatch between dataset and queries (fbin): " << d_ds << " vs " << d_q << std::endl;
+            delete[] database;
+            delete[] query_out;
+            return;
+        }
         daisy::InMemoryDataSource data_source(database, n_database, dim);
         search->buildIndex(&data_source);
         delete[] database;
+    } else {
+        std::string dataset_filename = pathToFilename(dataset_path);
+        std::string query_filename = pathToFilename(query_path);
+
+        daisy::idx_t _;
+        if (!parseFilenameForConfig(dataset_filename, "bruteForce", dim, n_database, _, _))
+        {
+            std::cerr << "Failed to parse dataset config from filename: " << dataset_filename << std::endl;
+            return;
+        }
+
+        daisy::idx_t dim_q, __, ___;
+        if (!parseFilenameForConfig(query_filename, "bruteForce", dim_q, n_query, __, ___))
+        {
+            std::cerr << "Failed to parse query config from filename: " << query_filename << std::endl;
+            return;
+        }
+
+        if (dim != dim_q)
+        {
+            std::cerr << "Dimension mismatch between dataset and queries" << std::endl;
+            return;
+        }
+
+        query_out = loadBinData(query_path.c_str(), n_query, dim, false);
+
+#if ODYSSEY_MPI
+        if (daisy::Odyssey* odyssey_search = dynamic_cast<daisy::Odyssey*>(search))
+        {
+            daisy::FileDataSource data_source(dataset_path.c_str(), dim, n_database);
+            search->buildIndex(&data_source);
+        }
+        else
+#endif
+        if (daisy::ParIS* paris_search = dynamic_cast<daisy::ParIS*>(search))
+        {
+            search->buildIndex(dataset_path, dim, n_database);
+        }
+        else
+        {
+            float* database = loadBinData(dataset_path.c_str(), n_database, dim, false);
+            daisy::InMemoryDataSource data_source(database, n_database, dim);
+            search->buildIndex(&data_source);
+            delete[] database;
+        }
     }
 
     search->setNumThreads(num_thread);

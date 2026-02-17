@@ -1,10 +1,58 @@
 #include "dataloaders.hpp"
 
+#include <cstdint>
 #include <iostream>
 #include <cmath>
 #include <stdexcept>
+#include <cstdio>
+#include <cstring>
 
 static float *z_normalize(const float *data, unsigned long long n, unsigned long long dim);
+
+float *loadFbinData(const char *filename, size_t *dim_out, size_t *n_out, bool do_z_normalize)
+{
+    FILE *fp = fopen(filename, "rb");
+    if (fp == nullptr)
+    {
+        throw std::runtime_error("(loadFbinData) Error opening file: " + std::string(filename));
+    }
+
+    int32_t d, n;
+    if (fread(&d, sizeof(int32_t), 1, fp) != 1 || fread(&n, sizeof(int32_t), 1, fp) != 1)
+    {
+        fclose(fp);
+        throw std::runtime_error("(loadFbinData) Error reading fbin header: " + std::string(filename));
+    }
+    if (d <= 0 || d > 1000000 || n <= 0)
+    {
+        fclose(fp);
+        throw std::runtime_error("(loadFbinData) Invalid fbin header dim=" + std::to_string(d) + " n=" + std::to_string(n));
+    }
+
+    size_t dim = static_cast<size_t>(d);
+    size_t count = static_cast<size_t>(n);
+
+    float *data = new float[count * dim];
+    size_t nr = fread(data, sizeof(float), count * dim, fp);
+    fclose(fp);
+    if (nr != count * dim)
+    {
+        delete[] data;
+        throw std::runtime_error("(loadFbinData) Error reading fbin data: expected " + std::to_string(count * dim) + " floats, got " + std::to_string(nr));
+    }
+
+    *dim_out = dim;
+    *n_out = count;
+
+    if (!do_z_normalize)
+    {
+        return data;
+    }
+
+    float *normalized_data = z_normalize(data, count, dim);
+    delete[] data;
+    return normalized_data;
+}
 
 float *loadBinData(const char *filename, unsigned long long n, unsigned long long dim, bool do_z_normalize)
 {

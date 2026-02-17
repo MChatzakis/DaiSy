@@ -17,59 +17,86 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
     faiss::idx_t n_query = 0;
     size_t k = 0;
 
+    static bool endsWith(const std::string& s, const std::string& suffix) {
+        return s.size() >= suffix.size() &&
+               s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+    }
+
     void SetUp(const benchmark::State& state) override {
         int config_idx = static_cast<int>(state.range(0));
         const SSTestConfig& config = test_configs_large[config_idx];
 
-        std::string dataset_filename = pathToFilename(config.dataset_path);
-        std::string query_filename = pathToFilename(config.query_path);
+        const bool use_fbin = endsWith(config.dataset_path, ".fbin") || endsWith(config.query_path, ".fbin");
+        size_t dim_u = 0, n_database_u = 0, n_q_u = 0;
+        float* database = nullptr;
 
-        daisy::idx_t dim, n_database, _, __;
-        if (!parseFilenameForConfig(dataset_filename, "bruteForce", dim, n_database, _, __)) {
-            std::cerr << "Failed to parse dataset config from filename: " << dataset_filename << std::endl;
-            return;
-        }
+        if (use_fbin) {
+            database = loadFbinData(config.dataset_path.c_str(), &dim_u, &n_database_u, false);
+            if (!database) {
+                std::cerr << "Failed to load dataset (fbin)" << std::endl;
+                return;
+            }
+            query = loadFbinData(config.query_path.c_str(), &dim_u, &n_q_u, false);
+            if (!query) {
+                std::cerr << "Failed to load queries (fbin)" << std::endl;
+                delete[] database;
+                return;
+            }
+        } else {
+            std::string dataset_filename = pathToFilename(config.dataset_path);
+            std::string query_filename = pathToFilename(config.query_path);
 
-        daisy::idx_t dim_q, n_q, ___, ____;
-        if (!parseFilenameForConfig(query_filename, "bruteForce", dim_q, n_q, ___, ____)) {
-            std::cerr << "Failed to parse query config from filename: " << query_filename << std::endl;
-            return;
-        }
+            daisy::idx_t dim, n_database, _, __;
+            if (!parseFilenameForConfig(dataset_filename, "bruteForce", dim, n_database, _, __)) {
+                std::cerr << "Failed to parse dataset config from filename: " << dataset_filename << std::endl;
+                return;
+            }
 
-        if (dim != static_cast<daisy::idx_t>(dim_q)) {
-            std::cerr << "Dimension mismatch between dataset and queries" << std::endl;
-            return;
-        }
+            daisy::idx_t dim_q, n_q, ___, ____;
+            if (!parseFilenameForConfig(query_filename, "bruteForce", dim_q, n_q, ___, ____)) {
+                std::cerr << "Failed to parse query config from filename: " << query_filename << std::endl;
+                return;
+            }
 
-        float* database = loadBinData(config.dataset_path.c_str(), n_database, dim, false);
-        if (!database) {
-            std::cerr << "Failed to load dataset" << std::endl;
-            return;
-        }
+            if (dim != static_cast<daisy::idx_t>(dim_q)) {
+                std::cerr << "Dimension mismatch between dataset and queries" << std::endl;
+                return;
+            }
 
-        query = loadBinData(config.query_path.c_str(), n_q, dim_q, false);
-        if (!query) {
-            std::cerr << "Failed to load queries" << std::endl;
-            delete[] database;
-            return;
+            dim_u = static_cast<size_t>(dim);
+            n_database_u = static_cast<size_t>(n_database);
+            n_q_u = static_cast<size_t>(n_q);
+
+            database = loadBinData(config.dataset_path.c_str(), n_database, dim, false);
+            if (!database) {
+                std::cerr << "Failed to load dataset" << std::endl;
+                return;
+            }
+
+            query = loadBinData(config.query_path.c_str(), n_q, dim_q, false);
+            if (!query) {
+                std::cerr << "Failed to load queries" << std::endl;
+                delete[] database;
+                return;
+            }
         }
 
 #ifdef _OPENMP
         omp_set_num_threads(config.thread_count);
 #endif
 
-        index = new faiss::IndexFlatL2(static_cast<int>(dim));
-        index->add(static_cast<faiss::idx_t>(n_database), database);
+        index = new faiss::IndexFlatL2(static_cast<int>(dim_u));
+        index->add(static_cast<faiss::idx_t>(n_database_u), database);
         fprintf(stderr, ">>> Finished indexing\n");
         delete[] database;
 
         k = static_cast<size_t>(config.k_value);
-        n_query = static_cast<faiss::idx_t>(n_q);
+        n_query = static_cast<faiss::idx_t>(n_q_u);
         I = new faiss::idx_t[n_query * k];
         D = new float[n_query * k];
 
         fprintf(stderr, "[FAISS] n_database=%zu n_query=%zu dim=%zu k=%zu threads=%d\n",
-                (size_t)n_database, (size_t)n_query, (size_t)dim, k, config.thread_count);
+                n_database_u, n_query, dim_u, k, config.thread_count);
     }
 
     void TearDown(const benchmark::State&) override {
@@ -88,7 +115,8 @@ BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmar
 }
 
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
-    ->Arg(1)   // Seismic 100M only
+    ->Arg(1)   // Astronomy270M
+    ->Arg(2)   // DEEP10m fbin (first config: 1 thread, k=1)
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 
