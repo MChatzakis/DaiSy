@@ -87,7 +87,7 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
         fflush(stderr);
 
         daisy::InMemoryDataSource data_source(database, static_cast<daisy::idx_t>(n_database_u), static_cast<daisy::idx_t>(dim_u));
-        fprintf(stderr, "created data source\n")
+        fprintf(stderr, "created data source\n");
         fflush(stderr);
         search->buildIndex(&data_source);
         /* do NOT delete[] database here: Messi buildIndex may still use it via workers; free in TearDown */
