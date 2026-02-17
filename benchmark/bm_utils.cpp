@@ -1,6 +1,7 @@
 #include "bm_utils.hpp"
 
 #include "../commons/dataloaders.hpp"
+#include "../commons/VectorDataLoader.h"
 #include "../lib/algos/DataSource.hpp"
 #include "../lib/algos/ParIS.hpp"
 #if ODYSSEY_MPI
@@ -94,8 +95,8 @@ void runSSTBenchmarkSetup(
 
     if (use_fvecs) {
         size_t d_ds, n_ds, d_q, n_q;
-        float* database = loadFvecsData(dataset_path.c_str(), &d_ds, &n_ds, false);
-        query_out = loadFvecsData(query_path.c_str(), &d_q, &n_q, false);
+        float* database = fvecs_read(dataset_path.c_str(), &d_ds, &n_ds, 0);
+        query_out = fvecs_read(query_path.c_str(), &d_q, &n_q, 0);
         dim = static_cast<daisy::idx_t>(d_ds);
         n_database = static_cast<daisy::idx_t>(n_ds);
         n_query = static_cast<daisy::idx_t>(n_q);

@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "bm_utils.hpp"
 #include "../commons/dataloaders.hpp"
+#include "../commons/VectorDataLoader.h"
 #include "../commons/test_bm_utils.hpp"
 #include <faiss/IndexFlat.h>
 
@@ -31,12 +32,12 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
         float* database = nullptr;
 
         if (use_fvecs) {
-            database = loadFvecsData(config.dataset_path.c_str(), &dim_u, &n_database_u, false);
+            database = fvecs_read(config.dataset_path.c_str(), &dim_u, &n_database_u, 0);
             if (!database) {
                 std::cerr << "Failed to load dataset (fvecs)" << std::endl;
                 return;
             }
-            query = loadFvecsData(config.query_path.c_str(), &dim_u, &n_q_u, false);
+            query = fvecs_read(config.query_path.c_str(), &dim_u, &n_q_u, 0);
             if (!query) {
                 std::cerr << "Failed to load queries (fvecs)" << std::endl;
                 delete[] database;

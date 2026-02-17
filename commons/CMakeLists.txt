@@ -11,6 +11,7 @@ add_library(commons_lib
     test_bm_utils.cpp
     paramSetup.cpp
     common.cpp
+    VectorDataLoader.cpp
 )
 if(DEBUG_MSG)
     message(STATUS "Library commons_lib added.")
