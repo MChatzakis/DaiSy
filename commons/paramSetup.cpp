@@ -95,11 +95,9 @@ static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-da
 static const char *astro270M_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size270M_astronomy_len256_znorm.bin";
 static const char *astro270M_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_astronomy_len256_znorm.bin";
 
-// DEEP100M fvecs (format: per-vector 4B dim then dim floats)
-static std::string deep100m_base_str = make_absolute_path("mchatzakis/dataset/processed/DEEP100M/base.100M.fvecs");
-static std::string deep100m_query_str = make_absolute_path("mchatzakis/dataset/processed/DEEP100M/query.10K.fvecs");
-static const char *deep100m_data = deep100m_base_str.c_str();
-static const char *deep100m_query = deep100m_query_str.c_str();
+// DEEP100M fvecs (path: /mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M)
+static const char *deep100m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/base.100M.fvecs";
+static const char *deep100m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/query.10K.fvecs";
 
 const std::vector<SSTestConfig> test_configs_large = []
 {
@@ -109,7 +107,7 @@ const std::vector<SSTestConfig> test_configs_large = []
     auto astro_configs = generate_configs_custom(
         "Astronomy270M", astro270M_data, astro270M_query, "", "", {64}, {1});
     auto deep100m_configs = generate_configs_custom(
-        "DEEP100M_fvecs", deep100m_data, deep100m_query, "", "", {1, 4, 8}, {1, 10, 100});
+        "DEEP100M_fvecs", deep100m_data, deep100m_query, "", "", {64}, {1});
     configs.insert(configs.end(), seismic_configs.begin(), seismic_configs.end());
     configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
     configs.insert(configs.end(), deep100m_configs.begin(), deep100m_configs.end());
