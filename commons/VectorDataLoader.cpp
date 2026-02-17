@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <sys/stat.h>
+#include <climits>
 
 const char query_type_str[4][20] = {
     "Training",
@@ -43,14 +44,33 @@ float* fvecs_read(
 
     *d_out = d;
     *n_out = n;
-    float* x = new float[n * (d + 1)];
-    size_t nr = fread(x, sizeof(float), n * (d + 1), f);
-    assert(nr == n * (d + 1) && "could not read whole file");
+
+    /* Avoid overflow: n*(d+1) can exceed SIZE_MAX on 32-bit (e.g. 100M*97) */
+    unsigned long long total_ull = (unsigned long long)n * (unsigned long long)(d + 1);
+    if (total_ull > (unsigned long long)SIZE_MAX) {
+        fprintf(stderr, "fvecs_read: file too large (n=%zu d+1=%d) for size_t\n", n, d + 1);
+        fclose(f);
+        exit(1);
+    }
+    size_t total = (size_t)total_ull;
+
+    float* x = new float[total];
+    size_t nr = 0;
+    while (nr < total) {
+        size_t got = fread(x + nr, sizeof(float), total - nr, f);
+        if (got == 0) break;
+        nr += got;
+    }
+    fclose(f);
+    if (nr != total) {
+        fprintf(stderr, "fvecs_read: could not read whole file (got %zu of %zu floats)\n", nr, total);
+        delete[] x;
+        exit(1);
+    }
 
     for (size_t i = 0; i < n; i++)
         memmove(x + i * d, x + 1 + i * (d + 1), d * sizeof(*x));
 
-    fclose(f);
     return x;
 }
 
