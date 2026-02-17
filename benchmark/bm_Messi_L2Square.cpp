@@ -141,7 +141,7 @@ BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State
         fprintf(stderr, "[MESSI]   dataset=%s  n_database=%zu\n", dataset_name.c_str(), n_database);
         fprintf(stderr, "[MESSI]   search_threads=%d  n_query=%zu  k=%zu\n", thread_count, (size_t)n_query, k);
         fflush(stderr);
-        search->searchtIndex(query, n_query, static_cast<daisy::idx_t>(k), I, D);
+        search->searchIndex(query, n_query, static_cast<daisy::idx_t>(k), I, D);
         fprintf(stderr, "[MESSI] Querying finished (n_query=%zu k=%zu).\n", (size_t)n_query, k);
         fflush(stderr);
     }
