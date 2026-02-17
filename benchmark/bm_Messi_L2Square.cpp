@@ -82,11 +82,15 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
         search = new daisy::Messi(daisy::DistanceType::L2_SQUARED);
         search->setNumThreads(config.thread_count);
 
-        daisy::InMemoryDataSource data_source(database, n_database_u, dim_u);
+        fprintf(stderr, "[MESSI] Before buildIndex (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
+        fflush(stderr);
+
+        daisy::InMemoryDataSource data_source(database, static_cast<daisy::idx_t>(n_database_u), static_cast<daisy::idx_t>(dim_u));
         search->buildIndex(&data_source);
         delete[] database;
 
         fprintf(stderr, "[MESSI] Indexing finished (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
+        fflush(stderr);
 
         k = static_cast<size_t>(config.k_value);
         n_query = static_cast<daisy::idx_t>(n_q_u);
@@ -95,9 +99,12 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
 
         fprintf(stderr, "[MESSI] n_database=%zu n_query=%zu dim=%zu k=%zu threads=%d\n",
                 n_database_u, (size_t)n_query, dim_u, k, config.thread_count);
+        fflush(stderr);
     }
 
     void TearDown(const benchmark::State&) override {
+        fprintf(stderr, "[MESSI] TearDown start.\n");
+        fflush(stderr);
         delete search;
         delete[] query;
         delete[] I;
@@ -106,13 +113,18 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
         query = nullptr;
         I = nullptr;
         D = nullptr;
+        fprintf(stderr, "[MESSI] TearDown done.\n");
+        fflush(stderr);
     }
 };
 
 BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State& state) {
     for (auto _ : state) {
-        search->searchIndex(query, n_query, k, I, D);
+        fprintf(stderr, "[MESSI] Before searchIndex.\n");
+        fflush(stderr);
+        search->searchIndex(query, n_query, static_cast<daisy::idx_t>(k), I, D);
         fprintf(stderr, "[MESSI] Querying finished (n_query=%zu k=%zu).\n", (size_t)n_query, k);
+        fflush(stderr);
     }
 }
 
