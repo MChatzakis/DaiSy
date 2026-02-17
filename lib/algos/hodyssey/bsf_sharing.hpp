@@ -8,7 +8,13 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#if ODYSSEY_MPI
 #include <mpi.h>
+#else
+typedef int MPI_Comm;
+typedef int MPI_Request;
+typedef int MPI_Datatype;
+#endif
 #include <pthread.h>
 
 namespace daisy

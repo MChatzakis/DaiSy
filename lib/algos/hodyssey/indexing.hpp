@@ -3,7 +3,11 @@
 
 #include <cstdlib>
 #include <vector>
+#if ODYSSEY_MPI
 #include <mpi.h>
+#else
+typedef int MPI_Request;
+#endif
 #include <pthread.h>
 
 #include "../../isax/iSAXIndex.hpp"

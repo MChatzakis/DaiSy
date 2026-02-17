@@ -14,6 +14,7 @@ static bool endsWith(const std::string& s, const std::string& suffix) {
 
 struct MessiSearchOnlyFixture : public benchmark::Fixture {
     daisy::Messi* search = nullptr;
+    float* database = nullptr;  /* keep alive until TearDown so buildIndex workers never touch freed memory */
     float* query = nullptr;
     daisy::idx_t* I = nullptr;
     float* D = nullptr;
@@ -26,7 +27,7 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
 
         const bool use_fvecs = endsWith(config.dataset_path, ".fvecs") || endsWith(config.query_path, ".fvecs");
         size_t dim_u = 0, n_database_u = 0, n_q_u = 0;
-        float* database = nullptr;
+        database = nullptr;
 
         if (use_fvecs) {
             database = fvecs_read(config.dataset_path.c_str(), &dim_u, &n_database_u, 0);
@@ -87,7 +88,7 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
 
         daisy::InMemoryDataSource data_source(database, static_cast<daisy::idx_t>(n_database_u), static_cast<daisy::idx_t>(dim_u));
         search->buildIndex(&data_source);
-        delete[] database;
+        /* do NOT delete[] database here: Messi buildIndex may still use it via workers; free in TearDown */
 
         fprintf(stderr, "[MESSI] Indexing finished (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
         fflush(stderr);
@@ -106,10 +107,12 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
         fprintf(stderr, "[MESSI] TearDown start.\n");
         fflush(stderr);
         delete search;
+        delete[] database;
         delete[] query;
         delete[] I;
         delete[] D;
         search = nullptr;
+        database = nullptr;
         query = nullptr;
         I = nullptr;
         D = nullptr;
