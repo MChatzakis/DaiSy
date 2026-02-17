@@ -19,7 +19,9 @@ float* fvecs_read(
         size_t* d_out,
         size_t* n_out,
         size_t limit) {
-    FILE* f = fopen(fname, "r");
+    // fvecs are binary files: int dimension followed by float vectors.
+    // Use binary mode to avoid newline translation/corruption on some platforms.
+    FILE* f = fopen(fname, "rb");
     if (!f) {
         fprintf(stderr, "could not open %s\n", fname);
         exit(1);
