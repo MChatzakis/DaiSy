@@ -82,6 +82,7 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
 
         search = new daisy::Messi(daisy::DistanceType::L2_SQUARED);
         search->setNumThreads(config.thread_count);
+        search->setIndexWorkers(config.thread_count);
 
         fprintf(stderr, "[MESSI] Before buildIndex (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
         fflush(stderr);
