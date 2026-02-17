@@ -20,7 +20,11 @@ float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool 
     }
 
     int d;
-    fread(&d, 1, sizeof(int), f);
+    if (fread(&d, 1, sizeof(int), f) != sizeof(int))
+    {
+        fclose(f);
+        throw std::runtime_error("(loadFvecsData) could not read dimension: " + std::string(filename));
+    }
     if (d <= 0 || d > 1000000)
     {
         fclose(f);
