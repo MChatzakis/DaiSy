@@ -12,6 +12,7 @@ static float *z_normalize(const float *data, unsigned long long n, unsigned long
 
 float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool do_z_normalize)
 {
+    /* Same logic as fvecs_read: fopen "r", read int d, fstat for n, then read n*(d+1) floats (in loop for large files). */
     FILE *f = fopen(filename, "rb");
     if (!f)
     {
@@ -19,7 +20,7 @@ float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool 
     }
 
     int d;
-    if (fread(&d, sizeof(int), 1, f) != 1)
+    if (fread(&d, 1, sizeof(int), f) != 1)
     {
         fclose(f);
         throw std::runtime_error("(loadFvecsData) could not read dimension: " + std::string(filename));
@@ -30,6 +31,7 @@ float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool 
         throw std::runtime_error("(loadFvecsData) unreasonable dimension " + std::to_string(d) + ": " + std::string(filename));
     }
 
+    fseek(f, 0, SEEK_SET);
     struct stat st;
     if (fstat(fileno(f), &st) != 0)
     {
@@ -46,12 +48,20 @@ float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool 
     size_t n = sz / block;
 
     float *x = new float[n * (d + 1)];
-    size_t nr = fread(x, sizeof(float), n * (d + 1), f);
+    size_t total = n * (d + 1);
+    size_t nr = 0;
+    while (nr < total)
+    {
+        size_t got = fread(x + nr, sizeof(float), total - nr, f);
+        if (got == 0)
+            break;
+        nr += got;
+    }
     fclose(f);
-    if (nr != n * (d + 1))
+    if (nr != total)
     {
         delete[] x;
-        throw std::runtime_error("(loadFvecsData) could not read whole file: " + std::string(filename));
+        throw std::runtime_error("(loadFvecsData) could not read whole file: read " + std::to_string(nr) + " of " + std::to_string(total) + " floats: " + std::string(filename));
     }
 
     for (size_t i = 0; i < n; i++)
