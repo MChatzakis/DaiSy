@@ -26,7 +26,11 @@ float* fvecs_read(
     }
 
     int d;
-    (void)fread(&d, 1, sizeof(int), f);
+    if (fread(&d, 1, sizeof(int), f) != sizeof(int)) {
+        fprintf(stderr, "fvecs_read: could not read dimension from %s\n", fname);
+        fclose(f);
+        exit(1);
+    }
 
     assert((d > 0 && d < 1000000) && "unreasonable dimension");
 
