@@ -89,18 +89,18 @@ void runSSTBenchmarkSetup(
     float*& D_out,
     daisy::idx_t& n_query_out)
 {
-    const bool use_fbin = ends_with(dataset_path, ".fbin") || ends_with(query_path, ".fbin");
+    const bool use_fvecs = ends_with(dataset_path, ".fvecs") || ends_with(query_path, ".fvecs");
     daisy::idx_t dim, n_database, n_query;
 
-    if (use_fbin) {
+    if (use_fvecs) {
         size_t d_ds, n_ds, d_q, n_q;
-        float* database = loadFbinData(dataset_path.c_str(), &d_ds, &n_ds, false);
-        query_out = loadFbinData(query_path.c_str(), &d_q, &n_q, false);
+        float* database = loadFvecsData(dataset_path.c_str(), &d_ds, &n_ds, false);
+        query_out = loadFvecsData(query_path.c_str(), &d_q, &n_q, false);
         dim = static_cast<daisy::idx_t>(d_ds);
         n_database = static_cast<daisy::idx_t>(n_ds);
         n_query = static_cast<daisy::idx_t>(n_q);
         if (d_ds != d_q) {
-            std::cerr << "Dimension mismatch between dataset and queries (fbin): " << d_ds << " vs " << d_q << std::endl;
+            std::cerr << "Dimension mismatch between dataset and queries (fvecs): " << d_ds << " vs " << d_q << std::endl;
             delete[] database;
             delete[] query_out;
             return;

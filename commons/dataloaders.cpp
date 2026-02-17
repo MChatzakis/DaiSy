@@ -6,52 +6,73 @@
 #include <stdexcept>
 #include <cstdio>
 #include <cstring>
+#include <sys/stat.h>
 
 static float *z_normalize(const float *data, unsigned long long n, unsigned long long dim);
 
-float *loadFbinData(const char *filename, size_t *dim_out, size_t *n_out, bool do_z_normalize)
+float *loadFvecsData(const char *filename, size_t *dim_out, size_t *n_out, bool do_z_normalize)
 {
-    FILE *fp = fopen(filename, "rb");
-    if (fp == nullptr)
+    FILE *f = fopen(filename, "rb");
+    if (!f)
     {
-        throw std::runtime_error("(loadFbinData) Error opening file: " + std::string(filename));
+        throw std::runtime_error("(loadFvecsData) could not open " + std::string(filename));
     }
 
-    int32_t d, n;
-    if (fread(&d, sizeof(int32_t), 1, fp) != 1 || fread(&n, sizeof(int32_t), 1, fp) != 1)
+    int d;
+    if (fread(&d, sizeof(int), 1, f) != 1)
     {
-        fclose(fp);
-        throw std::runtime_error("(loadFbinData) Error reading fbin header: " + std::string(filename));
+        fclose(f);
+        throw std::runtime_error("(loadFvecsData) could not read dimension: " + std::string(filename));
     }
-    if (d <= 0 || d > 1000000 || n <= 0)
+    if (d <= 0 || d > 1000000)
     {
-        fclose(fp);
-        throw std::runtime_error("(loadFbinData) Invalid fbin header dim=" + std::to_string(d) + " n=" + std::to_string(n));
-    }
-
-    size_t dim = static_cast<size_t>(d);
-    size_t count = static_cast<size_t>(n);
-
-    float *data = new float[count * dim];
-    size_t nr = fread(data, sizeof(float), count * dim, fp);
-    fclose(fp);
-    if (nr != count * dim)
-    {
-        delete[] data;
-        throw std::runtime_error("(loadFbinData) Error reading fbin data: expected " + std::to_string(count * dim) + " floats, got " + std::to_string(nr));
+        fclose(f);
+        throw std::runtime_error("(loadFvecsData) unreasonable dimension " + std::to_string(d) + ": " + std::string(filename));
     }
 
-    *dim_out = dim;
-    *n_out = count;
+    struct stat st;
+    if (fstat(fileno(f), &st) != 0)
+    {
+        fclose(f);
+        throw std::runtime_error("(loadFvecsData) fstat failed: " + std::string(filename));
+    }
+    size_t sz = static_cast<size_t>(st.st_size);
+    size_t block = (static_cast<size_t>(d) + 1) * 4;
+    if (sz % block != 0)
+    {
+        fclose(f);
+        throw std::runtime_error("(loadFvecsData) weird file size " + std::to_string(sz) + " for dim " + std::to_string(d));
+    }
+    size_t n = sz / block;
+
+    float *x = new float[n * (d + 1)];
+    size_t nr = fread(x, sizeof(float), n * (d + 1), f);
+    fclose(f);
+    if (nr != n * (d + 1))
+    {
+        delete[] x;
+        throw std::runtime_error("(loadFvecsData) could not read whole file: " + std::string(filename));
+    }
+
+    for (size_t i = 0; i < n; i++)
+    {
+        memmove(x + i * d, x + 1 + i * (d + 1), static_cast<size_t>(d) * sizeof(float));
+    }
+
+    float *out = new float[n * d];
+    std::memcpy(out, x, n * d * sizeof(float));
+    delete[] x;
+
+    *dim_out = static_cast<size_t>(d);
+    *n_out = n;
 
     if (!do_z_normalize)
     {
-        return data;
+        return out;
     }
-
-    float *normalized_data = z_normalize(data, count, dim);
-    delete[] data;
-    return normalized_data;
+    float *normalized = z_normalize(out, n, static_cast<unsigned long long>(d));
+    delete[] out;
+    return normalized;
 }
 
 float *loadBinData(const char *filename, unsigned long long n, unsigned long long dim, bool do_z_normalize)

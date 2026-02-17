@@ -44,8 +44,9 @@ BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State
 }
 
 BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
-    ->Arg(1)   // Astronomy270M
-    ->Arg(2)   // DEEP10m fbin (first config: 1 thread, k=1)
+    //->Arg(0)   // Seismic100M
+    //->Arg(1)   // Astronomy270M  // Astronomy270M
+    ->Arg(2)   // DEEP100M fvecs (first config: 1 thread, k=1)
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 

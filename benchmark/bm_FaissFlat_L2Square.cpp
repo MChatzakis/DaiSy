@@ -26,19 +26,19 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
         int config_idx = static_cast<int>(state.range(0));
         const SSTestConfig& config = test_configs_large[config_idx];
 
-        const bool use_fbin = endsWith(config.dataset_path, ".fbin") || endsWith(config.query_path, ".fbin");
+        const bool use_fvecs = endsWith(config.dataset_path, ".fvecs") || endsWith(config.query_path, ".fvecs");
         size_t dim_u = 0, n_database_u = 0, n_q_u = 0;
         float* database = nullptr;
 
-        if (use_fbin) {
-            database = loadFbinData(config.dataset_path.c_str(), &dim_u, &n_database_u, false);
+        if (use_fvecs) {
+            database = loadFvecsData(config.dataset_path.c_str(), &dim_u, &n_database_u, false);
             if (!database) {
-                std::cerr << "Failed to load dataset (fbin)" << std::endl;
+                std::cerr << "Failed to load dataset (fvecs)" << std::endl;
                 return;
             }
-            query = loadFbinData(config.query_path.c_str(), &dim_u, &n_q_u, false);
+            query = loadFvecsData(config.query_path.c_str(), &dim_u, &n_q_u, false);
             if (!query) {
-                std::cerr << "Failed to load queries (fbin)" << std::endl;
+                std::cerr << "Failed to load queries (fvecs)" << std::endl;
                 delete[] database;
                 return;
             }
@@ -115,8 +115,9 @@ BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmar
 }
 
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
-    ->Arg(1)   // Astronomy270M
-    ->Arg(2)   // DEEP10m fbin (first config: 1 thread, k=1)
+    //->Arg(0)   // Seismic100M
+    //->Arg(1)   // Astronomy270M
+    ->Arg(2)   // DEEP100M fvecs (first config: 1 thread, k=1)
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 
