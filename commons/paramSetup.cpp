@@ -91,7 +91,7 @@ std::vector<SSTestConfig> generate_configs_custom(
 
 // Large datasets path (no ground truth - use empty strings)
 static const char *seismic_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size100M_seismic_len256_znorm.bin";
-static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_seismic_len256_znorm.bin";
+static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl1000_seismic_len256_znorm.bin";
 static const char *astro270M_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size270M_astronomy_len256_znorm.bin";
 static const char *astro270M_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_astronomy_len256_znorm.bin";
 

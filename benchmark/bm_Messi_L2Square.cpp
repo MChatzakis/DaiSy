@@ -141,15 +141,15 @@ BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State
         fprintf(stderr, "[MESSI]   dataset=%s  n_database=%zu\n", dataset_name.c_str(), n_database);
         fprintf(stderr, "[MESSI]   search_threads=%d  n_query=%zu  k=%zu\n", thread_count, (size_t)n_query, k);
         fflush(stderr);
-        search->searchIndex(query, n_query, static_cast<daisy::idx_t>(k), I, D);
+        search->searchtIndex(query, n_query, static_cast<daisy::idx_t>(k), I, D);
         fprintf(stderr, "[MESSI] Querying finished (n_query=%zu k=%zu).\n", (size_t)n_query, k);
         fflush(stderr);
     }
 }
 
 BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
-    // Solo DEEP100M per ora: q=100 k=1,10,100,1000 (0-3), poi k=10 q=100,500,1000 (8-10)
-    ->Args({0})->Args({1})->Args({2})->Args({3})->Args({8})->Args({9})->Args({10})
+    // Solo Seismic: q=100 k=1,10,100,1000 (4-7), poi k=10 q=100,500,1000 (11-13)
+    ->Args({4})->Args({5})->Args({6})->Args({7})->Args({11})->Args({12})->Args({13})
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 
