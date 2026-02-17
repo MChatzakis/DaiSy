@@ -148,7 +148,6 @@ BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State
 
 BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
     // Order: Astronomy270M k=1,10,100,1000 | DEEP10M k=1,10,100,1000 | SIFT10M k=1,10,100,1000
-    ->Args({3})
     ->Args({4})->Args({5})->Args({6})->Args({7})
     ->Args({8})->Args({9})->Args({10})->Args({11})
     ->Iterations(1)
