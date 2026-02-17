@@ -392,7 +392,7 @@ if (BUILD_ODYSSEY_AVAILABLE)
     endif()
 
     # Run all Odyssey L2Square tests under mpirun (single CTest entry; GTest runs all parameterized cases)
-    # --oversubscribe allows 4 processes on runners with fewer cores (e.g. GitHub Actions)
+    ## --oversubscribe allows 4 processes on runners with fewer cores (e.g. GitHub Actions)
     add_test(NAME test_Odyssey_L2Square COMMAND ${MPIEXEC_EXECUTABLE} --oversubscribe ${MPIEXEC_NUMPROC_FLAG} 4 $<TARGET_FILE:test_Odyssey_L2Square>)
     set_tests_properties(test_Odyssey_L2Square PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         ENVIRONMENT "PMIX_MCA_pcompress_base_silence_warning=1")
