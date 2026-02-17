@@ -617,15 +617,27 @@ namespace daisy
         }
 
         data_source->reset();
-        this->database = new float[this->n_database * this->dim];
-        float *record = new float[this->dim];
-        idx_t idx = 0;
-        while (data_source->nextRecord(record))
+        // If the datasource already wraps a contiguous in-memory buffer, reuse it
+        // directly to avoid an unnecessary copy (100M*96 floats ~ 73 GB).
+        const float *raw = data_source->rawPointer();
+        if (raw != nullptr)
         {
-            std::copy(record, record + this->dim, this->database + idx * this->dim);
-            idx++;
+            this->database = const_cast<float *>(raw); // stored as non-owning view
+            this->owns_database = false;
         }
-        delete[] record;
+        else
+        {
+            this->database = new float[this->n_database * this->dim];
+            float *record = new float[this->dim];
+            idx_t idx = 0;
+            while (data_source->nextRecord(record))
+            {
+                std::copy(record, record + this->dim, this->database + idx * this->dim);
+                idx++;
+            }
+            delete[] record;
+            this->owns_database = true;
+        }
 
         this->index_settings = isax_index_settings_init("",
                                                         this->dim,
@@ -1064,7 +1076,10 @@ namespace daisy
 
     Messi::~Messi()
     {
-        delete[] database;
+        if (owns_database && database != nullptr)
+        {
+            delete[] database;
+        }
 
         if (index != nullptr)
         {
