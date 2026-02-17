@@ -118,7 +118,7 @@ BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmar
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
     //->Arg(0)   // Seismic100M
     //->Arg(1)   // Astronomy270M
-    ->Arg(2)   // DEEP100M fvecs (first config: 1 thread, k=1)
+    ->Arg(1)   // DEEP100M fvecs (first config: 1 thread, k=1)
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 
