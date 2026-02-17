@@ -29,7 +29,7 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
 
     void SetUp(const benchmark::State& state) override {
         int config_idx = static_cast<int>(state.range(0));
-        const SSTestConfig& config = test_configs_messi_order[config_idx];
+        const SSTestConfig& config = test_configs_deep_seismic[config_idx];
 
         const bool use_fvecs = endsWith(config.dataset_path, ".fvecs") || endsWith(config.query_path, ".fvecs");
         size_t dim_u = 0, n_database_u = 0, n_q_u = 0;
@@ -41,8 +41,7 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
                 std::cerr << "Failed to load dataset (fvecs)" << std::endl;
                 return;
             }
-            // DEEP10M/SIFT10M use query.10K.fvecs; limit to 100 to match Astronomy/Seismic (ctrl100)
-            const size_t query_limit = (config.name == "DEEP10M" || config.name == "SIFT10M") ? 100 : 0;
+            const size_t query_limit = (config.query_limit > 0) ? static_cast<size_t>(config.query_limit) : 0;
             query = fvecs_read(config.query_path.c_str(), &dim_u, &n_q_u, query_limit);
             if (!query) {
                 std::cerr << "Failed to load queries (fvecs)" << std::endl;
@@ -72,6 +71,8 @@ struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
 
             dim_u = static_cast<size_t>(dim);
             n_database_u = static_cast<size_t>(n_database);
+            if (config.query_limit > 0 && static_cast<daisy::idx_t>(config.query_limit) < n_q)
+                n_q = static_cast<daisy::idx_t>(config.query_limit);
             n_q_u = static_cast<size_t>(n_q);
 
             database = loadBinData(config.dataset_path.c_str(), n_database, dim, false);
@@ -130,10 +131,9 @@ BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmar
 }
 
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
-    // Order: Astronomy270M k=1,10,100,1000 | DEEP10M k=1,10,100,1000 | SIFT10M k=1,10,100,1000
-    ->Args({0})->Args({1})->Args({2})->Args({3})
-    ->Args({4})->Args({5})->Args({6})->Args({7})
-    ->Args({8})->Args({9})->Args({10})->Args({11})
+    // DEEP100M+Seismic: q=100 all k (0-7), then k=10 all q (8-13)
+    ->Args({0})->Args({1})->Args({2})->Args({3})->Args({4})->Args({5})->Args({6})->Args({7})
+    ->Args({8})->Args({9})->Args({10})->Args({11})->Args({12})->Args({13})
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 

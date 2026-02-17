@@ -63,7 +63,7 @@ std::vector<SSTestConfig> generate_configs(
     {
         for (int k : {1, 10, 100})
         {
-            configs.push_back({name, data, query, gt_data, gt_query, threads, k});
+            configs.push_back({name, data, query, gt_data, gt_query, threads, k, 0});
         }
     }
     return configs;
@@ -83,7 +83,7 @@ std::vector<SSTestConfig> generate_configs_custom(
     {
         for (int k : k_values)
         {
-            configs.push_back({name, data, query, gt_data, gt_query, threads, k});
+            configs.push_back({name, data, query, gt_data, gt_query, threads, k, 0});
         }
     }
     return configs;
@@ -136,6 +136,32 @@ const std::vector<SSTestConfig> test_configs_messi_order = []
     return configs;
 }();
 
+// DEEP100M + Seismic: q=100 all k (8), then k=10 all q (6). Order: MESSI/FAISS run 0..13.
+// 0-3: DEEP100M q=100 k=1,10,100,1000 | 4-7: Seismic q=100 k=1,10,100,1000
+// 8-10: DEEP100M k=10 q=100,500,1000 | 11-13: Seismic k=10 q=100,500,1000
+const std::vector<SSTestConfig> test_configs_deep_seismic = []
+{
+    std::vector<SSTestConfig> configs;
+    auto push = [&](const char* name, const char* data, const char* query, int k_val, int q_limit) {
+        configs.push_back({name, data, query, "", "", 48, k_val, q_limit});
+    };
+    // Block 1: q=100, all k
+    for (int k_val : {1, 10, 100, 1000}) {
+        push("DEEP100M", deep100m_data, deep100m_query, k_val, 100);
+    }
+    for (int k_val : {1, 10, 100, 1000}) {
+        push("Seismic100M", seismic_data, seismic_query, k_val, 100);
+    }
+    // Block 2: k=10, all q
+    for (int q_limit : {100, 500, 1000}) {
+        push("DEEP100M", deep100m_data, deep100m_query, 10, q_limit);
+    }
+    for (int q_limit : {100, 500, 1000}) {
+        push("Seismic100M", seismic_data, seismic_query, 10, q_limit);
+    }
+    return configs;
+}();
+
 const std::vector<SSTestConfig> test_configs = []
 {
     std::vector<SSTestConfig> configs;
@@ -169,7 +195,7 @@ const std::vector<SSTestConfig> test_configs_random_light = []
     {
         for (int k : {100})
         {
-            configs.push_back({random_name, random_data, random_query, random_gt_data, random_gt_query, threads, k});
+            configs.push_back({random_name, random_data, random_query, random_gt_data, random_gt_query, threads, k, 0});
         }
     }
     return configs;

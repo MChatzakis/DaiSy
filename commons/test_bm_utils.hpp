@@ -41,6 +41,7 @@ struct SSTestConfig
     std::string gt_D_prefix;
     int thread_count;
     int k_value;
+    int query_limit = 0;  // 0 = use full query file; >0 = use first query_limit queries
 };
 
 #endif 
