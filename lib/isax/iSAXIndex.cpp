@@ -933,7 +933,18 @@ namespace daisy
         if ((node->leaf_size) >= index->settings->max_leaf_size && leaf_size_check)
         {
             split_node(index, node);
-            add_record_to_node(index, node, record, leaf_size_check);
+            // If split_node failed to split (e.g., reached max cardinality), the node
+            // remains a leaf: avoid infinite recursion by inserting without further checks.
+            if (node->is_leaf)
+            {
+                add_to_node_buffer(node->buffer, record, index->settings->paa_segments,
+                                   index->settings->timeseries_size);
+                node->leaf_size++;
+            }
+            else
+            {
+                add_record_to_node(index, node, record, leaf_size_check);
+            }
         }
         else
         {
@@ -1040,7 +1051,17 @@ namespace daisy
             // If it doesn't, we may need to implement split_node_inmemory
             split_node(index, node);
             // EKOSMAS: Recursive call to add_record_to_node_inmemory (not add_record_to_node)
-            add_record_to_node_inmemory(index, node, record, leaf_size_check);
+            if (node->is_leaf)
+            {
+                // Cannot split further; insert without rechecking size to avoid recursion
+                add_to_node_buffer(node->buffer, record, index->settings->paa_segments,
+                                   index->settings->timeseries_size);
+                node->leaf_size++;
+            }
+            else
+            {
+                add_record_to_node_inmemory(index, node, record, leaf_size_check);
+            }
         }
         else
         {
