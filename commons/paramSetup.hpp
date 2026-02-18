@@ -40,7 +40,7 @@ std::vector<SSTestConfig> generate_configs_custom(
 extern const std::vector<SSTestConfig> test_configs;
 extern const std::vector<SSTestConfig> test_configs_large;
 extern const std::vector<SSTestConfig> test_configs_messi_order;
-extern const std::vector<SSTestConfig> test_configs_deep_seismic;
+extern const std::vector<SSTestConfig> test_configs_deep_seismic_astro270m;
 extern const std::vector<SSTestConfig> test_configs_dtw;
 extern const std::vector<SSTestConfig> test_configs_random_light;
 extern const std::vector<SSTestConfig> test_configs_random_only;

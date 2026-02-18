@@ -15,7 +15,7 @@ static bool endsWith(const std::string& s, const std::string& suffix) {
 
 struct MessiSearchOnlyFixture : public benchmark::Fixture {
     daisy::Messi* search = nullptr;
-    float* database = nullptr;  /* keep alive until TearDown so buildIndex workers never touch freed memory */
+    float* database = nullptr; 
     float* query = nullptr;
     daisy::idx_t* I = nullptr;
     float* D = nullptr;
@@ -27,7 +27,7 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
 
     void SetUp(const benchmark::State& state) override {
         int config_idx = static_cast<int>(state.range(0));
-        const SSTestConfig& config = test_configs_deep_seismic[config_idx];
+        const SSTestConfig& config = test_configs_deep_seismic_astro270m[config_idx];
 
         const bool use_fvecs = endsWith(config.dataset_path, ".fvecs") || endsWith(config.query_path, ".fvecs");
         size_t dim_u = 0, n_database_u = 0, n_q_u = 0;
@@ -98,7 +98,6 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
         fprintf(stderr, "created data source\n");
         fflush(stderr);
         search->buildIndex(&data_source);
-        /* do NOT delete[] database here: Messi buildIndex may still use it via workers; free in TearDown */
 
         fprintf(stderr, "[MESSI] Indexing finished (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
         fflush(stderr);
@@ -148,8 +147,9 @@ BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State
 }
 
 BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
-    // k=10, q=1000,5000,10000: DEEP (10,11,12), Seismic (15,16,17)
+    // k=10 q=1000,5000,10000: DEEP (10,11,12), Seismic (15,16,17) | Astro q=100 k=10,100,1000 (18,19,20)
     ->Args({10})->Args({11})->Args({12})->Args({15})->Args({16})->Args({17})
+    ->Args({18})->Args({19})->Args({20})
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 

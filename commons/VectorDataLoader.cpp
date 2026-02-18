@@ -19,8 +19,7 @@ float* fvecs_read(
         size_t* d_out,
         size_t* n_out,
         size_t limit) {
-    // fvecs are binary files: int dimension followed by float vectors.
-    // Use binary mode to avoid newline translation/corruption on some platforms.
+   
     FILE* f = fopen(fname, "rb");
     if (!f) {
         fprintf(stderr, "could not open %s\n", fname);
@@ -51,7 +50,6 @@ float* fvecs_read(
     *d_out = d;
     *n_out = n;
 
-    /* Avoid overflow: n*(d+1) can exceed SIZE_MAX on 32-bit (e.g. 100M*97) */
     unsigned long long total_ull = (unsigned long long)n * (unsigned long long)(d + 1);
     if (total_ull > (unsigned long long)SIZE_MAX) {
         fprintf(stderr, "fvecs_read: file too large (n=%zu d+1=%d) for size_t\n", n, d + 1);

@@ -18,7 +18,6 @@ static std::string make_absolute_path(const char* relative_path) {
     return root + "/" + rel;
 }
 
-// Store paths as static strings to ensure they persist
 static std::string astro_data_str = make_absolute_path("data/astronomy.data.len256.size50000.znorm.bin");
 static std::string astro_query_str = make_absolute_path("data/astronomy.query.len256.size100.znorm.bin");
 static std::string astro_gt_data_str = make_absolute_path("tests/groundtruth/Indices/bruteForce_gtFAISS_I_astronomy_len256_size50000_q100_k");
@@ -89,26 +88,14 @@ std::vector<SSTestConfig> generate_configs_custom(
     return configs;
 }
 
-// Large datasets path (no ground truth - use empty strings)
 static const char *seismic_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size100M_seismic_len256_znorm.bin";
-static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl1000_seismic_len256_znorm.bin";
-static const char *astro270M_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size270M_astronomy_len256_znorm.bin";
-static const char *astro270M_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_astronomy_len256_znorm.bin";
-
-// DEEP100M fvecs (path: /mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M)
+static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl10000_seismic_len256_znorm.bin";
+static const char *astro270m_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size270M_astronomy_len256_znorm.bin";
+static const char *astro270m_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_astronomy_len256_znorm.bin";
 static const char *deep100m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/base.100M.fvecs";
 static const char *deep100m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/query.10K.fvecs";
 
-// DEEP10M and SIFT10M fvecs (for MESSI benchmark order)
-static const char *deep10m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP10M/base.10M.fvecs";
-static const char *deep10m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP10M/query.10K.fvecs";
-static const char *sift10m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/SIFT10M/base.10M.fvecs";
-static const char *sift10m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/SIFT10M/query.10K.fvecs";
-
-// DEEP100M + Seismic: q=100 all k (8), then k=10 all q (10). Order: MESSI/FAISS run 0..17.
-// 0-3: DEEP100M q=100 k=1,10,100,1000 | 4-7: Seismic q=100 k=1,10,100,1000
-// 8-12: DEEP100M k=10 q=100,500,1000,5000,10000 | 13-17: Seismic k=10 q=100,500,1000,5000,10000
-const std::vector<SSTestConfig> test_configs_deep_seismic = []
+const std::vector<SSTestConfig> test_configs_deep_seismic_astro270m_astro270m = []
 {
     std::vector<SSTestConfig> configs;
     auto push = [&](const char* name, const char* data, const char* query, int k_val, int q_limit) {
@@ -127,6 +114,10 @@ const std::vector<SSTestConfig> test_configs_deep_seismic = []
     }
     for (int q_limit : {100, 500, 1000, 5000, 10000}) {
         push("Seismic100M", seismic_data, seismic_query, 10, q_limit);
+    }
+    // Block 3: Astro270M (stesso formato di seismic), q=100, k=10, 100, 1000 (indices 18, 19, 20)
+    for (int k_val : {10, 100, 1000}) {
+        push("Astro270M", astro270m_data, astro270m_query, k_val, 100);
     }
     return configs;
 }();
