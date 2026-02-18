@@ -131,8 +131,9 @@ BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmar
 }
 
 BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
-    // Solo q=100 k=1000: DEEP (3), Seismic (7)
-    ->Args({3})->Args({7})
+    // Solo q=100 k=100: DEEP (2), Seismic (6)
+    ->Args({2})->Args({6})
+    // ->Args({3})->Args({7})  q=100 k=1000
     // ->Args({4})->Args({5})->Args({6})->Args({7})->Args({11})->Args({12})->Args({13})
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
