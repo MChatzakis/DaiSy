@@ -105,40 +105,9 @@ static const char *deep10m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/D
 static const char *sift10m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/SIFT10M/base.10M.fvecs";
 static const char *sift10m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/SIFT10M/query.10K.fvecs";
 
-const std::vector<SSTestConfig> test_configs_large = []
-{
-    std::vector<SSTestConfig> configs;
-    auto seismic_configs = generate_configs_custom(
-        "Seismic100M", seismic_data, seismic_query, "", "", {48}, {10});
-    auto astro_configs = generate_configs_custom(
-        "Astronomy270M", astro270M_data, astro270M_query, "", "", {48}, {1});
-    auto deep100m_configs = generate_configs_custom(
-        "DEEP100M_fvecs", deep100m_data, deep100m_query, "", "", {48}, {100});
-    configs.insert(configs.end(), seismic_configs.begin(), seismic_configs.end());
-    configs.insert(configs.end(), astro_configs.begin(), astro_configs.end());
-    configs.insert(configs.end(), deep100m_configs.begin(), deep100m_configs.end());
-    return configs;
-}();
-
-// Order for MESSI benchmark: Astronomy270M k=1,10,100,1000 → DEEP10M k=1,10,100,1000 → SIFT10M k=1,10,100,1000
-const std::vector<SSTestConfig> test_configs_messi_order = []
-{
-    std::vector<SSTestConfig> configs;
-    auto astro = generate_configs_custom(
-        "Astronomy270M", astro270M_data, astro270M_query, "", "", {48}, {1, 10, 100, 1000});
-    auto deep10m = generate_configs_custom(
-        "DEEP10M", deep10m_data, deep10m_query, "", "", {48}, {1, 10, 100, 1000});
-    auto sift10m = generate_configs_custom(
-        "SIFT10M", sift10m_data, sift10m_query, "", "", {48}, {1, 10, 100, 1000});
-    configs.insert(configs.end(), astro.begin(), astro.end());
-    configs.insert(configs.end(), deep10m.begin(), deep10m.end());
-    configs.insert(configs.end(), sift10m.begin(), sift10m.end());
-    return configs;
-}();
-
-// DEEP100M + Seismic: q=100 all k (8), then k=10 all q (6). Order: MESSI/FAISS run 0..13.
+// DEEP100M + Seismic: q=100 all k (8), then k=10 all q (10). Order: MESSI/FAISS run 0..17.
 // 0-3: DEEP100M q=100 k=1,10,100,1000 | 4-7: Seismic q=100 k=1,10,100,1000
-// 8-10: DEEP100M k=10 q=100,500,1000 | 11-13: Seismic k=10 q=100,500,1000
+// 8-12: DEEP100M k=10 q=100,500,1000,5000,10000 | 13-17: Seismic k=10 q=100,500,1000,5000,10000
 const std::vector<SSTestConfig> test_configs_deep_seismic = []
 {
     std::vector<SSTestConfig> configs;
@@ -152,11 +121,11 @@ const std::vector<SSTestConfig> test_configs_deep_seismic = []
     for (int k_val : {1, 10, 100, 1000}) {
         push("Seismic100M", seismic_data, seismic_query, k_val, 100);
     }
-    // Block 2: k=10, all q
-    for (int q_limit : {100, 500, 1000}) {
+    // Block 2: k=10, q = 100, 500, 1000, 5000, 10000
+    for (int q_limit : {100, 500, 1000, 5000, 10000}) {
         push("DEEP100M", deep100m_data, deep100m_query, 10, q_limit);
     }
-    for (int q_limit : {100, 500, 1000}) {
+    for (int q_limit : {100, 500, 1000, 5000, 10000}) {
         push("Seismic100M", seismic_data, seismic_query, 10, q_limit);
     }
     return configs;
