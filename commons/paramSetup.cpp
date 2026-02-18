@@ -95,7 +95,7 @@ static const char *astro270m_query = "/mnt/hddhelp/mchatzakis/similarity-search-
 static const char *deep100m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/base.100M.fvecs";
 static const char *deep100m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/query.10K.fvecs";
 
-const std::vector<SSTestConfig> test_configs_deep_seismic_astro270m_astro270m = []
+const std::vector<SSTestConfig> test_configs_deep_seismic_astro270m = []
 {
     std::vector<SSTestConfig> configs;
     auto push = [&](const char* name, const char* data, const char* query, int k_val, int q_limit) {
