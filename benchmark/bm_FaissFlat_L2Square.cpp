@@ -5,25 +5,27 @@
 #include "../commons/dataloaders.hpp"
 #include "../commons/VectorDataLoader.h"
 #include "../commons/test_bm_utils.hpp"
-#include "../lib/algos/Messi.hpp"
-#include "../lib/algos/DataSource.hpp"
+#include <faiss/IndexFlat.h>
 
-static bool endsWith(const std::string& s, const std::string& suffix) {
-    return s.size() >= suffix.size() &&
-           s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
-struct MessiSearchOnlyFixture : public benchmark::Fixture {
-    daisy::Messi* search = nullptr;
-    float* database = nullptr; 
+struct FaissFlatSearchOnlyFixture : public benchmark::Fixture {
+    faiss::IndexFlatL2* index = nullptr;
     float* query = nullptr;
-    daisy::idx_t* I = nullptr;
+    faiss::idx_t* I = nullptr;
     float* D = nullptr;
-    daisy::idx_t n_query = 0;
+    faiss::idx_t n_query = 0;
     size_t k = 0;
     std::string dataset_name;
     size_t n_database = 0;
     int thread_count = 0;
+
+    static bool endsWith(const std::string& s, const std::string& suffix) {
+        return s.size() >= suffix.size() &&
+               s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+    }
 
     void SetUp(const benchmark::State& state) override {
         int config_idx = static_cast<int>(state.range(0));
@@ -31,7 +33,7 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
 
         const bool use_fvecs = endsWith(config.dataset_path, ".fvecs") || endsWith(config.query_path, ".fvecs");
         size_t dim_u = 0, n_database_u = 0, n_q_u = 0;
-        database = nullptr;
+        float* database = nullptr;
 
         if (use_fvecs) {
             database = fvecs_read(config.dataset_path.c_str(), &dim_u, &n_database_u, 0);
@@ -87,66 +89,48 @@ struct MessiSearchOnlyFixture : public benchmark::Fixture {
             }
         }
 
-        search = new daisy::Messi(daisy::DistanceType::L2_SQUARED);
-        search->setNumThreads(config.thread_count);
-        search->setIndexWorkers(config.thread_count);
+#ifdef _OPENMP
+        omp_set_num_threads(config.thread_count);
+#endif
 
-        fprintf(stderr, "[MESSI] Before buildIndex (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
-        fflush(stderr);
-
-        daisy::InMemoryDataSource data_source(database, static_cast<daisy::idx_t>(n_database_u), static_cast<daisy::idx_t>(dim_u));
-        fprintf(stderr, "created data source\n");
-        fflush(stderr);
-        search->buildIndex(&data_source);
-
-        fprintf(stderr, "[MESSI] Indexing finished (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
-        fflush(stderr);
+        index = new faiss::IndexFlatL2(static_cast<int>(dim_u));
+        index->add(static_cast<faiss::idx_t>(n_database_u), database);
+        fprintf(stderr, ">>> Finished indexing\n");
+        delete[] database;
 
         k = static_cast<size_t>(config.k_value);
-        n_query = static_cast<daisy::idx_t>(n_q_u);
-        I = new daisy::idx_t[n_query * k];
+        n_query = static_cast<faiss::idx_t>(n_q_u);
+        I = new faiss::idx_t[n_query * k];
         D = new float[n_query * k];
 
         dataset_name = config.name;
         n_database = n_database_u;
         thread_count = config.thread_count;
 
-        fprintf(stderr, "[MESSI] n_database=%zu n_query=%zu dim=%zu k=%zu threads=%d\n",
-                n_database_u, (size_t)n_query, dim_u, k, config.thread_count);
-        fflush(stderr);
+        fprintf(stderr, "[FAISS] n_database=%zu n_query=%zu dim=%zu k=%zu threads=%d\n",
+                n_database_u, n_query, dim_u, k, config.thread_count);
     }
 
     void TearDown(const benchmark::State&) override {
-        fprintf(stderr, "[MESSI] TearDown start.\n");
-        fflush(stderr);
-        delete search;
-        delete[] database;
         delete[] query;
         delete[] I;
         delete[] D;
-        search = nullptr;
-        database = nullptr;
-        query = nullptr;
-        I = nullptr;
-        D = nullptr;
-        fprintf(stderr, "[MESSI] TearDown done.\n");
-        fflush(stderr);
+        delete index;
     }
 };
 
-BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)(benchmark::State& state) {
     for (auto _ : state) {
-        fprintf(stderr, "[MESSI] --- Query phase ---\n");
-        fprintf(stderr, "[MESSI]   dataset=%s  n_database=%zu\n", dataset_name.c_str(), n_database);
-        fprintf(stderr, "[MESSI]   search_threads=%d  n_query=%zu  k=%zu\n", thread_count, (size_t)n_query, k);
+        fprintf(stderr, "[FAISS] --- Query phase ---\n");
+        fprintf(stderr, "[FAISS]   dataset=%s  n_database=%zu\n", dataset_name.c_str(), n_database);
+        fprintf(stderr, "[FAISS]   search_threads=%d  n_query=%zu  k=%zu\n", thread_count, (size_t)n_query, k);
         fflush(stderr);
-        search->searchIndex(query, n_query, static_cast<daisy::idx_t>(k), I, D);
-        fprintf(stderr, "[MESSI] Querying finished (n_query=%zu k=%zu).\n", (size_t)n_query, k);
-        fflush(stderr);
+        index->search(n_query, query, static_cast<faiss::idx_t>(k), D, I);
+        fprintf(stderr, ">>> Finished querying\n");
     }
 }
 
-BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
+BENCHMARK_REGISTER_F(FaissFlatSearchOnlyFixture, BM_FaissFlat_SearchOnly)
     // q=100, k=1,10,100,1000: DEEP (0-3), Seismic (4-7)
     ->Args({0})->Args({1})->Args({2})->Args({3})->Args({4})->Args({5})->Args({6})->Args({7})
     ->Iterations(1)

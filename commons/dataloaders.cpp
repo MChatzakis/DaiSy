@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <stdexcept>
+#include <cstdio>
 
 static float *z_normalize(const float *data, unsigned long long n, unsigned long long dim);
 

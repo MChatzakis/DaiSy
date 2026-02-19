@@ -72,7 +72,8 @@ bool parseFilenameForConfig(const std::string &filename,
 {
     std::smatch match;
     std::regex len_rx("len(\\d+)");
-    std::regex size_rx("size(\\d+)");
+    std::regex size_rx("size(\\d+)([MK])?");
+    std::regex ctrl_rx("ctrl(\\d+)");
     std::regex q_rx("q(\\d+)");
     std::regex k_rx("k(\\d+)");
     std::regex prefix_rx("^" + prefix);
@@ -90,7 +91,15 @@ bool parseFilenameForConfig(const std::string &filename,
 
     if (std::regex_search(filename, match, size_rx))
     {
-        n_database = std::stoi(match[1]);
+        n_database = static_cast<daisy::idx_t>(std::stoll(match[1]));
+        if (match[2].matched && match[2].str() == "M")
+            n_database *= 1000000;
+        else if (match[2].matched && match[2].str() == "K")
+            n_database *= 1000;
+    }
+    else if (std::regex_search(filename, match, ctrl_rx))
+    {
+        n_database = static_cast<daisy::idx_t>(std::stoll(match[1]));
     }
     else
     {

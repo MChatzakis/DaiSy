@@ -19,9 +19,10 @@ IS_WINDOWS = sys.platform == "win32"
 IS_LINUX = sys.platform.startswith("linux")
 
 def check_mpi_available():
-    """Check if MPI development libraries are available on the system"""
+    """Check if MPI development libraries are available on the system (mpi.h for C++ compilation).
+    Note: mpicc or mpi4py alone might not be sufficient."""
     import subprocess
-    import os
+    #import os
     
     # Check if mpi.h exists
     conda_prefix = os.environ.get("CONDA_PREFIX")
@@ -38,16 +39,17 @@ def check_mpi_available():
     # Try to run mpicc
     try:
         result = subprocess.run(["mpicc", "--version"], capture_output=True, timeout=5)
-        return result.returncode == 0
+        if result.returncode == 0:
+            return True
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
     
     # Try to import mpi4py  
-    try:
-        import mpi4py
-        return True
-    except ImportError:
-        pass
+    #try:
+    #    import mpi4py
+    #    return True
+    #except ImportError:
+    #    pass
     
     return False
 
@@ -60,10 +62,10 @@ def get_long_description():
 
 # Try to import pybind11
 try:
-    from pybind11.setup_helpers import Pybind11Extension, build_ext as pybind_build_ext
+    from pybind11._helpers import Pybind11Extension, build_ext as pybind_build_ext
     from pybind11 import get_cmake_dir
     import pybind11
-    from setuptools import find_packages
+    from tools import find_packages
     
     class build_ext(pybind_build_ext):
         """Custom build_ext that ensures daisy/__init__.py is in the lib directory"""
@@ -96,11 +98,11 @@ try:
         print("[DaiSy]   - Conda: conda install openmpi")
     
     sources = [
-        "pybinds/setup.cpp",
+        "pybinds/.cpp",
         # commons
         "commons/common.cpp",
         "commons/dataloaders.cpp",
-        "commons/paramSetup.cpp",
+        "commons/param.cpp",
         # lib - distance computers
         "lib/distance_computers/DistanceComputer.cpp",
         # lib - isax
@@ -179,6 +181,7 @@ try:
     define_macros = [
         ("VERSION_INFO", '"' + __version__ + '"'),
         ("BUILD_ODYSSEY", "1" if ODYSSEY_ENABLED else "0"),
+        ("ODYSSEY_MPI", "1" if ODYSSEY_ENABLED else "0"),  # Used by pybinds and Odyssey headers
         ("SING_CUDA_ENABLED", "0"),
         ("PROJECT_ROOT_DIR", f'"{project_root}"'),
     ]

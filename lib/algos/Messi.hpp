@@ -67,6 +67,7 @@ namespace daisy
         int search_workers = 4;
         int index_workers = 2;
         int n_pqueue = 42;
+        bool owns_database = false;  // track ownership of database buffer
 
         pqueue_bsf MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
         pqueue_bsf MESSI_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
@@ -93,7 +94,10 @@ namespace daisy
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
         int getNumThreads() const { return SimilaritySearchAlgorithm::num_threads; }
-        void setNumThreads(int n) { SimilaritySearchAlgorithm::num_threads = n; }
+        void setNumThreads(int n) {
+            SimilaritySearchAlgorithm::num_threads = n;
+            search_workers = n;
+        }
         int getPaaSegments() const { return paa_segments; }
         void setPaaSegments(int n) { paa_segments = n; }
         int getSaxCardinality() const { return sax_cardinality; }

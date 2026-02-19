@@ -2,7 +2,11 @@
 #define WORKSTEALING_HPP
 
 #include <vector>
+#if ODYSSEY_MPI
 #include <mpi.h>
+#else
+typedef int MPI_Request;
+#endif
 #include "../../isax/iSAXIndex.hpp"
 
 namespace daisy

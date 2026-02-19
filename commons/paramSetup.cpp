@@ -1,6 +1,7 @@
 #include "paramSetup.hpp"
 #include <string>
 #include <cstring>
+#include <vector>
 
 #ifndef PROJECT_ROOT_DIR
 #error "PROJECT_ROOT_DIR must be defined by CMake"
@@ -17,7 +18,6 @@ static std::string make_absolute_path(const char* relative_path) {
     return root + "/" + rel;
 }
 
-// Store paths as static strings to ensure they persist
 static std::string astro_data_str = make_absolute_path("data/astronomy.data.len256.size50000.znorm.bin");
 static std::string astro_query_str = make_absolute_path("data/astronomy.query.len256.size100.znorm.bin");
 static std::string astro_gt_data_str = make_absolute_path("tests/groundtruth/Indices/bruteForce_gtFAISS_I_astronomy_len256_size50000_q100_k");
@@ -62,11 +62,52 @@ std::vector<SSTestConfig> generate_configs(
     {
         for (int k : {1, 10, 100})
         {
-            configs.push_back({name, data, query, gt_data, gt_query, threads, k});
+            configs.push_back({name, data, query, gt_data, gt_query, threads, k, 0});
         }
     }
     return configs;
 }
+
+std::vector<SSTestConfig> generate_configs_custom(
+    const char *name,
+    const char *data,
+    const char *query,
+    const char *gt_data,
+    const char *gt_query,
+    std::vector<int> thread_counts,
+    std::vector<int> k_values)
+{
+    std::vector<SSTestConfig> configs;
+    for (int threads : thread_counts)
+    {
+        for (int k : k_values)
+        {
+            configs.push_back({name, data, query, gt_data, gt_query, threads, k, 0});
+        }
+    }
+    return configs;
+}
+
+static const char *seismic_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size100M_seismic_len256_znorm.bin";
+static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl10000_seismic_len256_znorm.bin";
+static const char *deep100m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/base.100M.fvecs";
+static const char *deep100m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/query.10K.fvecs";
+
+// Solo DEEP e Seismic, q=100, k=1,10,100,1000 (indici 0-3 DEEP, 4-7 Seismic)
+const std::vector<SSTestConfig> test_configs_deep_seismic_astro270m = []
+{
+    std::vector<SSTestConfig> configs;
+    auto push = [&](const char* name, const char* data, const char* query, int k_val, int q_limit) {
+        configs.push_back({name, data, query, "", "", 48, k_val, q_limit});
+    };
+    for (int k_val : {1, 10, 100, 1000}) {
+        push("DEEP100M", deep100m_data, deep100m_query, k_val, 100);
+    }
+    for (int k_val : {1, 10, 100, 1000}) {
+        push("Seismic100M", seismic_data, seismic_query, k_val, 100);
+    }
+    return configs;
+}();
 
 const std::vector<SSTestConfig> test_configs = []
 {
@@ -101,7 +142,7 @@ const std::vector<SSTestConfig> test_configs_random_light = []
     {
         for (int k : {100})
         {
-            configs.push_back({random_name, random_data, random_query, random_gt_data, random_gt_query, threads, k});
+            configs.push_back({random_name, random_data, random_query, random_gt_data, random_gt_query, threads, k, 0});
         }
     }
     return configs;

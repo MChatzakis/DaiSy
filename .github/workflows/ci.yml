@@ -37,10 +37,10 @@ jobs:
             build-essential \
             cmake \
             libomp-dev \
+            libopenblas-dev \
             libopenmpi-dev \
             openmpi-bin \
-            openmpi-common \
-            libopenmpi-dev
+            openmpi-common
 
       - name: Setup Python
         uses: actions/setup-python@v4

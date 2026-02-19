@@ -14,4 +14,16 @@ void runSSTBenchmark(
     size_t k
 );
 
+void runSSTBenchmarkSetup(
+    daisy::SimilaritySearchAlgorithm* search,
+    const std::string& dataset_path,
+    const std::string& query_path,
+    int num_thread,
+    size_t k,
+    float*& query_out,
+    daisy::idx_t*& I_out,
+    float*& D_out,
+    daisy::idx_t& n_query_out
+);
+
 #endif 

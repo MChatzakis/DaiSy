@@ -30,6 +30,11 @@ namespace daisy
         virtual void reset() = 0;
 
         virtual idx_t getCurrentPosition() const = 0;
+
+        // Optional: return a raw pointer when the datasource wraps an existing
+        // contiguous in-memory buffer. Algorithms that can consume the buffer
+        // directly (avoiding an extra copy) can override this.
+        virtual const float *rawPointer() const { return nullptr; }
     };
 
     class InMemoryDataSource : public DataSource
@@ -83,6 +88,8 @@ namespace daisy
         {
             return current_pos;
         }
+
+        const float *rawPointer() const override { return database; }
     };
 
     class FileDataSource : public DataSource
