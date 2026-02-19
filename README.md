@@ -1,19 +1,29 @@
-# DaiSy: A Library for Scalable Data Series Similarity Search
-DaiSy (**Da**ta series s**i**milarity **S**earch librar**Y**) is a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework, developed at LIPADE, Université Paris Cité.
-It supports a wide range approaches tailored for different execution environments, including disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search. 
-DaiSy is implemented in C++, while it also offers a convenient Python interface for ease of use and integration with data science workflows.
+<p align="center">
+<img src="https://github.com/MChatzakis/DaiSy/blob/main/assets/logo.png" alt="DaiSy Logo" height="280"> 
+</p>
 
-**Important Note**: The current version of DaiSy is experimental. The library is still under active development, with special focus on improving and resolving issues related to installation and building.
-We welcome early suggestions and recommendations.
+<h1 align="center">DaiSy</h1>
+<h2 align="center">A Library for Scalable Data Series Similarity Search</h2>
 
+<p align="center">
+<a href="https://github.com/MChatzakis/daisy/stargazers"><img src="https://img.shields.io/github/stars/MChatzakis/daisy?style=social" alt="GitHub Stars"></a>
+</p>
 
-When using DaiSy, please consider citing the following paper:
+<h4 align="center">Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Themis Palpanas</h4>
+
+Exact similarity search over large collections of data series is a fundamental operation in modern applications, yet existing solutions are often fragmented, specialized, or tailored to specific execution environments.
+We present DaiSy (**Da**ta series s**i**milarity **S**earch librar**y**), a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework.
+DaiSy is the first library to support exact similarity search across diverse execution environments, including implementations for disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search.
+The library supports interfaces in both C++ and Python, enabling, researchers and practitioners to easily integrate its functionality in a variety of tasks. 
+
+**<span style="color:red">ALPHA VERSION</span>**: Currently, DaiSy is experimental. The library is still under active development. We welcome suggestions and bug reports.
+
+<!--When using DaiSy, please consider citing the following paper:
 
 ```latex
 Coming Soon!
 ```
-
-
+-->
 
 ## Supported State-of-the-Art algorithms
 We currently support several algorithms for exact similarity search, each optimized for specific use cases and environments. 
@@ -82,12 +92,11 @@ If you want to use Odyssey, you will need to install mpi:
 pip install daisy-exact-search[mpi]
 ```
 
-### Compatibility issues
-Kindly note that we are aware for compatibility issues related to ARM processors and SIMD instructions.
-DaiSy utilizes SIMD instructions (e.g., AVX, AVX2) for performing efficient distance calculations.
-However, these instructions are not supported on ARM architectures (e.g., Apple M processors).
-We are currently working on a fix.
 
+### Compatibility issues
+Kindly note that we are aware for compatibility issues related to ARM processors (e.g., Apple MX processors). 
+Due to pthread-barriers and SIMD being unavailable on ARM, we currently noticing compilations failling on ARM machines.
+We are currently working on possible solutions, however we recommend using DaiSy on non-ARM machines for the time being.
 
 <!--
 ```bash
@@ -99,8 +108,12 @@ pip install -r requirements_DaiSy.txt
 -->
 
 
-### Example Usage
+### Others
 We provide several usage examples in both C++ and Python under [`demos/`](demos/), demonstrating how to utilize the library for various similarity search tasks.
+We provide several troubleshooting guides and extra resources in the [`docs/`](docs/) directory. 
+In this directory, we also provide useful information about how to contribute to the project, and how to implement new algorithms.
+
+
 
 <!--
 
@@ -149,14 +162,16 @@ cd build
 -->
 
 ## About
-DaiSy is developed by the [diNo research group at LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
+This work was supported by the Hellenic Foundation for Research and Innovation (HFRI) under the “Second Call for HFRI Research Projects to support Faculty Members and Researchers” (project number: 3684).
+
+<!--DaiSy is developed by researchers at the [diNo research group, LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
 
 It is provided with no warranty, and we encourage contributions from the community to enhance its capabilities and performance. For questions, issues, or contributions, please open an issue or submit a pull request on GitHub.
 DaiSy licensed under the [MIT License](LICENSE).
 
-For questions and suggestions through mail, you can contact us at [manos.chatzaki@gmail.com](mailto:manos.chatzaki@gmail.com).
+For questions and suggestions through mail, you can contact us at [manos.chatzaki@gmail.com](mailto:manos.chatzaki@gmail.com).-->
 
-
+The logo of DaiSy was designed by [Eva Chamilaki](https://evachamilaki.github.io).
 
 
 

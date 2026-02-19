@@ -11,7 +11,7 @@ from setuptools.command.build_py import build_py as _build_py
 from setuptools.command.build_ext import build_ext as _build_ext
 
 # Version
-__version__ = "1.0.1"
+__version__ = "1.0.4"
 
 # Detect platform
 IS_MACOS = sys.platform == "darwin"
@@ -81,14 +81,21 @@ try:
     
     # Define the extension module using pybind11
     # Odyssey requires MPI - skip on macOS/Windows, enable on Linux only if MPI is available
-    # Note: On Linux, Odyssey is built only when MPI dev libraries are found. Install with:
+    # Note: On Linux, the build expects MPI to be available. Install with:
     #   Linux: sudo apt-get install libopenmpi-dev openmpi-bin (or conda install openmpi)
-    ODYSSEY_ENABLED = (
-        not IS_MACOS
-        and not IS_WINDOWS
-        and os.environ.get("DAISY_DISABLE_ODYSSEY", "") != "1"
-        and check_mpi_available()
-    )
+    #   macOS: MPI not supported - will compile without Odyssey
+    #   Windows: MPI not supported - will compile without Odyssey
+    ODYSSEY_ENABLED = (not IS_MACOS and not IS_WINDOWS) and check_mpi_available()
+    
+    # Inform user about build configuration
+    if ODYSSEY_ENABLED:
+        print("[DaiSy] Building with Odyssey (distributed search) support - MPI detected")
+    else:
+        print("[DaiSy] Building without Odyssey support - MPI not available on this system")
+        print("[DaiSy] To enable Odyssey, install MPI development libraries:")
+        print("[DaiSy]   - Ubuntu/Debian: sudo apt-get install libopenmpi-dev openmpi-bin")
+        print("[DaiSy]   - macOS: Not supported (clang/ARM64 incompatible with OpenMP)")
+        print("[DaiSy]   - Conda: conda install openmpi")
     
     sources = [
         "pybinds/.cpp",
@@ -168,11 +175,15 @@ try:
     if not (IS_MACOS and platform.machine() in ("arm64", "aarch64")):
         compile_args.extend(["-mavx", "-march=native"])
     
+    # Get the project root directory as absolute path
+    project_root = str(Path(__file__).parent.absolute())
+    
     define_macros = [
         ("VERSION_INFO", '"' + __version__ + '"'),
         ("BUILD_ODYSSEY", "1" if ODYSSEY_ENABLED else "0"),
         ("ODYSSEY_MPI", "1" if ODYSSEY_ENABLED else "0"),  # Used by pybinds and Odyssey headers
         ("SING_CUDA_ENABLED", "0"),
+        ("PROJECT_ROOT_DIR", f'"{project_root}"'),
     ]
     
     ext_modules = [
