@@ -81,21 +81,14 @@ try:
     
     # Define the extension module using pybind11
     # Odyssey requires MPI - skip on macOS/Windows, enable on Linux only if MPI is available
-    # Note: On Linux, the build expects MPI to be available. Install with:
+    # Note: On Linux, Odyssey is built only when MPI dev libraries are found. Install with:
     #   Linux: sudo apt-get install libopenmpi-dev openmpi-bin (or conda install openmpi)
-    #   macOS: MPI not supported - will compile without Odyssey
-    #   Windows: MPI not supported - will compile without Odyssey
-    ODYSSEY_ENABLED = (not IS_MACOS and not IS_WINDOWS) and check_mpi_available()
-    
-    # Inform user about build configuration
-    if ODYSSEY_ENABLED:
-        print("[DaiSy] Building with Odyssey (distributed search) support - MPI detected")
-    else:
-        print("[DaiSy] Building without Odyssey support - MPI not available on this system")
-        print("[DaiSy] To enable Odyssey, install MPI development libraries:")
-        print("[DaiSy]   - Ubuntu/Debian: sudo apt-get install libopenmpi-dev openmpi-bin")
-        print("[DaiSy]   - macOS: Not supported (clang/ARM64 incompatible with OpenMP)")
-        print("[DaiSy]   - Conda: conda install openmpi")
+    ODYSSEY_ENABLED = (
+        not IS_MACOS
+        and not IS_WINDOWS
+        and os.environ.get("DAISY_DISABLE_ODYSSEY", "") != "1"
+        and check_mpi_available()
+    )
     
     sources = [
         "pybinds/.cpp",
