@@ -52,7 +52,8 @@ jobs:
             -DBUILD_SING=OFF \
             -DBUILD_PYTHON=OFF \
             -DBUILD_BENCHMARK=OFF \
-            -DBUILD_DEMO=OFF
+            -DBUILD_DEMO=OFF \
+            -DBUILD_TESTS=ON
 
       - name: Build project
         run: |

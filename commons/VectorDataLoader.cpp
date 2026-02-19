@@ -1,11 +1,12 @@
 #include "VectorDataLoader.h"
 
 #include <cassert>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <sys/stat.h>
 #include <climits>
+#include <sys/stat.h>
 
 const char query_type_str[4][20] = {
     "Training",
