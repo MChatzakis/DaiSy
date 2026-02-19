@@ -90,34 +90,21 @@ std::vector<SSTestConfig> generate_configs_custom(
 
 static const char *seismic_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size100M_seismic_len256_znorm.bin";
 static const char *seismic_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl10000_seismic_len256_znorm.bin";
-static const char *astro270m_data = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/data_size270M_astronomy_len256_znorm.bin";
-static const char *astro270m_query = "/mnt/hddhelp/mchatzakis/similarity-search-datasets/queries_ctrl100_astronomy_len256_znorm.bin";
 static const char *deep100m_data = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/base.100M.fvecs";
 static const char *deep100m_query = "/mnt/hddhelp/mchatzakis/datasets/processed/DEEP100M/query.10K.fvecs";
 
+// Solo DEEP e Seismic, q=100, k=1,10,100,1000 (indici 0-3 DEEP, 4-7 Seismic)
 const std::vector<SSTestConfig> test_configs_deep_seismic_astro270m = []
 {
     std::vector<SSTestConfig> configs;
     auto push = [&](const char* name, const char* data, const char* query, int k_val, int q_limit) {
         configs.push_back({name, data, query, "", "", 48, k_val, q_limit});
     };
-    // Block 1: q=100, all k
     for (int k_val : {1, 10, 100, 1000}) {
         push("DEEP100M", deep100m_data, deep100m_query, k_val, 100);
     }
     for (int k_val : {1, 10, 100, 1000}) {
         push("Seismic100M", seismic_data, seismic_query, k_val, 100);
-    }
-    // Block 2: k=10, q = 100, 500, 1000, 5000, 10000
-    for (int q_limit : {100, 500, 1000, 5000, 10000}) {
-        push("DEEP100M", deep100m_data, deep100m_query, 10, q_limit);
-    }
-    for (int q_limit : {100, 500, 1000, 5000, 10000}) {
-        push("Seismic100M", seismic_data, seismic_query, 10, q_limit);
-    }
-    // Block 3: Astro270M (stesso formato di seismic), q=100, k=10, 100, 1000 (indices 18, 19, 20)
-    for (int k_val : {10, 100, 1000}) {
-        push("Astro270M", astro270m_data, astro270m_query, k_val, 100);
     }
     return configs;
 }();

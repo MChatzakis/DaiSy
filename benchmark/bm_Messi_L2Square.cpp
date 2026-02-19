@@ -147,9 +147,8 @@ BENCHMARK_DEFINE_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)(benchmark::State
 }
 
 BENCHMARK_REGISTER_F(MessiSearchOnlyFixture, BM_Messi_SearchOnly)
-    // k=10 q=1000,5000,10000: DEEP (10,11,12), Seismic (15,16,17) | Astro q=100 k=10,100,1000 (18,19,20)
-    ->Args({10})->Args({11})->Args({12})->Args({15})->Args({16})->Args({17})
-    ->Args({18})->Args({19})->Args({20})
+    // q=100, k=1,10,100,1000: DEEP (0-3), Seismic (4-7)
+    ->Args({0})->Args({1})->Args({2})->Args({3})->Args({4})->Args({5})->Args({6})->Args({7})
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 
