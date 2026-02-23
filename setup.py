@@ -6,12 +6,12 @@ import sys
 import shutil
 import platform
 from pathlib import Path
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from setuptools.command.build_py import build_py as _build_py
 from setuptools.command.build_ext import build_ext as _build_ext
 
 # Version
-__version__ = "1.0.4"
+__version__ = "1.0.6"
 
 # Detect platform
 IS_MACOS = sys.platform == "darwin"
@@ -65,7 +65,6 @@ try:
     from pybind11._helpers import Pybind11Extension, build_ext as pybind_build_ext
     from pybind11 import get_cmake_dir
     import pybind11
-    from tools import find_packages
     
     class build_ext(pybind_build_ext):
         """Custom build_ext that ensures daisy/__init__.py is in the lib directory"""
