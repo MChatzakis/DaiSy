@@ -162,7 +162,8 @@ cd build
 -->
 
 ## About
-This work was supported by the Hellenic Foundation for Research and Innovation (HFRI) under the “Second Call for HFRI Research Projects to support Faculty Members and Researchers” (project number: 3684).
+
+Work supported by $Y \Pi AI \Theta A$ \& NextGenerationEU project HARSH ($Y\Pi 3TA-0560901$). 
 
 <!--DaiSy is developed by researchers at the [diNo research group, LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
 
