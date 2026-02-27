@@ -163,7 +163,7 @@ cd build
 
 ## About
 
-Work supported by $Y \Pi AI \Theta A$ \& NextGenerationEU project HARSH ($Y\Pi 3TA-0560901$). 
+Work supported by ΥΠ AI ΘΑ & NextGenerationEU project HARSH (ΥΠ3ΤΑ-0560901).
 
 <!--DaiSy is developed by researchers at the [diNo research group, LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
 
