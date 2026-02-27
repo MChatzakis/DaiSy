@@ -11,7 +11,7 @@ from setuptools.command.build_py import build_py as _build_py
 from setuptools.command.build_ext import build_ext as _build_ext
 
 # Version
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 # Detect platform
 IS_MACOS = sys.platform == "darwin"

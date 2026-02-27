@@ -13,21 +13,22 @@ fi
 
 VERSION=$1
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "Publishing version $VERSION to PyPI..."
 echo
 
 # Update version in setup.py
 echo "Updating setup.py..."
-sed -i "s/__version__ = \"[^\"]*\"/__version__ = \"$VERSION\"/" "$SCRIPT_DIR/setup.py"
+sed -i "s/__version__ = \"[^\"]*\"/__version__ = \"$VERSION\"/" "$PROJECT_ROOT/setup.py"
 
 # Update version in pyproject.toml
 echo "Updating pyproject.toml..."
-sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" "$SCRIPT_DIR/pyproject.toml"
+sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" "$PROJECT_ROOT/pyproject.toml"
 
 # Clean previous builds
 echo "Cleaning previous builds..."
-cd "$SCRIPT_DIR"
+cd "$PROJECT_ROOT"
 rm -rf build dist *.egg-info
 
 # Build the package
