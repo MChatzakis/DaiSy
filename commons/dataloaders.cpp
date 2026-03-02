@@ -28,9 +28,7 @@ float *loadBinData(const char *filename, unsigned long long n, unsigned long lon
 
     if (!do_z_normalize)
     {
-        std::cerr << "[loadBinData] DISCLAIMER: The library currently supports only searches on "
-                     "normalized data and queries. It is therefore assumed that false is passed because the "
-                     "loaded data are already z-normalized.\n";
+        std::cerr << "[loadBinData] DISCLAIMER: Even though DaiSy supports non Z-normalized data, it has been optimized for Z-normalized data. \n";
         return data;
     }
 
