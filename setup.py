@@ -62,7 +62,7 @@ def get_long_description():
 
 # Try to import pybind11
 try:
-    from pybind11._helpers import Pybind11Extension, build_ext as pybind_build_ext
+    from pybind11.setup_helpers import Pybind11Extension, build_ext as pybind_build_ext
     from pybind11 import get_cmake_dir
     import pybind11
     
@@ -97,11 +97,11 @@ try:
         print("[DaiSy]   - Conda: conda install openmpi")
     
     sources = [
-        "pybinds/.cpp",
+        "pybinds/setup.cpp",
         # commons
         "commons/common.cpp",
         "commons/dataloaders.cpp",
-        "commons/param.cpp",
+        "commons/paramSetup.cpp",
         # lib - distance computers
         "lib/distance_computers/DistanceComputer.cpp",
         # lib - isax
