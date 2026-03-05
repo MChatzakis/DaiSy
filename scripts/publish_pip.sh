@@ -41,9 +41,9 @@ if [ $? -ne 0 ]; then
 fi
 
 echo
-# Upload to PyPI
+# Upload to PyPI (source distribution only)
 echo "Uploading to PyPI..."
-python -m twine upload dist/*
+python -m twine upload dist/*.tar.gz
 
 if [ $? -eq 0 ]; then
     echo
