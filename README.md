@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">DaiSy</h1>
-<h2 align="center">A Library for Scalable Data Series Similarity Search</h2>
+<h2 align="center">The Library for Fast and Exact, Data Series and Vector Similarity Search</h2>
 
 <p align="center">
 <a href="https://github.com/MChatzakis/daisy/stargazers"><img src="https://img.shields.io/github/stars/MChatzakis/daisy?style=social" alt="GitHub Stars"></a>
@@ -14,16 +14,25 @@
 Exact similarity search over large collections of data series is a fundamental operation in modern applications, yet existing solutions are often fragmented, specialized, or tailored to specific execution environments.
 We present DaiSy (**Da**ta series s**i**milarity **S**earch librar**y**), a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework.
 DaiSy is the first library to support exact similarity search across diverse execution environments, including implementations for disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search.
-The library supports interfaces in both C++ and Python, enabling, researchers and practitioners to easily integrate its functionality in a variety of tasks. 
+The library supports interfaces in both C++ and Python, enabling researchers and practitioners to easily integrate its functionality in a variety of tasks. 
 
 **<span style="color:red">ALPHA VERSION</span>**: Currently, DaiSy is experimental. The library is still under active development. We welcome suggestions and bug reports.
 
-<!--When using DaiSy, please consider citing the following paper:
+## How to Cite
+
+When using DaiSy, please consider cite the following artifacts:
 
 ```latex
-Coming Soon!
+@misc{daisy2026,
+  title        = {{The DaiSy Library for Fast and Exact, Data Series and Vector Similarity Search}},
+  author       ={Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Panagiota Faatourou, Themis Palpanas},
+  year         = {2026},
+  howpublished = {\url{https://github.com/mchatzakis/daisy}}
+}
 ```
 -->
+
+
 
 ## Supported State-of-the-Art algorithms
 We currently support several algorithms for exact similarity search, each optimized for specific use cases and environments. 
