@@ -30,8 +30,6 @@ When using DaiSy, please consider cite the following artifacts:
   howpublished = {\url{https://github.com/mchatzakis/daisy}}
 }
 ```
--->
-
 
 
 ## Supported State-of-the-Art algorithms
