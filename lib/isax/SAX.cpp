@@ -336,6 +336,163 @@ namespace daisy
     }
 #endif
 
+#if DAISY_SIMD_AVAILABLE
+    float minidist_paa_to_isax_raw_DTW_SING_SIMD(float *paaU, float *paaL, sax_type *sax,
+                                                 sax_type *sax_cardinalities,
+                                                 sax_type max_bit_cardinality,
+                                                 int max_cardinality,
+                                                 int number_of_segments,
+                                                 int min_val,
+                                                 int max_val,
+                                                 float ratio_sqrt)
+    {
+        int region_upper[16], region_lower[16];
+        float distancef[16];
+        int offset = 0;
+
+        __m256i vectorsignbit = _mm256_set1_epi32(0xffffffff);
+        __m256i vloweroffset = _mm256_set1_epi32(offset);
+        __m256i vupperoffset = _mm256_set1_epi32(offset + 1);
+
+        __m128i sax_cardinalitiesv8 = _mm_lddqu_si128((const __m128i *)sax_cardinalities);
+        __m256i sax_cardinalitiesv16 = _mm256_cvtepu8_epi16(sax_cardinalitiesv8);
+        __m128i sax_cardinalitiesv16_0 = _mm256_extractf128_si256(sax_cardinalitiesv16, 0);
+        __m128i sax_cardinalitiesv16_1 = _mm256_extractf128_si256(sax_cardinalitiesv16, 1);
+        __m256i c_cv_0 = _mm256_cvtepu16_epi32(sax_cardinalitiesv16_0);
+        __m256i c_cv_1 = _mm256_cvtepu16_epi32(sax_cardinalitiesv16_1);
+
+        __m128i saxv8 = _mm_lddqu_si128((const __m128i *)sax);
+        __m256i saxv16 = _mm256_cvtepu8_epi16(saxv8);
+        __m128i saxv16_0 = _mm256_extractf128_si256(saxv16, 0);
+        __m128i saxv16_1 = _mm256_extractf128_si256(saxv16, 1);
+        __m256i v_0 = _mm256_cvtepu16_epi32(saxv16_0);
+        __m256i v_1 = _mm256_cvtepu16_epi32(saxv16_1);
+
+        __m256i c_m = _mm256_set1_epi32(max_bit_cardinality);
+        __m256i cm_ccv_0 = _mm256_sub_epi32(c_m, c_cv_0);
+        __m256i cm_ccv_1 = _mm256_sub_epi32(c_m, c_cv_1);
+
+        __m256i region_lowerv_0 = _mm256_srlv_epi32(v_0, cm_ccv_0);
+        __m256i region_lowerv_1 = _mm256_srlv_epi32(v_1, cm_ccv_1);
+        region_lowerv_0 = _mm256_sllv_epi32(region_lowerv_0, cm_ccv_0);
+        region_lowerv_1 = _mm256_sllv_epi32(region_lowerv_1, cm_ccv_1);
+
+        __m256i v1 = _mm256_andnot_si256(_mm256_setzero_si256(), vectorsignbit);
+
+        __m256i region_upperv_0 = _mm256_sllv_epi32(v1, cm_ccv_0);
+        __m256i region_upperv_1 = _mm256_sllv_epi32(v1, cm_ccv_1);
+        region_upperv_0 = _mm256_andnot_si256(region_upperv_0, vectorsignbit);
+        region_upperv_1 = _mm256_andnot_si256(region_upperv_1, vectorsignbit);
+
+        region_upperv_0 = _mm256_or_si256(region_upperv_0, region_lowerv_0);
+        region_upperv_1 = _mm256_or_si256(region_upperv_1, region_lowerv_1);
+
+        region_lowerv_0 = _mm256_add_epi32(region_lowerv_0, vloweroffset);
+        region_lowerv_1 = _mm256_add_epi32(region_lowerv_1, vloweroffset);
+        region_upperv_0 = _mm256_add_epi32(region_upperv_0, vupperoffset);
+        region_upperv_1 = _mm256_add_epi32(region_upperv_1, vupperoffset);
+
+        _mm256_storeu_si256((__m256i *)&region_lower[0], region_lowerv_0);
+        _mm256_storeu_si256((__m256i *)&region_lower[8], region_lowerv_1);
+        _mm256_storeu_si256((__m256i *)&region_upper[0], region_upperv_0);
+        _mm256_storeu_si256((__m256i *)&region_upper[8], region_upperv_1);
+
+        __m256i lower_juge_zerov_0 = _mm256_cmpeq_epi32(region_lowerv_0, _mm256_setzero_si256());
+        __m256i lower_juge_zerov_1 = _mm256_cmpeq_epi32(region_lowerv_1, _mm256_setzero_si256());
+
+        __m256i lower_juge_nzerov_0 = _mm256_andnot_si256(lower_juge_zerov_0, vectorsignbit);
+        __m256i lower_juge_nzerov_1 = _mm256_andnot_si256(lower_juge_zerov_1, vectorsignbit);
+
+        __m256 minvalv = _mm256_set1_ps((float)min_val);
+
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpointsnew3, region_lowerv_0, 4);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpointsnew3, region_lowerv_1, 4);
+
+        __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(
+            _mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv),
+            _mm256_and_si256(lower_juge_nzerov_0, (__m256i)lsax_breakpoints_shiftv_0));
+        __m256 breakpoint_lowerv_1 = (__m256)_mm256_or_si256(
+            _mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv),
+            _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
+
+        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpointsnew3, region_upperv_0, 4);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpointsnew3, region_upperv_1, 4);
+
+        __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
+        __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
+
+        __m256i upper_juge_nmaxv_0 = _mm256_andnot_si256(upper_juge_maxv_0, vectorsignbit);
+        __m256i upper_juge_nmaxv_1 = _mm256_andnot_si256(upper_juge_maxv_1, vectorsignbit);
+
+        __m256 breakpoint_upperv_0 = (__m256)_mm256_or_si256(
+            _mm256_and_si256(upper_juge_maxv_0, (__m256i)_mm256_set1_ps((float)max_val)),
+            _mm256_and_si256(upper_juge_nmaxv_0, (__m256i)usax_breakpoints_shiftv_0));
+        __m256 breakpoint_upperv_1 = (__m256)_mm256_or_si256(
+            _mm256_and_si256(upper_juge_maxv_1, (__m256i)_mm256_set1_ps((float)max_val)),
+            _mm256_and_si256(upper_juge_nmaxv_1, (__m256i)usax_breakpoints_shiftv_1));
+
+        __m256 paaUv_0 = _mm256_loadu_ps(paaU);
+        __m256 paaUv_1 = _mm256_loadu_ps(&paaU[8]);
+        __m256 paaLv_0 = _mm256_loadu_ps(paaL);
+        __m256 paaLv_1 = _mm256_loadu_ps(&paaL[8]);
+
+        __m256 dis_juge_upv_0 = _mm256_cmp_ps(breakpoint_lowerv_0, paaUv_0, _CMP_GT_OS);
+        __m256 dis_juge_upv_1 = _mm256_cmp_ps(breakpoint_lowerv_1, paaUv_1, _CMP_GT_OS);
+
+        __m256 dis_juge_lov_0 = _mm256_cmp_ps(breakpoint_upperv_0, paaLv_0, _CMP_LT_OS);
+        __m256 dis_juge_lov_1 = _mm256_cmp_ps(breakpoint_upperv_1, paaLv_1, _CMP_LT_OS);
+
+        __m256 dis_juge_elv_0 = (__m256)_mm256_andnot_si256(
+            _mm256_or_si256((__m256i)dis_juge_upv_0, (__m256i)dis_juge_lov_0), vectorsignbit);
+        __m256 dis_juge_elv_1 = (__m256)_mm256_andnot_si256(
+            _mm256_or_si256((__m256i)dis_juge_upv_1, (__m256i)dis_juge_lov_1), vectorsignbit);
+
+        __m256 dis_lowv_0 = _mm256_sub_ps(breakpoint_lowerv_0, paaUv_0);
+        __m256 dis_lowv_1 = _mm256_sub_ps(breakpoint_lowerv_1, paaUv_1);
+        __m256 dis_uppv_0 = _mm256_sub_ps(breakpoint_upperv_0, paaLv_0);
+        __m256 dis_uppv_1 = _mm256_sub_ps(breakpoint_upperv_1, paaLv_1);
+
+        __m256 distancev_0 = (__m256)_mm256_or_si256(
+            _mm256_or_si256(_mm256_and_si256((__m256i)dis_juge_upv_0, (__m256i)dis_lowv_0),
+                            _mm256_and_si256((__m256i)dis_juge_lov_0, (__m256i)dis_uppv_0)),
+            _mm256_and_si256((__m256i)dis_juge_elv_0, (__m256i)_mm256_set1_ps(0.0f)));
+        __m256 distancev_1 = (__m256)_mm256_or_si256(
+            _mm256_or_si256(_mm256_and_si256((__m256i)dis_juge_upv_1, (__m256i)dis_lowv_1),
+                            _mm256_and_si256((__m256i)dis_juge_lov_1, (__m256i)dis_uppv_1)),
+            _mm256_and_si256((__m256i)dis_juge_elv_1, (__m256i)_mm256_set1_ps(0.0f)));
+
+        __m256 distancesum_0 = _mm256_dp_ps(distancev_0, distancev_0, 0xff);
+        __m256 distancesum_1 = _mm256_dp_ps(distancev_1, distancev_1, 0xff);
+        __m256 distancevf = _mm256_add_ps(distancesum_0, distancesum_1);
+
+        _mm256_storeu_ps(distancef, distancevf);
+
+        return (distancef[0] + distancef[4]) * ratio_sqrt;
+    }
+#else
+    float minidist_paa_to_isax_raw_DTW_SING_SIMD(float *paaU, float *paaL, sax_type *sax,
+                                                 sax_type *sax_cardinalities,
+                                                 sax_type max_bit_cardinality,
+                                                 int max_cardinality,
+                                                 int number_of_segments,
+                                                 int min_val,
+                                                 int max_val,
+                                                 float ratio_sqrt)
+    {
+        (void)paaU;
+        (void)paaL;
+        (void)sax;
+        (void)sax_cardinalities;
+        (void)max_bit_cardinality;
+        (void)max_cardinality;
+        (void)number_of_segments;
+        (void)min_val;
+        (void)max_val;
+        (void)ratio_sqrt;
+        THROW_SIMD_NOT_AVAILABLE("minidist_paa_to_isax_raw_DTW_SING_SIMD");
+    }
+#endif
+
     float ts_euclidean_distance(ts_type *t, ts_type *s, int size, float bound)
     {
         float distance = 0;

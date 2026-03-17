@@ -274,53 +274,53 @@ if(BUILD_PYTHON)
         message(STATUS "Subdirectory 'extern/pybind11' added.")
     endif()
 
-    # Build the Python module
-    pybind11_add_module(daisy pybinds/setup.cpp)
+    # Build the Python module as daisy._core
+    pybind11_add_module(daisy_core pybinds/setup.cpp)
+    set_target_properties(daisy_core PROPERTIES
+        OUTPUT_NAME "_core"
+        PREFIX ""  # no 'lib' prefix, produce _core.cpython-*.so
+        LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/daisy"
+    )
     if(DEBUG_MSG)
-        message(STATUS "Python module 'daisy' created from pybinds/setup.cpp.")
+        message(STATUS "Python module 'daisy._core' created from pybinds/setup.cpp.")
     endif()
     
-    target_link_libraries(daisy PRIVATE dino_lib)
+    target_link_libraries(daisy_core PRIVATE dino_lib)
     if(DEBUG_MSG)
-        message(STATUS "Python module 'daisy' linked to 'dino_lib'.")
+        message(STATUS "Python module 'daisy._core' linked to 'dino_lib'.")
     endif()
 
     # Pass BUILD_SING_ENABLED definition to Python module
     if (BUILD_SING_AVAILABLE)
-        target_compile_definitions(daisy PRIVATE SING_CUDA_ENABLED=1)
+        target_compile_definitions(daisy_core PRIVATE SING_CUDA_ENABLED=1)
         if(DEBUG_MSG)
-            message(STATUS "Python module 'daisy' compiled with SING_CUDA_ENABLED=1.")
+            message(STATUS "Python module 'daisy._core' compiled with SING_CUDA_ENABLED=1.")
         endif()
     else()
-        target_compile_definitions(daisy PRIVATE SING_CUDA_ENABLED=0)
+        target_compile_definitions(daisy_core PRIVATE SING_CUDA_ENABLED=0)
         if(DEBUG_MSG)
-            message(STATUS "Python module 'daisy' compiled with SING_CUDA_ENABLED=0.")
+            message(STATUS "Python module 'daisy._core' compiled with SING_CUDA_ENABLED=0.")
         endif()
     endif()
 
+    # Link Python module 'daisy._core' with MPI when Odyssey is available
     if (BUILD_ODYSSEY_AVAILABLE)
         if(DEBUG_MSG)
-            message(STATUS "Linking Python module 'daisy' with MPI.")
+            message(STATUS "Linking Python module 'daisy._core' with MPI.")
         endif()
-        target_link_libraries(daisy PRIVATE ${MPI_CXX_LIBRARIES})
-        target_include_directories(daisy PRIVATE ${MPI_CXX_INCLUDE_DIRS})
+        target_link_libraries(daisy_core PRIVATE ${MPI_CXX_LIBRARIES})
+        target_include_directories(daisy_core PRIVATE ${MPI_CXX_INCLUDE_DIRS})
         if(DEBUG_MSG)
             message(DEBUG "MPI Libraries: ${MPI_CXX_LIBRARIES}")
             message(DEBUG "MPI Includes: ${MPI_CXX_INCLUDE_DIRS}")
         endif()
     else()
         if(DEBUG_MSG)
-            message(STATUS "BUILD_ODYSSEY_AVAILABLE is FALSE. Python module 'daisy' will NOT be linked with MPI.")
+            message(STATUS "BUILD_ODYSSEY_AVAILABLE is FALSE. Python module 'daisy._core' will NOT be linked with MPI.")
         endif()
-    endif()    
-
-    # Set output directory for the .so file (demos/ so that import daisy finds daisy.*.so when run from demos)
-    set_target_properties(daisy PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/demos"
-    )
-    if(DEBUG_MSG)
-        message(STATUS "Python module 'daisy' output directory set to: ${CMAKE_SOURCE_DIR}/demos")
     endif()
+
+    # (Python module 'daisy._core' already configured to output into ${PROJECT_SOURCE_DIR}/daisy above)
 else()
     if(DEBUG_MSG)
         message(STATUS "BUILD_PYTHON is OFF. Skipping Python bindings.")

@@ -109,6 +109,7 @@ namespace daisy
         int max_tmp_partial_buffer_size;
 
         float *lbdarray;
+        short *lbdarrayshort;
         unsigned long int arrayposition;
     } isax_node_buffer;
 

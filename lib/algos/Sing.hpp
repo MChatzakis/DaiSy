@@ -73,6 +73,54 @@ namespace daisy
         int *arrangenodearraynumber;
     } gap_workerdata;
 
+    typedef struct uni_workerdata
+    {
+        isax_node **nodelist;
+        int amountnode, workerstartnode, workerstopnode;
+        int *startnode, *stopnode, *gapstartnode, *gapstopnode;
+        int *nodecounter, *nodecounter2;
+        bool *activechunk;
+        bool *activenode;
+        isax_index *index;
+        int chunknumber;
+        float bsf;
+        ts_type *paa, *paaU, *paaL, *ts, *uo, *lo;
+        pthread_mutex_t *lockposition;
+        unsigned long *offsetarray;
+        int *chunkcounter;
+        int *chunkfinishcounter;
+        int **arrangenodearray;
+        int *arrangenodearraynumber;
+        isax_node *current_root_node;
+        pqueue_t *pq;
+        float minimum_distance;
+        int limit;
+        pthread_mutex_t *lock_current_root_node;
+        pthread_mutex_t *lock_queue;
+        pthread_barrier_t *lock_barrier, *lock_barrierfirst;
+        pthread_rwlock_t *lock_bsf;
+        query_result *bsf_result;
+        int *node_counter;
+        localStack *localstk;
+        localStack *allstk;
+        pthread_mutex_t *locallock, *alllock;
+        int *queuelabel, *allqueuelabel;
+        pqueue_t **allpq;
+        int startqueuenumber;
+        int warpWind;
+        int n_pqueue;
+        pqueue_bsf *pq_bsf;
+        float *lbdmap;
+        short *lbdmapshort;
+        float shortrate;
+        bool *labelvalue;
+        int *offsetvalue;
+        unsigned long int *gpuoffset;
+        unsigned long int *seriesnumber;
+        unsigned long int rawdatanumber;
+        float *rawfile;
+    } uni_workerdata;
+
     struct SingConfig
     {
         int search_workers = 4;
@@ -90,6 +138,53 @@ namespace daisy
 
     void calculate_node_cal_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
                                           pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
+
+    void pass_tree_node_m_short(isax_node *node, isax_index *index, pthread_mutex_t *lock_queue,
+                                unsigned long int *currentposition, sax_type *saxarray, sax_type *sortsaxarray,
+                                short *lbdarray);
+
+    float nodedistance(float *paa, sax_type *sax,
+                       sax_type *sax_cardinalities,
+                       sax_type max_bit_cardinality,
+                       int max_cardinality,
+                       int number_of_segments,
+                       int min_val,
+                       int max_val,
+                       float ratio_sqrt);
+
+    float nodedistancedtw(float *paa, float *paaU, float *paaL, sax_type *sax,
+                          sax_type *sax_cardinalities,
+                          sax_type max_bit_cardinality,
+                          int max_cardinality,
+                          int number_of_segments,
+                          int min_val,
+                          int max_val,
+                          float ratio_sqrt);
+
+    void insert_tree_node_m_hybridpqueueBreakpolydtw(float *paaU, float *paaL, isax_node *node, isax_index *index,
+                                                     float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue,
+                                                     int *tnumber, int n_pqueue);
+
+    float minidist_paa_to_isax_DTWbp(float *paaU, float *paaL, sax_type *sax,
+                                     sax_type *sax_cardinalities,
+                                     sax_type max_bit_cardinality,
+                                     int max_cardinality,
+                                     int number_of_segments,
+                                     int min_val,
+                                     int max_val,
+                                     float ratio_sqrt);
+
+    float calculate_node_distance_SING_short_dtw(isax_index *index, isax_node *node, ts_type *query, float *uo,
+                                                 float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf,
+                                                 float shortrate, int warpWind, float *rawfile);
+
+    float calculate_node_DTW2_inmemorysing(isax_index *index, isax_node *node, ts_type *query, float *uo,
+                                           float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf,
+                                           int warpWind, float *rawfile, idx_t *best_position);
+
+    float calculate_node_DTW_inmemory(isax_index *index, isax_node *node, ts_type *query, float bsf, int warpWind, float *rawfile);
+
+    query_result approximate_DTW_inmemory_sing(ts_type *ts, ts_type *paa, isax_index *index, int warpWind, float *rawfile);
 
     float minidist_paa_to_isax_Breakpoly(float *paa, sax_type *sax, sax_type *sax_cardinalities,
                                          sax_type max_bit_cardinality, int max_cardinality, int number_of_segments,

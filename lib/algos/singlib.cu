@@ -63,6 +63,20 @@ extern "C" float *initialposbitmapfloat(float *posbitmap, unsigned long datasize
     return posbitmap;
 }
 
+extern "C" short *initialposbitmapshort(short *posbitmap, unsigned long datasize)
+{
+    (void)posbitmap;
+    cudaMallocHost((void **)&posbitmap, sizeof(short) * (size_t)datasize);
+    return posbitmap;
+}
+
+extern "C" short *initialgposbitmapshort(short *gposbitmap, unsigned long datasize)
+{
+    (void)gposbitmap;
+    cudaMalloc((void **)&gposbitmap, sizeof(short) * (size_t)datasize);
+    return gposbitmap;
+}
+
 extern "C" void gpumemcpy(singlib_sax_t *gsaxarray, const singlib_sax_t *saxarray, unsigned long datasize)
 {
     cudaMemcpy(gsaxarray, saxarray, sizeof(singlib_sax_t) * (size_t)datasize * PAA_SEGMENTS_SAX, cudaMemcpyHostToDevice);
@@ -184,5 +198,144 @@ extern "C" void LBDfloatstreamGPU(
             streams[i]);
     }
 
+    cudaDeviceSynchronize();
+}
+
+__global__ void calculate_lbdshortdynamicratedtw(
+    const sax_type *const saxarray,
+    const float *const paaU,
+    const float *const paaL,
+    const long int M,
+    const int N,
+    short *positionarray,
+    const float BSF,
+    float segmentsize,
+    float shortrate)
+{
+    const int thid = blockDim.x * blockIdx.x + threadIdx.x;
+    float distance = 0.0f;
+    int i = 0;
+    float breakpoint_lower = 0.0f;
+    float breakpoint_upper = 0.0f;
+
+    for (int j = thid; j < M; j += gridDim.x * blockDim.x)
+    {
+        distance = 0.0f;
+        for (i = 0; i < N; i++)
+        {
+            if (segmentsize * distance < BSF)
+            {
+                sax_type v = saxarray[j * N + i];
+                sax_type region_lower = v;
+                sax_type region_upper = (sax_type)(((sax_type)~0) | region_lower);
+
+                if (region_lower == 0)
+                {
+                    breakpoint_lower = -2000000.0f;
+                    float breaku = ((float)region_lower - 127.0f) / 128.0f;
+                    breakpoint_upper = breaku * (1.1362582192f * breaku * breaku + 0.99800f);
+                    if (breakpoint_upper < paaL[i])
+                    {
+                        float diff = breakpoint_upper - paaL[i];
+                        distance += diff * diff;
+                    }
+                }
+                else if (region_upper == 256 - 1)
+                {
+                    breakpoint_upper = +2000000.0f;
+                    float breakx = ((float)region_lower - 128.0f) / 128.0f;
+                    breakpoint_lower = breakx * (breakx * breakx * 1.1362582192f + 0.99800f);
+                    if (breakpoint_lower > paaU[i])
+                    {
+                        float diff = breakpoint_lower - paaU[i];
+                        distance += diff * diff;
+                    }
+                }
+                else
+                {
+                    float breakx = ((float)region_lower - 128.0f) / 128.0f;
+                    breakpoint_lower = breakx * (breakx * breakx * 1.1362582192f + 0.99800f);
+                    if (breakpoint_lower > paaU[i])
+                    {
+                        float diff = breakpoint_lower - paaU[i];
+                        distance += diff * diff;
+                    }
+                    else
+                    {
+                        float breaku = ((float)region_lower - 127.0f) / 128.0f;
+                        breakpoint_upper = breaku * (1.1362582192f * breaku * breaku + 0.99800f);
+                        if (breakpoint_upper < paaL[i])
+                        {
+                            float diff = breakpoint_upper - paaL[i];
+                            distance += diff * diff;
+                        }
+                    }
+                }
+            }
+        }
+        positionarray[j] = (short)floorf(segmentsize * distance * shortrate);
+    }
+}
+
+extern "C" void LBDshortstreamGPUinsidedynamicratev2dtw(
+    sax_type *saxarray,
+    short *posbitmap,
+    float *qtsU,
+    float *qtsL,
+    float *gqtsU,
+    float *gqtsL,
+    float BSF,
+    unsigned long datasize,
+    short *gposbitmap,
+    int segmentnumber,
+    float segmentsize,
+    unsigned long *gpss,
+    float shortrate,
+    int chunknumber,
+    bool *activechunk)
+{
+    int num_streams = chunknumber;
+    cudaMemcpy(gqtsU, qtsU, sizeof(float) * (size_t)segmentnumber, cudaMemcpyHostToDevice);
+    cudaMemcpy(gqtsL, qtsL, sizeof(float) * (size_t)segmentnumber, cudaMemcpyHostToDevice);
+    cudaStream_t streams[num_streams];
+    for (int i = 0; i < num_streams; i++)
+    {
+        cudaStreamCreate(&streams[i]);
+    }
+
+    for (int i = 0; i < num_streams; i++)
+    {
+        if (activechunk[i])
+        {
+            // calculate_lbdshortdynamicrate<<<500,800,20,streams[i]>>> (saxarray+i*datasize*segmentnumber/streamnumber,gqtsU, datasize/streamnumber, segmentnumber, gposbitmap+i*datasize/streamnumber,BSF,segmentsize,shortrate);
+
+            calculate_lbdshortdynamicratedtw<<<500, 800, 20, streams[i]>>>(
+                saxarray + (size_t)i * datasize * (size_t)segmentnumber / (size_t)streamnumber,
+                gqtsU,
+                gqtsL,
+                datasize / (unsigned long)streamnumber,
+                segmentnumber,
+                gposbitmap + (size_t)i * datasize / (size_t)streamnumber,
+                BSF,
+                segmentsize,
+                shortrate);
+
+            cudaMemcpyAsync(
+                posbitmap + (size_t)i * datasize / (size_t)streamnumber,
+                gposbitmap + (size_t)i * datasize / (size_t)streamnumber,
+                sizeof(short) * (size_t)(datasize / (unsigned long)streamnumber),
+                cudaMemcpyDeviceToHost,
+                streams[i]);
+        }
+    }
+
+    for (int i = 0; i < num_streams; i++)
+    {
+        if (activechunk[i])
+        {
+            cudaStreamSynchronize(streams[i]);
+        }
+        *gpss = *gpss + datasize / (unsigned long)streamnumber;
+    }
     cudaDeviceSynchronize();
 }
