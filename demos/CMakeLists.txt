@@ -202,6 +202,28 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_Messi_DTW.")
     endif()
 
+    # ////// SING DTW //////
+    if(BUILD_SING_AVAILABLE)
+        if(DEBUG_MSG)
+            message(STATUS "---")
+            message(STATUS "## Demo: Sing DTW")
+            message(STATUS "Attempting to add executable: demo_Sing_DTW")
+        endif()
+        add_executable(demo_Sing_DTW demo_Sing_DTW.cpp)
+        target_link_libraries(demo_Sing_DTW PRIVATE dino_lib commons_lib)
+        target_include_directories(demo_Sing_DTW PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
+        if(DEBUG_MSG)
+            message(STATUS "Executable demo_Sing_DTW added and configured (CUDA/Sing available).")
+        endif()
+    else()
+        if(DEBUG_MSG)
+            message(STATUS "BUILD_SING_AVAILABLE is FALSE. demo_Sing_DTW will NOT be built.")
+        endif()
+    endif()
+
 # ////// ODYSSEY L2Square //////
     if(DEBUG_MSG)
         message(STATUS "---")
@@ -325,25 +347,23 @@ if(BUILD_DEMO)
     # ////// SING L2Square //////
     if(DEBUG_MSG)
         message(STATUS "---")
-        message(STATUS "## Demo: Sing")
+        message(STATUS "## Demo: Sing L2Square")
     endif()
 
-    if(SING_CUDA_AVAILABLE)
+    if(BUILD_SING_AVAILABLE)
         if(DEBUG_MSG)
-            message(STATUS "SING_CUDA_AVAILABLE is TRUE. Building demo_Sing_L2Square.")
+            message(STATUS "BUILD_SING_AVAILABLE is TRUE. Building demo_Sing_L2Square.")
         endif()
 
         add_executable(demo_Sing_L2Square demo_Sing_L2Square.cpp)
-
-        target_link_libraries(demo_Sing_L2Square PRIVATE dino_lib commons_lib CUDA::cudart)
-
+        target_link_libraries(demo_Sing_L2Square PRIVATE dino_lib commons_lib)
         target_include_directories(demo_Sing_L2Square PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/../lib
             ${CMAKE_CURRENT_SOURCE_DIR}/../commons
         )
     else()
         if(DEBUG_MSG)
-            message(STATUS "SING_CUDA_AVAILABLE is FALSE. demo_Sing_L2Square will NOT be built.")
+            message(STATUS "BUILD_SING_AVAILABLE is FALSE. demo_Sing_L2Square will NOT be built.")
         endif()
     endif()
 

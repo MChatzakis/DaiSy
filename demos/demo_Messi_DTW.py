@@ -8,9 +8,9 @@ from daisy import DistanceType, Messi
 
 def main():
     
-    n_database = 200000
-    dim = 96
-    n_query = 10
+    n_database = 840000
+    dim = 128
+    n_query = 20
     k = 5
 
     np.random.seed(100)   

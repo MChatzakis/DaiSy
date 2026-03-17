@@ -41,7 +41,8 @@ def check_mpi_available():
         result = subprocess.run(["mpicc", "--version"], capture_output=True, timeout=5)
         if result.returncode == 0:
             return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (FileNotFoundError, subprocess.TimeoutExpired, PermissionError):
+        # Any problem running mpicc is treated as "MPI not available"
         pass
     
     # Try to import mpi4py  
@@ -79,22 +80,30 @@ try:
                 shutil.copy(str(src_file), str(dst_file))
     
     # Define the extension module using pybind11
-    # Odyssey requires MPI - skip on macOS/Windows, enable on Linux only if MPI is available
-    # Note: On Linux, the build expects MPI to be available. Install with:
-    #   Linux: sudo apt-get install libopenmpi-dev openmpi-bin (or conda install openmpi)
-    #   macOS: MPI not supported - will compile without Odyssey
-    #   Windows: MPI not supported - will compile without Odyssey
-    ODYSSEY_ENABLED = (not IS_MACOS and not IS_WINDOWS) and check_mpi_available()
+    # Odyssey (distributed search with MPI) is enabled ONLY if explicitly requested
+    # via the ENABLE_MPI environment variable. This avoids probing MPI on systems
+    # where the user did not ask for it.
+    ENABLE_MPI = os.environ.get("ENABLE_MPI", "0").lower() in ("1", "true", "yes")
+
+    if ENABLE_MPI:
+        if IS_MACOS or IS_WINDOWS:
+            raise RuntimeError(
+                "[DaiSy] ENABLE_MPI is set but Odyssey/MPI is not supported on this platform."
+            )
+        if not check_mpi_available():
+            raise RuntimeError(
+                "[DaiSy] ENABLE_MPI is set but MPI development libraries are not available.\n"
+                "[DaiSy] Please install an MPI implementation (e.g., OpenMPI/MPICH) or unset ENABLE_MPI."
+            )
+        ODYSSEY_ENABLED = True
+    else:
+        ODYSSEY_ENABLED = False
     
     # Inform user about build configuration
     if ODYSSEY_ENABLED:
-        print("[DaiSy] Building with Odyssey (distributed search) support - MPI detected")
+        print("[DaiSy] Building with Odyssey (distributed search) support - MPI enabled (ENABLE_MPI=1)")
     else:
-        print("[DaiSy] Building without Odyssey support - MPI not available on this system")
-        print("[DaiSy] To enable Odyssey, install MPI development libraries:")
-        print("[DaiSy]   - Ubuntu/Debian: sudo apt-get install libopenmpi-dev openmpi-bin")
-        print("[DaiSy]   - macOS: Not supported (clang/ARM64 incompatible with OpenMP)")
-        print("[DaiSy]   - Conda: conda install openmpi")
+        print("[DaiSy] Building without Odyssey support (ENABLE_MPI is not set or false)")
     
     sources = [
         "pybinds/setup.cpp",

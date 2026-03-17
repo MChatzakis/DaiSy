@@ -16,7 +16,7 @@ int main(){
     printf("Loaded %llu database points and %llu query points with dimension %llu\n", n_database, n_query, dim);
 
     daisy::Messi messi_search(daisy::DistanceType::DTW);
-    messi_search.setNumThreads(4);
+    messi_search.setNumThreads(1);
 
     int warp_window = std::max(1, static_cast<int>(dim * 0.1));
     messi_search.setWarpingWindow(warp_window);  

@@ -46,6 +46,15 @@ namespace daisy
                                          int max_val,
                                          float ratio_sqrt);
 
+    float minidist_paa_to_isax_raw_DTW_SING_SIMD(float *paaU, float *paaL, sax_type *sax,
+                                                 sax_type *sax_cardinalities,
+                                                 sax_type max_bit_cardinality,
+                                                 int max_cardinality,
+                                                 int number_of_segments,
+                                                 int min_val,
+                                                 int max_val,
+                                                 float ratio_sqrt);
+
     float minidist_paa_to_isax_raw_DTW_SIMD(float *paaU, float *paaL, sax_type *sax,
                                             sax_type *sax_cardinalities,
                                             sax_type max_bit_cardinality,
