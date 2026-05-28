@@ -52,6 +52,29 @@ if(DEBUG_MSG)
     message(STATUS "Messi.cpp added (commented out).")
 endif()
 
+# ///// SOFA //////
+if (BUILD_SOFA_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "Adding Sofa.cpp to dino_lib sources.")
+    endif()
+    target_sources(dino_lib
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/Sofa.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/../isax/iSAXSearch.cpp
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Sofa.cpp added")
+    endif()
+
+    target_compile_definitions(dino_lib PUBLIC SOFA_FFTW_ENABLED)
+    target_link_libraries(dino_lib PUBLIC FFTW3::fftw3f)
+else()
+    if(DEBUG_MSG)
+        message(STATUS "BUILD_SOFA_AVAILABLE is FALSE. Skipping SOFA sources (requires FFTW3).")
+    endif()
+endif()
+    
+
 # ////// ODYSSEY //////
 if (BUILD_ODYSSEY_AVAILABLE)
     if(DEBUG_MSG)
