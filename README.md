@@ -9,7 +9,7 @@
 <a href="https://github.com/MChatzakis/daisy/stargazers"><img src="https://img.shields.io/github/stars/MChatzakis/daisy?style=social" alt="GitHub Stars"></a>
 </p>
 
-<h4 align="center">Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Themis Palpanas</h4>
+<h4 align="center">Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Panagiota Fatourou, Themis Palpanas</h4>
 
 Exact similarity search over large collections of data series is a fundamental operation in modern applications, yet existing solutions are often fragmented, specialized, or tailored to specific execution environments.
 We present DaiSy (**Da**ta series s**i**milarity **S**earch librar**y**), a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework.
@@ -25,7 +25,7 @@ When using DaiSy, please consider cite the following artifacts:
 ```latex
 @misc{daisy2026,
   title        = {{The DaiSy Library for Fast and Exact, Data Series and Vector Similarity Search}},
-  author       ={Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Panagiota Faatourou, Themis Palpanas},
+  author       ={Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Panagiota Fatourou, Themis Palpanas},
   year         = {2026},
   howpublished = {\url{https://github.com/mchatzakis/daisy}}
 }
