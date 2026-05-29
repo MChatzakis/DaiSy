@@ -49,16 +49,25 @@ namespace daisy
 
         int n_pqueue;
         float *rawfile;
+
+        // WETW-only fields
+        float *query_w;     // query weight vector [dim]
+        float *weights;     // database weight vectors [N * dim]
+        float *w_min_db;    // global per-dimension min weight vector [dim]
+        int    wetw_dim;    // embedding dimension (needed inside worker)
     } MESSI_workerdata;
 
     void *MESSI_topk_search_worker_L2Squared(void *rfdata);
     void *MESSI_topk_search_worker_DTW(void *rfdata);
+    void *MESSI_topk_search_worker_WETW(void *rfdata);
 
     void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue);
     void insert_tree_node_m_hybridpqueue_DTW(float *paaU, float *paaL, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue);
+    void insert_tree_node_m_hybridpqueue_WETW(float *paa, const float *query_w, int dim, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue);
 
     void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
     void calculate_node_DTW2knn_inmemory(isax_index *index, isax_node *node, ts_type *query, float *uo, float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf, int warpWind, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
+    void calculate_node_WETW_inmemory(isax_index *index, isax_node *node, const float *query_emb, const float *query_w, const float *w_min_db, float bsf, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile, float *weights);
 
     class Messi : public SimilaritySearchAlgorithm
     {
@@ -71,9 +80,17 @@ namespace daisy
 
         pqueue_bsf MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
         pqueue_bsf MESSI_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
+        pqueue_bsf MESSI_search_topk_WETW(ts_type *ts, const float *query_w, node_list *nodelist, idx_t k);
 
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
+        void searchIndexWETW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
+
+        // WETW data
+        float *weights = nullptr;       // per-series weight vectors [N * dim]
+        float *w_min_db = nullptr;      // global per-dimension min weight vector [dim]
+        bool owns_weights = false;
+        float *query_weights = nullptr; // set via setQueryWeights() before searchIndex
 
     public:
         Messi(DistanceType distance_type);
@@ -81,6 +98,15 @@ namespace daisy
 
         void setWarpingWindow(int w) { warping_window = w; }
         void setWarpWindow(int w) { warping_window = w; }
+
+        // Supply per-series weight vectors [n_database * dim], then call
+        // computeMinWeights() to fill per-node min vectors bottom-up.
+        void setWeightData(float *w) { weights = w; }
+        // Call after buildIndex() + setWeightData() to fill node min vectors
+        // and compute the global per-dimension min vector w_min_db.
+        void computeMinWeights();
+        // Per-query weight vector [dim], set once per batch of queries.
+        void setQueryWeights(float *qw) { query_weights = qw; }
 
         using SimilaritySearchAlgorithm::buildIndex;
 
@@ -94,7 +120,7 @@ namespace daisy
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
         int getNumThreads() const { return SimilaritySearchAlgorithm::num_threads; }
-        void setNumThreads(int n) {
+        void setNumThreads(int n) override {
             SimilaritySearchAlgorithm::num_threads = n;
             search_workers = n;
         }

@@ -140,6 +140,10 @@ namespace daisy
         // Wedges
         ts_type *wedges;
 
+        // WETW: per-dimension minimum weight across all series in this subtree.
+        // NULL until Messi::computeMinWeights() is called after buildIndex.
+        float *min_weight_vec;
+
     } isax_node;
 
     typedef struct fbl_soft_buffer

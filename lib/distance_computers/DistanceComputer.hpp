@@ -15,7 +15,8 @@ namespace daisy
     enum class DistanceType
     {
         L2_SQUARED = 0,
-        DTW = 1
+        DTW = 1,
+        WETW = 2
     };
 }
 

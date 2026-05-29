@@ -106,6 +106,62 @@ namespace daisy
         }
     }
 
+    // ── WETW node traversal ───────────────────────────────────────────────────
+    // Replaces insert_tree_node_m_hybridpqueue_DTW (line 64).
+    // LB used: min_wq * MINDIST(paa_q, node_sax)
+    // Valid because: WETW(q,c) >= (min_wq + min_wc)*L2(q,c) >= min_wq*L2(q,c) >= min_wq*MINDIST
+    // Once per-node min weights are stored (surrogate), tighten to (min_wq + node->min_weight)*MINDIST.
+    void insert_tree_node_m_hybridpqueue_WETW(float *paa, const float *query_w, int dim, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue)
+    {
+        if (node == NULL || node->isax_values == NULL || node->isax_cardinalities == NULL)
+            return;
+
+        float mindist = minidist_paa_to_isax(paa, node->isax_values,
+                                              node->isax_cardinalities,
+                                              index->settings->sax_bit_cardinality,
+                                              index->settings->sax_alphabet_cardinality,
+                                              index->settings->paa_segments,
+                                              MINVAL, MAXVAL,
+                                              index->settings->mindist_sqrt);
+
+        // LB = min_j(query_w[j] + node->min_weight_vec[j]) * MINDIST
+        // Per-node min_weight_vec is tighter than the global min — each subtree
+        // only covers its own series, so its min >= global min.
+        float min_combined = FLT_MAX;
+        if (node->min_weight_vec != NULL) {
+            for (int j = 0; j < dim; j++) {
+                float c = query_w[j] + node->min_weight_vec[j];
+                if (c < min_combined) min_combined = c;
+            }
+        } else {
+            // computeMinWeights() not called yet — fall back to query min only
+            for (int j = 0; j < dim; j++)
+                if (query_w[j] < min_combined) min_combined = query_w[j];
+        }
+        float distance = min_combined * mindist;
+
+        if (distance <= bsf)
+        {
+            if (node->is_leaf)
+            {
+                query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
+                mindist_result->node = node;
+                mindist_result->distance = distance;
+                pthread_mutex_lock(&lock_queue[*tnumber]);
+                pqueue_insert(pq[*tnumber], mindist_result);
+                pthread_mutex_unlock(&lock_queue[*tnumber]);
+                *tnumber = (*tnumber + 1) % n_pqueue;
+            }
+            else
+            {
+                if (node->left_child != NULL && node->left_child->isax_values != NULL && node->left_child->isax_cardinalities != NULL)
+                    insert_tree_node_m_hybridpqueue_WETW(paa, query_w, dim, node->left_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
+                if (node->right_child != NULL && node->right_child->isax_values != NULL && node->right_child->isax_cardinalities != NULL)
+                    insert_tree_node_m_hybridpqueue_WETW(paa, query_w, dim, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
+            }
+        }
+    }
+
     void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
 
@@ -231,6 +287,79 @@ namespace daisy
         free(rDist);
         free(cb);
         free(cb1);
+    }
+
+    // ── WETW distance helpers (file-local) ───────────────────────────────────
+
+    static inline float wetw_l2sq(const float *a, const float *b, int dim)
+    {
+        float s = 0.f;
+        for (int i = 0; i < dim; i++) { float d = a[i] - b[i]; s += d * d; }
+        return s;
+    }
+
+    // True WETW distance with BSF early exit.
+    // Replaces dtwsimdPruned (SAX.cpp:961).
+    static inline float wetw_true_dist(const float *q, const float *c,
+                                        const float *wq, const float *wc,
+                                        int dim, float bsf)
+    {
+        float s = 0.f, bsf_sq = bsf * bsf;
+        for (int i = 0; i < dim; i++) {
+            float w = wq[i] + wc[i];
+            float d = q[i] - c[i];
+            s += w * d * w * d;
+            if (s > bsf_sq) return sqrtf(s);
+        }
+        return sqrtf(s);
+    }
+
+    // ── WETW leaf processing ──────────────────────────────────────────────────
+    // Replaces calculate_node_DTW2knn_inmemory (line 182).
+    // 2-level cascade: per-series LB → true WETW (vs DTW's 3-level cascade).
+    //   Level 1: (min_wq + min_wc) * L2(q, c)   [replaces lb_keogh_data_bound]
+    //   Level 2: wetw_true_dist                   [replaces dtwsimdPruned]
+    void calculate_node_WETW_inmemory(isax_index *index, isax_node *node,
+                                       const float *query_emb, const float *query_w,
+                                       const float *w_min_db,
+                                       float bsf,
+                                       pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue,
+                                       float *rawfile, float *weights)
+    {
+        if (node == NULL || node->buffer == NULL)
+            return;
+
+        int dim = index->settings->timeseries_size;
+
+        for (int i = 0; i < node->buffer->partial_buffer_size; i++)
+        {
+            file_position_type raw_pos = *node->buffer->partial_position_buffer[i];
+            long series_idx            = raw_pos / index->settings->timeseries_size;
+
+            const float *c  = rawfile + raw_pos;
+            const float *wc = weights + series_idx * dim;
+
+            // Level 1: per-dimension LB using actual query weights + global min for candidate.
+            // LB = ||(query_w + w_min_db) ⊙ (q - c)||
+            // Valid: w_min_db[j] <= wc[j] for all j, so this underestimates true WETW.
+            float lb_sq = 0.f;
+            for (int j = 0; j < dim; j++) {
+                float w = query_w[j] + w_min_db[j];
+                float d = query_emb[j] - c[j];
+                lb_sq += w * d * w * d;
+            }
+            if (lb_sq > bsf * bsf)
+                continue;
+
+            // Level 2: true WETW distance
+            float dist = wetw_true_dist(query_emb, c, query_w, wc, dim, bsf);
+            if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+            {
+                pthread_rwlock_wrlock(lock_queue);
+                pqueue_bsf_insert(pq_bsf, dist, series_idx, node);
+                pthread_rwlock_unlock(lock_queue);
+            }
+        }
     }
 
     void *MESSI_topk_search_worker_L2Squared(void *rfdata)
@@ -475,6 +604,118 @@ namespace daisy
             {
                 break;
             }
+        }
+
+        return nullptr;
+    }
+
+    // ── WETW search worker ────────────────────────────────────────────────────
+    // Replaces MESSI_topk_search_worker_DTW.
+    // Structure is identical; only the tree traversal and leaf functions differ.
+    void *MESSI_topk_search_worker_WETW(void *rfdata)
+    {
+        isax_node *current_root_node;
+        query_result *n;
+        isax_index *index       = ((MESSI_workerdata *)rfdata)->index;
+        ts_type *paa            = ((MESSI_workerdata *)rfdata)->paa;
+        ts_type *ts             = ((MESSI_workerdata *)rfdata)->ts;
+        float *query_w          = ((MESSI_workerdata *)rfdata)->query_w;
+        float *weights          = ((MESSI_workerdata *)rfdata)->weights;
+        float *w_min_db         = ((MESSI_workerdata *)rfdata)->w_min_db;
+        int    wetw_dim         = ((MESSI_workerdata *)rfdata)->wetw_dim;
+        int n_pqueue            = ((MESSI_workerdata *)rfdata)->n_pqueue;
+        float *rawfile          = ((MESSI_workerdata *)rfdata)->rawfile;
+        float minimum_distance  = ((MESSI_workerdata *)rfdata)->minimum_distance;
+        int checks              = 0;
+        bool finished           = true;
+        int current_root_node_number;
+        pqueue_bsf *pq_bsf      = ((MESSI_workerdata *)rfdata)->pq_bsf;
+        float bsfdisntance      = pq_bsf->knn[pq_bsf->k - 1];
+        int tnumber             = rand() % n_pqueue;
+        int startqueuenumber    = ((MESSI_workerdata *)rfdata)->startqueuenumber;
+
+        // Phase 1: traverse root nodes, enqueue leaf candidates by LB
+        while (1)
+        {
+            current_root_node_number = __sync_fetch_and_add(((MESSI_workerdata *)rfdata)->node_counter, 1);
+            if (current_root_node_number >= ((MESSI_workerdata *)rfdata)->amountnode)
+                break;
+            current_root_node = ((MESSI_workerdata *)rfdata)->nodelist[current_root_node_number];
+            insert_tree_node_m_hybridpqueue_WETW(paa, query_w, wetw_dim, current_root_node, index, bsfdisntance,
+                                                  ((MESSI_workerdata *)rfdata)->allpq,
+                                                  ((MESSI_workerdata *)rfdata)->alllock,
+                                                  &tnumber, n_pqueue);
+        }
+
+        pthread_barrier_wait(((MESSI_workerdata *)rfdata)->lock_barrier);
+
+        // Phase 2: pop leaves from own queue, compute WETW
+        while (1)
+        {
+            pthread_mutex_lock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
+            n = (query_result *)pqueue_pop(((MESSI_workerdata *)rfdata)->allpq[startqueuenumber]);
+            pthread_mutex_unlock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
+            if (n == NULL)
+                break;
+
+            bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
+            if (n->distance > bsfdisntance || n->distance > minimum_distance)
+                break;
+
+            if (n->node->is_leaf)
+            {
+                checks++;
+                calculate_node_WETW_inmemory(index, n->node, ts, query_w, w_min_db, bsfdisntance,
+                                              pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf,
+                                              rawfile, weights);
+            }
+            free(n);
+        }
+
+        if ((((MESSI_workerdata *)rfdata)->allqueuelabel[startqueuenumber]) == 1)
+        {
+            (((MESSI_workerdata *)rfdata)->allqueuelabel[startqueuenumber]) = 0;
+            pthread_mutex_lock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
+            while ((n = (query_result *)pqueue_pop(((MESSI_workerdata *)rfdata)->allpq[startqueuenumber])))
+                free(n);
+            pthread_mutex_unlock(&(((MESSI_workerdata *)rfdata)->alllock[startqueuenumber]));
+        }
+
+        // Phase 3: work-steal from other queues
+        while (1)
+        {
+            finished = true;
+            for (int i = 0; i < n_pqueue; i++)
+            {
+                if ((((MESSI_workerdata *)rfdata)->allqueuelabel[i]) == 1)
+                {
+                    finished = false;
+                    while (1)
+                    {
+                        pthread_mutex_lock(&(((MESSI_workerdata *)rfdata)->alllock[i]));
+                        n = (query_result *)pqueue_pop(((MESSI_workerdata *)rfdata)->allpq[i]);
+                        pthread_mutex_unlock(&(((MESSI_workerdata *)rfdata)->alllock[i]));
+                        if (n == NULL)
+                            break;
+
+                        bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
+                        if (n->distance > bsfdisntance || n->distance > minimum_distance)
+                            break;
+
+                        if (n->node->is_leaf)
+                        {
+                            checks++;
+                            calculate_node_WETW_inmemory(index, n->node, ts, query_w, w_min_db, bsfdisntance,
+                                                          pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf,
+                                                          rawfile, weights);
+                        }
+                        free(n);
+                    }
+                    ((MESSI_workerdata *)rfdata)->allqueuelabel[i] = 0;
+                }
+            }
+            if (finished)
+                break;
         }
 
         return nullptr;
@@ -867,6 +1108,65 @@ namespace daisy
         fprintf(stderr, ">>> Finished querying.\n");
     }
 
+    void Messi::searchIndexWETW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
+    {
+        isax_index *index = this->index;
+
+        node_list nodelist;
+        nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * pow(2, index->settings->paa_segments));
+        nodelist.node_amount = 0;
+        isax_node *current_root_node = index->first_node;
+        while (current_root_node != NULL)
+        {
+            nodelist.nlist[nodelist.node_amount++] = current_root_node;
+            current_root_node = current_root_node->next;
+        }
+
+        for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
+        {
+            const float *ts   = query + q_loaded * this->dim;
+            const float *qw   = this->query_weights + q_loaded * this->dim;
+
+            pqueue_bsf result = MESSI_search_topk_WETW((float *)ts, qw, &nodelist, k);
+
+            std::vector<std::pair<float, long>> pairs;
+            pairs.reserve(static_cast<size_t>(k));
+            for (idx_t ik = 0; ik < k; ik++)
+            {
+                if (result.position[ik] >= 0 && result.knn[ik] < FLT_MAX * 0.99f)
+                    pairs.emplace_back(result.knn[ik], result.position[ik]);
+            }
+            std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b)
+                      { return a.first != b.first ? a.first < b.first : a.second < b.second; });
+            std::unordered_set<long> seen_pos;
+            std::vector<std::pair<float, long>> uniq;
+            uniq.reserve(pairs.size());
+            for (const auto &p : pairs)
+                if (seen_pos.insert(p.second).second)
+                    uniq.push_back(p);
+
+            long last_pos = 0;
+            float last_dist = 0.0f;
+            for (idx_t ik = 0; ik < k; ik++)
+            {
+                if (ik < static_cast<idx_t>(uniq.size()))
+                {
+                    last_dist = uniq[static_cast<size_t>(ik)].first;
+                    last_pos  = uniq[static_cast<size_t>(ik)].second;
+                }
+                I[q_loaded * k + ik] = static_cast<idx_t>(last_pos >= 0 ? last_pos : 0);
+                D[q_loaded * k + ik] = last_dist;
+            }
+
+            free(result.position);
+            free(result.knn);
+            free(result.node);
+        }
+
+        free(nodelist.nlist);
+        fprintf(stderr, ">>> Finished querying.\n");
+    }
+
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         if (this->distance_type == DistanceType::L2_SQUARED)
@@ -876,6 +1176,15 @@ namespace daisy
         else if (this->distance_type == DistanceType::DTW)
         {
             searchIndexDTW(query, n_query, k, I, D);
+        }
+        else if (this->distance_type == DistanceType::WETW)
+        {
+            if (this->weights == nullptr || this->w_min_db == nullptr || this->query_weights == nullptr)
+            {
+                fprintf(stderr, "Error: WETW requires weight data. Call setWeightData() and setQueryWeights() first.\n");
+                exit(1);
+            }
+            searchIndexWETW(query, n_query, k, I, D);
         }
         else
         {
@@ -1074,12 +1383,159 @@ namespace daisy
         return result;
     }
 
+    pqueue_bsf Messi::MESSI_search_topk_WETW(ts_type *ts, const float *query_w, node_list *nodelist, idx_t k)
+    {
+        isax_index *index = this->index;
+
+        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+        paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+
+        // query_w is used directly per-dimension — no scalar min needed
+
+        pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
+        // No approximate search for WETW — start with BSF = FLT_MAX and rely on exact cascade.
+        this->minimum_distance = pq_bsf->knn[k - 1];
+
+        int node_counter = 0;
+        pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
+        pthread_mutex_t ququelock[this->n_pqueue];
+        int queuelabel[this->n_pqueue];
+
+        pthread_t threadid[this->search_workers];
+        MESSI_workerdata workerdata[this->search_workers];
+        pthread_mutex_t lock_queue = PTHREAD_MUTEX_INITIALIZER, lock_current_root_node = PTHREAD_MUTEX_INITIALIZER;
+        pthread_rwlock_t lock_bsf = PTHREAD_RWLOCK_INITIALIZER;
+        pthread_barrier_t lock_barrier;
+        pthread_barrier_init(&lock_barrier, NULL, this->search_workers);
+
+        for (int i = 0; i < this->n_pqueue; i++)
+        {
+            allpq[i] = pqueue_init(index->settings->root_nodes_size / this->n_pqueue, cmp_pri, get_pri, set_pri, get_pos, set_pos);
+            pthread_mutex_init(&ququelock[i], NULL);
+            queuelabel[i] = 1;
+        }
+
+        for (int i = 0; i < this->search_workers; i++)
+        {
+            workerdata[i].paa              = paa;
+            workerdata[i].ts               = ts;
+            workerdata[i].query_w  = (float *)query_w;
+            workerdata[i].weights  = this->weights;
+            workerdata[i].w_min_db = this->w_min_db;
+            workerdata[i].wetw_dim = this->dim;
+            workerdata[i].lock_queue                = &lock_queue;
+            workerdata[i].lock_current_root_node    = &lock_current_root_node;
+            workerdata[i].lock_bsf                  = &lock_bsf;
+            workerdata[i].nodelist         = nodelist->nlist;
+            workerdata[i].amountnode       = nodelist->node_amount;
+            workerdata[i].index            = index;
+            workerdata[i].minimum_distance = minimum_distance;
+            workerdata[i].node_counter     = &node_counter;
+            workerdata[i].pq               = allpq[i];
+            workerdata[i].lock_barrier     = &lock_barrier;
+            workerdata[i].alllock          = ququelock;
+            workerdata[i].allqueuelabel    = queuelabel;
+            workerdata[i].allpq            = allpq;
+            workerdata[i].startqueuenumber = i % this->n_pqueue;
+            workerdata[i].pq_bsf           = pq_bsf;
+            workerdata[i].n_pqueue         = this->n_pqueue;
+            workerdata[i].rawfile          = this->database;
+        }
+
+        for (int i = 0; i < this->search_workers; i++)
+            pthread_create(&(threadid[i]), NULL, MESSI_topk_search_worker_WETW, (void *)&(workerdata[i]));
+        for (int i = 0; i < this->search_workers; i++)
+            pthread_join(threadid[i], NULL);
+
+        this->minimum_distance = pq_bsf->knn[k - 1];
+        pthread_barrier_destroy(&lock_barrier);
+
+        for (int i = 0; i < this->n_pqueue; i++)
+            pqueue_free(allpq[i]);
+        free(allpq);
+        free(paa);
+
+        pqueue_bsf result = *pq_bsf;
+        free(pq_bsf);
+        return result;
+    }
+
+    // ── Bottom-up min weight computation ─────────────────────────────────────
+    // Fills isax_node::min_weight_vec for every node in the tree, then sets
+    // Messi::w_min_db to the element-wise min across all root nodes (= global min).
+
+    static void compute_node_min_weights(isax_node *node, float *weights, int dim, int ts_size)
+    {
+        if (node == NULL) return;
+
+        node->min_weight_vec = (float *)malloc(sizeof(float) * dim);
+        for (int j = 0; j < dim; j++) node->min_weight_vec[j] = FLT_MAX;
+
+        if (node->is_leaf && node->buffer != NULL)
+        {
+            for (int i = 0; i < node->buffer->partial_buffer_size; i++)
+            {
+                long series_idx = *node->buffer->partial_position_buffer[i] / ts_size;
+                float *w = weights + series_idx * dim;
+                for (int j = 0; j < dim; j++)
+                    if (w[j] < node->min_weight_vec[j]) node->min_weight_vec[j] = w[j];
+            }
+        }
+        else
+        {
+            if (node->left_child != NULL)
+            {
+                compute_node_min_weights(node->left_child, weights, dim, ts_size);
+                for (int j = 0; j < dim; j++)
+                    if (node->left_child->min_weight_vec[j] < node->min_weight_vec[j])
+                        node->min_weight_vec[j] = node->left_child->min_weight_vec[j];
+            }
+            if (node->right_child != NULL)
+            {
+                compute_node_min_weights(node->right_child, weights, dim, ts_size);
+                for (int j = 0; j < dim; j++)
+                    if (node->right_child->min_weight_vec[j] < node->min_weight_vec[j])
+                        node->min_weight_vec[j] = node->right_child->min_weight_vec[j];
+            }
+        }
+    }
+
+    void Messi::computeMinWeights()
+    {
+        int dim = this->dim;
+        int ts_size = this->index->settings->timeseries_size;
+
+        // Traverse every root node, filling min_weight_vec bottom-up
+        isax_node *root = this->index->first_node;
+        while (root != NULL)
+        {
+            compute_node_min_weights(root, this->weights, dim, ts_size);
+            root = root->next;
+        }
+
+        // w_min_db = element-wise min over all root nodes = global min
+        w_min_db = new float[dim];
+        for (int j = 0; j < dim; j++) w_min_db[j] = FLT_MAX;
+
+        root = this->index->first_node;
+        while (root != NULL)
+        {
+            if (root->min_weight_vec != NULL)
+                for (int j = 0; j < dim; j++)
+                    if (root->min_weight_vec[j] < w_min_db[j])
+                        w_min_db[j] = root->min_weight_vec[j];
+            root = root->next;
+        }
+        owns_weights = true;
+    }
+
     Messi::~Messi()
     {
         if (owns_database && database != nullptr)
-        {
             delete[] database;
-        }
+
+        if (owns_weights && w_min_db != nullptr)
+            delete[] w_min_db;
 
         if (index != nullptr)
         {
