@@ -105,7 +105,7 @@ namespace daisy
         // Call after buildIndex() + setWeightData() to fill node min vectors
         // and compute the global per-dimension min vector w_min_db.
         void computeMinWeights();
-        // Per-query weight vector [dim], set once per batch of queries.
+        // Per-query weight vectors [n_query * dim] — one [dim] vector per query.
         void setQueryWeights(float *qw) { query_weights = qw; }
 
         using SimilaritySearchAlgorithm::buildIndex;
