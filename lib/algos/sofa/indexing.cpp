@@ -291,8 +291,11 @@ namespace daisy
             this->owns_database = true;
         }
 
+        // isax_index_settings_init expects sax_bit_cardinality (number of bits),
+        // not the alphabet size. Convert: sax_cardinality = 8 symbols → 3 bits.
+        int sax_bit_card = static_cast<int>(std::round(std::log2(static_cast<double>(this->sax_cardinality))));
         this->index_settings = isax_index_settings_init("",
-            this->dim, this->paa_segments, this->sax_cardinality,
+            this->dim, this->paa_segments, sax_bit_card,
             this->leaf_size, this->min_leaf_size,
             this->initial_lbl_size, this->flush_limit,
             this->initial_fbl_size, this->total_loaded_leaves,
