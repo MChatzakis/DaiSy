@@ -44,13 +44,15 @@ namespace daisy
         float dist = 0.0f;
         int i = 0;
         if (!is_norm) {
+            // norm_factor = sqrt(2/N): DC contributes 0.5*delta^2 by Parseval
             dist += sofa_lb_segment(bins[0], fft[0], sax[0], sax_cards[0],
-                                    max_bit_card, max_card, 1.0f);
+                                    max_bit_card, max_card, 0.5f);
             i = 2;
         }
+        // norm_factor = sqrt(2/N): each AC component contributes 1.0*delta^2 by Parseval
         for (; i < n_segments; i++)
             dist += sofa_lb_segment(bins[i], fft[i], sax[i], sax_cards[i],
-                                    max_bit_card, max_card, 2.0f);
+                                    max_bit_card, max_card, 1.0f);
         return dist;
     }
 
