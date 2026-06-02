@@ -310,6 +310,7 @@ namespace daisy
         index_workers = config.index_workers;
         leaf_size  = config.leaf_size;
         min_leaf_size = config.min_leaf_size;
+        initial_lbl_size = config.leaf_size;
         paa_segments = config.word_length;
         sax_cardinality = config.alphabet_size;
         sample_size = config.sample_size;
