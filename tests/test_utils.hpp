@@ -13,6 +13,7 @@
 #endif
 #include "../lib/algos/ParIS.hpp"
 #include "../lib/algos/Sing.hpp"
+#include "../lib/algos/Sofa.hpp"
 
 class SimilaritySearchTest : public ::testing::Test
 {
@@ -120,4 +121,14 @@ protected:
     static void TearDownTestSuite() {}
 };
 
-#endif 
+class SofaParameterizedTest : public SimilaritySearchTest,
+                              public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+#endif

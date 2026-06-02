@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(DiNoLibProject)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
 message(STATUS "----------------------------------------------------")
 message(STATUS "Configuring project: ${CMAKE_PROJECT_NAME}")
 message(STATUS "CMake version: ${CMAKE_VERSION}")

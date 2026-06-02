@@ -539,3 +539,62 @@ else()
         message(STATUS "SING_CUDA_AVAILABLE is FALSE. test_Sing_L2Square (CUDA-dependent) will NOT be built.")
     endif()
 endif()
+
+# ////// SOFA L2Square (conditional on FFTW3) //////
+if(BUILD_SOFA_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "BUILD_SOFA_AVAILABLE is TRUE. Building test_Sofa_L2Square.")
+        message(STATUS "Attempting to add executable: test_Sofa_L2Square")
+    endif()
+    add_executable(
+        test_Sofa_L2Square
+        test_Sofa_L2Square.cpp
+        test_utils.cpp
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Executable test_Sofa_L2Square added.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for test_Sofa_L2Square...")
+    endif()
+    target_link_libraries(
+        test_Sofa_L2Square
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for test_Sofa_L2Square.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for test_Sofa_L2Square...")
+    endif()
+    target_include_directories(test_Sofa_L2Square
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for test_Sofa_L2Square.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Discovering tests for test_Sofa_L2Square...")
+    endif()
+    gtest_discover_tests(
+        test_Sofa_L2Square
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Tests discovered for test_Sofa_L2Square.")
+    endif()
+else()
+    if(DEBUG_MSG)
+        message(STATUS "BUILD_SOFA_AVAILABLE is FALSE. test_Sofa_L2Square (FFTW3-dependent) will NOT be built.")
+    endif()
+endif()

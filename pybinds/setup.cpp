@@ -23,6 +23,11 @@
     #endif
 #endif
 #include "../lib/algos/DataSource.hpp"
+#ifdef SOFA_FFTW_ENABLED
+    #if SOFA_FFTW_ENABLED != 0
+    #include "../lib/algos/Sofa.hpp"
+    #endif
+#endif
 
 // Define a Python module named 'daisy._core'
 PYBIND11_MODULE(_core, m)
@@ -461,6 +466,86 @@ PYBIND11_MODULE(_core, m)
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the index with queries and return (indices, distances)");
+    #endif
+#endif
+
+#ifdef SOFA_FFTW_ENABLED
+    #if SOFA_FFTW_ENABLED != 0
+    ////// SOFA //////
+    pybind11::class_<daisy::Sofa>(m, "Sofa", "SOFA (SymbOlic Fourier Approximation) time series similarity index")
+        // Constructor
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new Sofa instance with the given distance metric")
+
+        // Getters
+        .def("getNumThreads",       &daisy::Sofa::getNumThreads,       "Get the number of search threads")
+        .def("getWordLength",       &daisy::Sofa::getWordLength,        "Get the SFA word length (number of Fourier coefficients)")
+        .def("getAlphabetSize",     &daisy::Sofa::getAlphabetSize,      "Get the MCB alphabet size (bins per coefficient)")
+        .def("getSearchWorkers",    &daisy::Sofa::getSearchWorkers,     "Get number of worker threads used for search")
+        .def("getIndexWorkers",     &daisy::Sofa::getIndexWorkers,      "Get number of worker threads used for indexing")
+        .def("getReadBlockLength",  &daisy::Sofa::getReadBlockLength,   "Get block size for reading time series data")
+        .def("getLeafSize",         &daisy::Sofa::getLeafSize,          "Get the maximum leaf size in the index tree")
+        .def("getMinLeafSize",      &daisy::Sofa::getMinLeafSize,       "Get the minimum number of entries per leaf")
+        .def("getSampleSize",       &daisy::Sofa::getSampleSize,        "Get the MCB training sample size")
+        .def("getHistogramType",    &daisy::Sofa::getHistogramType,     "Get the histogram type (1=equi-depth, 2=equi-width)")
+        .def("getCoeffNumber",      &daisy::Sofa::getCoeffNumber,       "Get the number of active DFT coefficients (0 = all)")
+        .def("getIsNorm",           &daisy::Sofa::getIsNorm,            "Get whether z-normalization is applied")
+
+        // Setters
+        .def("setNumThreads",       &daisy::Sofa::setNumThreads,        "Set the number of threads to use for both indexing and search")
+        .def("setWordLength",       &daisy::Sofa::setWordLength,        "Set the SFA word length (number of Fourier coefficients)")
+        .def("setAlphabetSize",     &daisy::Sofa::setAlphabetSize,      "Set the MCB alphabet size (bins per coefficient)")
+        .def("setSearchWorkers",    &daisy::Sofa::setSearchWorkers,     "Set the number of worker threads for search")
+        .def("setIndexWorkers",     &daisy::Sofa::setIndexWorkers,      "Set the number of worker threads for indexing")
+        .def("setReadBlockLength",  &daisy::Sofa::setReadBlockLength,   "Set the length of each read block")
+        .def("setLeafSize",         &daisy::Sofa::setLeafSize,          "Set the leaf size of the index tree")
+        .def("setMinLeafSize",      &daisy::Sofa::setMinLeafSize,       "Set the minimum size of a leaf")
+        .def("setSampleSize",       &daisy::Sofa::setSampleSize,        "Set the MCB training sample size")
+        .def("setHistogramType",    &daisy::Sofa::setHistogramType,     "Set the histogram type (1=equi-depth, 2=equi-width)")
+        .def("setCoeffNumber",      &daisy::Sofa::setCoeffNumber,       "Set the number of active DFT coefficients (0 = all)")
+        .def("setIsNorm",           &daisy::Sofa::setIsNorm,            "Set whether z-normalization is applied")
+
+        // Properties (Python-style attribute access)
+        .def_property("word_length",
+            &daisy::Sofa::getWordLength, &daisy::Sofa::setWordLength,
+            "SFA word length: number of Fourier coefficients. Default 16.")
+        .def_property("alphabet_size",
+            &daisy::Sofa::getAlphabetSize, &daisy::Sofa::setAlphabetSize,
+            "MCB alphabet size: number of bins per coefficient. Default 8.")
+
+        // Build the index from a 2D NumPy array
+        .def("buildIndex", [](daisy::Sofa &self, pybind11::array_t<float> db)
+             {
+            pybind11::buffer_info buf = db.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("Database array must be 2D");
+
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
+
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the SOFA index from a 2D float32 NumPy array")
+
+        // Search the index with query array and return top-k results
+        .def("searchIndex", [](daisy::Sofa &self, pybind11::array_t<float> query, daisy::idx_t k)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            if (k <= 0)
+                throw std::runtime_error("k must be positive");
+
+            const daisy::idx_t n_query = query_buf.shape[0];
+
+            std::vector<daisy::idx_t> indices(n_query * k);
+            std::vector<float> distances(n_query * k);
+
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k,
+                             indices.data(), distances.data());
+
+            return pybind11::make_tuple(
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<float>({n_query, k}, distances.data())
+            ); }, "Search the SOFA index using queries and return (indices, distances)");
     #endif
 #endif
 }
