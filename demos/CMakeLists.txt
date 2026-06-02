@@ -366,6 +366,40 @@ if(BUILD_DEMO)
             message(STATUS "BUILD_SING_AVAILABLE is FALSE. demo_Sing_L2Square will NOT be built.")
         endif()
     endif()
+# ///// SOFA L2Square //////
+    if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "## Demo: Sofa L2Square (conditional on FFTW3)")
+    endif()
+
+    if(BUILD_SOFA_AVAILABLE)
+        if(DEBUG_MSG)
+            message(STATUS "BUILD_SOFA_AVAILABLE is TRUE. Building demo_Sofa_L2Square.")
+            message(STATUS "Attempting to add executable: demo_Sofa_L2Square")
+        endif()
+        add_executable(demo_Sofa_L2Square demo_Sofa_L2Square.cpp)
+        if(DEBUG_MSG)
+            message(STATUS "Executable demo_Sofa_L2Square added.")
+        endif()
+
+        if(DEBUG_MSG)
+            message(STATUS "Linking libraries for demo_Sofa_L2Square...")
+        endif()
+        target_link_libraries(demo_Sofa_L2Square PRIVATE dino_lib commons_lib FTW3::fftw3fo) # Link with FFTW3 for this demo
+        if(DEBUG_MSG)
+            message(STATUS "Libraries linked for demo_Sofa_L2Square.")
+        endif()
+
+        if(DEBUG_MSG)
+            message(STATUS "Adding include directories for demo_Sofa_L2Square...")
+        endif()
+        target_include_directories(demo_Sofa_L2Square PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
+        if(DEBUG_MSG)
+            message(STATUS "Include directories added for demo_Sofa_L2Square.")
+        endif()
 
 else()
     if(DEBUG_MSG)
