@@ -437,7 +437,7 @@ namespace daisy
             for (const auto &p : pairs)
                 if (seen.insert(p.second).second) uniq.push_back(p);
 
-            long  last_pos  = 0;
+            long last_pos = 0;
             float last_dist = 0.0f;
             for (idx_t ik = 0; ik < k; ik++) {
                 if (ik < (idx_t)uniq.size()) {

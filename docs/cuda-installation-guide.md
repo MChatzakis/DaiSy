@@ -75,7 +75,7 @@ nvidia-smi
 ### 3. Download and Install CUDA Toolkit
 
 1. Visit [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads)
-2. Select Windows, x86_64, and your Windows version
+2. Select Windows, x86_64, and your Windows version 
 3. Download the `exe (local)` installer (recommended)
 4. Run installer as administrator
 5. Choose "Express" installation for typical setups

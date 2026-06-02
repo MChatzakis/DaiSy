@@ -30,6 +30,18 @@ if(DEBUG_MSG)
     message(STATUS "FetchContent_MakeAvailable for 'benchmark' completed. Google Benchmark is now available.")
 endif()
 
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.14.0
+)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+if(DEBUG_MSG)
+    message(STATUS "GoogleTest fetched and available.")
+endif()
+
 # ====== FAISS (CPU-only) for benchmarks ======
 set(FAISS_ENABLE_GPU OFF CACHE BOOL "" FORCE)
 set(FAISS_ENABLE_PYTHON OFF CACHE BOOL "" FORCE)

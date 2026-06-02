@@ -80,8 +80,8 @@ namespace daisy
         bool owns_database  = false; 
 
         float **bins = nullptr;
-        float  *binsv = nullptr;
-        int    *coefficients = nullptr;
+        float *binsv = nullptr;
+        int *coefficients = nullptr;
 
         int  sample_size = 100000;
         int  histogram_type = 2;

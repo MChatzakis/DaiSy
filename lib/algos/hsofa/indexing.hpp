@@ -9,8 +9,7 @@
 
 namespace daisy
 {
-
-    struct SOFA_index_worker
+// structs that bring the data of each "worker"
     {
         isax_index        *index;
         float             *raw_database;

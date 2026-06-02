@@ -11,7 +11,6 @@ TEST_P(SofaParameterizedTest, AllConfigurations)
     for (int i = 0; i < 3; ++i)
     {
         daisy::Sofa search(dist_L2Squared);
-
         std::string gt_I_path = config.gt_I_prefix + std::to_string(config.k_value) + ".txt";
         std::string gt_D_path = config.gt_D_prefix + std::to_string(config.k_value) + ".txt";
 
