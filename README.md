@@ -44,6 +44,7 @@ The following table summarizes the key features of each algorithm:
 | **[PARIS](https://helios2.mi.parisdescartes.fr/~themisp/paris/)** | Disk-based parallel similarity search |
 | **[SING](https://helios2.mi.parisdescartes.fr/~themisp/sing/)** | GPU-accelerated in-memory parallel similarity search |
 | **[Odyssey](https://helios2.mi.parisdescartes.fr/~themisp/odyssey/)** | Distributed and parallel in-memory similarity search |
+| **[SOFA](https://helios2.mi.parisdescartes.fr/~themisp/publications/icde25-sofa.pdf)** | In-memory similarity search using Symbolic Fourier Approximation (SFA) |
 
 
 ## Quickstart
@@ -79,6 +80,7 @@ Based on the available hardware, you can specify the below arguments to enable/d
 | `BUILD_ODYSSEY` | Enable MPI for distributed computing | `OFF` | OpenMPI/MPICH |
 | `BUILD_SING` | Enable CUDA for GPU acceleration | `OFF` | CUDA Toolkit |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
+| `BUILD_SOFA` | Enable SOFA with SFA-Based indexing | `OFF` | FFTW3 | 
 
 To compile:
 ```bash
