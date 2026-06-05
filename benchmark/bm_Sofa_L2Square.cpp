@@ -5,7 +5,7 @@
 #include "../commons/dataloaders.hpp"
 #include "../commons/VectorDataLoader.h"
 #include "../commons/test_bm_utils.hpp"
-#include "../lib/algos/Sofa.hpp"
+#include "../lib/algos/hsofa/Sofa.hpp"
 #include "../lib/algos/DataSource.hpp"
 
 static bool endsWith(const std::string& s, const std::string& suffix) {
