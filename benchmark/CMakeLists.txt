@@ -251,6 +251,7 @@ target_link_libraries(bm_Sofa_L2Square
     benchmark::benchmark
     benchmark::benchmark_main
     dino_lib
+    GTest::gtest
 )
 target_include_directories(bm_Sofa_L2Square
     PRIVATE
