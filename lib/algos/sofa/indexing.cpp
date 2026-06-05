@@ -1,4 +1,4 @@
-#include "../Sofa.hpp"
+#include "../hsofa/Sofa.hpp"
 
 #ifdef SOFA_FFTW_ENABLED
 
