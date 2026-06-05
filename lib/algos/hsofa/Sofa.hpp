@@ -94,6 +94,7 @@ namespace daisy
         
         pqueue_bsf sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodelist, idx_t k);
         void searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
+        void searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
 
     public:
         Sofa(DistanceType distance_type);

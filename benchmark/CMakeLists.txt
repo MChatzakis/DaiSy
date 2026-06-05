@@ -238,6 +238,26 @@ target_include_directories(bm_ParIS_L2Square
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
 
+# ////// SOFA //////
+add_executable(bm_Sofa_L2Square
+    bm_Sofa_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Sofa_L2Square
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_Sofa_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
 # ////// ODYSSEY (conditional on MPI) //////
 if(BUILD_ODYSSEY_AVAILABLE)
     if(DEBUG_MSG)

@@ -467,13 +467,19 @@ namespace daisy
         fprintf(stderr, ">>> SOFA: Finished querying.\n");
     }
 
+    void Sofa::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
+    {
+        throw std::runtime_error("SOFA does not support DTW distance.");
+    }
+
     void Sofa::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
         if (this->distance_type == DistanceType::L2_SQUARED) {
             searchIndexL2Squared(query, n_query, k, I, D);
+        } else if (this->distance_type == DistanceType::DTW) {
+            searchIndexDTW(query, n_query, k, I, D);
         } else {
-            fprintf(stderr, "Error: SOFA only supports L2_SQUARED distance.\n");
-            exit(1);
+            throw std::runtime_error("SOFA: unsupported distance type.");
         }
     }
 
