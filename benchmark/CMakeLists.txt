@@ -238,7 +238,8 @@ target_include_directories(bm_ParIS_L2Square
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
 
-# ////// SOFA //////
+# ////// SOFA (conditional on FFTW3) //////
+if(BUILD_SOFA_AVAILABLE)
 add_executable(bm_Sofa_L2Square
     bm_Sofa_L2Square.cpp
     bm_utils.cpp
@@ -258,6 +259,7 @@ target_include_directories(bm_Sofa_L2Square
     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
+endif()
 
 # ////// ODYSSEY (conditional on MPI) //////
 if(BUILD_ODYSSEY_AVAILABLE)
