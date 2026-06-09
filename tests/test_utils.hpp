@@ -13,7 +13,7 @@
 #endif
 #include "../lib/algos/ParIS.hpp"
 #include "../lib/algos/Sing.hpp"
-#include "../lib/algos/Sofa.hpp"
+#include "../lib/algos/hsofa/Sofa.hpp"
 
 class SimilaritySearchTest : public ::testing::Test
 {

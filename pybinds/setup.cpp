@@ -25,7 +25,7 @@
 #include "../lib/algos/DataSource.hpp"
 #ifdef SOFA_FFTW_ENABLED
     #if SOFA_FFTW_ENABLED != 0
-    #include "../lib/algos/Sofa.hpp"
+    #include "../lib/algos/hsofa/Sofa.hpp"
     #endif
 #endif
 
