@@ -27,7 +27,7 @@ struct SofaSearchOnlyFixture : public benchmark::Fixture {
 
     void SetUp(const benchmark::State& state) override {
         int config_idx = static_cast<int>(state.range(0));
-        const SSTestConfig& config = test_configs_deep_seismic_astro270m[config_idx];
+        const SSTestConfig& config = test_configs[config_idx];
 
         const bool use_fvecs = endsWith(config.dataset_path, ".fvecs") || endsWith(config.query_path, ".fvecs");
         size_t dim_u = 0, n_database_u = 0, n_q_u = 0;
@@ -146,9 +146,11 @@ BENCHMARK_DEFINE_F(SofaSearchOnlyFixture, BM_Sofa_SearchOnly)(benchmark::State& 
     }
 }
 
+// test_configs: Astronomy + RandomWalk, threads={1,4,8}, k={1,10,100} => 18 configs (indices 0-17)
 BENCHMARK_REGISTER_F(SofaSearchOnlyFixture, BM_Sofa_SearchOnly)
-    // q=100, k=1,10,100,1000: DEEP (0-3), Seismic (4-7)
-    ->Args({0})->Args({1})->Args({2})->Args({3})->Args({4})->Args({5})->Args({6})->Args({7})
+    ->Args({0})->Args({1})->Args({2})->Args({3})->Args({4})->Args({5})
+    ->Args({6})->Args({7})->Args({8})->Args({9})->Args({10})->Args({11})
+    ->Args({12})->Args({13})->Args({14})->Args({15})->Args({16})->Args({17})
     ->Iterations(1)
     ->Unit(benchmark::kMillisecond);
 
