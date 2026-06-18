@@ -146,6 +146,7 @@ endif()
 target_sources(dino_lib
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/hercules/Hercules.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hercules/indexing.cpp
 )
 if(DEBUG_MSG)
     message(STATUS "Hercules.cpp added.")
