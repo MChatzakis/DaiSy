@@ -41,6 +41,8 @@ public:
     void searchIndex(const float *query, idx_t n_query, idx_t k,
                      idx_t *I, float *D) override;
 
+    void setNumThreads(int num_threads) override { config_.num_query_threads = num_threads; }
+
     ~Hercules() override;
 
 private:
