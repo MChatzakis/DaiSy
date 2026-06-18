@@ -1055,10 +1055,6 @@ namespace daisy
     static void knn_bounded_insert(std::vector<HerculesKnnResult> &knn, idx_t k,
                                     idx_t series_idx, float dist)
     {
-        // dedup by distance
-        for (idx_t i = 0; i < k; i++)
-            if (knn[i].distance == dist) return;
-
         // overwrite last slot (highest distance), then insertion-sort ascending
         knn[k - 1].distance = dist;
         knn[k - 1].series_idx = series_idx;
