@@ -139,6 +139,18 @@ if(DEBUG_MSG)
 endif()
 endif()
 
+# ////// HERCULES //////
+if(DEBUG_MSG)
+    message(STATUS "Adding Hercules.cpp to dino_lib sources.")
+endif()
+target_sources(dino_lib
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/hercules/Hercules.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "Hercules.cpp added.")
+endif()
+
 # ////// PARIS //////
 if(DEBUG_MSG)
     message(STATUS "Adding ParIS.cpp to dino_lib sources.")

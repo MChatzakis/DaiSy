@@ -11,6 +11,7 @@
  */
 
 #include <stdexcept>
+#include <string>
 
 // Detect AVX support
 #if defined(__AVX__) || defined(_M_AVX)
