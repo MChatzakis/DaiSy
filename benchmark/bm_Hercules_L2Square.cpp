@@ -5,7 +5,7 @@
 #include "../commons/dataloaders.hpp"
 #include "../commons/VectorDataLoader.h"
 #include "../commons/test_bm_utils.hpp"
-#include "../lib/algos/Sofa.hpp"
+#include "../lib/algos/Hercules.hpp"
 #include "../lib/algos/DataSource.hpp"
 
 static bool endsWith(const std::string& s, const std::string& suffix) {
@@ -13,9 +13,9 @@ static bool endsWith(const std::string& s, const std::string& suffix) {
            s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-struct SofaSearchOnlyFixture : public benchmark::Fixture {
-    daisy::Sofa* search = nullptr;
-    float* database = nullptr; 
+struct HerculesSearchOnlyFixture : public benchmark::Fixture {
+    daisy::Hercules* search = nullptr;
+    float* database = nullptr;
     float* query = nullptr;
     daisy::idx_t* I = nullptr;
     float* D = nullptr;
@@ -87,11 +87,14 @@ struct SofaSearchOnlyFixture : public benchmark::Fixture {
             }
         }
 
-        search = new daisy::Sofa(daisy::DistanceType::L2_SQUARED);
-        search->setNumThreads(config.thread_count);
-        search->setIndexWorkers(config.thread_count);
+        daisy::HerculesConfig cfg;
+        cfg.index_dir = "/tmp/hercules_bm_" + config.name;
+        cfg.num_build_threads = config.thread_count;
 
-        fprintf(stderr, "[SOFA] Before buildIndex (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
+        search = new daisy::Hercules(daisy::DistanceType::L2_SQUARED, cfg);
+        search->setNumThreads(config.thread_count);
+
+        fprintf(stderr, "[HERCULES] Before buildIndex (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
         fflush(stderr);
 
         daisy::InMemoryDataSource data_source(database, static_cast<daisy::idx_t>(n_database_u), static_cast<daisy::idx_t>(dim_u));
@@ -99,7 +102,7 @@ struct SofaSearchOnlyFixture : public benchmark::Fixture {
         fflush(stderr);
         search->buildIndex(&data_source);
 
-        fprintf(stderr, "[SOFA] Indexing finished (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
+        fprintf(stderr, "[HERCULES] Indexing finished (n_database=%zu dim=%zu).\n", n_database_u, dim_u);
         fflush(stderr);
 
         k = static_cast<size_t>(config.k_value);
@@ -111,13 +114,13 @@ struct SofaSearchOnlyFixture : public benchmark::Fixture {
         n_database = n_database_u;
         thread_count = config.thread_count;
 
-        fprintf(stderr, "[SOFA] n_database=%zu n_query=%zu dim=%zu k=%zu threads=%d\n",
+        fprintf(stderr, "[HERCULES] n_database=%zu n_query=%zu dim=%zu k=%zu threads=%d\n",
                 n_database_u, (size_t)n_query, dim_u, k, config.thread_count);
         fflush(stderr);
     }
 
     void TearDown(const benchmark::State&) override {
-        fprintf(stderr, "[SOFA] TearDown start.\n");
+        fprintf(stderr, "[HERCULES] TearDown start.\n");
         fflush(stderr);
         delete search;
         delete[] database;
@@ -129,24 +132,24 @@ struct SofaSearchOnlyFixture : public benchmark::Fixture {
         query = nullptr;
         I = nullptr;
         D = nullptr;
-        fprintf(stderr, "[SOFA] TearDown done.\n");
+        fprintf(stderr, "[HERCULES] TearDown done.\n");
         fflush(stderr);
     }
 };
 
-BENCHMARK_DEFINE_F(SofaSearchOnlyFixture, BM_Sofa_SearchOnly)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(HerculesSearchOnlyFixture, BM_Hercules_SearchOnly)(benchmark::State& state) {
     for (auto _ : state) {
-        fprintf(stderr, "[SOFA] --- Query phase ---\n");
-        fprintf(stderr, "[SOFA]   dataset=%s  n_database=%zu\n", dataset_name.c_str(), n_database);
-        fprintf(stderr, "[SOFA]   search_threads=%d  n_query=%zu  k=%zu\n", thread_count, (size_t)n_query, k);
+        fprintf(stderr, "[HERCULES] --- Query phase ---\n");
+        fprintf(stderr, "[HERCULES]   dataset=%s  n_database=%zu\n", dataset_name.c_str(), n_database);
+        fprintf(stderr, "[HERCULES]   search_threads=%d  n_query=%zu  k=%zu\n", thread_count, (size_t)n_query, k);
         fflush(stderr);
         search->searchIndex(query, n_query, static_cast<daisy::idx_t>(k), I, D);
-        fprintf(stderr, "[SOFA] Querying finished (n_query=%zu k=%zu).\n", (size_t)n_query, k);
+        fprintf(stderr, "[HERCULES] Querying finished (n_query=%zu k=%zu).\n", (size_t)n_query, k);
         fflush(stderr);
     }
 }
 
-BENCHMARK_REGISTER_F(SofaSearchOnlyFixture, BM_Sofa_SearchOnly)
+BENCHMARK_REGISTER_F(HerculesSearchOnlyFixture, BM_Hercules_SearchOnly)
     // q=100, k=1,10,100,1000: DEEP (0-3), Seismic (4-7)
     ->Args({0})->Args({1})->Args({2})->Args({3})->Args({4})->Args({5})->Args({6})->Args({7})
     ->Iterations(1)
