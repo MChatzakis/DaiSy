@@ -59,8 +59,7 @@ if (BUILD_SOFA_AVAILABLE)
     endif()
     target_sources(dino_lib
         PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/sofa/Sofa.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/sofa/indexing.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/Sofa.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/../isax/iSAXSearch.cpp
     )
     if(DEBUG_MSG)
@@ -137,6 +136,20 @@ else()
 if(DEBUG_MSG)
     message(STATUS "BUILD_ODYSSEY_AVAILABLE is FALSE. Skipping Odyssey sources (require MPI).")
 endif()
+endif()
+
+# ////// HERCULES //////
+if(DEBUG_MSG)
+    message(STATUS "Adding Hercules.cpp to dino_lib sources.")
+endif()
+target_sources(dino_lib
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Hercules.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ds_tree/ds_tree_index.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ds_tree/ds_tree_search.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "Hercules.cpp added.")
 endif()
 
 # ////// PARIS //////

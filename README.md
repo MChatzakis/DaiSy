@@ -45,6 +45,8 @@ The following table summarizes the key features of each algorithm:
 | **[SING](https://helios2.mi.parisdescartes.fr/~themisp/sing/)** | GPU-accelerated in-memory parallel similarity search |
 | **[Odyssey](https://helios2.mi.parisdescartes.fr/~themisp/odyssey/)** | Distributed and parallel in-memory similarity search |
 | **[SOFA](https://helios2.mi.parisdescartes.fr/~themisp/publications/icde25-sofa.pdf)** | In-memory similarity search using Symbolic Fourier Approximation (SFA) |
+| **[Hercules](https://helios2.mi.parisdescartes.fr/~themisp/publications/pvldb22-hercules.pdf)** | In-memory hierarchical similarity search using EAPCA and SAX-based pruning |
+
 
 
 ## Quickstart
@@ -81,6 +83,7 @@ Based on the available hardware, you can specify the below arguments to enable/d
 | `BUILD_SING` | Enable CUDA for GPU acceleration | `OFF` | CUDA Toolkit |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
 | `BUILD_SOFA` | Enable SOFA with SFA-Based indexing | `OFF` | FFTW3 | 
+
 
 To compile:
 ```bash

@@ -23,9 +23,10 @@
     #endif
 #endif
 #include "../lib/algos/DataSource.hpp"
+#include "../lib/algos/Hercules.hpp"
 #ifdef SOFA_FFTW_ENABLED
     #if SOFA_FFTW_ENABLED != 0
-    #include "../lib/algos/hsofa/Sofa.hpp"
+    #include "../lib/algos/Sofa.hpp"
     #endif
 #endif
 
@@ -492,7 +493,7 @@ PYBIND11_MODULE(_core, m)
         .def("getTightBound", &daisy::Sofa::getTightBound, "Get whether tight bounds are enabled")
         .def("getSampleSize", &daisy::Sofa::getSampleSize, "Get the MCB training sample size")
         .def("getHistogramType", &daisy::Sofa::getHistogramType, "Get the histogram type (1=equi-depth, 2=equi-width)")
-        .def("getCoeffNumber", &daisy::Sofa::getCoeffNumber, "Get the number of DFT coefficients (0 = all)")
+        .def("getCoeffNumber", &daisy::Sofa::getCoeffNumber, "Get the number of active DFT coefficients (0 = all)")
         .def("getIsNorm", &daisy::Sofa::getIsNorm, "Get whether z-normalization is applied")
 
         // Setters
@@ -550,4 +551,50 @@ PYBIND11_MODULE(_core, m)
             ); }, "Search the SOFA index using queries and return (indices, distances)");
     #endif
 #endif
+
+    pybind11::class_<daisy::HerculesConfig>(m, "HerculesConfig", "Configuration for the Hercules similarity search index")
+        .def(pybind11::init<>())
+        .def_readwrite("leaf_size", &daisy::HerculesConfig::leaf_size)
+        .def_readwrite("lmax", &daisy::HerculesConfig::lmax)
+        .def_readwrite("eapca_th", &daisy::HerculesConfig::eapca_th)
+        .def_readwrite("sax_th", &daisy::HerculesConfig::sax_th)
+        .def_readwrite("paa_segments", &daisy::HerculesConfig::paa_segments)
+        .def_readwrite("sax_bit_cardinality", &daisy::HerculesConfig::sax_bit_cardinality)
+        .def_readwrite("sax_cardinality", &daisy::HerculesConfig::sax_cardinality)
+        .def_readwrite("num_build_threads", &daisy::HerculesConfig::num_build_threads)
+        .def_readwrite("num_query_threads", &daisy::HerculesConfig::num_query_threads)
+        .def_readwrite("flush_threshold", &daisy::HerculesConfig::flush_threshold)
+        .def_readwrite("insert_buffer_size", &daisy::HerculesConfig::insert_buffer_size)
+        .def_readwrite("flush_buffer_size", &daisy::HerculesConfig::flush_buffer_size)
+        .def_readwrite("index_dir", &daisy::HerculesConfig::index_dir);
+
+    pybind11::class_<daisy::Hercules, daisy::SimilaritySearchAlgorithm>(m, "Hercules", "Hercules hierarchical time series similarity index")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new Hercules with the given distance metric")
+        .def(pybind11::init<daisy::DistanceType, daisy::HerculesConfig>(), "Create a new Hercules with the given distance metric and configuration")
+        .def("setNumThreads", &daisy::Hercules::setNumThreads, "Set the number of query threads")
+        .def("buildIndex", [](daisy::Hercules &self, pybind11::array_t<float> db)
+             {
+            pybind11::buffer_info buf = db.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("Database array must be 2D");
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the Hercules index from a 2D float32 NumPy array")
+        .def("searchIndex", [](daisy::Hercules &self, pybind11::array_t<float> query, daisy::idx_t k)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            if (k <= 0)
+                throw std::runtime_error("k must be positive");
+            const daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<daisy::idx_t> indices(n_query * k);
+            std::vector<float> distances(n_query * k);
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k,
+                             indices.data(), distances.data());
+            return pybind11::make_tuple(
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<float>({n_query, k}, distances.data())
+            ); }, "Search the Hercules index and return (indices, distances)");
 }

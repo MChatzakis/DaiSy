@@ -7,6 +7,7 @@
 #include "algos/ParIS.hpp"
 #include "algos/Sing.hpp"
 #include "algos/hodyssey/Odyssey.hpp"
-#include "algos/hsofa/Sofa.hpp"
+#include "algos/Sofa.hpp"
+#include "algos/Hercules.hpp"
 
 #endif

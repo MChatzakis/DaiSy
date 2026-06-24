@@ -598,3 +598,30 @@ else()
         message(STATUS "BUILD_SOFA_AVAILABLE is FALSE. test_Sofa_L2Square (FFTW3-dependent) will NOT be built.")
     endif()
 endif()
+
+# ////// HERCULES L2Square //////
+add_executable(
+    test_Hercules_L2Square
+    test_Hercules_L2Square.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Hercules_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Hercules_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Hercules_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
