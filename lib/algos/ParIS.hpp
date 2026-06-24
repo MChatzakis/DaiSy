@@ -104,6 +104,6 @@ namespace daisy
         ~ParIS();
     };
 
-} 
+}
 
-#endif 
+#endif

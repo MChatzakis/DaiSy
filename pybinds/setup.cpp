@@ -23,7 +23,7 @@
     #endif
 #endif
 #include "../lib/algos/DataSource.hpp"
-#include "../lib/algos/hhercules/Hercules.hpp"
+#include "../lib/algos/Hercules.hpp"
 #ifdef SOFA_FFTW_ENABLED
     #if SOFA_FFTW_ENABLED != 0
     #include "../lib/algos/Sofa.hpp"

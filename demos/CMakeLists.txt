@@ -385,7 +385,7 @@ if(BUILD_DEMO)
         if(DEBUG_MSG)
             message(STATUS "Linking libraries for demo_Sofa_L2Square...")
         endif()
-        target_link_libraries(demo_Sofa_L2Square PRIVATE dino_lib commons_lib)
+        target_link_libraries(demo_Sofa_L2Square PRIVATE dino_lib commons_lib ) # Link with FFTW3 for this demo
         if(DEBUG_MSG)
             message(STATUS "Libraries linked for demo_Sofa_L2Square.")
         endif()
@@ -404,6 +404,36 @@ if(BUILD_DEMO)
         if(DEBUG_MSG)
             message(STATUS "BUILD_SOFA_AVAILABLE is FALSE. demo_Sofa_L2Square (FFTW3-dependent) will NOT be built.")
         endif()
+    endif()
+
+    # ////// HERCULES L2Square //////
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "## Demo: Hercules L2Square")
+        message(STATUS "Attempting to add executable: demo_Hercules_L2Square")
+    endif()
+    add_executable(demo_Hercules_L2Square demo_Hercules_L2Square.cpp)
+    if(DEBUG_MSG)
+        message(STATUS "Executable demo_Hercules_L2Square added.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for demo_Hercules_L2Square...")
+    endif()
+    target_link_libraries(demo_Hercules_L2Square PRIVATE dino_lib commons_lib)
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for demo_Hercules_L2Square.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for demo_Hercules_L2Square...")
+    endif()
+    target_include_directories(demo_Hercules_L2Square PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for demo_Hercules_L2Square.")
     endif()
 
 else()

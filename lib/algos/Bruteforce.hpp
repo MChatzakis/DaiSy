@@ -35,6 +35,6 @@ namespace daisy
         ~BruteForceSearch();
     };
 
-} 
+}
 
-#endif 
+#endif
