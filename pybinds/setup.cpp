@@ -24,6 +24,7 @@
 #endif
 #include "../lib/algos/DataSource.hpp"
 #include "../lib/algos/Hercules.hpp"
+#include "../lib/algos/DumpyOS.hpp"
 #ifdef SOFA_FFTW_ENABLED
     #if SOFA_FFTW_ENABLED != 0
     #include "../lib/algos/Sofa.hpp"
@@ -597,4 +598,43 @@ PYBIND11_MODULE(_core, m)
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the Hercules index and return (indices, distances)");
+
+    pybind11::class_<daisy::DumpyOSConfig>(m, "DumpyOSConfig", "Configuration for the DumpyOS similarity search index")
+        .def(pybind11::init<>())
+        .def_readwrite("leaf_size", &daisy::DumpyOSConfig::leaf_size)
+        .def_readwrite("paa_segments", &daisy::DumpyOSConfig::paa_segments)
+        .def_readwrite("sax_bit_cardinality", &daisy::DumpyOSConfig::sax_bit_cardinality)
+        .def_readwrite("alpha", &daisy::DumpyOSConfig::alpha)
+        .def_readwrite("fill_lower", &daisy::DumpyOSConfig::fill_lower)
+        .def_readwrite("fill_upper", &daisy::DumpyOSConfig::fill_upper);
+
+    pybind11::class_<daisy::DumpyOS, daisy::SimilaritySearchAlgorithm>(m, "DumpyOS", "DumpyOS iSAX-based multi-ary adaptive time series similarity index")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new DumpyOS with the given distance metric")
+        .def(pybind11::init<daisy::DistanceType, daisy::DumpyOSConfig>(), "Create a new DumpyOS with the given distance metric and configuration")
+        .def("setNumThreads", &daisy::DumpyOS::setNumThreads, "Set the number of threads")
+        .def("buildIndex", [](daisy::DumpyOS &self, pybind11::array_t<float> db)
+             {
+            pybind11::buffer_info buf = db.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("Database array must be 2D");
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the DumpyOS index from a 2D float32 NumPy array")
+        .def("searchIndex", [](daisy::DumpyOS &self, pybind11::array_t<float> query, daisy::idx_t k)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            if (k <= 0)
+                throw std::runtime_error("k must be positive");
+            const daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<daisy::idx_t> indices(n_query * k);
+            std::vector<float> distances(n_query * k);
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k,
+                             indices.data(), distances.data());
+            return pybind11::make_tuple(
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<float>({n_query, k}, distances.data())
+            ); }, "Search the DumpyOS index and return (indices, distances)");
 }

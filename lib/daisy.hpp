@@ -9,5 +9,6 @@
 #include "algos/hodyssey/Odyssey.hpp"
 #include "algos/Sofa.hpp"
 #include "algos/Hercules.hpp"
+#include "algos/DumpyOS.hpp"
 
 #endif
