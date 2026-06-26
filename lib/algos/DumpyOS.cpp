@@ -1,8 +1,5 @@
-// Adapted from FADASNode.cpp in DumpyOS/src/IndexConstruction/FADASNode.cpp
-// (Wang et al., "DumpyOS: A Dumpy Index for Scalable Data Series Similarity
-//  Search", VLDB Journal 2024)
-// Reference: SaxUtil.cpp (getMidLineFromSaxSymbolbc8, extendSax),
-//            MathUtil.cpp (deviation, generateMaskSettingKbits)
+// based on FADASNode.cpp, SaxUtil.cpp and MathUtil.cpp from the DumpyOS repo
+// (Wang et al., "DumpyOS: A Dumpy Index for Scalable Data Series Similarity Search", VLDB Journal 2024)
 
 #include "DumpyOS.hpp"
 #include "../isax/SAX.hpp"
@@ -19,10 +16,7 @@
 
 namespace daisy {
 
-// ---- bp8 : normal-distribution breakpoints for 8-bit SAX ----
-// Directly from SaxUtil.cpp in the DumpyOS reference implementation.
-// bp8[i] is the upper boundary of the i-th SAX symbol region.
-// bp8[255] = +inf sentinel; midpoints are extrapolated for symbols 0 and 255.
+// normal distribution breakpoints for 8-bit SAX (from SaxUtil.cpp)
 static const double bp8[256] = {
     -2.660067468617458,-2.4175590162365035,-2.2662268092096522,
     -2.1538746940614573,-2.063527898316245,-1.9874278859298962,
@@ -111,21 +105,17 @@ static const double bp8[256] = {
      1.921350774293703,    1.9874278859298962,   2.063527898316245,
      2.1538746940614573,   2.2662268092096522,   2.4175590162365035,
      2.660067468617458,
-     // sentinel for symbol 255 upper bound (numeric_limits<float>::max())
      3.4028234663852886e+38
 };
 
-// ---- internal helpers (adapted from SaxUtil and MathUtil) ----
-
-// Equivalent to SaxUtil::getMidLineFromSaxSymbolbc8.
+// midpoint of the SAX symbol region (getMidLineFromSaxSymbolbc8)
 static double get_midpoint(unsigned sym) {
     if (sym == 0)   return bp8[0] - (bp8[1] - bp8[0]);
     if (sym == 255) return bp8[254] + (bp8[254] - bp8[253]);
     return (bp8[sym - 1] + bp8[sym]) * 0.5;
 }
 
-// Equivalent to SaxUtil::extendSax(sax, bits_cardinality) — all segments.
-// Produces a vertexNum (1<<w) index for the unit_size table.
+// maps a full sax word to its 1-bit-per-segment index in the unit_size table
 static int extend_sax_all(const sax_type* sax, const int* levels, int w, int max_bits) {
     int res = 0;
     for (int s = 0; s < w; ++s) {
@@ -136,8 +126,7 @@ static int extend_sax_all(const sax_type* sax, const int* levels, int w, int max
     return res;
 }
 
-// Equivalent to SaxUtil::extendSax(sax, bits_cardinality, chosenSegments).
-// Produces a child ID in [0, 2^|chosen|).
+// child id within a node given only the chosen segments
 static int extend_sax_chosen(const sax_type* sax, const int* levels,
                                const std::vector<int>& chosen, int max_bits) {
     int res = 0;
@@ -149,8 +138,7 @@ static int extend_sax_chosen(const sax_type* sax, const int* levels,
     return res;
 }
 
-// Equivalent to MathUtil::generateMaskSettingKbits(plan, k, len).
-// plan must be sorted ascending.  Sets bit (w-1-plan[i]) for each i in plan.
+// bitmask with 1s at positions corresponding to the chosen segments
 static int generate_mask(const int* plan, int lambda, int w) {
     int res = 0, cur = 0;
     for (int i = 0; i < w; ++i) {
@@ -160,7 +148,6 @@ static int generate_mask(const int* plan, int lambda, int w) {
     return res;
 }
 
-// Population standard deviation — equivalent to MathUtil::deviation(double*, int).
 static double pop_stdev(const double* vals, int n) {
     double mean = 0.0;
     for (int i = 0; i < n; ++i) mean += vals[i];
@@ -170,9 +157,6 @@ static double pop_stdev(const double* vals, int n) {
     return std::sqrt(var / n);
 }
 
-// Equivalent to FADASNode::compute_score.
-// node_n  = node->n (total series in node)
-// alpha   = config_.alpha
 static double compute_score_(const std::vector<int>& node_sizes,
                               const int* plan, int lambda,
                               const std::vector<double>& data_seg_stdev,
@@ -199,10 +183,7 @@ static double compute_score_(const std::vector<int>& node_sizes,
     return sum_seg + alpha * balance;
 }
 
-// Equivalent to FADASNode::visitPlanFromBaseTable.
-// cur_lambda = parent lambda minus 1 (we're evaluating plans of size cur_lambda).
-// plan       = parent plan of size cur_lambda + 1 (sorted ascending).
-// base_tbl   = parent child fill counts of size 1 << (cur_lambda + 1).
+// recursively evaluates sub-plans by dropping one segment at a time from the parent plan
 static void visit_plan_from_base_table(
     std::unordered_set<int>& visited,
     int cur_lambda, const int* plan, const std::vector<int>& base_tbl,
@@ -211,22 +192,19 @@ static void visit_plan_from_base_table(
     const std::vector<double>& data_seg_stdev,
     int node_n, int leaf_size, double alpha, int w)
 {
-    // base_mask has (cur_lambda+1) bits set (covers all 1<<(cur_lambda+1) entries)
     int base_mask = 1;
     for (int i = 0; i < cur_lambda; ++i) base_mask = (base_mask << 1) | 1;
 
     for (int i = 0; i <= cur_lambda; ++i) {
-        int reset_pos       = plan[i];
-        int cur_whole_mask  = mask_code - (1 << (w - 1 - reset_pos));
+        int reset_pos      = plan[i];
+        int cur_whole_mask = mask_code - (1 << (w - 1 - reset_pos));
         if (visited.count(cur_whole_mask)) continue;
         visited.insert(cur_whole_mask);
 
-        // Sub-plan: drop element i from parent plan
         int* new_plan = new int[cur_lambda];
         for (int j = 0, k = 0; j <= cur_lambda; ++j)
             if (j != i) new_plan[k++] = plan[j];
 
-        // Aggregate base_tbl into cur_lambda child fill counts by masking out bit i
         int cur_base_mask = base_mask - (1 << (cur_lambda - i));
         std::map<int, int> nsmap;
         for (int j = 0; j < (int)base_tbl.size(); ++j)
@@ -250,7 +228,6 @@ static void visit_plan_from_base_table(
     }
 }
 
-// Equivalent to FADASNode::determineFanout.
 static void determine_fanout(int n, int leaf_size, double f_low, double f_high, int w,
                               int* lambda_min, int* lambda_max) {
     if (n < 2 * leaf_size) { *lambda_min = 1; *lambda_max = 1; return; }
@@ -271,7 +248,6 @@ static void determine_fanout(int n, int leaf_size, double f_low, double f_high, 
     if (*lambda_min == -1) { *lambda_min = w; *lambda_max = w; }
 }
 
-// Equivalent to FADASNode::determineSegments.
 void DumpyOS::determineSegments_(DumpyOSNode* node) {
     int    w        = config_.paa_segments;
     int    max_bits = config_.sax_bit_cardinality;
@@ -282,7 +258,6 @@ void DumpyOS::determineSegments_(DumpyOSNode* node) {
     determine_fanout(node->n, ls, config_.fill_lower, config_.fill_upper,
                      w, &lambda_min, &lambda_max);
 
-    // Edge case: need all segments (vertexNum < _min)
     if (lambda_min == w && lambda_max == w) {
         for (int i = 0; i < w; ++i) node->chosen_segs.push_back(i);
         return;
@@ -290,9 +265,7 @@ void DumpyOS::determineSegments_(DumpyOSNode* node) {
 
     int vertex_num = 1 << w;
 
-    // Build unit_size table: aggregate series counts into 2^w first-level buckets
     std::vector<int> unit_size(vertex_num, 0);
-    // Per-segment SAX symbol frequency (for data_seg_stdev)
     std::vector<std::unordered_map<int, int>> seg_sym_cnt(w);
 
     for (idx_t si : node->entries) {
@@ -303,8 +276,6 @@ void DumpyOS::determineSegments_(DumpyOSNode* node) {
         unit_size[head]++;
     }
 
-    // Compute data_seg_mean and data_seg_stdev (variance of midpoint values)
-    // Equivalent to the data_seg_mean/stdev loop in FADASNode::determineSegments.
     std::vector<double> data_seg_mean(w, 0.0), data_seg_stdev(w, 0.0);
     for (int i = 0; i < w; ++i) {
         for (auto& kv : seg_sym_cnt[i])
@@ -317,19 +288,16 @@ void DumpyOS::determineSegments_(DumpyOSNode* node) {
         data_seg_stdev[i] /= node->n;
     }
 
-    double            max_score = 0.0;
-    std::vector<int>  best_plan;
+    double           max_score = 0.0;
+    std::vector<int> best_plan;
     std::unordered_set<int> visited;
 
-    // Enumerate all C(w, lambda_max) plans; for each, also search sub-plans
-    // via visitPlanFromBaseTable (lambda_min..lambda_max-1).
     std::vector<int> idx(lambda_max);
     std::iota(idx.begin(), idx.end(), 0);
 
     while (true) {
         const int* plan = idx.data();
 
-        // Compute child fill counts using unit_size table + bit masking
         int mask_code = generate_mask(plan, lambda_max, w);
         std::map<int, int> node_size_map;
         for (int j = 0; j < vertex_num; ++j)
@@ -350,7 +318,7 @@ void DumpyOS::determineSegments_(DumpyOSNode* node) {
                                         &max_score, best_plan, lambda_min, mask_code,
                                         data_seg_stdev, node->n, ls, alpha, w);
 
-        // Advance to next C(w, lambda_max) combination (Gosper-style)
+        // next combination (Gosper-style)
         int i = lambda_max - 1;
         while (i >= 0 && idx[i] == w - lambda_max + i) --i;
         if (i < 0) break;
@@ -361,26 +329,22 @@ void DumpyOS::determineSegments_(DumpyOSNode* node) {
     node->chosen_segs = best_plan;
 }
 
-// ---- splitNode_ ----
-
 void DumpyOS::splitNode_(DumpyOSNode* node) {
     int w        = config_.paa_segments;
     int max_bits = config_.sax_bit_cardinality;
 
     determineSegments_(node);
-    if (node->chosen_segs.empty()) return;  // exhausted bit budget
+    if (node->chosen_segs.empty()) return;
 
     int lam    = (int)node->chosen_segs.size();
     int num_ch = 1 << lam;
     node->children.assign(num_ch, nullptr);
 
-    // Create all children with inherited levels/sax_word (+ 1 bit for each chosen segment)
     for (int sid = 0; sid < num_ch; ++sid) {
         DumpyOSNode* child = new DumpyOSNode();
         child->levels   = node->levels;
         child->sax_word = node->sax_word;
         int cid = sid;
-        // Extract bits LSB-first: last chosen_seg gets bit 0 of sid
         for (int j = lam - 1; j >= 0; --j) {
             int cs = node->chosen_segs[j];
             child->sax_word[cs] = (child->sax_word[cs] << 1) | (cid & 1);
@@ -390,7 +354,6 @@ void DumpyOS::splitNode_(DumpyOSNode* node) {
         node->children[sid] = child;
     }
 
-    // Redistribute series — equivalent to FADASNode's child routing
     for (idx_t si : node->entries) {
         const sax_type* sax = sax_table_ + (size_t)si * w;
         int sid = extend_sax_chosen(sax, node->levels.data(), node->chosen_segs, max_bits);
@@ -404,8 +367,6 @@ void DumpyOS::splitNode_(DumpyOSNode* node) {
         if (child && child->n > config_.leaf_size)
             splitNode_(child);
 }
-
-// ---- buildIndex ----
 
 void DumpyOS::buildIndex(DataSource* data_source) {
     dim        = data_source->getDim();
@@ -427,7 +388,6 @@ void DumpyOS::buildIndex(DataSource* data_source) {
     int cardinality = 1 << max_bits;
     int pts_per_seg = (int)dim / w;
 
-    // Compute and cache the SAX word for every database series
     sax_table_ = new sax_type[(size_t)n_database * w];
     std::vector<ts_type> paa(w);
 
@@ -436,7 +396,6 @@ void DumpyOS::buildIndex(DataSource* data_source) {
         sax_from_paa(paa.data(), sax_table_ + (size_t)i * w, w, cardinality, max_bits);
     }
 
-    // Root: all series, all segment levels and sax_word at 0
     root_ = new DumpyOSNode();
     root_->levels.assign(w, 0);
     root_->sax_word.assign(w, 0);
@@ -448,10 +407,7 @@ void DumpyOS::buildIndex(DataSource* data_source) {
         splitNode_(root_);
 }
 
-// ---- searchIndex ----
-
-// Adapted from SaxUtil::getValueRange.
-// Uses DaiSy's sax_breakpoints (same offset formula as Downloads' breakpoints array).
+// iSAX lower bound for a potential child node (LowerBound_Paa_iSax)
 static void get_value_range(int sax_val, int bc, double* lb, double* ub) {
     int cardinality = 1 << bc;
     int offset = ((cardinality - 1) * (cardinality - 2)) / 2;
@@ -467,8 +423,6 @@ static void get_value_range(int sax_val, int bc, double* lb, double* ub) {
     }
 }
 
-// Adapted from SaxUtil::LowerBound_Paa_iSax(paa, sax, bits_cardinality, chosen_segs, new_id).
-// Computes the iSAX lower bound between paa and the potential child `child_id` of `node`.
 static double lb_paa_to_child(const float* paa, const DumpyOSNode* node,
                                int child_id, int dim, int w) {
     double coef = (double)dim / w;
@@ -507,7 +461,6 @@ static float l2sq_early(const float* a, const float* b, int d, float bound) {
     return s;
 }
 
-// Exact search adapted from FADASSearcher::exactSearchIdLevel.
 void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
                            idx_t* I, float* D) {
     if (!validateSearchParams(k, n_query)) return;
@@ -533,7 +486,7 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
         paa_from_ts(q, q_paa.data(), w, pts_per_seg);
         sax_from_paa(q_paa.data(), q_sax.data(), w, cardinality, max_bits);
 
-        // --- Approx phase: route to nearest leaf (FADASNode::route) ---
+        // route to nearest leaf
         DumpyOSNode* approx_leaf = root_;
         while (!approx_leaf->chosen_segs.empty()) {
             int sid = extend_sax_chosen(q_sax.data(), approx_leaf->levels.data(),
@@ -543,7 +496,6 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
             approx_leaf = approx_leaf->children[sid];
         }
 
-        // kNN max-heap: top = worst (largest) distance among current k-NN
         using Pair = std::pair<float, idx_t>;
         std::priority_queue<Pair, std::vector<Pair>> heap;
         float bsf = FLT_MAX;
@@ -562,13 +514,11 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
         if (approx_leaf->chosen_segs.empty())
             search_leaf(approx_leaf);
 
-        // --- Exact phase (FADASSearcher::exactSearchIdLevel) ---
-        // Priority queue ordered ascending by iSAX lower bound.
+        // exact phase: priority queue pruned by iSAX lower bounds
         std::priority_queue<PqItem, std::vector<PqItem>, std::greater<PqItem>> pq;
         std::unordered_set<DumpyOSNode*> visited;
         visited.insert(approx_leaf);
 
-        // Seed PQ with root's children (equivalent to seeding with vertexNum entries)
         if (!root_->chosen_segs.empty()) {
             for (int sid = 0; sid < (int)root_->children.size(); ++sid) {
                 DumpyOSNode* ch = root_->children[sid];
@@ -587,7 +537,6 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
             visited.insert(node);
 
             if (!node->chosen_segs.empty()) {
-                // Internal node: enqueue children with their LBs
                 for (int sid = 0; sid < (int)node->children.size(); ++sid) {
                     DumpyOSNode* ch = node->children[sid];
                     if (ch == nullptr || visited.count(ch)) continue;
@@ -599,7 +548,6 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
             }
         }
 
-        // Extract results from max-heap in ascending order of distance
         idx_t n_res = (idx_t)heap.size();
         for (idx_t j = n_res; j > 0; --j) {
             I[qi * k + (j - 1)] = heap.top().second;
@@ -612,8 +560,6 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
         }
     }
 }
-
-// ---- destructor ----
 
 void DumpyOS::destroyTree_(DumpyOSNode* node) {
     if (!node) return;
