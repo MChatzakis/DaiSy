@@ -153,4 +153,14 @@ protected:
     static void TearDownTestSuite() {}
 };
 
+class DumpyOSDTWParameterizedTest : public SimilaritySearchTest,
+                                    public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
 #endif

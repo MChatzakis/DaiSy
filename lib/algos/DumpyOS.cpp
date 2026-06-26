@@ -1,8 +1,8 @@
-// based on FADASNode.cpp, SaxUtil.cpp and MathUtil.cpp from the DumpyOS repo
-// (Wang et al., "DumpyOS: A Dumpy Index for Scalable Data Series Similarity Search", VLDB Journal 2024)
 
 #include "DumpyOS.hpp"
 #include "../isax/SAX.hpp"
+#include "../isax/iSAXIndex.hpp"
+#include "../distance_computers/DistanceComputer.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -16,7 +16,7 @@
 
 namespace daisy {
 
-// normal distribution breakpoints for 8-bit SAX (from SaxUtil.cpp)
+// normal distribution breakpoints for 8-bit SAX (from SaxUtil.cpp, og DUMPYOS code)
 static const double bp8[256] = {
     -2.660067468617458,-2.4175590162365035,-2.2662268092096522,
     -2.1538746940614573,-2.063527898316245,-1.9874278859298962,
@@ -183,7 +183,7 @@ static double compute_score_(const std::vector<int>& node_sizes,
     return sum_seg + alpha * balance;
 }
 
-// recursively evaluates sub-plans by dropping one segment at a time from the parent plan
+// recursively evaluate sub-plans by dropping one segment at a time from the parent plan
 static void visit_plan_from_base_table(
     std::unordered_set<int>& visited,
     int cur_lambda, const int* plan, const std::vector<int>& base_tbl,
@@ -451,6 +451,35 @@ static double lb_paa_to_child(const float* paa, const DumpyOSNode* node,
     return coef * sum;
 }
 
+// DTW version of lb_paa_to_child: uses [paaL, paaU] interval instead of single paa value (again, from dumpyos implementation)
+static double lb_paa_to_child_dtw(const float* paaU, const float* paaL,
+                                   const DumpyOSNode* node,
+                                   int child_id, int dim, int w) {
+    double coef = (double)dim / w;
+    double sum  = 0.0;
+    int    cid  = child_id;
+    int    cur  = (int)node->chosen_segs.size() - 1;
+
+    for (int i = w - 1; i >= 0; --i) {
+        int sax_val, bc;
+        if (cur >= 0 && node->chosen_segs[cur] == i) {
+            sax_val = (node->sax_word[i] << 1) | (cid & 1);
+            cid >>= 1;
+            bc = node->levels[i] + 1;
+            --cur;
+        } else {
+            sax_val = node->sax_word[i];
+            bc      = node->levels[i];
+        }
+        if (bc == 0) continue;
+        double lo, hi;
+        get_value_range(sax_val, bc, &lo, &hi);
+        if      (paaU[i] < lo) sum += (lo - paaU[i]) * (lo - paaU[i]);
+        else if (paaL[i] > hi) sum += (paaL[i] - hi) * (paaL[i] - hi);
+    }
+    return coef * sum;
+}
+
 static float l2sq_early(const float* a, const float* b, int d, float bound) {
     float s = 0.0f;
     for (int i = 0; i < d; ++i) {
@@ -465,13 +494,19 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
                            idx_t* I, float* D) {
     if (!validateSearchParams(k, n_query)) return;
 
+    bool use_dtw    = (this->distance_type == DistanceType::DTW);
     int w           = config_.paa_segments;
     int max_bits    = config_.sax_bit_cardinality;
     int cardinality = 1 << max_bits;
     int pts_per_seg = (int)dim / w;
+    int warp_win    = static_cast<int>(dim * 0.1);
 
     std::vector<sax_type> q_sax(w);
     std::vector<ts_type>  q_paa(w);
+    std::vector<float>    q_paa_upper(use_dtw ? w : 0);
+    std::vector<float>    q_paa_lower(use_dtw ? w : 0);
+    std::vector<float>    upper_env(use_dtw ? (int)dim : 0);
+    std::vector<float>    lower_env(use_dtw ? (int)dim : 0);
 
     struct PqItem {
         double       lb;
@@ -485,6 +520,13 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
 
         paa_from_ts(q, q_paa.data(), w, pts_per_seg);
         sax_from_paa(q_paa.data(), q_sax.data(), w, cardinality, max_bits);
+
+        if (use_dtw) {
+            lower_upper_lemire(const_cast<float*>(q), (int)dim, warp_win,
+                               lower_env.data(), upper_env.data());
+            paa_from_ts(upper_env.data(), q_paa_upper.data(), w, pts_per_seg);
+            paa_from_ts(lower_env.data(), q_paa_lower.data(), w, pts_per_seg);
+        }
 
         // route to nearest leaf
         DumpyOSNode* approx_leaf = root_;
@@ -502,13 +544,28 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
 
         auto search_leaf = [&](DumpyOSNode* leaf) {
             for (idx_t si : leaf->entries) {
-                float dist = l2sq_early(q, database + (size_t)si * dim, (int)dim, bsf);
+                float dist;
+                if (use_dtw) {
+                    dist = distance_computer->compute_dist(
+                        const_cast<float*>(q),
+                        database + (size_t)si * dim,
+                        (int)dim, bsf);
+                } else {
+                    dist = l2sq_early(q, database + (size_t)si * dim, (int)dim, bsf);
+                }
                 if ((idx_t)heap.size() < k || dist < bsf) {
                     heap.push({dist, si});
                     if ((idx_t)heap.size() > k) heap.pop();
                     if ((idx_t)heap.size() == k) bsf = heap.top().first;
                 }
             }
+        };
+
+        auto compute_lb = [&](const DumpyOSNode* parent, int sid) -> double {
+            if (use_dtw)
+                return lb_paa_to_child_dtw(q_paa_upper.data(), q_paa_lower.data(),
+                                           parent, sid, (int)dim, w);
+            return lb_paa_to_child(q_paa.data(), parent, sid, (int)dim, w);
         };
 
         if (approx_leaf->chosen_segs.empty())
@@ -523,7 +580,7 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
             for (int sid = 0; sid < (int)root_->children.size(); ++sid) {
                 DumpyOSNode* ch = root_->children[sid];
                 if (ch == nullptr || visited.count(ch)) continue;
-                double lb = lb_paa_to_child(q_paa.data(), root_, sid, (int)dim, w);
+                double lb = compute_lb(root_, sid);
                 pq.push({lb, root_, sid});
             }
         }
@@ -540,7 +597,7 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
                 for (int sid = 0; sid < (int)node->children.size(); ++sid) {
                     DumpyOSNode* ch = node->children[sid];
                     if (ch == nullptr || visited.count(ch)) continue;
-                    double lb = lb_paa_to_child(q_paa.data(), node, sid, (int)dim, w);
+                    double lb = compute_lb(node, sid);
                     if (lb < (double)bsf) pq.push({lb, node, sid});
                 }
             } else {
@@ -579,4 +636,4 @@ DumpyOS::~DumpyOS() {
     if (owns_database_) delete[] database;
 }
 
-} // namespace daisy
+} 

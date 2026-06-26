@@ -652,3 +652,30 @@ gtest_discover_tests(
     test_DumpyOS_L2Square
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+# ////// DUMPYOS DTW //////
+add_executable(
+    test_DumpyOS_DTW
+    test_DumpyOS_DTW.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_DumpyOS_DTW
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_DumpyOS_DTW
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_DumpyOS_DTW
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
