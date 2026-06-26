@@ -2,7 +2,6 @@
 #include "DumpyOS.hpp"
 #include "../isax/SAX.hpp"
 #include "../isax/iSAXIndex.hpp"
-#include "../isax/iSAXSearch.hpp"
 #include "../distance_computers/DistanceComputer.hpp"
 
 #include <algorithm>
@@ -508,8 +507,6 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
     std::vector<float>    q_paa_lower(use_dtw ? w : 0);
     std::vector<float>    upper_env(use_dtw ? (int)dim : 0);
     std::vector<float>    lower_env(use_dtw ? (int)dim : 0);
-    // all-zeros cb: dtw() only reads cb[i+r+1] for pruning; with zeros it's equivalent to no pruning
-    std::vector<float>    dtw_cb(use_dtw ? (int)dim : 0, 0.0f);
 
     struct PqItem {
         double       lb;
@@ -549,10 +546,10 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
             for (idx_t si : leaf->entries) {
                 float dist;
                 if (use_dtw) {
-                    // use naive dtw (correct), dtwsimdPruned has a buggy DP initialization
-                    dist = dtw(const_cast<float*>(q),
-                               database + (size_t)si * dim,
-                               dtw_cb.data(), (int)dim, warp_win, bsf);
+                    dist = distance_computer->compute_dist(
+                        const_cast<float*>(q),
+                        database + (size_t)si * dim,
+                        (int)dim, bsf);
                 } else {
                     dist = l2sq_early(q, database + (size_t)si * dim, (int)dim, bsf);
                 }
