@@ -19,6 +19,7 @@ struct DumpyOSConfig {
 // Adapted from FADASNode in DumpyOS/include/DataStructures/FADASNode.h
 struct DumpyOSNode {
     std::vector<int>          levels;       // bits_cardinality[] per segment
+    std::vector<int>          sax_word;     // SAX word at current bit depth (needed for LB)
     std::vector<int>          chosen_segs;  // chosenSegments; empty ↔ leaf
     std::vector<DumpyOSNode*> children;     // 2^|chosen_segs| entries (may be nullptr)
     std::vector<idx_t>        entries;      // series indices (leaf only)

@@ -13,6 +13,7 @@
 #include <cmath>
 #include <map>
 #include <numeric>
+#include <queue>
 #include <unordered_set>
 #include <vector>
 
@@ -373,11 +374,19 @@ void DumpyOS::splitNode_(DumpyOSNode* node) {
     int num_ch = 1 << lam;
     node->children.assign(num_ch, nullptr);
 
-    // Create all children with inherited levels (+ 1 for each chosen segment)
+    // Create all children with inherited levels/sax_word (+ 1 bit for each chosen segment)
     for (int sid = 0; sid < num_ch; ++sid) {
         DumpyOSNode* child = new DumpyOSNode();
-        child->levels = node->levels;
-        for (int cs : node->chosen_segs) child->levels[cs]++;
+        child->levels   = node->levels;
+        child->sax_word = node->sax_word;
+        int cid = sid;
+        // Extract bits LSB-first: last chosen_seg gets bit 0 of sid
+        for (int j = lam - 1; j >= 0; --j) {
+            int cs = node->chosen_segs[j];
+            child->sax_word[cs] = (child->sax_word[cs] << 1) | (cid & 1);
+            child->levels[cs]++;
+            cid >>= 1;
+        }
         node->children[sid] = child;
     }
 
@@ -427,9 +436,10 @@ void DumpyOS::buildIndex(DataSource* data_source) {
         sax_from_paa(paa.data(), sax_table_ + (size_t)i * w, w, cardinality, max_bits);
     }
 
-    // Root: all series, all segment levels at 0
+    // Root: all series, all segment levels and sax_word at 0
     root_ = new DumpyOSNode();
     root_->levels.assign(w, 0);
+    root_->sax_word.assign(w, 0);
     root_->n = (int)n_database;
     root_->entries.resize(n_database);
     std::iota(root_->entries.begin(), root_->entries.end(), (idx_t)0);
@@ -439,6 +449,53 @@ void DumpyOS::buildIndex(DataSource* data_source) {
 }
 
 // ---- searchIndex ----
+
+// Adapted from SaxUtil::getValueRange.
+// Uses DaiSy's sax_breakpoints (same offset formula as Downloads' breakpoints array).
+static void get_value_range(int sax_val, int bc, double* lb, double* ub) {
+    int cardinality = 1 << bc;
+    int offset = ((cardinality - 1) * (cardinality - 2)) / 2;
+    if (sax_val == 0) {
+        *lb = -std::numeric_limits<double>::max();
+        *ub = sax_breakpoints[offset];
+    } else if (sax_val == cardinality - 1) {
+        *lb = sax_breakpoints[offset + sax_val - 1];
+        *ub = std::numeric_limits<double>::max();
+    } else {
+        *lb = sax_breakpoints[offset + sax_val - 1];
+        *ub = sax_breakpoints[offset + sax_val];
+    }
+}
+
+// Adapted from SaxUtil::LowerBound_Paa_iSax(paa, sax, bits_cardinality, chosen_segs, new_id).
+// Computes the iSAX lower bound between paa and the potential child `child_id` of `node`.
+static double lb_paa_to_child(const float* paa, const DumpyOSNode* node,
+                               int child_id, int dim, int w) {
+    double coef = (double)dim / w;
+    double sum  = 0.0;
+    int    cid  = child_id;
+    int    cur  = (int)node->chosen_segs.size() - 1;
+
+    for (int i = w - 1; i >= 0; --i) {
+        int sax_val, bc;
+        if (cur >= 0 && node->chosen_segs[cur] == i) {
+            sax_val = (node->sax_word[i] << 1) | (cid & 1);
+            cid >>= 1;
+            bc = node->levels[i] + 1;
+            --cur;
+        } else {
+            sax_val = node->sax_word[i];
+            bc      = node->levels[i];
+        }
+        if (bc == 0) continue;
+        double lo, hi;
+        get_value_range(sax_val, bc, &lo, &hi);
+        double p = paa[i];
+        if      (p < lo) sum += (lo - p) * (lo - p);
+        else if (p > hi) sum += (p  - hi) * (p  - hi);
+    }
+    return coef * sum;
+}
 
 static float l2sq_early(const float* a, const float* b, int d, float bound) {
     float s = 0.0f;
@@ -450,6 +507,7 @@ static float l2sq_early(const float* a, const float* b, int d, float bound) {
     return s;
 }
 
+// Exact search adapted from FADASSearcher::exactSearchIdLevel.
 void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
                            idx_t* I, float* D) {
     if (!validateSearchParams(k, n_query)) return;
@@ -462,50 +520,95 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
     std::vector<sax_type> q_sax(w);
     std::vector<ts_type>  q_paa(w);
 
+    struct PqItem {
+        double       lb;
+        DumpyOSNode* parent;
+        int          child_id;
+        bool operator>(const PqItem& o) const { return lb > o.lb; }
+    };
+
     for (idx_t qi = 0; qi < n_query; ++qi) {
         const float* q = query + (size_t)qi * dim;
 
         paa_from_ts(q, q_paa.data(), w, pts_per_seg);
         sax_from_paa(q_paa.data(), q_sax.data(), w, cardinality, max_bits);
 
-        // Route to leaf — equivalent to FADASNode::route()
-        DumpyOSNode* node = root_;
-        while (!node->chosen_segs.empty()) {
-            int  sid = extend_sax_chosen(q_sax.data(), node->levels.data(),
-                                          node->chosen_segs, max_bits);
-            if (sid < 0 || sid >= (int)node->children.size() ||
-                node->children[sid] == nullptr) break;
-            node = node->children[sid];
+        // --- Approx phase: route to nearest leaf (FADASNode::route) ---
+        DumpyOSNode* approx_leaf = root_;
+        while (!approx_leaf->chosen_segs.empty()) {
+            int sid = extend_sax_chosen(q_sax.data(), approx_leaf->levels.data(),
+                                         approx_leaf->chosen_segs, max_bits);
+            if (sid < 0 || sid >= (int)approx_leaf->children.size() ||
+                approx_leaf->children[sid] == nullptr) break;
+            approx_leaf = approx_leaf->children[sid];
         }
 
-        // kNN via max-heap
+        // kNN max-heap: top = worst (largest) distance among current k-NN
         using Pair = std::pair<float, idx_t>;
-        std::vector<Pair> heap;
-        heap.reserve((size_t)k + 1);
+        std::priority_queue<Pair, std::vector<Pair>> heap;
         float bsf = FLT_MAX;
 
-        for (idx_t si : node->entries) {
-            float dist = l2sq_early(q, database + (size_t)si * dim, (int)dim, bsf);
-            if ((idx_t)heap.size() < k || dist < bsf) {
-                heap.push_back({dist, si});
-                std::push_heap(heap.begin(), heap.end());
-                if ((idx_t)heap.size() > k) {
-                    std::pop_heap(heap.begin(), heap.end());
-                    heap.pop_back();
+        auto search_leaf = [&](DumpyOSNode* leaf) {
+            for (idx_t si : leaf->entries) {
+                float dist = l2sq_early(q, database + (size_t)si * dim, (int)dim, bsf);
+                if ((idx_t)heap.size() < k || dist < bsf) {
+                    heap.push({dist, si});
+                    if ((idx_t)heap.size() > k) heap.pop();
+                    if ((idx_t)heap.size() == k) bsf = heap.top().first;
                 }
-                if ((idx_t)heap.size() == k) bsf = heap.front().first;
+            }
+        };
+
+        if (approx_leaf->chosen_segs.empty())
+            search_leaf(approx_leaf);
+
+        // --- Exact phase (FADASSearcher::exactSearchIdLevel) ---
+        // Priority queue ordered ascending by iSAX lower bound.
+        std::priority_queue<PqItem, std::vector<PqItem>, std::greater<PqItem>> pq;
+        std::unordered_set<DumpyOSNode*> visited;
+        visited.insert(approx_leaf);
+
+        // Seed PQ with root's children (equivalent to seeding with vertexNum entries)
+        if (!root_->chosen_segs.empty()) {
+            for (int sid = 0; sid < (int)root_->children.size(); ++sid) {
+                DumpyOSNode* ch = root_->children[sid];
+                if (ch == nullptr || visited.count(ch)) continue;
+                double lb = lb_paa_to_child(q_paa.data(), root_, sid, (int)dim, w);
+                pq.push({lb, root_, sid});
             }
         }
 
-        std::sort_heap(heap.begin(), heap.end());
-        for (idx_t j = 0; j < k; ++j) {
-            if (j < (idx_t)heap.size()) {
-                I[qi * k + j] = heap[j].second;
-                D[qi * k + j] = heap[j].first;
+        while (!pq.empty()) {
+            PqItem top = pq.top(); pq.pop();
+            if (top.lb >= (double)bsf) break;
+
+            DumpyOSNode* node = top.parent->children[top.child_id];
+            if (node == nullptr || visited.count(node)) continue;
+            visited.insert(node);
+
+            if (!node->chosen_segs.empty()) {
+                // Internal node: enqueue children with their LBs
+                for (int sid = 0; sid < (int)node->children.size(); ++sid) {
+                    DumpyOSNode* ch = node->children[sid];
+                    if (ch == nullptr || visited.count(ch)) continue;
+                    double lb = lb_paa_to_child(q_paa.data(), node, sid, (int)dim, w);
+                    if (lb < (double)bsf) pq.push({lb, node, sid});
+                }
             } else {
-                I[qi * k + j] = 0;
-                D[qi * k + j] = FLT_MAX;
+                search_leaf(node);
             }
+        }
+
+        // Extract results from max-heap in ascending order of distance
+        idx_t n_res = (idx_t)heap.size();
+        for (idx_t j = n_res; j > 0; --j) {
+            I[qi * k + (j - 1)] = heap.top().second;
+            D[qi * k + (j - 1)] = heap.top().first;
+            heap.pop();
+        }
+        for (idx_t j = n_res; j < k; ++j) {
+            I[qi * k + j] = 0;
+            D[qi * k + j] = FLT_MAX;
         }
     }
 }
