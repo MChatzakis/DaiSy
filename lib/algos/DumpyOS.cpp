@@ -494,24 +494,24 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
                            idx_t* I, float* D) {
     if (!validateSearchParams(k, n_query)) return;
 
-    bool use_dtw    = (this->distance_type == DistanceType::DTW);
-    int w           = config_.paa_segments;
-    int max_bits    = config_.sax_bit_cardinality;
+    bool use_dtw = (this->distance_type == DistanceType::DTW);
+    int w = config_.paa_segments;
+    int max_bits = config_.sax_bit_cardinality;
     int cardinality = 1 << max_bits;
     int pts_per_seg = (int)dim / w;
-    int warp_win    = static_cast<int>(dim * 0.1);
+    int warp_win = warping_window;
 
     std::vector<sax_type> q_sax(w);
-    std::vector<ts_type>  q_paa(w);
-    std::vector<float>    q_paa_upper(use_dtw ? w : 0);
-    std::vector<float>    q_paa_lower(use_dtw ? w : 0);
-    std::vector<float>    upper_env(use_dtw ? (int)dim : 0);
-    std::vector<float>    lower_env(use_dtw ? (int)dim : 0);
+    std::vector<ts_type> q_paa(w);
+    std::vector<float> q_paa_upper(use_dtw ? w : 0);
+    std::vector<float> q_paa_lower(use_dtw ? w : 0);
+    std::vector<float> upper_env(use_dtw ? (int)dim : 0);
+    std::vector<float> lower_env(use_dtw ? (int)dim : 0);
 
-    struct PqItem {
-        double       lb;
+    struct PqItem{
+        double lb;
         DumpyOSNode* parent;
-        int          child_id;
+        int child_id;
         bool operator>(const PqItem& o) const { return lb > o.lb; }
     };
 

@@ -612,6 +612,7 @@ PYBIND11_MODULE(_core, m)
         .def(pybind11::init<daisy::DistanceType>(), "Create a new DumpyOS with the given distance metric")
         .def(pybind11::init<daisy::DistanceType, daisy::DumpyOSConfig>(), "Create a new DumpyOS with the given distance metric and configuration")
         .def("setNumThreads", &daisy::DumpyOS::setNumThreads, "Set the number of threads")
+        .def("setWarpingWindow", &daisy::DumpyOS::setWarpingWindow, "Set the warping window size for DTW")
         .def("buildIndex", [](daisy::DumpyOS &self, pybind11::array_t<float> db)
              {
             pybind11::buffer_info buf = db.request();

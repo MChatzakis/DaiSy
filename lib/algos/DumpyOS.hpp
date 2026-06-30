@@ -16,11 +16,11 @@ struct DumpyOSConfig {
     float fill_upper          = 3.0f;   // f_high in the paper
 };
 
-// Adapted from FADASNode in DumpyOS/include/DataStructures/FADASNode.h
+// Adapted from FADASNode in DumpyOS
 struct DumpyOSNode {
     std::vector<int>          levels;       // bits_cardinality[] per segment
     std::vector<int>          sax_word;     // SAX word at current bit depth (needed for LB)
-    std::vector<int>          chosen_segs;  // chosenSegments; empty ↔ leaf
+    std::vector<int>          chosen_segs;  // chosen segments: empty , leaf
     std::vector<DumpyOSNode*> children;     // 2^|chosen_segs| entries (may be nullptr)
     std::vector<idx_t>        entries;      // series indices (leaf only)
     int n = 0;
@@ -32,6 +32,8 @@ public:
     DumpyOS(DistanceType distance_type, const DumpyOSConfig& config);
 
     using SimilaritySearchAlgorithm::buildIndex;
+
+    void setWarpingWindow(int w) { warping_window = w; }
 
     void buildIndex(DataSource* data_source) override;
     void searchIndex(const float* query, idx_t n_query, idx_t k,
@@ -50,4 +52,4 @@ private:
     void destroyTree_(DumpyOSNode* node);
 };
 
-} // namespace daisy
+} 
