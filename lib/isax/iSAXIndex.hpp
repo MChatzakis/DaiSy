@@ -140,9 +140,6 @@ namespace daisy
         // Wedges
         ts_type *wedges;
 
-        // FreSH-specific: deduplicates subtree visits during lock-free pruning, unused by other algorithms
-        volatile unsigned long processed;
-
     } isax_node;
 
     typedef struct fbl_soft_buffer

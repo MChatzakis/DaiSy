@@ -391,6 +391,7 @@ static void *indexCreationWorkerFresh(void *transferdata)
                 if (!current_fbl_node->node)
                 {
                     isax_node *root = isax_root_node_init(current_fbl_node->mask, index->settings->initial_leaf_buffer_size);
+                    root->is_leaf = 1;
                     if (!FRESH_CASPTR(&current_fbl_node->node, NULL, root))
                         free(root);
                 }
@@ -461,7 +462,7 @@ static void add_to_array_data_lf(float *paa, isax_node *node, isax_index *index,
                                   volatile unsigned long *next_queue_data_pos, int n_queues,
                                   const int query_id)
 {
-    if (node->processed == (unsigned long)query_id)
+    if (node->isax_values == NULL)
         return;
 
     float distance = minidist_paa_to_isax(paa, node->isax_values,
@@ -472,7 +473,7 @@ static void add_to_array_data_lf(float *paa, isax_node *node, isax_index *index,
                                            MINVAL, MAXVAL,
                                            index->settings->mindist_sqrt);
 
-    if (distance < bsf && node->processed < (unsigned long)query_id)
+    if (distance < bsf)
     {
         if (node->is_leaf)
         {
@@ -484,15 +485,12 @@ static void add_to_array_data_lf(float *paa, isax_node *node, isax_index *index,
         }
         else
         {
-            if (node->left_child->isax_cardinalities != NULL && node->left_child->processed < (unsigned long)query_id)
+            if (node->left_child->isax_cardinalities != NULL)
                 add_to_array_data_lf(paa, node->left_child, index, bsf, array_lists, tnumber, next_queue_data_pos, n_queues, query_id);
-            if (node->right_child->isax_cardinalities != NULL && node->right_child->processed < (unsigned long)query_id)
+            if (node->right_child->isax_cardinalities != NULL)
                 add_to_array_data_lf(paa, node->right_child, index, bsf, array_lists, tnumber, next_queue_data_pos, n_queues, query_id);
         }
     }
-
-    if (node->processed < (unsigned long)query_id)
-        node->processed = query_id;
 }
 
 static int compare_sorted_array_items(const void *a, const void *b)
@@ -642,10 +640,7 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
     // A.1. help unprocessed subtrees
     for (int i = 0; i < wd->amountnode; i++)
     {
-        isax_node *node = wd->nodelist[i];
-        if (node->processed == (unsigned long)query_id)
-            continue;
-        add_to_array_data_lf(paa, node, index, bsfdistance,
+        add_to_array_data_lf(paa, wd->nodelist[i], index, bsfdistance,
                              wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
     }
 
@@ -701,10 +696,7 @@ void *FRESH_topk_search_worker_DTW(void *rfdata)
     // A.1. help unprocessed subtrees
     for (int i = 0; i < wd->amountnode; i++)
     {
-        isax_node *node = wd->nodelist[i];
-        if (node->processed == (unsigned long)query_id)
-            continue;
-        add_to_array_data_lf(paa, node, index, bsfdistance,
+        add_to_array_data_lf(paa, wd->nodelist[i], index, bsfdistance,
                              wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
     }
 

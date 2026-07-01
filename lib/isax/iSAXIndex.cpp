@@ -471,7 +471,6 @@ namespace daisy
         node->buffer = init_node_buffer(initial_buffer_size);
         node->mask = 0;
         node->wedges = NULL;
-        node->processed = 0;
         return node;
     }
 
