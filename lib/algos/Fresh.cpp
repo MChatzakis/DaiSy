@@ -515,21 +515,33 @@ static void create_sorted_array_from_data_queue(int pq_id, fresh_array_list_t *a
     size_t j = 0;
     int array_buckets_num = array_lists[pq_id].Top->num_node + 1;
     unsigned long array_elements_traversed = 0;
-    fresh_array_list_node_t *bucket = array_lists[pq_id].Top;
-    for (int i = 0; i < array_buckets_num; i++, bucket = bucket->next)
+
+    // The list is a stack: Top is the newest bucket (highest num_node), .next goes
+    // toward older buckets. Positions increase with num_node (bucket i holds positions
+    // i*element_size .. (i+1)*element_size-1). We must traverse oldest-first so the
+    // array_elements_traversed limit cuts off at the END of the newest bucket, not the
+    // middle of the oldest one.
+    fresh_array_list_node_t **buckets = (fresh_array_list_node_t **)malloc(
+        (size_t)array_buckets_num * sizeof(fresh_array_list_node_t *));
+    fresh_array_list_node_t *b = array_lists[pq_id].Top;
+    for (int i = array_buckets_num - 1; i >= 0; i--, b = b->next)
+        buckets[i] = b;
+
+    for (int i = 0; i < array_buckets_num; i++)
     {
         for (int k = 0; k < array_lists[pq_id].element_size &&
              array_elements_traversed < array_elements && !sorted_arrays[pq_id];
              k++, array_elements_traversed++)
         {
-            if (bucket->data[k].node && bucket->data[k].distance >= 0)
+            if (buckets[i]->data[k].node && buckets[i]->data[k].distance >= 0)
             {
-                local_sa->data[j].node = bucket->data[k].node;
-                local_sa->data[j].distance = bucket->data[k].distance;
+                local_sa->data[j].node = buckets[i]->data[k].node;
+                local_sa->data[j].distance = buckets[i]->data[k].distance;
                 j++;
             }
         }
     }
+    free(buckets);
 
     local_sa->num_elements = j;
     if (!sorted_arrays[pq_id])
@@ -639,16 +651,6 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
                              wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
     }
 
-    // A.1. help unprocessed subtrees
-    for (int i = 0; i < wd->amountnode; i++)
-    {
-        add_to_array_data_lf(paa, wd->nodelist[i], index, bsfdistance,
-                             wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
-    }
-
-    // All workers must finish populating queues before any worker sorts them.
-    // Without this barrier a fast worker can snapshot next_queue_data_pos while
-    // slower workers are still appending, silently dropping those entries.
     pthread_barrier_wait(wd->wait_tree_pruning_phase_to_finish);
 
     // A.2. create my sorted array
@@ -697,13 +699,6 @@ void *FRESH_topk_search_worker_DTW(void *rfdata)
         if (current_root_node_number >= wd->amountnode)
             break;
         add_to_array_data_lf(paa, wd->nodelist[current_root_node_number], index, bsfdistance,
-                             wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
-    }
-
-    // A.1. help unprocessed subtrees
-    for (int i = 0; i < wd->amountnode; i++)
-    {
-        add_to_array_data_lf(paa, wd->nodelist[i], index, bsfdistance,
                              wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
     }
 
