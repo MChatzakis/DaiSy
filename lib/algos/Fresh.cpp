@@ -349,7 +349,6 @@ static void *indexCreationWorkerFresh(void *transferdata)
 
     sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments);
 
-    // Phase 1: summarization — FAI on blocks, Refresh within each block
     unsigned long block_num;
     while (!*input_data->all_blocks_processed)
     {
@@ -364,7 +363,6 @@ static void *indexCreationWorkerFresh(void *transferdata)
 
     pthread_barrier_wait(input_data->wait_summaries_to_compute);
 
-    // Phase 2: tree population — FAI on FBL slots, serial add_record_to_node_inmemory
     isax_node_record *r = (isax_node_record *)malloc(sizeof(isax_node_record));
 
     while (1)
@@ -411,7 +409,6 @@ static void *indexCreationWorkerFresh(void *transferdata)
     return NULL;
 }
 
-// ── Phase 3: lock-free candidate queue (array list + sorted array) ────────────
 
 static void init_array_list_fresh(fresh_array_list_t *list, int size)
 {
@@ -554,7 +551,6 @@ static void create_sorted_array_from_data_queue(int pq_id, fresh_array_list_t *a
     }
 }
 
-// ── Phase 4: refinement (help sorted arrays) ──────────────────────────────────
 
 static int process_sorted_array_element_L2(fresh_array_element_t *n, FRESH_workerdata *wd)
 {
@@ -641,7 +637,6 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
     const int query_id = wd->query_id;
     int tnumber = rand() % wd->n_queues;
 
-    // A. populate arrays
     while (1)
     {
         int current_root_node_number = __sync_fetch_and_add(wd->node_counter, 1);
@@ -653,24 +648,20 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
 
     pthread_barrier_wait(wd->wait_tree_pruning_phase_to_finish);
 
-    // A.2. create my sorted array
     int my_pq = wd->workernumber % wd->n_queues;
     if (!wd->sorted_arrays[my_pq] && wd->next_queue_data_pos[my_pq])
         create_sorted_array_from_data_queue(my_pq, wd->array_lists, wd->next_queue_data_pos, wd->sorted_arrays);
 
-    // B. process my sorted array
     fresh_sorted_array_t *my_array = wd->sorted_arrays[my_pq];
     if (my_array && !wd->queue_finished[my_pq])
         help_sorted_array_L2(wd, my_array, my_pq);
 
-    // A.3. help create other sorted arrays
     for (int i = 0; i < wd->n_queues; i++)
     {
         if (!wd->sorted_arrays[i] && wd->next_queue_data_pos[i])
             create_sorted_array_from_data_queue(i, wd->array_lists, wd->next_queue_data_pos, wd->sorted_arrays);
     }
 
-    // B.3. help process other sorted arrays
     for (int i = 0; i < wd->n_queues; i++)
     {
         if (wd->queue_finished[i] || !wd->sorted_arrays[i])
@@ -692,7 +683,6 @@ void *FRESH_topk_search_worker_DTW(void *rfdata)
     const int query_id = wd->query_id;
     int tnumber = rand() % wd->n_queues;
 
-    // A. populate arrays
     while (1)
     {
         int current_root_node_number = __sync_fetch_and_add(wd->node_counter, 1);
@@ -704,24 +694,20 @@ void *FRESH_topk_search_worker_DTW(void *rfdata)
 
     pthread_barrier_wait(wd->wait_tree_pruning_phase_to_finish);
 
-    // A.2. create my sorted array
     int my_pq = wd->workernumber % wd->n_queues;
     if (!wd->sorted_arrays[my_pq] && wd->next_queue_data_pos[my_pq])
         create_sorted_array_from_data_queue(my_pq, wd->array_lists, wd->next_queue_data_pos, wd->sorted_arrays);
 
-    // B. process my sorted array
     fresh_sorted_array_t *my_array = wd->sorted_arrays[my_pq];
     if (my_array && !wd->queue_finished[my_pq])
         help_sorted_array_DTW(wd, my_array, my_pq);
 
-    // A.3. help create other sorted arrays
     for (int i = 0; i < wd->n_queues; i++)
     {
         if (!wd->sorted_arrays[i] && wd->next_queue_data_pos[i])
             create_sorted_array_from_data_queue(i, wd->array_lists, wd->next_queue_data_pos, wd->sorted_arrays);
     }
 
-    // B.3. help process other sorted arrays
     for (int i = 0; i < wd->n_queues; i++)
     {
         if (wd->queue_finished[i] || !wd->sorted_arrays[i])
