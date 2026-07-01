@@ -496,6 +496,37 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_DumpyOS_DTW.")
     endif()
 
+    # ////// FRESH L2Square //////
+    if(DEBUG_MSG)
+        message(STATUS "---")
+        message(STATUS "## Demo: Fresh L2Square")
+        message(STATUS "Attempting to add executable: demo_Fresh_L2Square")
+    endif()
+    add_executable(demo_Fresh_L2Square demo_Fresh_L2Square.cpp)
+    if(DEBUG_MSG)
+        message(STATUS "Executable demo_Fresh_L2Square added.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Linking libraries for demo_Fresh_L2Square...")
+    endif()
+    target_link_libraries(demo_Fresh_L2Square PRIVATE dino_lib commons_lib)
+    if(DEBUG_MSG)
+        message(STATUS "Libraries linked for demo_Fresh_L2Square.")
+    endif()
+
+    if(DEBUG_MSG)
+        message(STATUS "Adding include directories for demo_Fresh_L2Square...")
+    endif()
+    target_include_directories(demo_Fresh_L2Square PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+    if(DEBUG_MSG)
+        message(STATUS "Include directories added for demo_Fresh_L2Square.")
+    endif()
+
+
 else()
     if(DEBUG_MSG)
         message(STATUS "BUILD_DEMO is FALSE. Demo executables will NOT be built.")

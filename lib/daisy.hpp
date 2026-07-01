@@ -10,5 +10,6 @@
 #include "algos/Sofa.hpp"
 #include "algos/Hercules.hpp"
 #include "algos/DumpyOS.hpp"
+#include "algos/Fresh.hpp"
 
 #endif

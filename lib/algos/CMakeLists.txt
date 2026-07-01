@@ -164,6 +164,18 @@ if(DEBUG_MSG)
     message(STATUS "DumpyOS.cpp added.")
 endif()
 
+# ////// FRESH //////
+if(DEBUG_MSG)
+    message(STATUS "Adding Fresh.cpp to dino_lib sources.")
+endif()
+target_sources(dino_lib
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Fresh.cpp
+)
+if(DEBUG_MSG)
+    message(STATUS "Fresh.cpp added.")
+endif()
+
 # ////// PARIS //////
 if(DEBUG_MSG)
     message(STATUS "Adding ParIS.cpp to dino_lib sources.")

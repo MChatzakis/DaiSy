@@ -16,6 +16,7 @@
 #include "../lib/algos/Sofa.hpp"
 #include "../lib/algos/Hercules.hpp"
 #include "../lib/algos/DumpyOS.hpp"
+#include "../lib/algos/Fresh.hpp"
 
 class SimilaritySearchTest : public ::testing::Test
 {
@@ -155,6 +156,16 @@ protected:
 
 class DumpyOSDTWParameterizedTest : public SimilaritySearchTest,
                                     public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class FreshParameterizedTest : public SimilaritySearchTest,
+                               public ::testing::WithParamInterface<SSTestConfig>
 {
 protected:
     using SimilaritySearchTest::runSST;
