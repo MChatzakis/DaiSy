@@ -522,7 +522,7 @@ static void create_sorted_array_from_data_queue(int pq_id, fresh_array_list_t *a
              array_elements_traversed < array_elements && !sorted_arrays[pq_id];
              k++, array_elements_traversed++)
         {
-            if (bucket->data[k].node && bucket->data[k].distance > 0)
+            if (bucket->data[k].node && bucket->data[k].distance >= 0)
             {
                 local_sa->data[j].node = bucket->data[k].node;
                 local_sa->data[j].distance = bucket->data[k].distance;
