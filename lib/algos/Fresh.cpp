@@ -1274,10 +1274,10 @@ Fresh::~Fresh()
             {
                 parallel_fbl_soft_buffer_lf *sb = &fbl->soft_buffers[i];
                 if (!sb->initialized) continue;
-                for (int k = 0; k < fbl->initial_buffer_size; k++)
+                for (int w = 0; w < this->index_workers; w++)
                 {
-                    if (sb->sax_records && sb->sax_records[k]) free(sb->sax_records[k]);
-                    if (sb->pos_records && sb->pos_records[k]) free(sb->pos_records[k]);
+                    if (sb->sax_records && sb->sax_records[w]) free(sb->sax_records[w]);
+                    if (sb->pos_records && sb->pos_records[w]) free(sb->pos_records[w]);
                 }
                 free(sb->max_buffer_size);
                 free(sb->buffer_size);
