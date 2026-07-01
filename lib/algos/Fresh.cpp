@@ -68,6 +68,8 @@ static parallel_first_buffer_layer_lf *initialize_pRecBuf_lf(int initial_buffer_
     fbl->initial_buffer_size = initial_buffer_size;
     fbl->max_total_size = max_total_size;
     fbl->current_record_index = 0;
+    fbl->current_record = NULL;
+    fbl->hard_buffer = NULL;
     fbl->soft_buffers = (parallel_fbl_soft_buffer_lf *)calloc(number_of_buffers, sizeof(parallel_fbl_soft_buffer_lf));
     return fbl;
 }
@@ -879,6 +881,23 @@ void Fresh::buildIndex(DataSource *data_source)
         pthread_create(&threadid[i], NULL, indexCreationWorkerFresh, (void *)&input_data[i]);
     for (int i = 0; i < this->index_workers; i++)
         pthread_join(threadid[i], NULL);
+
+    // Build index->first_node linked list from FBL so that search functions can traverse all roots.
+    {
+        parallel_first_buffer_layer_lf *fbl = (parallel_first_buffer_layer_lf *)index->fbl;
+        for (int i = 0; i < fbl->number_of_buffers; i++)
+        {
+            if (!fbl->soft_buffers[i].initialized || !fbl->soft_buffers[i].node)
+                continue;
+            isax_node *node = fbl->soft_buffers[i].node;
+            node->next = index->first_node;
+            node->previous = NULL;
+            if (index->first_node)
+                index->first_node->previous = node;
+            index->first_node = node;
+            __sync_fetch_and_add(&(index->root_nodes), 1);
+        }
+    }
 
     __sync_fetch_and_add(&(index->total_records), this->n_database);
     index->sax_cache_size = index->total_records;

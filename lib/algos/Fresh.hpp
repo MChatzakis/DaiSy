@@ -38,27 +38,31 @@ namespace daisy
         int num_elements;
     } fresh_sorted_array_t;
 
+    // Must stay layout-compatible with parallel_fbl_soft_buffer (same field offsets, same 56-byte size)
+    // because iSAXSearch.cpp casts index->fbl through parallel_first_buffer_layer * and accesses
+    // .initialized (offset 24) and .node (offset 0) via the MESSI slot type.
     typedef struct parallel_fbl_soft_buffer_lf
     {
         isax_node *volatile node;
         sax_type **sax_records;
         file_position_type **pos_records;
-        volatile unsigned char initialized;
+        int initialized;
+        int _pad;
         int *max_buffer_size;
         int *buffer_size;
-        volatile unsigned char processed;
-        volatile unsigned long next_iSAX_group;
         root_mask_type mask;
-        volatile unsigned char **iSAX_processed;
-        volatile unsigned char recBuf_helpers_exist;
     } parallel_fbl_soft_buffer_lf;
 
+    // Must stay layout-compatible with parallel_first_buffer_layer so that
+    // iSAXSearch.cpp's (parallel_first_buffer_layer *)(index->fbl)->soft_buffers lands at offset 32.
     typedef struct parallel_first_buffer_layer_lf
     {
         int number_of_buffers;
         int initial_buffer_size;
         int max_total_size;
         int current_record_index;
+        char *current_record;
+        char *hard_buffer;
         parallel_fbl_soft_buffer_lf *soft_buffers;
     } parallel_first_buffer_layer_lf;
 
