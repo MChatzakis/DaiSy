@@ -646,6 +646,11 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
                              wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
     }
 
+    // All workers must finish populating queues before any worker sorts them.
+    // Without this barrier a fast worker can snapshot next_queue_data_pos while
+    // slower workers are still appending, silently dropping those entries.
+    pthread_barrier_wait(wd->wait_tree_pruning_phase_to_finish);
+
     // A.2. create my sorted array
     int my_pq = wd->workernumber % wd->n_queues;
     if (!wd->sorted_arrays[my_pq] && wd->next_queue_data_pos[my_pq])
@@ -701,6 +706,8 @@ void *FRESH_topk_search_worker_DTW(void *rfdata)
         add_to_array_data_lf(paa, wd->nodelist[i], index, bsfdistance,
                              wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
     }
+
+    pthread_barrier_wait(wd->wait_tree_pruning_phase_to_finish);
 
     // A.2. create my sorted array
     int my_pq = wd->workernumber % wd->n_queues;
@@ -951,6 +958,9 @@ pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_li
 
     volatile int node_counter = 0;
 
+    pthread_barrier_t wait_tree_pruning_phase_to_finish;
+    pthread_barrier_init(&wait_tree_pruning_phase_to_finish, NULL, this->search_workers);
+
     pthread_rwlock_t lock_bsf = PTHREAD_RWLOCK_INITIALIZER;
     pthread_t threadid[this->search_workers];
     FRESH_workerdata workerdata[this->search_workers];
@@ -975,6 +985,7 @@ pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_li
         workerdata[i].sorted_array_counter = nullptr;
         workerdata[i].fai_queue_counters = nullptr;
         workerdata[i].queue_bsf_distance = nullptr;
+        workerdata[i].wait_tree_pruning_phase_to_finish = &wait_tree_pruning_phase_to_finish;
         workerdata[i].workernumber = i;
         workerdata[i].n_queues = n_queues;
         workerdata[i].query_id = query_id;
@@ -985,6 +996,8 @@ pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_li
         pthread_create(&threadid[i], NULL, FRESH_topk_search_worker_L2Squared, (void *)&workerdata[i]);
     for (int i = 0; i < this->search_workers; i++)
         pthread_join(threadid[i], NULL);
+
+    pthread_barrier_destroy(&wait_tree_pruning_phase_to_finish);
 
     this->minimum_distance = pq_bsf->knn[k - 1];
 
@@ -1053,6 +1066,9 @@ pqueue_bsf Fresh::FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t 
 
     volatile int node_counter = 0;
 
+    pthread_barrier_t wait_tree_pruning_phase_to_finish;
+    pthread_barrier_init(&wait_tree_pruning_phase_to_finish, NULL, this->search_workers);
+
     pthread_rwlock_t lock_bsf = PTHREAD_RWLOCK_INITIALIZER;
     pthread_t threadid[this->search_workers];
     FRESH_workerdata workerdata[this->search_workers];
@@ -1081,6 +1097,7 @@ pqueue_bsf Fresh::FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t 
         workerdata[i].sorted_array_counter = nullptr;
         workerdata[i].fai_queue_counters = nullptr;
         workerdata[i].queue_bsf_distance = nullptr;
+        workerdata[i].wait_tree_pruning_phase_to_finish = &wait_tree_pruning_phase_to_finish;
         workerdata[i].workernumber = i;
         workerdata[i].n_queues = n_queues;
         workerdata[i].warpWind = warpWind;
@@ -1092,6 +1109,8 @@ pqueue_bsf Fresh::FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t 
         pthread_create(&threadid[i], NULL, FRESH_topk_search_worker_DTW, (void *)&workerdata[i]);
     for (int i = 0; i < this->search_workers; i++)
         pthread_join(threadid[i], NULL);
+
+    pthread_barrier_destroy(&wait_tree_pruning_phase_to_finish);
 
     this->minimum_distance = pq_bsf->knn[k - 1];
 
