@@ -303,6 +303,27 @@ target_include_directories(bm_Hercules_L2Square
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
 
+# ////// FRESH //////
+add_executable(bm_Fresh_L2Square
+    bm_Fresh_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Fresh_L2Square
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+    GTest::gtest
+)
+target_include_directories(bm_Fresh_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
 # ////// ODYSSEY (conditional on MPI) //////
 if(BUILD_ODYSSEY_AVAILABLE)
     if(DEBUG_MSG)
