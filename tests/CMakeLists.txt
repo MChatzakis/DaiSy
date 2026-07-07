@@ -721,3 +721,168 @@ if(BUILD_PYTHON)
         )
     endif()
 endif()
+
+# ////// MESSI Range //////
+add_executable(
+    test_Messi_Range
+    test_Messi_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Messi_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Messi_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Messi_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// FRESH Range //////
+add_executable(
+    test_Fresh_Range
+    test_Fresh_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Fresh_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Fresh_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Fresh_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// DUMPYOS Range //////
+add_executable(
+    test_DumpyOS_Range
+    test_DumpyOS_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_DumpyOS_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_DumpyOS_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_DumpyOS_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// LBBRUTEFORCE Range //////
+add_executable(
+    test_LbBruteforce_Range
+    test_LbBruteforce_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_LbBruteforce_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_LbBruteforce_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_LbBruteforce_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// SING Range (conditional on CUDA) //////
+if(SING_CUDA_AVAILABLE)
+    add_executable(
+        test_Sing_Range
+        test_Sing_Range.cpp
+        test_utils.cpp
+    )
+
+    target_link_libraries(
+        test_Sing_Range
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+        CUDA::cudart
+    )
+
+    target_include_directories(test_Sing_Range
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
+    gtest_discover_tests(
+        test_Sing_Range
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+endif()
+
+# ////// HERCULES Range //////
+add_executable(
+    test_Hercules_Range
+    test_Hercules_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Hercules_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Hercules_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Hercules_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)

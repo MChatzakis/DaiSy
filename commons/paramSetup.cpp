@@ -156,3 +156,36 @@ const std::vector<SSTestConfig> test_configs_astro_only = []
     return configs;
 }();
 
+std::vector<RangeTestConfig> generate_range_configs(
+    const char *name,
+    const char *data,
+    const char *query,
+    daisy::idx_t dim,
+    daisy::idx_t n_database,
+    daisy::idx_t n_query,
+    int query_limit)
+{
+    std::vector<RangeTestConfig> configs;
+    float r_values[] = {
+        0.05f * 2.0f * (float)dim,
+        0.20f * 2.0f * (float)dim,
+        0.50f * 2.0f * (float)dim
+    };
+    for (int threads : {1, 4, 8}) {
+        for (float r : r_values) {
+            configs.push_back({name, data, query, dim, n_database, n_query, threads, r, query_limit});
+        }
+    }
+    return configs;
+}
+
+const std::vector<RangeTestConfig> range_test_configs = []
+{
+    std::vector<RangeTestConfig> configs;
+    auto astro  = generate_range_configs(astro_name,  astro_data,  astro_query,  256, 50000,  100,  0);
+    auto random = generate_range_configs(random_name, random_data, random_query, 96,  200000, 1000, 50);
+    configs.insert(configs.end(), astro.begin(),  astro.end());
+    configs.insert(configs.end(), random.begin(), random.end());
+    return configs;
+}();
+
