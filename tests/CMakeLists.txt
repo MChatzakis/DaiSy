@@ -886,3 +886,59 @@ gtest_discover_tests(
     test_Hercules_Range
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+# ////// PARIS Range //////
+add_executable(
+    test_ParIS_Range
+    test_ParIS_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_ParIS_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_ParIS_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_ParIS_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// SOFA Range (conditional on FFTW3) //////
+if(BUILD_SOFA_AVAILABLE)
+    add_executable(
+        test_Sofa_Range
+        test_Sofa_Range.cpp
+        test_utils.cpp
+    )
+
+    target_link_libraries(
+        test_Sofa_Range
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+    )
+
+    target_include_directories(test_Sofa_Range
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
+    gtest_discover_tests(
+        test_Sofa_Range
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+endif()

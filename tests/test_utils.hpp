@@ -240,4 +240,24 @@ protected:
     static void TearDownTestSuite() {}
 };
 
+class ParISRangeParameterizedTest : public SimilaritySearchTest,
+                                    public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class SofaRangeParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
 #endif

@@ -28,7 +28,13 @@ except ImportError:
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from daisy import DistanceType, SearchConfig, QueryType
-from daisy import BruteForceSearch, Messi, Fresh, DumpyOS, LbBruteforce, Sing, Hercules, HerculesConfig
+from daisy import BruteForceSearch, Messi, Fresh, DumpyOS, LbBruteforce, Sing, Hercules, HerculesConfig, ParIS
+
+try:
+    from daisy import Sofa
+    _sofa_available = True
+except ImportError:
+    _sofa_available = False
 
 
 # ---------------------------------------------------------------------------
@@ -50,9 +56,12 @@ def faiss_range_gt(db: np.ndarray, queries: np.ndarray, r: float):
     return result_I, result_D
 
 
-def run_daisy_range(algo, db: np.ndarray, queries: np.ndarray, r: float):
+def run_daisy_range(algo, db: np.ndarray, queries: np.ndarray, r: float, db_path: str = None):
     """Build index and run range search; return per-query sorted (indices, distances)."""
-    algo.buildIndex(db)
+    if db_path is not None:
+        algo.buildIndex(db_path, db.shape[1], db.shape[0])
+    else:
+        algo.buildIndex(db)
     cfg = SearchConfig()
     cfg.type = QueryType.RANGE
     cfg.r = float(r)
@@ -141,21 +150,28 @@ def main():
     hercules_cfg = HerculesConfig()
     hercules_cfg.index_dir = hercules_dir
 
+    paris_dir = tempfile.mkdtemp(prefix="daisy_paris_range_")
+    paris_db_file = os.path.join(paris_dir, "db.bin")
+    db.tofile(paris_db_file)
+
     algorithms = [
-        ("BruteForce",   BruteForceSearch(DistanceType.L2_SQUARED)),
-        ("Messi",        Messi(DistanceType.L2_SQUARED)),
-        ("Fresh",        Fresh(DistanceType.L2_SQUARED)),
-        ("DumpyOS",      DumpyOS(DistanceType.L2_SQUARED)),
-        ("LbBruteforce", LbBruteforce(DistanceType.L2_SQUARED)),
-        ("Sing",         Sing(DistanceType.L2_SQUARED)),
-        ("Hercules",     Hercules(DistanceType.L2_SQUARED, hercules_cfg)),
+        ("BruteForce",   BruteForceSearch(DistanceType.L2_SQUARED), None),
+        ("Messi",        Messi(DistanceType.L2_SQUARED),             None),
+        ("Fresh",        Fresh(DistanceType.L2_SQUARED),             None),
+        ("DumpyOS",      DumpyOS(DistanceType.L2_SQUARED),           None),
+        ("LbBruteforce", LbBruteforce(DistanceType.L2_SQUARED),      None),
+        ("Sing",         Sing(DistanceType.L2_SQUARED),              None),
+        ("Hercules",     Hercules(DistanceType.L2_SQUARED, hercules_cfg), None),
+        ("ParIS",        ParIS(DistanceType.L2_SQUARED),             paris_db_file),
     ]
+    if _sofa_available:
+        algorithms.append(("Sofa", Sofa(DistanceType.L2_SQUARED), None))
 
     passed, failed = [], []
     try:
-        for name, algo in algorithms:
+        for name, algo, db_path in algorithms:
             try:
-                algo_I, algo_D = run_daisy_range(algo, db, queries, r)
+                algo_I, algo_D = run_daisy_range(algo, db, queries, r, db_path)
                 ok = compare(name, gt_I, algo_I, algo_D, r, args.tol)
                 (passed if ok else failed).append(name)
             except Exception as exc:
@@ -163,6 +179,7 @@ def main():
                 failed.append(name)
     finally:
         shutil.rmtree(hercules_dir, ignore_errors=True)
+        shutil.rmtree(paris_dir, ignore_errors=True)
 
     print(f"\nPassed: {passed}")
     print(f"Failed: {failed}")
