@@ -6,6 +6,8 @@
 #include <queue>
 #include <cfloat>
 #include <omp.h>
+#include <vector>
+#include <utility>
 
 #include "../isax/iSAXIndex.hpp"
 #include "../isax/iSAXPqueue.hpp"
@@ -49,10 +51,19 @@ namespace daisy
 
         int n_pqueue;
         float *rawfile;
+
+        float r;
+        std::vector<std::pair<float, idx_t>> *range_results;
+        pthread_rwlock_t *lock_range_results;
     } MESSI_workerdata;
 
     void *MESSI_topk_search_worker_L2Squared(void *rfdata);
     void *MESSI_topk_search_worker_DTW(void *rfdata);
+    void *MESSI_range_search_worker_L2Squared(void *rfdata);
+
+    void calculate_node_range_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
+                                       float r, std::vector<std::pair<float, idx_t>> *results,
+                                       pthread_rwlock_t *lock, float *rawfile);
 
     void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue);
     void insert_tree_node_m_hybridpqueue_DTW(float *paaU, float *paaL, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue);
@@ -71,6 +82,7 @@ namespace daisy
 
         pqueue_bsf MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
         pqueue_bsf MESSI_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
+        std::vector<std::pair<float, idx_t>> MESSI_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r);
 
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
@@ -92,6 +104,10 @@ namespace daisy
         }
 
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
+
+        void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                         std::vector<std::vector<idx_t>> &I,
+                         std::vector<std::vector<float>> &D) override;
 
         int getNumThreads() const { return SimilaritySearchAlgorithm::num_threads; }
         void setNumThreads(int n) {

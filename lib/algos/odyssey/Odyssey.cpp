@@ -1,4 +1,5 @@
 #include "../hodyssey/Odyssey.hpp"
+#include "../Messi.hpp"
 #include "../hodyssey/indexing.hpp"  
 #include "../hodyssey/query_answering.hpp"  
 #include "../hodyssey/replication.hpp"      
@@ -3232,6 +3233,103 @@ namespace daisy
         #endif
 
         return rawfile;
+    }
+
+    void Odyssey::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                              std::vector<std::vector<idx_t>> &I,
+                              std::vector<std::vector<float>> &D)
+    {
+        if (config.type == QueryType::TOP_K) {
+            SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+            return;
+        }
+
+        float r = config.r;
+        isax_index *idx = this->index;
+
+        NodeList nodelist = initialize_node_list(idx, this->my_rank);
+
+        const int paa_segments = idx->settings->paa_segments;
+        const int ts_values_per_paa = idx->settings->ts_values_per_paa_segment;
+        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * (size_t)paa_segments);
+
+        const int nworkers = (this->query_threads > 0) ? this->query_threads : 1;
+        const int n_pqueue = 42;
+
+        I.assign(n_query, {});
+        D.assign(n_query, {});
+
+        for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++) {
+            ts_type *ts = (ts_type *)(query + q_loaded * this->dim);
+            paa_from_ts(ts, paa, paa_segments, ts_values_per_paa);
+
+            std::vector<std::pair<float, idx_t>> results;
+            pthread_rwlock_t lock_results = PTHREAD_RWLOCK_INITIALIZER;
+
+            int node_counter = 0;
+            pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * (size_t)n_pqueue);
+            pthread_mutex_t *ququelock = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * (size_t)n_pqueue);
+            int *queuelabel = (int *)malloc(sizeof(int) * (size_t)n_pqueue);
+            for (int i = 0; i < n_pqueue; i++) {
+                allpq[i] = pqueue_init(idx->settings->root_nodes_size / n_pqueue, cmp_pri, get_pri, set_pri, get_pos, set_pos);
+                pthread_mutex_init(&ququelock[i], NULL);
+                queuelabel[i] = 1;
+            }
+
+            pthread_t *threadid = (pthread_t *)malloc(sizeof(pthread_t) * (size_t)nworkers);
+            MESSI_workerdata *workerdata = (MESSI_workerdata *)malloc(sizeof(MESSI_workerdata) * (size_t)nworkers);
+            pthread_mutex_t lock_queue = PTHREAD_MUTEX_INITIALIZER;
+            pthread_mutex_t lock_current_root_node = PTHREAD_MUTEX_INITIALIZER;
+            pthread_barrier_t lock_barrier;
+            pthread_barrier_init(&lock_barrier, NULL, (unsigned int)nworkers);
+
+            for (int i = 0; i < nworkers; i++) {
+                workerdata[i].paa = paa;
+                workerdata[i].ts = ts;
+                workerdata[i].lock_queue = &lock_queue;
+                workerdata[i].lock_current_root_node = &lock_current_root_node;
+                workerdata[i].nodelist = nodelist.nlist;
+                workerdata[i].amountnode = nodelist.node_amount;
+                workerdata[i].index = idx;
+                workerdata[i].node_counter = &node_counter;
+                workerdata[i].lock_barrier = &lock_barrier;
+                workerdata[i].alllock = ququelock;
+                workerdata[i].allqueuelabel = queuelabel;
+                workerdata[i].allpq = allpq;
+                workerdata[i].startqueuenumber = i % n_pqueue;
+                workerdata[i].n_pqueue = n_pqueue;
+                workerdata[i].rawfile = this->rawfile;
+                workerdata[i].r = r;
+                workerdata[i].range_results = &results;
+                workerdata[i].lock_range_results = &lock_results;
+            }
+
+            for (int i = 0; i < nworkers; i++)
+                pthread_create(&threadid[i], NULL, MESSI_range_search_worker_L2Squared, (void *)&workerdata[i]);
+            for (int i = 0; i < nworkers; i++)
+                pthread_join(threadid[i], NULL);
+
+            pthread_barrier_destroy(&lock_barrier);
+            pthread_rwlock_destroy(&lock_results);
+            for (int i = 0; i < n_pqueue; i++)
+                pqueue_free(allpq[i]);
+            free(allpq);
+            free(ququelock);
+            free(queuelabel);
+            free(threadid);
+            free(workerdata);
+
+            std::sort(results.begin(), results.end());
+            I[q_loaded].resize(results.size());
+            D[q_loaded].resize(results.size());
+            for (size_t j = 0; j < results.size(); j++) {
+                D[q_loaded][j] = results[j].first;
+                I[q_loaded][j] = results[j].second;
+            }
+        }
+
+        free(nodelist.nlist);
+        free(paa);
     }
 
     Odyssey::~Odyssey()

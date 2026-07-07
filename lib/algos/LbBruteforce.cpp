@@ -283,6 +283,73 @@ namespace daisy
         }
     }
 
+    void LbBruteforce::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                                   std::vector<std::vector<idx_t>> &I,
+                                   std::vector<std::vector<float>> &D)
+    {
+        if (config.type == QueryType::TOP_K) {
+            SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+            return;
+        }
+
+        float r = config.r;
+        I.assign(n_query, {});
+        D.assign(n_query, {});
+
+#pragma omp parallel num_threads(num_threads)
+        {
+#pragma omp for
+            for (idx_t qi = 0; qi < n_query; qi++) {
+                const float *q_vec = query + qi * dim;
+                std::vector<std::pair<float, idx_t>> hits;
+
+                ts_type *q_paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+                if (q_paa == nullptr) {
+                    fprintf(stderr, "Error: Failed to allocate memory for PAA representation\n");
+                    continue;
+                }
+
+                this->distance_computer->compute_paa_from_ts(
+                    q_vec, q_paa,
+                    index->settings->paa_segments,
+                    index->settings->ts_values_per_paa_segment);
+
+                for (idx_t dbi = 0; dbi < n_database; ++dbi) {
+                    float minimum_distance = this->distance_computer->compute_minidist_SIMD(
+                        q_paa,
+                        db_sax_representations[dbi],
+                        (const int *)(index->settings->max_sax_cardinalities),
+                        index->settings->sax_bit_cardinality,
+                        index->settings->sax_alphabet_cardinality,
+                        index->settings->paa_segments,
+                        MINVAL,
+                        MAXVAL,
+                        index->settings->mindist_sqrt);
+
+                    if (minimum_distance <= r) {
+                        float dist = this->distance_computer->compute_dist_SIMD(
+                            const_cast<float *>(q_vec),
+                            const_cast<float *>(database + dbi * dim),
+                            dim,
+                            FLT_MAX);
+                        if (dist <= r)
+                            hits.emplace_back(dist, dbi);
+                    }
+                }
+
+                free(q_paa);
+
+                std::sort(hits.begin(), hits.end());
+                I[qi].resize(hits.size());
+                D[qi].resize(hits.size());
+                for (size_t j = 0; j < hits.size(); ++j) {
+                    D[qi][j] = hits[j].first;
+                    I[qi][j] = hits[j].second;
+                }
+            }
+        }
+    }
+
     LbBruteforce::~LbBruteforce()
     {
         delete[] database;

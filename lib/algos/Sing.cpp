@@ -2289,6 +2289,118 @@ namespace daisy
         fprintf(stderr, "--- end ---\n");
     }
 
+    void Sing::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                           std::vector<std::vector<idx_t>> &I,
+                           std::vector<std::vector<float>> &D)
+    {
+        if (config.type == QueryType::TOP_K) {
+            SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+            return;
+        }
+
+        float r = config.r;
+        isax_index *idx = this->index;
+        first_buffer_layer2 *fbl2 = (first_buffer_layer2 *)idx->fbl;
+
+        node_list nodelist;
+        int max_nodes = (fbl2 != nullptr && fbl2->soft_buffers != nullptr) ? fbl2->number_of_buffers : 0;
+        nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * (size_t)(max_nodes + 1));
+        nodelist.node_amount = 0;
+
+        if (fbl2 != nullptr && fbl2->soft_buffers != nullptr) {
+            for (int i = 0; i < max_nodes; i++) {
+                fbl_soft_buffer2 *sb = &fbl2->soft_buffers[i];
+                if (sb->initialized && sb->node != nullptr)
+                    nodelist.nlist[nodelist.node_amount++] = sb->node;
+            }
+        }
+
+        if (nodelist.node_amount > 0)
+            idx->first_node = nodelist.nlist[0];
+
+        const int paa_segments = idx->settings->paa_segments;
+        const int ts_values_per_paa = idx->settings->ts_values_per_paa_segment;
+        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * (size_t)paa_segments);
+
+        I.assign(n_query, {});
+        D.assign(n_query, {});
+
+        for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++) {
+            ts_type *ts = (ts_type *)(query + q_loaded * this->dim);
+            paa_from_ts(ts, paa, paa_segments, ts_values_per_paa);
+
+            std::vector<std::pair<float, idx_t>> results;
+            pthread_rwlock_t lock_results = PTHREAD_RWLOCK_INITIALIZER;
+
+            int node_counter = 0;
+            int N_PQUEUE = this->n_pqueue;
+            int nworkers = this->search_workers;
+
+            pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * (size_t)N_PQUEUE);
+            pthread_mutex_t *ququelock = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * (size_t)N_PQUEUE);
+            int *queuelabel = (int *)malloc(sizeof(int) * (size_t)N_PQUEUE);
+            for (int i = 0; i < N_PQUEUE; i++) {
+                allpq[i] = pqueue_init(idx->settings->root_nodes_size / N_PQUEUE, cmp_pri, get_pri, set_pri, get_pos, set_pos);
+                pthread_mutex_init(&ququelock[i], NULL);
+                queuelabel[i] = 1;
+            }
+
+            pthread_t *threadid = (pthread_t *)malloc(sizeof(pthread_t) * (size_t)nworkers);
+            MESSI_workerdata *workerdata = (MESSI_workerdata *)malloc(sizeof(MESSI_workerdata) * (size_t)nworkers);
+            pthread_mutex_t lock_queue = PTHREAD_MUTEX_INITIALIZER;
+            pthread_mutex_t lock_current_root_node = PTHREAD_MUTEX_INITIALIZER;
+            pthread_barrier_t lock_barrier;
+            pthread_barrier_init(&lock_barrier, NULL, (unsigned int)nworkers);
+
+            for (int i = 0; i < nworkers; i++) {
+                workerdata[i].paa = paa;
+                workerdata[i].ts = ts;
+                workerdata[i].lock_queue = &lock_queue;
+                workerdata[i].lock_current_root_node = &lock_current_root_node;
+                workerdata[i].nodelist = nodelist.nlist;
+                workerdata[i].amountnode = nodelist.node_amount;
+                workerdata[i].index = idx;
+                workerdata[i].node_counter = &node_counter;
+                workerdata[i].lock_barrier = &lock_barrier;
+                workerdata[i].alllock = ququelock;
+                workerdata[i].allqueuelabel = queuelabel;
+                workerdata[i].allpq = allpq;
+                workerdata[i].startqueuenumber = i % N_PQUEUE;
+                workerdata[i].n_pqueue = N_PQUEUE;
+                workerdata[i].rawfile = this->database;
+                workerdata[i].r = r;
+                workerdata[i].range_results = &results;
+                workerdata[i].lock_range_results = &lock_results;
+            }
+
+            for (int i = 0; i < nworkers; i++)
+                pthread_create(&threadid[i], NULL, MESSI_range_search_worker_L2Squared, (void *)&workerdata[i]);
+            for (int i = 0; i < nworkers; i++)
+                pthread_join(threadid[i], NULL);
+
+            pthread_barrier_destroy(&lock_barrier);
+            pthread_rwlock_destroy(&lock_results);
+            for (int i = 0; i < N_PQUEUE; i++)
+                pqueue_free(allpq[i]);
+            free(allpq);
+            free(ququelock);
+            free(queuelabel);
+            free(threadid);
+            free(workerdata);
+
+            std::sort(results.begin(), results.end());
+            I[q_loaded].resize(results.size());
+            D[q_loaded].resize(results.size());
+            for (size_t j = 0; j < results.size(); j++) {
+                D[q_loaded][j] = results[j].first;
+                I[q_loaded][j] = results[j].second;
+            }
+        }
+
+        free(nodelist.nlist);
+        free(paa);
+    }
+
     Sing::~Sing()
     {
         delete[] database;

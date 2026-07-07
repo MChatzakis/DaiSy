@@ -720,6 +720,93 @@ void *FRESH_topk_search_worker_DTW(void *rfdata)
     return nullptr;
 }
 
+// defined in Messi.cpp, same namespace
+void calculate_node_range_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
+                                   float r, std::vector<std::pair<float, idx_t>> *results,
+                                   pthread_rwlock_t *lock, float *rawfile);
+
+static int process_sorted_array_element_range(fresh_array_element_t *n, FRESH_workerdata *wd)
+{
+    if (n->distance > wd->r || n->distance > wd->minimum_distance)
+        return 0;
+    if (n->node->is_leaf && n->distance >= 0)
+    {
+        calculate_node_range_inmemory(wd->index, n->node, wd->ts, wd->paa, wd->r,
+                                     wd->range_results, wd->lock_range_results, wd->rawfile);
+        n->distance = -1;
+    }
+    return 1;
+}
+
+static void help_sorted_array_range(FRESH_workerdata *wd, fresh_sorted_array_t *sa, int pq_id)
+{
+    size_t pq_size = sa->num_elements;
+    if (pq_size != 0)
+    {
+        int element_id;
+        while ((element_id = (int)__sync_fetch_and_add(&wd->sorted_array_FAI_counter[pq_id], 1)) < (int)pq_size)
+        {
+            fresh_array_element_t *n = &sa->data[element_id];
+            if (!process_sorted_array_element_range(n, wd))
+                break;
+        }
+        for (int i = 0; i < (int)pq_size && !wd->queue_finished[pq_id]; i++)
+        {
+            fresh_array_element_t *n = &sa->data[i];
+            if (n->distance >= 0 && !process_sorted_array_element_range(n, wd))
+                break;
+        }
+    }
+    if (!wd->queue_finished[pq_id])
+        wd->queue_finished[pq_id] = 1;
+}
+
+void *FRESH_range_search_worker_L2Squared(void *rfdata)
+{
+    FRESH_workerdata *wd = (FRESH_workerdata *)rfdata;
+    isax_index *index = wd->index;
+    ts_type *paa = wd->paa;
+    float r = wd->r;
+    const int query_id = wd->query_id;
+    int tnumber = rand() % wd->n_queues;
+
+    while (1)
+    {
+        int current_root_node_number = __sync_fetch_and_add(wd->node_counter, 1);
+        if (current_root_node_number >= wd->amountnode)
+            break;
+        add_to_array_data_lf(paa, wd->nodelist[current_root_node_number], index, r,
+                             wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
+    }
+
+    pthread_barrier_wait(wd->wait_tree_pruning_phase_to_finish);
+
+    int my_pq = wd->workernumber % wd->n_queues;
+    if (!wd->sorted_arrays[my_pq] && wd->next_queue_data_pos[my_pq])
+        create_sorted_array_from_data_queue(my_pq, wd->array_lists, wd->next_queue_data_pos, wd->sorted_arrays);
+
+    fresh_sorted_array_t *my_array = wd->sorted_arrays[my_pq];
+    if (my_array && !wd->queue_finished[my_pq])
+        help_sorted_array_range(wd, my_array, my_pq);
+
+    for (int i = 0; i < wd->n_queues; i++)
+    {
+        if (!wd->sorted_arrays[i] && wd->next_queue_data_pos[i])
+            create_sorted_array_from_data_queue(i, wd->array_lists, wd->next_queue_data_pos, wd->sorted_arrays);
+    }
+
+    for (int i = 0; i < wd->n_queues; i++)
+    {
+        if (wd->queue_finished[i] || !wd->sorted_arrays[i])
+            continue;
+        if (!wd->helper_queue_exist[i])
+            wd->helper_queue_exist[i] = 1;
+        help_sorted_array_range(wd, wd->sorted_arrays[i], i);
+    }
+
+    return nullptr;
+}
+
 // ── Fresh class ────────────────────────────────────────────────────────────────
 
 Fresh::Fresh(DistanceType distance_type)
@@ -1252,6 +1339,141 @@ void Fresh::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I,
 
     free(nodelist.nlist);
     fprintf(stderr, ">>> Finished querying.\n");
+}
+
+std::vector<std::pair<float, idx_t>> Fresh::FRESH_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r)
+{
+    std::vector<std::pair<float, idx_t>> results;
+    pthread_rwlock_t lock_results = PTHREAD_RWLOCK_INITIALIZER;
+
+    int n_queues = (this->search_workers == 1) ? 1 : this->search_workers / 2;
+    int query_id = __sync_add_and_fetch(&g_fresh_query_id, 1);
+
+    fresh_array_list_t *array_lists = (fresh_array_list_t *)malloc(sizeof(fresh_array_list_t) * n_queues);
+    for (int i = 0; i < n_queues; i++)
+        init_array_list_fresh(&array_lists[i], index->settings->root_nodes_size / n_queues);
+
+    fresh_sorted_array_t *volatile *sorted_arrays = (fresh_sorted_array_t *volatile *)calloc(n_queues, sizeof(fresh_sorted_array_t *));
+    volatile unsigned long *next_queue_data_pos = (volatile unsigned long *)calloc(n_queues, sizeof(unsigned long));
+    volatile unsigned char *queue_finished = (volatile unsigned char *)calloc(n_queues, sizeof(unsigned char));
+    volatile unsigned char *helper_queue_exist = (volatile unsigned char *)calloc(n_queues, sizeof(unsigned char));
+    volatile unsigned long *sorted_array_FAI_counter = (volatile unsigned long *)calloc(n_queues, sizeof(unsigned long));
+
+    volatile int node_counter = 0;
+
+    pthread_barrier_t wait_tree_pruning_phase_to_finish;
+    pthread_barrier_init(&wait_tree_pruning_phase_to_finish, NULL, this->search_workers);
+
+    pthread_t threadid[this->search_workers];
+    FRESH_workerdata workerdata[this->search_workers];
+
+    for (int i = 0; i < this->search_workers; i++)
+    {
+        workerdata[i].paa = paa;
+        workerdata[i].ts = ts;
+        workerdata[i].index = index;
+        workerdata[i].minimum_distance = r;
+        workerdata[i].pq_bsf = nullptr;
+        workerdata[i].lock_bsf = nullptr;
+        workerdata[i].nodelist = nodelist->nlist;
+        workerdata[i].amountnode = nodelist->node_amount;
+        workerdata[i].node_counter = &node_counter;
+        workerdata[i].array_lists = array_lists;
+        workerdata[i].sorted_arrays = sorted_arrays;
+        workerdata[i].next_queue_data_pos = next_queue_data_pos;
+        workerdata[i].queue_finished = queue_finished;
+        workerdata[i].helper_queue_exist = helper_queue_exist;
+        workerdata[i].sorted_array_FAI_counter = sorted_array_FAI_counter;
+        workerdata[i].sorted_array_counter = nullptr;
+        workerdata[i].fai_queue_counters = nullptr;
+        workerdata[i].queue_bsf_distance = nullptr;
+        workerdata[i].wait_tree_pruning_phase_to_finish = &wait_tree_pruning_phase_to_finish;
+        workerdata[i].workernumber = i;
+        workerdata[i].n_queues = n_queues;
+        workerdata[i].query_id = query_id;
+        workerdata[i].rawfile = this->database;
+        workerdata[i].r = r;
+        workerdata[i].range_results = &results;
+        workerdata[i].lock_range_results = &lock_results;
+    }
+
+    for (int i = 0; i < this->search_workers; i++)
+        pthread_create(&threadid[i], NULL, FRESH_range_search_worker_L2Squared, (void *)&workerdata[i]);
+    for (int i = 0; i < this->search_workers; i++)
+        pthread_join(threadid[i], NULL);
+
+    pthread_barrier_destroy(&wait_tree_pruning_phase_to_finish);
+    pthread_rwlock_destroy(&lock_results);
+
+    for (int i = 0; i < n_queues; i++)
+    {
+        if (sorted_arrays[i])
+        {
+            free(sorted_arrays[i]->data);
+            free(sorted_arrays[i]);
+        }
+        fresh_array_list_node_t *node = array_lists[i].Top;
+        while (node)
+        {
+            fresh_array_list_node_t *next = node->next;
+            free(node->data);
+            free(node);
+            node = next;
+        }
+    }
+    free(array_lists);
+    free((void *)sorted_arrays);
+    free((void *)next_queue_data_pos);
+    free((void *)queue_finished);
+    free((void *)helper_queue_exist);
+    free((void *)sorted_array_FAI_counter);
+
+    return results;
+}
+
+void Fresh::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                        std::vector<std::vector<idx_t>> &I,
+                        std::vector<std::vector<float>> &D)
+{
+    if (config.type == QueryType::TOP_K)
+    {
+        SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+        return;
+    }
+
+    ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+    node_list nodelist;
+    nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * (int)pow(2, index->settings->paa_segments));
+    nodelist.node_amount = 0;
+    isax_node *current_root_node = index->first_node;
+    while (current_root_node != NULL)
+    {
+        nodelist.nlist[nodelist.node_amount++] = current_root_node;
+        current_root_node = current_root_node->next;
+    }
+
+    I.resize(n_query);
+    D.resize(n_query);
+
+    for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
+    {
+        const float *ts = query + q_loaded * this->dim;
+        paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+
+        std::vector<std::pair<float, idx_t>> hits = FRESH_search_range_L2Squared((float *)ts, paa, &nodelist, config.r);
+        std::sort(hits.begin(), hits.end());
+
+        I[q_loaded].resize(hits.size());
+        D[q_loaded].resize(hits.size());
+        for (size_t j = 0; j < hits.size(); j++)
+        {
+            D[q_loaded][j] = hits[j].first;
+            I[q_loaded][j] = hits[j].second;
+        }
+    }
+
+    free(nodelist.nlist);
+    free(paa);
 }
 
 void Fresh::searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)

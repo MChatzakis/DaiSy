@@ -706,3 +706,18 @@ gtest_discover_tests(
     test_Fresh_L2Square
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+# ////// Python range search test (requires BUILD_PYTHON + faiss) //////
+if(BUILD_PYTHON)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_FOUND)
+        add_test(
+            NAME test_range_search_py
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_range_search.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        set_tests_properties(test_range_search_py PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+        )
+    endif()
+endif()

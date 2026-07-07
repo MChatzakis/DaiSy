@@ -7,6 +7,8 @@
 #include "isax/iSAXSearch.hpp"
 
 #include <queue>
+#include <utility>
+#include <vector>
 #include <cfloat>
 #include <omp.h>
 #include <pthread.h>
@@ -56,10 +58,23 @@ namespace daisy
         int warpWind; 
     } ParIS_read_worker_data;
 
+    typedef struct paris_range_read_worker_data
+    {
+        isax_index *index;
+        ts_type *ts;
+        unsigned long *counter;
+        unsigned long *load_point;
+        unsigned long sum_of_lab;
+        float r;
+        std::vector<std::pair<float, idx_t>> *range_results;
+        pthread_mutex_t *lock_results;
+    } paris_range_read_worker_data;
+
     void *mindistance_worker(void *essdata);
     void *topk_read_worker(void *read_pointer);
-    void *mindistance_worker_dtw(void *essdata); 
-    void *dtwknnreadworker(void *read_pointer);  
+    void *mindistance_worker_dtw(void *essdata);
+    void *dtwknnreadworker(void *read_pointer);
+    void *paris_range_read_worker(void *arg);
     pqueue_bsf exact_topk_serial_ParIS(ts_type *ts, ts_type *paa, isax_index *index, float minimum_distance, int min_checked_leaves, int k, int maxquerythread);
     void approximate_topk(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf);
     void approximate_topk_dtw(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, int warpWind);
@@ -100,6 +115,9 @@ namespace daisy
         }
 
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
+        void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                         std::vector<std::vector<idx_t>> &I,
+                         std::vector<std::vector<float>> &D) override;
 
         ~ParIS();
     };

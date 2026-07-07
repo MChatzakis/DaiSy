@@ -368,6 +368,129 @@ void *SOFA_topk_search_worker(void *rfdata)
     return nullptr;
 }
 
+void calculate_node_range_sofa(
+    isax_index *index, isax_node *node, ts_type *query, float *fft,
+    float **bins, bool is_norm, float r,
+    std::vector<std::pair<float, idx_t>> *results,
+    pthread_rwlock_t *lock_results, float *rawfile)
+{
+    if (node == NULL || node->buffer == NULL) return;
+
+    for (int i = 0; i < node->buffer->full_buffer_size; i++) {
+        float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
+            index->settings->timeseries_size, r);
+        if (dist <= r) {
+            file_position_type pos = 0;
+            if (node->buffer->full_position_buffer && node->buffer->full_position_buffer[i])
+                pos = *node->buffer->full_position_buffer[i] / index->settings->timeseries_size;
+            pthread_rwlock_wrlock(lock_results);
+            results->emplace_back(dist, (idx_t)pos);
+            pthread_rwlock_unlock(lock_results);
+        }
+    }
+    for (int i = 0; i < node->buffer->tmp_full_buffer_size; i++) {
+        float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
+            index->settings->timeseries_size, r);
+        if (dist <= r) {
+            file_position_type pos = 0;
+            if (node->buffer->tmp_full_position_buffer && node->buffer->tmp_full_position_buffer[i])
+                pos = *node->buffer->tmp_full_position_buffer[i] / index->settings->timeseries_size;
+            pthread_rwlock_wrlock(lock_results);
+            results->emplace_back(dist, (idx_t)pos);
+            pthread_rwlock_unlock(lock_results);
+        }
+    }
+    for (int i = 0; i < node->buffer->partial_buffer_size; i++) {
+        if (node->buffer->partial_position_buffer[i] == nullptr) continue;
+        float distmin = sofa_minidist(bins, fft,
+            node->buffer->partial_sax_buffer[i],
+            index->settings->max_sax_cardinalities,
+            index->settings->sax_bit_cardinality,
+            index->settings->sax_alphabet_cardinality,
+            index->settings->paa_segments, is_norm);
+        if (distmin <= r) {
+            float dist = ts_euclidean_distance_SIMD(query,
+                &rawfile[*node->buffer->partial_position_buffer[i]],
+                index->settings->timeseries_size, r);
+            if (dist <= r) {
+                pthread_rwlock_wrlock(lock_results);
+                results->emplace_back(dist,
+                    (idx_t)(*node->buffer->partial_position_buffer[i] /
+                        index->settings->timeseries_size));
+                pthread_rwlock_unlock(lock_results);
+            }
+        }
+    }
+}
+
+void *SOFA_range_search_worker(void *rfdata)
+{
+    SOFA_workerdata *d = (SOFA_workerdata *)rfdata;
+    isax_index *index = d->index;
+    float *fft = d->fft;
+    ts_type *ts = d->ts;
+    float r = d->r;
+    int n_pqueue = d->n_pqueue;
+    bool is_norm = d->is_norm;
+    float **bins = d->bins;
+    float *rawfile = d->rawfile;
+
+    int tnumber = rand() % n_pqueue;
+    int startq = d->startqueuenumber;
+
+    while (1) {
+        int cur = __sync_fetch_and_add(d->node_counter, 1);
+        if (cur >= d->amountnode) break;
+        insert_tree_node_sofa(bins, is_norm, fft,
+            d->nodelist[cur], index, r,
+            d->allpq, d->alllock, &tnumber, n_pqueue);
+    }
+
+    pthread_barrier_wait(d->lock_barrier);
+
+    query_result *n;
+    while (1) {
+        pthread_mutex_lock(&d->alllock[startq]);
+        n = (query_result *)pqueue_pop(d->allpq[startq]);
+        pthread_mutex_unlock(&d->alllock[startq]);
+        if (n == NULL) break;
+        if (n->distance > r) { free(n); break; }
+        if (n->node->is_leaf)
+            calculate_node_range_sofa(index, n->node, ts, fft, bins, is_norm,
+                                      r, d->range_results, d->lock_range_results, rawfile);
+        free(n);
+    }
+
+    if (d->allqueuelabel[startq] == 1) {
+        d->allqueuelabel[startq] = 0;
+        pthread_mutex_lock(&d->alllock[startq]);
+        while ((n = (query_result *)pqueue_pop(d->allpq[startq]))) free(n);
+        pthread_mutex_unlock(&d->alllock[startq]);
+    }
+
+    while (1) {
+        bool finished = true;
+        for (int i = 0; i < n_pqueue; i++) {
+            if (d->allqueuelabel[i] != 1) continue;
+            finished = false;
+            while (1) {
+                pthread_mutex_lock(&d->alllock[i]);
+                n = (query_result *)pqueue_pop(d->allpq[i]);
+                pthread_mutex_unlock(&d->alllock[i]);
+                if (n == NULL) break;
+                if (n->distance > r) { free(n); break; }
+                if (n->node->is_leaf)
+                    calculate_node_range_sofa(index, n->node, ts, fft, bins, is_norm,
+                                              r, d->range_results, d->lock_range_results, rawfile);
+                free(n);
+            }
+            d->allqueuelabel[i] = 0;
+        }
+        if (finished) break;
+    }
+    return nullptr;
+}
+
 // ---- Sofa class implementation ----
 
 static void sofa_approximate_topk(
@@ -613,6 +736,122 @@ void Sofa::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_
     fprintf(stderr, ">>> SOFA: Finished querying.\n");
 }
 
+std::vector<std::pair<float, idx_t>> Sofa::sofaSearchRangeL2Squared(
+    float *ts, float *fft, node_list *nodelist, float r)
+{
+    std::vector<std::pair<float, idx_t>> results;
+    pthread_rwlock_t lock_results = PTHREAD_RWLOCK_INITIALIZER;
+
+    int node_counter = 0;
+    pqueue_t                    **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * n_pqueue);
+    std::vector<pthread_mutex_t>  ququelock(n_pqueue);
+    std::vector<int>              queuelabel(n_pqueue);
+    std::vector<pthread_t>        tids(search_workers);
+    std::vector<SOFA_workerdata>  workerdata(search_workers);
+    pthread_mutex_t  lock_queue = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t  lock_current_root = PTHREAD_MUTEX_INITIALIZER;
+    pthread_barrier_t lock_barrier;
+    pthread_barrier_init(&lock_barrier, nullptr, search_workers);
+
+    for (int i = 0; i < n_pqueue; i++) {
+        allpq[i] = pqueue_init(index->settings->root_nodes_size / n_pqueue,
+                               cmp_pri, get_pri, set_pri, get_pos, set_pos);
+        pthread_mutex_init(&ququelock[i], nullptr);
+        queuelabel[i] = 1;
+    }
+
+    for (int i = 0; i < search_workers; i++) {
+        workerdata[i].fft = fft;
+        workerdata[i].ts = ts;
+        workerdata[i].lock_queue = &lock_queue;
+        workerdata[i].lock_current_root_node = &lock_current_root;
+        workerdata[i].lock_bsf = nullptr;
+        workerdata[i].nodelist = nodelist->nlist;
+        workerdata[i].amountnode = nodelist->node_amount;
+        workerdata[i].index = index;
+        workerdata[i].minimum_distance = r;
+        workerdata[i].node_counter = &node_counter;
+        workerdata[i].pq = allpq[i];
+        workerdata[i].lock_barrier = &lock_barrier;
+        workerdata[i].alllock = ququelock.data();
+        workerdata[i].allqueuelabel = queuelabel.data();
+        workerdata[i].allpq = allpq;
+        workerdata[i].startqueuenumber = i % n_pqueue;
+        workerdata[i].pq_bsf = nullptr;
+        workerdata[i].n_pqueue = n_pqueue;
+        workerdata[i].rawfile = this->database;
+        workerdata[i].bins = this->bins;
+        workerdata[i].is_norm = this->is_norm;
+        workerdata[i].r = r;
+        workerdata[i].range_results = &results;
+        workerdata[i].lock_range_results = &lock_results;
+    }
+
+    for (int i = 0; i < search_workers; i++)
+        pthread_create(&tids[i], nullptr, SOFA_range_search_worker, &workerdata[i]);
+    for (int i = 0; i < search_workers; i++)
+        pthread_join(tids[i], nullptr);
+
+    pthread_barrier_destroy(&lock_barrier);
+    pthread_rwlock_destroy(&lock_results);
+    for (int i = 0; i < n_pqueue; i++) {
+        query_result *r_item;
+        while ((r_item = (query_result *)pqueue_pop(allpq[i]))) free(r_item);
+        pqueue_free(allpq[i]);
+    }
+    free(allpq);
+
+    return results;
+}
+
+void Sofa::searchIndexRangeL2Squared(const float *query, idx_t n_query, float r,
+                                      std::vector<std::vector<idx_t>> &I,
+                                      std::vector<std::vector<float>> &D)
+{
+    node_list nodelist;
+    nodelist.nlist = (isax_node **)malloc(
+        sizeof(isax_node *) * (size_t)pow(2, index->settings->paa_segments));
+    nodelist.node_amount = 0;
+    for (isax_node *cur = index->first_node; cur != NULL; cur = cur->next)
+        nodelist.nlist[nodelist.node_amount++] = cur;
+
+    float norm_factor = std::sqrt(2.0f / (float)this->dim);
+    int ts_length = index->settings->timeseries_size;
+
+    float         *ts_buf = (float *)fftwf_malloc(sizeof(float) * ts_length);
+    fftwf_complex *ts_out = (fftwf_complex *)fftwf_malloc(
+                                sizeof(fftwf_complex) * (ts_length / 2 + 1));
+    fftwf_plan plan = fftwf_plan_dft_r2c_1d(ts_length, ts_buf, ts_out, FFTW_ESTIMATE);
+    float *fft_buf = (float *)fftwf_malloc(sizeof(float) * ts_length);
+
+    I.resize(n_query);
+    D.resize(n_query);
+
+    for (idx_t q = 0; q < n_query; q++) {
+        const float *ts = query + q * this->dim;
+
+        memcpy(ts_buf, ts, sizeof(float) * ts_length);
+        sofa_fft_from_ts(ts_length, norm_factor, is_norm,
+                         ts_out, fft_buf, plan, paa_segments);
+
+        auto hits = sofaSearchRangeL2Squared((float *)ts, fft_buf, &nodelist, r);
+
+        std::sort(hits.begin(), hits.end());
+        I[q].resize(hits.size());
+        D[q].resize(hits.size());
+        for (size_t j = 0; j < hits.size(); j++) {
+            D[q][j] = hits[j].first;
+            I[q][j] = hits[j].second;
+        }
+    }
+
+    fftwf_destroy_plan(plan);
+    fftwf_free(ts_buf);
+    fftwf_free(ts_out);
+    fftwf_free(fft_buf);
+    free(nodelist.nlist);
+}
+
 void Sofa::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
     throw std::runtime_error("SOFA does not support DTW distance.");
@@ -626,6 +865,19 @@ void Sofa::searchIndex(const float *query, const idx_t n_query, const idx_t k, i
         searchIndexDTW(query, n_query, k, I, D);
     else
         throw std::runtime_error("SOFA: unsupported distance type.");
+}
+
+void Sofa::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                       std::vector<std::vector<idx_t>> &I,
+                       std::vector<std::vector<float>> &D)
+{
+    if (config.type == QueryType::TOP_K) {
+        SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+        return;
+    }
+    if (this->distance_type != DistanceType::L2_SQUARED)
+        throw std::runtime_error("SOFA range search only supports L2_SQUARED.");
+    searchIndexRangeL2Squared(query, n_query, config.r, I, D);
 }
 
 Sofa::~Sofa()

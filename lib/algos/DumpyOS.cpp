@@ -618,6 +618,133 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
     }
 }
 
+void DumpyOS::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                           std::vector<std::vector<idx_t>> &I,
+                           std::vector<std::vector<float>> &D)
+{
+    if (config.type == QueryType::TOP_K) {
+        SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+        return;
+    }
+
+    float r = config.r;
+    bool use_dtw = (this->distance_type == DistanceType::DTW);
+    int w = config_.paa_segments;
+    int max_bits = config_.sax_bit_cardinality;
+    int cardinality = 1 << max_bits;
+    int pts_per_seg = (int)dim / w;
+    int warp_win = warping_window;
+
+    std::vector<sax_type> q_sax(w);
+    std::vector<ts_type> q_paa(w);
+    std::vector<float> q_paa_upper(use_dtw ? w : 0);
+    std::vector<float> q_paa_lower(use_dtw ? w : 0);
+    std::vector<float> upper_env(use_dtw ? (int)dim : 0);
+    std::vector<float> lower_env(use_dtw ? (int)dim : 0);
+
+    struct PqItem {
+        double lb;
+        DumpyOSNode *parent;
+        int child_id;
+        bool operator>(const PqItem &o) const { return lb > o.lb; }
+    };
+
+    I.resize(n_query);
+    D.resize(n_query);
+
+    for (idx_t qi = 0; qi < n_query; ++qi) {
+        const float *q = query + (size_t)qi * dim;
+
+        paa_from_ts(q, q_paa.data(), w, pts_per_seg);
+        sax_from_paa(q_paa.data(), q_sax.data(), w, cardinality, max_bits);
+
+        if (use_dtw) {
+            lower_upper_lemire(const_cast<float *>(q), (int)dim, warp_win,
+                               lower_env.data(), upper_env.data());
+            paa_from_ts(upper_env.data(), q_paa_upper.data(), w, pts_per_seg);
+            paa_from_ts(lower_env.data(), q_paa_lower.data(), w, pts_per_seg);
+        }
+
+        DumpyOSNode *approx_leaf = root_;
+        while (!approx_leaf->chosen_segs.empty()) {
+            int sid = extend_sax_chosen(q_sax.data(), approx_leaf->levels.data(),
+                                        approx_leaf->chosen_segs, max_bits);
+            if (sid < 0 || sid >= (int)approx_leaf->children.size() ||
+                approx_leaf->children[sid] == nullptr) break;
+            approx_leaf = approx_leaf->children[sid];
+        }
+
+        std::vector<std::pair<float, idx_t>> hits;
+
+        auto search_leaf = [&](DumpyOSNode *leaf) {
+            for (idx_t si : leaf->entries) {
+                float dist;
+                if (use_dtw) {
+                    dist = distance_computer->compute_dist(
+                        const_cast<float *>(q),
+                        database + (size_t)si * dim,
+                        (int)dim, r);
+                } else {
+                    dist = l2sq_early(q, database + (size_t)si * dim, (int)dim, r);
+                }
+                if (dist <= r)
+                    hits.emplace_back(dist, si);
+            }
+        };
+
+        auto compute_lb = [&](const DumpyOSNode *parent, int sid) -> double {
+            if (use_dtw)
+                return lb_paa_to_child_dtw(q_paa_upper.data(), q_paa_lower.data(),
+                                           parent, sid, (int)dim, w);
+            return lb_paa_to_child(q_paa.data(), parent, sid, (int)dim, w);
+        };
+
+        if (approx_leaf->chosen_segs.empty())
+            search_leaf(approx_leaf);
+
+        std::priority_queue<PqItem, std::vector<PqItem>, std::greater<PqItem>> pq;
+        std::unordered_set<DumpyOSNode *> visited;
+        visited.insert(approx_leaf);
+
+        if (!root_->chosen_segs.empty()) {
+            for (int sid = 0; sid < (int)root_->children.size(); ++sid) {
+                DumpyOSNode *ch = root_->children[sid];
+                if (ch == nullptr || visited.count(ch)) continue;
+                double lb = compute_lb(root_, sid);
+                if (lb <= (double)r) pq.push({lb, root_, sid});
+            }
+        }
+
+        while (!pq.empty()) {
+            PqItem top = pq.top(); pq.pop();
+            if (top.lb > (double)r) break;
+
+            DumpyOSNode *node = top.parent->children[top.child_id];
+            if (node == nullptr || visited.count(node)) continue;
+            visited.insert(node);
+
+            if (!node->chosen_segs.empty()) {
+                for (int sid = 0; sid < (int)node->children.size(); ++sid) {
+                    DumpyOSNode *ch = node->children[sid];
+                    if (ch == nullptr || visited.count(ch)) continue;
+                    double lb = compute_lb(node, sid);
+                    if (lb <= (double)r) pq.push({lb, node, sid});
+                }
+            } else {
+                search_leaf(node);
+            }
+        }
+
+        std::sort(hits.begin(), hits.end());
+        I[qi].resize(hits.size());
+        D[qi].resize(hits.size());
+        for (size_t j = 0; j < hits.size(); j++) {
+            D[qi][j] = hits[j].first;
+            I[qi][j] = hits[j].second;
+        }
+    }
+}
+
 void DumpyOS::destroyTree_(DumpyOSNode* node) {
     if (!node) return;
     for (DumpyOSNode* child : node->children) destroyTree_(child);

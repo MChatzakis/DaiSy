@@ -43,6 +43,19 @@ PYBIND11_MODULE(_core, m)
         .value("DTW", daisy::DistanceType::DTW)
         .export_values();
 
+    ////// QUERYTYPE //////
+    pybind11::enum_<daisy::QueryType>(m, "QueryType")
+        .value("TOP_K", daisy::QueryType::TOP_K)
+        .value("RANGE", daisy::QueryType::RANGE)
+        .export_values();
+
+    ////// SEARCHCONFIG //////
+    pybind11::class_<daisy::SearchConfig>(m, "SearchConfig")
+        .def(pybind11::init<>())
+        .def_readwrite("k", &daisy::SearchConfig::k)
+        .def_readwrite("r", &daisy::SearchConfig::r)
+        .def_readwrite("type", &daisy::SearchConfig::type);
+
     ////// BRUTEFORCE //////
     pybind11::class_<daisy::BruteForceSearch>(m, "BruteForceSearch", "Brute force similarity search")
         // Constructor
@@ -95,7 +108,17 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the index with queries and return (indices, distances)");
+            ); }, "Search the index with queries and return (indices, distances)")
+        .def("searchIndex", [](daisy::BruteForceSearch &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
     ////// LBBRUTEFORCE //////
     pybind11::class_<daisy::LbBruteforce>(m, "LbBruteforce", "Lower Bound brute-force similarity search")
@@ -220,7 +243,17 @@ PYBIND11_MODULE(_core, m)
                     std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)}, 
                     distances.data()
                 )
-            ); }, "Search the index using L2 squared distance and return (indices, distances)");
+            ); }, "Search the index using L2 squared distance and return (indices, distances)")
+        .def("searchIndex", [](daisy::LbBruteforce &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
     ////// MESSI //////
     pybind11::class_<daisy::Messi>(m, "Messi", "MESSI (Multi-Queue Efficient SAX Similarity Index) algorithm for time series similarity search")
@@ -294,7 +327,17 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the MESSI index using queries and return (indices, distances)");
+            ); }, "Search the MESSI index using queries and return (indices, distances)")
+        .def("searchIndex", [](daisy::Messi &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
 #if ODYSSEY_MPI
     ////// ODYSSEY //////
@@ -368,7 +411,17 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the index with queries and return (indices, distances)");
+            ); }, "Search the index with queries and return (indices, distances)")
+        .def("searchIndex", [](daisy::Odyssey &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 #endif  // ODYSSEY_MPI
 
     ////// PARIS //////
@@ -411,7 +464,17 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the ParIS index using queries and return (indices, distances)");
+            ); }, "Search the ParIS index using queries and return (indices, distances)")
+        .def("searchIndex", [](daisy::ParIS &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
     ////// SING //////
     // Only include Sing bindings if Sing is built (requires CUDA)
@@ -468,7 +531,17 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the index with queries and return (indices, distances)");
+            ); }, "Search the index with queries and return (indices, distances)")
+        .def("searchIndex", [](daisy::Sing &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
     #endif
 #endif
 
@@ -550,7 +623,17 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the SOFA index using queries and return (indices, distances)");
+            ); }, "Search the SOFA index using queries and return (indices, distances)")
+        .def("searchIndex", [](daisy::Sofa &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
     #endif
 #endif
 
@@ -598,7 +681,17 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the Hercules index and return (indices, distances)");
+            ); }, "Search the Hercules index and return (indices, distances)")
+        .def("searchIndex", [](daisy::Hercules &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
     pybind11::class_<daisy::DumpyOSConfig>(m, "DumpyOSConfig", "Configuration for the DumpyOS similarity search index")
         .def(pybind11::init<>())
@@ -638,7 +731,17 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the DumpyOS index and return (indices, distances)");
+            ); }, "Search the DumpyOS index and return (indices, distances)")
+        .def("searchIndex", [](daisy::DumpyOS &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
     ////// FRESH //////
     pybind11::class_<daisy::Fresh>(m, "Fresh", "FreSH lock-free iSAX-based time series similarity index (SRDS 2023)")
@@ -708,5 +811,15 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
-            ); }, "Search the Fresh index using queries and return (indices, distances)");
+            ); }, "Search the Fresh index using queries and return (indices, distances)")
+        .def("searchIndex", [](daisy::Fresh &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 }

@@ -480,6 +480,148 @@ namespace daisy
         return nullptr;
     }
 
+    void calculate_node_range_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
+                                       float r, std::vector<std::pair<float, idx_t>> *results,
+                                       pthread_rwlock_t *lock, float *rawfile)
+    {
+        if (node == NULL || node->buffer == NULL)
+            return;
+
+        for (int i = 0; i < node->buffer->full_buffer_size; i++)
+        {
+            float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
+                                                    index->settings->timeseries_size, r);
+            if (dist <= r)
+            {
+                file_position_type pos = 0;
+                if (node->buffer->full_position_buffer != nullptr &&
+                    node->buffer->full_position_buffer[i] != nullptr)
+                    pos = *node->buffer->full_position_buffer[i] / index->settings->timeseries_size;
+                pthread_rwlock_wrlock(lock);
+                results->emplace_back(dist, static_cast<idx_t>(pos));
+                pthread_rwlock_unlock(lock);
+            }
+        }
+
+        for (int i = 0; i < node->buffer->tmp_full_buffer_size; i++)
+        {
+            float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
+                                                    index->settings->timeseries_size, r);
+            if (dist <= r)
+            {
+                file_position_type pos = 0;
+                if (node->buffer->tmp_full_position_buffer != nullptr &&
+                    node->buffer->tmp_full_position_buffer[i] != nullptr)
+                    pos = *node->buffer->tmp_full_position_buffer[i] / index->settings->timeseries_size;
+                pthread_rwlock_wrlock(lock);
+                results->emplace_back(dist, static_cast<idx_t>(pos));
+                pthread_rwlock_unlock(lock);
+            }
+        }
+
+        for (int i = 0; i < node->buffer->partial_buffer_size; i++)
+        {
+            float distmin = minidist_paa_to_isax_rawa_SIMD(paa, node->buffer->partial_sax_buffer[i],
+                                                           index->settings->max_sax_cardinalities,
+                                                           index->settings->sax_bit_cardinality,
+                                                           index->settings->sax_alphabet_cardinality,
+                                                           index->settings->paa_segments, MINVAL, MAXVAL,
+                                                           index->settings->mindist_sqrt);
+            if (distmin <= r)
+            {
+                float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
+                                                        index->settings->timeseries_size, r);
+                if (dist <= r)
+                {
+                    pthread_rwlock_wrlock(lock);
+                    results->emplace_back(dist, static_cast<idx_t>(*node->buffer->partial_position_buffer[i] / index->settings->timeseries_size));
+                    pthread_rwlock_unlock(lock);
+                }
+            }
+        }
+    }
+
+    void *MESSI_range_search_worker_L2Squared(void *rfdata)
+    {
+        MESSI_workerdata *wd = (MESSI_workerdata *)rfdata;
+        isax_index *index = wd->index;
+        ts_type *paa = wd->paa;
+        ts_type *ts = wd->ts;
+        float r = wd->r;
+        int n_pqueue = wd->n_pqueue;
+        float *rawfile = wd->rawfile;
+        int tnumber = rand() % n_pqueue;
+        int startqueuenumber = wd->startqueuenumber;
+        bool finished = true;
+        query_result *n;
+
+        while (1)
+        {
+            int current_root_node_number = __sync_fetch_and_add(wd->node_counter, 1);
+            if (current_root_node_number >= wd->amountnode)
+                break;
+            insert_tree_node_m_hybridpqueue(paa, wd->nodelist[current_root_node_number], index, r,
+                                            wd->allpq, wd->alllock, &tnumber, n_pqueue);
+        }
+
+        pthread_barrier_wait(wd->lock_barrier);
+
+        while (1)
+        {
+            pthread_mutex_lock(&wd->alllock[startqueuenumber]);
+            n = (query_result *)pqueue_pop(wd->allpq[startqueuenumber]);
+            pthread_mutex_unlock(&wd->alllock[startqueuenumber]);
+            if (n == NULL)
+                break;
+            if (n->distance > r)
+                break;
+            if (n->node->is_leaf)
+                calculate_node_range_inmemory(index, n->node, ts, paa, r,
+                                             wd->range_results, wd->lock_range_results, rawfile);
+            free(n);
+        }
+
+        if (wd->allqueuelabel[startqueuenumber] == 1)
+        {
+            wd->allqueuelabel[startqueuenumber] = 0;
+            pthread_mutex_lock(&wd->alllock[startqueuenumber]);
+            while ((n = (query_result *)pqueue_pop(wd->allpq[startqueuenumber])))
+                free(n);
+            pthread_mutex_unlock(&wd->alllock[startqueuenumber]);
+        }
+
+        while (1)
+        {
+            finished = true;
+            for (int i = 0; i < n_pqueue; i++)
+            {
+                if (wd->allqueuelabel[i] == 1)
+                {
+                    finished = false;
+                    while (1)
+                    {
+                        pthread_mutex_lock(&wd->alllock[i]);
+                        n = (query_result *)pqueue_pop(wd->allpq[i]);
+                        pthread_mutex_unlock(&wd->alllock[i]);
+                        if (n == NULL)
+                            break;
+                        if (n->distance > r)
+                            break;
+                        if (n->node->is_leaf)
+                            calculate_node_range_inmemory(index, n->node, ts, paa, r,
+                                                         wd->range_results, wd->lock_range_results, rawfile);
+                        free(n);
+                    }
+                    wd->allqueuelabel[i] = 0;
+                }
+            }
+            if (finished)
+                break;
+        }
+
+        return nullptr;
+    }
+
     Messi::Messi(DistanceType distance_type)
         : Messi(distance_type, MessiConfig{})
     {
@@ -865,6 +1007,112 @@ namespace daisy
 
         free(nodelist.nlist);
         fprintf(stderr, ">>> Finished querying.\n");
+    }
+
+    std::vector<std::pair<float, idx_t>> Messi::MESSI_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r)
+    {
+        std::vector<std::pair<float, idx_t>> results;
+        pthread_rwlock_t lock_results = PTHREAD_RWLOCK_INITIALIZER;
+
+        int node_counter = 0;
+        pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
+        pthread_mutex_t ququelock[this->n_pqueue];
+        int queuelabel[this->n_pqueue];
+
+        pthread_t threadid[this->search_workers];
+        MESSI_workerdata workerdata[this->search_workers];
+        pthread_mutex_t lock_queue = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_t lock_current_root_node = PTHREAD_MUTEX_INITIALIZER;
+        pthread_barrier_t lock_barrier;
+        pthread_barrier_init(&lock_barrier, NULL, this->search_workers);
+
+        for (int i = 0; i < this->n_pqueue; i++)
+        {
+            allpq[i] = pqueue_init(index->settings->root_nodes_size / this->n_pqueue, cmp_pri, get_pri, set_pri, get_pos, set_pos);
+            pthread_mutex_init(&ququelock[i], NULL);
+            queuelabel[i] = 1;
+        }
+
+        for (int i = 0; i < this->search_workers; i++)
+        {
+            workerdata[i].paa = paa;
+            workerdata[i].ts = ts;
+            workerdata[i].lock_queue = &lock_queue;
+            workerdata[i].lock_current_root_node = &lock_current_root_node;
+            workerdata[i].nodelist = nodelist->nlist;
+            workerdata[i].amountnode = nodelist->node_amount;
+            workerdata[i].index = index;
+            workerdata[i].node_counter = &node_counter;
+            workerdata[i].lock_barrier = &lock_barrier;
+            workerdata[i].alllock = ququelock;
+            workerdata[i].allqueuelabel = queuelabel;
+            workerdata[i].allpq = allpq;
+            workerdata[i].startqueuenumber = i % this->n_pqueue;
+            workerdata[i].n_pqueue = this->n_pqueue;
+            workerdata[i].rawfile = this->database;
+            workerdata[i].r = r;
+            workerdata[i].range_results = &results;
+            workerdata[i].lock_range_results = &lock_results;
+        }
+
+        for (int i = 0; i < this->search_workers; i++)
+            pthread_create(&(threadid[i]), NULL, MESSI_range_search_worker_L2Squared, (void *)&(workerdata[i]));
+        for (int i = 0; i < this->search_workers; i++)
+            pthread_join(threadid[i], NULL);
+
+        pthread_barrier_destroy(&lock_barrier);
+        pthread_rwlock_destroy(&lock_results);
+
+        for (int i = 0; i < this->n_pqueue; i++)
+            pqueue_free(allpq[i]);
+        free(allpq);
+
+        return results;
+    }
+
+    void Messi::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                            std::vector<std::vector<idx_t>> &I,
+                            std::vector<std::vector<float>> &D)
+    {
+        if (config.type == QueryType::TOP_K)
+        {
+            SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+            return;
+        }
+
+        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+        node_list nodelist;
+        nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * (int)pow(2, index->settings->paa_segments));
+        nodelist.node_amount = 0;
+        isax_node *current_root_node = index->first_node;
+        while (current_root_node != NULL)
+        {
+            nodelist.nlist[nodelist.node_amount++] = current_root_node;
+            current_root_node = current_root_node->next;
+        }
+
+        I.resize(n_query);
+        D.resize(n_query);
+
+        for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++)
+        {
+            const float *ts = query + q_loaded * this->dim;
+            paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+
+            std::vector<std::pair<float, idx_t>> hits = MESSI_search_range_L2Squared((float *)ts, paa, &nodelist, config.r);
+            std::sort(hits.begin(), hits.end());
+
+            I[q_loaded].resize(hits.size());
+            D[q_loaded].resize(hits.size());
+            for (size_t j = 0; j < hits.size(); j++)
+            {
+                D[q_loaded][j] = hits[j].first;
+                I[q_loaded][j] = hits[j].second;
+            }
+        }
+
+        free(nodelist.nlist);
+        free(paa);
     }
 
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)

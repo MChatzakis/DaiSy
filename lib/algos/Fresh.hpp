@@ -4,6 +4,8 @@
 #include "SimilaritySearchAlgorithm.hpp"
 #include <cfloat>
 #include <omp.h>
+#include <vector>
+#include <utility>
 #include "../isax/iSAXIndex.hpp"
 #include "../isax/iSAXPqueue.hpp"
 
@@ -103,10 +105,15 @@ namespace daisy
         pthread_barrier_t *wait_tree_pruning_phase_to_finish;
         pthread_barrier_t *wait_process_queue;
         float *rawfile;
+
+        float r;
+        std::vector<std::pair<float, idx_t>> *range_results;
+        pthread_rwlock_t *lock_range_results;
     } FRESH_workerdata;
 
     void *FRESH_topk_search_worker_L2Squared(void *rfdata);
     void *FRESH_topk_search_worker_DTW(void *rfdata);
+    void *FRESH_range_search_worker_L2Squared(void *rfdata);
 
     class Fresh : public SimilaritySearchAlgorithm
     {
@@ -118,6 +125,7 @@ namespace daisy
 
         pqueue_bsf FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
         pqueue_bsf FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
+        std::vector<std::pair<float, idx_t>> FRESH_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r);
 
         void searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
@@ -139,6 +147,10 @@ namespace daisy
         }
 
         void searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D) override;
+
+        void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                         std::vector<std::vector<idx_t>> &I,
+                         std::vector<std::vector<float>> &D) override;
 
         int getNumThreads() const { return SimilaritySearchAlgorithm::num_threads; }
         void setNumThreads(int n) {
