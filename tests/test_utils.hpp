@@ -178,6 +178,16 @@ protected:
     static void TearDownTestSuite() {}
 };
 
+class FreshDTWParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
 // ---- Range (distance-r) parameterized test classes ----
 
 class MessiRangeParameterizedTest : public SimilaritySearchTest,
@@ -232,6 +242,16 @@ protected:
 
 class HerculesRangeParameterizedTest : public SimilaritySearchTest,
                                        public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class OdysseyRangeParameterizedTest : public SimilaritySearchTest,
+                                      public ::testing::WithParamInterface<RangeTestConfig>
 {
 protected:
     using SimilaritySearchTest::runSSTRange;

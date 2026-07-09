@@ -707,6 +707,33 @@ gtest_discover_tests(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
+# ////// FRESH DTW //////
+add_executable(
+    test_Fresh_DTW
+    test_Fresh_DTW.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Fresh_DTW
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Fresh_DTW
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Fresh_DTW
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 # ////// Python range search test (requires BUILD_PYTHON + faiss) //////
 if(BUILD_PYTHON)
     find_package(Python3 QUIET COMPONENTS Interpreter)
@@ -941,4 +968,38 @@ if(BUILD_SOFA_AVAILABLE)
         test_Sofa_Range
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
+endif()
+
+# ////// ODYSSEY Range (conditional on MPI) //////
+if(BUILD_ODYSSEY_AVAILABLE)
+    add_executable(
+        test_Odyssey_Range
+        test_Odyssey_Range.cpp
+        test_utils.cpp
+    )
+
+    target_compile_definitions(test_Odyssey_Range PRIVATE ODYSSEY_MPI)
+
+    target_link_libraries(
+        test_Odyssey_Range
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+        MPI::MPI_CXX
+    )
+
+    target_include_directories(test_Odyssey_Range
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
+    add_test(NAME test_Odyssey_Range
+        COMMAND ${MPIEXEC_EXECUTABLE} --oversubscribe ${MPIEXEC_NUMPROC_FLAG} 4
+                $<TARGET_FILE:test_Odyssey_Range>)
+    set_tests_properties(test_Odyssey_Range PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "PMIX_MCA_pcompress_base_silence_warning=1")
 endif()
