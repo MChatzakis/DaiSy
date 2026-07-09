@@ -567,11 +567,12 @@ static int process_sorted_array_element_L2(fresh_array_element_t *n, FRESH_worke
 
 static int process_sorted_array_element_DTW(fresh_array_element_t *n, FRESH_workerdata *wd)
 {
-    float bsfdistance = wd->pq_bsf->knn[wd->pq_bsf->k - 1];
-    if (n->distance > bsfdistance || n->distance > wd->minimum_distance)
-        return 0;
+    // minidist_paa_to_isax is a lower bound on L2, not DTW, so it cannot be used to
+    // prune against the DTW BSF — doing so misses true DTW nearest neighbors.
+    // Let calculate_node_DTW2knn_inmemory handle pruning via lb_keogh at series level.
     if (n->node->is_leaf && n->distance >= 0)
     {
+        float bsfdistance = wd->pq_bsf->knn[wd->pq_bsf->k - 1];
         calculate_node_DTW2knn_inmemory(wd->index, n->node, wd->ts, wd->uo, wd->lo,
                                         wd->paa, wd->paaU, wd->paaL, bsfdistance,
                                         wd->warpWind, wd->pq_bsf, wd->lock_bsf, wd->rawfile);
@@ -679,7 +680,6 @@ void *FRESH_topk_search_worker_DTW(void *rfdata)
     FRESH_workerdata *wd = (FRESH_workerdata *)rfdata;
     isax_index *index = wd->index;
     ts_type *paa = wd->paa;
-    float bsfdistance = wd->pq_bsf->knn[wd->pq_bsf->k - 1];
     const int query_id = wd->query_id;
     int tnumber = rand() % wd->n_queues;
 
@@ -688,7 +688,10 @@ void *FRESH_topk_search_worker_DTW(void *rfdata)
         int current_root_node_number = __sync_fetch_and_add(wd->node_counter, 1);
         if (current_root_node_number >= wd->amountnode)
             break;
-        add_to_array_data_lf(paa, wd->nodelist[current_root_node_number], index, bsfdistance,
+        // FLT_MAX: minidist_paa_to_isax lower-bounds L2, not DTW, so it cannot
+        // safely prune against the DTW BSF. Enqueue all nodes; DTW pruning happens
+        // per-series inside calculate_node_DTW2knn_inmemory via lb_keogh.
+        add_to_array_data_lf(paa, wd->nodelist[current_root_node_number], index, FLT_MAX,
                              wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
     }
 
