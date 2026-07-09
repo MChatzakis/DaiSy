@@ -55,7 +55,7 @@ void SimilaritySearchTest::runSST(daisy::SimilaritySearchAlgorithm *search,
     search->searchIndex(query, n_query, k, I, D);
 
     if (search->getResultCompareRank() == 0)
-        compareWithGroundTruth(gt_I, gt_D, I, D, n_query, k);
+        compareWithGroundTruth(gt_I, gt_D, I, D, n_query, k, rtol, atol);
 
     delete[] database;
     delete[] query;

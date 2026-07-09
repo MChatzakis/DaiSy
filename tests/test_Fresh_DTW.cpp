@@ -22,7 +22,9 @@ TEST_P(FreshDTWParameterizedTest, AllConfigurations)
             gt_D_path,
             config.dataset_path,
             config.query_path,
-            config.thread_count);
+            config.thread_count,
+            0.0,
+            15.0);
     }
 }
 
