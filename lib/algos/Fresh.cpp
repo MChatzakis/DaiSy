@@ -813,8 +813,14 @@ void *FRESH_range_search_worker_L2Squared(void *rfdata)
 // ── Fresh class ────────────────────────────────────────────────────────────────
 
 Fresh::Fresh(DistanceType distance_type)
-    : Fresh(distance_type, FreshConfig{})
+    : SimilaritySearchAlgorithm(distance_type)
 {
+    FreshConfig config{};
+    this->search_workers = config.search_workers;
+    this->index_workers = config.index_workers;
+    this->warping_window = config.warping_window;
+    this->leaf_size = config.leaf_size;
+    this->paa_segments = config.paa_segments;
 }
 
 Fresh::Fresh(DistanceType distance_type, const FreshConfig &config)
