@@ -98,6 +98,12 @@ void SimilaritySearchTest::runSSTRange(daisy::SimilaritySearchAlgorithm *search,
     std::vector<std::vector<float>> gt_D;
     gt.searchIndex(query, n_query, cfg, gt_I, gt_D);
 
+#if ODYSSEY_MPI
+    if (dynamic_cast<daisy::Odyssey *>(search) != nullptr) {
+        daisy::FileDataSource data_source(config.dataset_path.c_str(), config.dim, config.n_database);
+        search->buildIndex(&data_source);
+    } else
+#endif
     if (dynamic_cast<daisy::ParIS *>(search) != nullptr) {
         search->buildIndex(config.dataset_path, config.dim, config.n_database);
     } else {

@@ -122,6 +122,7 @@ namespace daisy
         int search_workers = 4;
         int index_workers = 2;
         bool owns_database = false;
+        bool warping_window_set = false;
 
         pqueue_bsf FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
         pqueue_bsf FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
@@ -134,8 +135,8 @@ namespace daisy
         Fresh(DistanceType distance_type);
         Fresh(DistanceType distance_type, const FreshConfig &config);
 
-        void setWarpingWindow(int w) { warping_window = w; }
-        void setWarpWindow(int w) { warping_window = w; }
+        void setWarpingWindow(int w) { warping_window = w; warping_window_set = true; }
+        void setWarpWindow(int w) { warping_window = w; warping_window_set = true; }
 
         using SimilaritySearchAlgorithm::buildIndex;
 

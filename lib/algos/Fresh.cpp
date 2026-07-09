@@ -823,6 +823,7 @@ Fresh::Fresh(DistanceType distance_type, const FreshConfig &config)
     this->search_workers = config.search_workers;
     this->index_workers = config.index_workers;
     this->warping_window = config.warping_window;
+    this->warping_window_set = true;
     this->leaf_size = config.leaf_size;
     this->paa_segments = config.paa_segments;
 }
@@ -1103,7 +1104,9 @@ pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_li
 pqueue_bsf Fresh::FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k)
 {
     isax_index *index = this->index;
-    int warpWind = this->warping_window;
+    int warpWind = this->warping_window_set
+        ? this->warping_window
+        : std::max(1, static_cast<int>(0.1 * static_cast<double>(this->dim)));
     float *rawfile = this->database;
 
     ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
