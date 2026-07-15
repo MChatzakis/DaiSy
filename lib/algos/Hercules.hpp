@@ -15,6 +15,7 @@
 namespace daisy
 {
 
+// Optional constructor parameters. Defaults follow the Hercules paper.
 struct HerculesConfig
 {
     int leaf_size = 2000;
@@ -34,17 +35,20 @@ struct HerculesConfig
 
 // ---- Hercules-specific search structs (moved from .cpp) ----
 
+// A leaf that survived tree pruning, tagged with its EAPCA lower bound.
 struct LeafCandidate {
     HerculesNode *node;
     float lb;
 };
 
+// A single series inside a leaf, tagged with its SAX lower bound.
 struct SeriesCandidate {
     uint64_t record_idx;
     idx_t series_idx;
     float lb_sax;
 };
 
+// Candidate selection worker data. Scans leaves, refines with SAX and produces a per-thread series list.
 struct HerculesCSWorkerData {
     const std::vector<LeafCandidate> *lclist;
     std::atomic<unsigned int> *cs_idx;
@@ -60,6 +64,7 @@ struct HerculesCSWorkerData {
     std::vector<SeriesCandidate> local_sclist;
 };
 
+// Candidate refinement worker data. Reads the real series from disk and updates the top-k queue.
 struct HerculesCRWorkerData {
     const std::vector<SeriesCandidate> *sclist;
     std::atomic<unsigned int> *cr_idx;
@@ -71,6 +76,7 @@ struct HerculesCRWorkerData {
     pthread_rwlock_t *lock_bsf;
 };
 
+// Range variant of the candidate selection worker.
 struct HerculesCSRangeWorkerData {
     const std::vector<LeafCandidate> *lclist;
     std::atomic<unsigned int> *cs_idx;
@@ -85,6 +91,7 @@ struct HerculesCSRangeWorkerData {
     std::vector<SeriesCandidate> local_sclist;
 };
 
+// Range variant of the candidate refinement worker.
 struct HerculesCRRangeWorkerData {
     const std::vector<SeriesCandidate> *sclist;
     std::atomic<unsigned int> *cr_idx;
@@ -97,11 +104,14 @@ struct HerculesCRRangeWorkerData {
 };
 
 // ---- Hercules-specific index write / search ----
+
+// Flushes an in-memory Hercules tree and its raw records to root_dir.
 bool hercules_index_write(HerculesNode *root, const float *database,
                           int dim, int leaf_size, int init_segments,
                           int paa_segments, int sax_cardinality, int sax_bit_cardinality,
                           const char *root_dir);
 
+// Top-k search over a persisted Hercules index. Reads raw series from disk when needed.
 void hercules_knn_search(HerculesNode *root, const float *query, int dim,
                           idx_t k, idx_t *I, float *D,
                           const char *root_dir, float epsilon, int approx_leaves,
@@ -109,6 +119,7 @@ void hercules_knn_search(HerculesNode *root, const float *query, int dim,
                           float eapca_th, float sax_th, int n_series,
                           int num_query_threads = 1);
 
+// Range search over a persisted Hercules index. Returns all (distance, position) within radius r.
 std::vector<std::pair<float, idx_t>> hercules_range_search(
     HerculesNode *root, const float *query, int dim,
     float r, const char *root_dir,
@@ -117,19 +128,26 @@ std::vector<std::pair<float, idx_t>> hercules_range_search(
     int num_query_threads = 1);
 
 // ---- Hercules class ----
+
+// Non-iSAX exact similarity search based on the Hercules tree (EAPCA + SAX).
 class Hercules : public SimilaritySearchAlgorithm
 {
 public:
+    // Default constructor. Uses HerculesConfig defaults.
     Hercules(DistanceType distance_type);
+    // Explicit constructor.
     Hercules(DistanceType distance_type, const HerculesConfig &config);
 
     using SimilaritySearchAlgorithm::buildIndex;
 
+    // Build the Hercules tree from an in-memory data source and persist it to disk.
     void buildIndex(DataSource *data_source) override;
 
+    // Top-k search using L2 Squared distance.
     void searchIndex(const float *query, idx_t n_query, idx_t k,
                      idx_t *I, float *D) override;
 
+    // Range and top-k combined entry point. Reads mode and radius from config.
     void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
                      std::vector<std::vector<idx_t>> &I,
                      std::vector<std::vector<float>> &D) override;

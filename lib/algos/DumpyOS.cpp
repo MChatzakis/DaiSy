@@ -248,6 +248,9 @@ static void determine_fanout(int n, int leaf_size, double f_low, double f_high, 
     if (*lambda_min == -1) { *lambda_min = w; *lambda_max = w; }
 }
 
+// Score every candidate split plan and pick the one that best balances the
+// children while keeping node fill inside [f_low, f_high]. Falls back to a
+// single-segment split if no plan is legal.
 void DumpyOS::determineSegments_(DumpyOSNode* node) {
     int    w        = config_.paa_segments;
     int    max_bits = config_.sax_bit_cardinality;
@@ -329,6 +332,8 @@ void DumpyOS::determineSegments_(DumpyOSNode* node) {
     node->chosen_segs = best_plan;
 }
 
+// Route each series in the node to the child whose SAX bits match. Any
+// child that overflows leaf_size is split recursively.
 void DumpyOS::splitNode_(DumpyOSNode* node) {
     int w        = config_.paa_segments;
     int max_bits = config_.sax_bit_cardinality;
@@ -368,6 +373,8 @@ void DumpyOS::splitNode_(DumpyOSNode* node) {
             splitNode_(child);
 }
 
+// Load the dataset, compute a SAX word for every series, put them all in the
+// root and recursively split until every leaf fits in leaf_size.
 void DumpyOS::buildIndex(DataSource* data_source) {
     dim        = data_source->getDim();
     n_database = data_source->getTotalRecords();
@@ -490,6 +497,8 @@ static float l2sq_early(const float* a, const float* b, int d, float bound) {
     return s;
 }
 
+// Top-k search. Walks the tree using PAA lower bounds to prune subtrees, then
+// refines the surviving series with the exact distance (L2 or DTW).
 void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
                            idx_t* I, float* D) {
     if (!validateSearchParams(k, n_query)) return;
@@ -618,6 +627,7 @@ void DumpyOS::searchIndex(const float* query, idx_t n_query, idx_t k,
     }
 }
 
+// Range and top-k combined entry point. Dispatches to the right search based on config.mode.
 void DumpyOS::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
                            std::vector<std::vector<idx_t>> &I,
                            std::vector<std::vector<float>> &D)

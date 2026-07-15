@@ -339,6 +339,8 @@ static void scan_for_unprocessed_blocks_fresh(FRESH_buffer_data *input_data, isa
         *input_data->all_blocks_processed = 1;
 }
 
+// Index-build worker. Picks up blocks of series, converts each to SAX and
+// inserts it into the shared lock-free FBL. Runs until all blocks are done.
 static void *indexCreationWorkerFresh(void *transferdata)
 {
     FRESH_buffer_data *input_data = (FRESH_buffer_data *)transferdata;
@@ -456,6 +458,8 @@ static fresh_array_element_t *get_element_at_fresh(unsigned long position, fresh
     return &array_node->data[position % list->element_size];
 }
 
+// Tree pruning phase. Walks a subtree, checks the PAA lower bound against bsf,
+// and pushes any surviving leaf to the current worker's queue.
 static void add_to_array_data_lf(float *paa, isax_node *node, isax_index *index, float bsf,
                                   fresh_array_list_t *array_lists, int *tnumber,
                                   volatile unsigned long *next_queue_data_pos, int n_queues,
@@ -501,6 +505,8 @@ static int compare_sorted_array_items(const void *a, const void *b)
     return 0;
 }
 
+// Snapshot a per-worker queue into a flat array sorted by PAA lower bound.
+// Multiple workers race to build it, the first successful CAS wins.
 static void create_sorted_array_from_data_queue(int pq_id, fresh_array_list_t *array_lists,
                                                 volatile unsigned long *next_queue_data_pos,
                                                 fresh_sorted_array_t *volatile *sorted_arrays)
@@ -629,6 +635,8 @@ static void help_sorted_array_DTW(FRESH_workerdata *wd, fresh_sorted_array_t *sa
 
 // ── Search workers ─────────────────────────────────────────────────────────────
 
+// L2 top-k search worker. Two phases: prune root subtrees into per-worker queues,
+// then help drain the sorted queues by evaluating leaves.
 void *FRESH_topk_search_worker_L2Squared(void *rfdata)
 {
     FRESH_workerdata *wd = (FRESH_workerdata *)rfdata;
@@ -675,6 +683,8 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
     return nullptr;
 }
 
+// DTW top-k search worker. Same two phases as the L2 worker but every leaf is
+// enqueued (the PAA lower bound is not valid for DTW so pruning happens later).
 void *FRESH_topk_search_worker_DTW(void *rfdata)
 {
     FRESH_workerdata *wd = (FRESH_workerdata *)rfdata;
@@ -764,6 +774,8 @@ static void help_sorted_array_range(FRESH_workerdata *wd, fresh_sorted_array_t *
         wd->queue_finished[pq_id] = 1;
 }
 
+// Range search worker. Uses r as the pruning bound and collects every series
+// within radius r into a shared vector (guarded by lock_range_results).
 void *FRESH_range_search_worker_L2Squared(void *rfdata)
 {
     FRESH_workerdata *wd = (FRESH_workerdata *)rfdata;
@@ -834,6 +846,8 @@ Fresh::Fresh(DistanceType distance_type, const FreshConfig &config)
     this->paa_segments = config.paa_segments;
 }
 
+// Read the whole dataset into memory, split it in blocks and spawn
+// index_workers threads that concurrently insert into the lock-free FBL.
 void Fresh::buildIndex(DataSource *data_source)
 {
     this->dim = data_source->getDim();
@@ -1008,6 +1022,8 @@ void Fresh::buildIndex(DataSource *data_source)
     free(input_data);
 }
 
+// One L2 top-k query. Sets up shared queues, spawns workers, joins them
+// and returns the final pq_bsf with the k best matches.
 pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
 {
     pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
@@ -1107,9 +1123,12 @@ pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_li
     return result;
 }
 
+// One DTW top-k query. Also precomputes the query's Lemire envelope and its PAA
+// (used by lb_keogh) before spawning the DTW workers.
 pqueue_bsf Fresh::FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k)
 {
     isax_index *index = this->index;
+    // Match the warping window used by the ground truth generator when the user did not set one.
     int warpWind = this->warping_window_set
         ? this->warping_window
         : std::max(1, static_cast<int>(0.1 * static_cast<double>(this->dim)));
@@ -1227,6 +1246,8 @@ pqueue_bsf Fresh::FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t 
     return result;
 }
 
+// Batch L2 top-k. Runs one FRESH_search_topk_L2Squared per query, deduplicates
+// by series position and writes the k results into I and D.
 void Fresh::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
     ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
@@ -1292,6 +1313,7 @@ void Fresh::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx
     fflush(stdout);
 }
 
+// Batch DTW top-k. Same shape as the L2 batch loop, uses the DTW driver.
 void Fresh::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
     isax_index *index = this->index;
@@ -1353,6 +1375,7 @@ void Fresh::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I,
     fprintf(stderr, ">>> Finished querying.\n");
 }
 
+// One L2 range query. Returns every (distance, position) pair with distance <= r.
 std::vector<std::pair<float, idx_t>> Fresh::FRESH_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r)
 {
     std::vector<std::pair<float, idx_t>> results;
