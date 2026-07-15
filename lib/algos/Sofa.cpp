@@ -295,6 +295,8 @@ void calculate_node_topk_sofa(
     }
 }
 
+// SOFA top-k worker. Round-robins root nodes into per-thread queues, waits at
+// the barrier and then drains the queues by evaluating each leaf.
 void *SOFA_topk_search_worker(void *rfdata)
 {
     SOFA_workerdata *d = (SOFA_workerdata *)rfdata;
@@ -423,6 +425,8 @@ void calculate_node_range_sofa(
     }
 }
 
+// SOFA range worker. Same shape as the top-k worker but keeps everything
+// with distance <= r in a shared vector guarded by lock_range_results.
 void *SOFA_range_search_worker(void *rfdata)
 {
     SOFA_workerdata *d = (SOFA_workerdata *)rfdata;
@@ -593,6 +597,8 @@ Sofa::Sofa(DistanceType distance_type, const SofaConfig &config)
     is_norm = config.is_norm;
 }
 
+// One L2 top-k query. Sets up shared queues, spawns workers, joins them
+// and returns the final pq_bsf with the k best matches.
 pqueue_bsf Sofa::sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodelist, idx_t k)
 {
     pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
@@ -669,6 +675,7 @@ pqueue_bsf Sofa::sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodel
     return result;
 }
 
+// Batch L2 top-k. Runs one sofaSearchTopkL2Squared per query and writes I, D.
 void Sofa::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
     node_list nodelist;
@@ -736,6 +743,7 @@ void Sofa::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_
     fprintf(stderr, ">>> SOFA: Finished querying.\n");
 }
 
+// One L2 range query. Spawns range workers and returns every (distance, position) with distance <= r.
 std::vector<std::pair<float, idx_t>> Sofa::sofaSearchRangeL2Squared(
     float *ts, float *fft, node_list *nodelist, float r)
 {
@@ -1001,6 +1009,8 @@ void Sofa::sfaSetBins()
             actual_sample, histogram_type == 1 ? "equi-depth" : "equi-width");
 }
 
+// Read the whole dataset into memory, learn the SFA bins from a sample and
+// spawn index_workers threads that concurrently insert into the FBL.
 void Sofa::buildIndex(DataSource *data_source)
 {
     this->dim = data_source->getDim();

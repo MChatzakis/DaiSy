@@ -15,12 +15,14 @@
 namespace daisy
 {
 
+    // One leaf candidate. distance is the PAA lower bound used to sort candidates.
     typedef struct fresh_array_element
     {
         float distance;
         isax_node *node;
     } fresh_array_element_t;
 
+    // Bucket in a per-worker linked list of candidates. Buckets grow on demand.
     typedef struct fresh_array_list_node
     {
         fresh_array_element_t *data;
@@ -28,12 +30,14 @@ namespace daisy
         struct fresh_array_list_node *next;
     } fresh_array_list_node_t;
 
+    // Head of the per-worker list. New buckets are pushed on Top.
     typedef struct fresh_array_list
     {
         fresh_array_list_node_t *Top;
         int element_size;
     } fresh_array_list_t;
 
+    // Flat sorted view of a queue, built once tree pruning is done.
     typedef struct fresh_sorted_array
     {
         fresh_array_element_t *data;
@@ -68,6 +72,7 @@ namespace daisy
         parallel_fbl_soft_buffer_lf *soft_buffers;
     } parallel_first_buffer_layer_lf;
 
+    // Optional constructor parameters. Defaults follow the FreSH paper.
     struct FreshConfig
     {
         int search_workers = 4;
@@ -77,8 +82,9 @@ namespace daisy
         int paa_segments = 16;
     };
 
-    // FreSH's lock-free workerdata. bsf_result_p replaced by pq_bsf + lock_bsf
-    // because DaiSy requires top-k; FreSH's CAS BSF update is 1-NN only.
+    // Per-worker scratch and shared pointers used inside a search.
+    // bsf_result_p from the original FreSH is replaced by pq_bsf + lock_bsf
+    // because DaiSy needs top-k and FreSH's CAS BSF update is only 1-NN.
     typedef struct FRESH_workerdata
     {
         ts_type *paa, *paaU, *paaL, *ts, *uo, *lo;
@@ -111,10 +117,13 @@ namespace daisy
         pthread_rwlock_t *lock_range_results;
     } FRESH_workerdata;
 
+    // Worker entry points spawned by the search. rfdata points to FRESH_workerdata.
     void *FRESH_topk_search_worker_L2Squared(void *rfdata);
     void *FRESH_topk_search_worker_DTW(void *rfdata);
     void *FRESH_range_search_worker_L2Squared(void *rfdata);
 
+    // Lock-free iSAX-based index for exact similarity search.
+    // Ported from Fatourou et al. (SRDS 2023), extended here to top-k, DTW and range queries.
     class Fresh : public SimilaritySearchAlgorithm
     {
     private:
@@ -124,31 +133,42 @@ namespace daisy
         bool owns_database = false;
         bool warping_window_set = false;
 
+        // Per-query drivers. Spawn workers, wait for them and return the results.
         pqueue_bsf FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
         pqueue_bsf FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
         std::vector<std::pair<float, idx_t>> FRESH_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r);
 
+        // Batch loops that call the per-query drivers and write into I and D.
         void searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
 
     public:
+        // Default constructor. Uses FreshConfig defaults.
         Fresh(DistanceType distance_type);
+        // Explicit constructor. Any warping_window set here is treated as user-provided.
         Fresh(DistanceType distance_type, const FreshConfig &config);
 
+        // Set the Sakoe-Chiba band radius for DTW. Marks the value as user-set
+        // so it is not overridden by the dim-based auto detection.
         void setWarpingWindow(int w) { warping_window = w; warping_window_set = true; }
         void setWarpWindow(int w) { warping_window = w; warping_window_set = true; }
 
         using SimilaritySearchAlgorithm::buildIndex;
 
+        // Build the iSAX index from an in-memory data source.
         void buildIndex(DataSource *data_source) override;
 
+        // Disk-based building is not supported. FreSH needs the raw series in memory
+        // to serve queries lock-free.
         void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) override
         {
             throw std::runtime_error("Fresh requires in-memory data. Use buildIndex(database, n_database, dim) instead.");
         }
 
+        // Top-k search. Dispatches to L2Squared or DTW based on the distance type.
         void searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D) override;
 
+        // Range and top-k combined entry point. Reads mode and radius from config.
         void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
                          std::vector<std::vector<idx_t>> &I,
                          std::vector<std::vector<float>> &D) override;

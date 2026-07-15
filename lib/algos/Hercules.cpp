@@ -93,6 +93,7 @@ static bool write_tree_node(HerculesNode *node, FILE *file)
     return true;
 }
 
+// Serialise the tree structure and its per-leaf raw series to disk.
 bool hercules_index_write(HerculesNode *root, const float *database,
                           int dim, int leaf_size, int init_segments,
                           int paa_segments, int sax_cardinality, int sax_bit_cardinality,
@@ -221,6 +222,8 @@ static void hercules_find_candidate_series(const std::vector<LeafCandidate> &lcl
     }
 }
 
+// Candidate selection worker for top-k. Reads its assigned leaves from lclist,
+// filters series by SAX lower bound and pushes survivors to local_sclist.
 static void *hercules_cs_worker(void *arg)
 {
     HerculesCSWorkerData *d = (HerculesCSWorkerData *)arg;
@@ -256,6 +259,8 @@ static void *hercules_cs_worker(void *arg)
     return nullptr;
 }
 
+// Candidate refinement worker for top-k. Reads raw series from disk,
+// computes L2 and updates the shared knn queue under a write lock.
 static void *hercules_cr_worker(void *arg)
 {
     HerculesCRWorkerData *d = (HerculesCRWorkerData *)arg;
@@ -289,6 +294,8 @@ static void *hercules_cr_worker(void *arg)
     return nullptr;
 }
 
+// Full top-k pipeline. Approximate descent to seed the bsf, tree pruning to
+// build the leaf candidate list, then parallel candidate selection and refinement.
 void hercules_knn_search(HerculesNode *root, const float *query, int dim,
                           idx_t k, idx_t *I, float *D,
                           const char *root_dir, float epsilon, int approx_leaves,
@@ -458,6 +465,7 @@ static void hercules_range_scan(const std::vector<LeafCandidate> &lclist,
     }
 }
 
+// Range variant of cs_worker. Uses r as the bound instead of the k-th bsf.
 static void *hercules_cs_range_worker(void *arg)
 {
     HerculesCSRangeWorkerData *d = (HerculesCSRangeWorkerData *)arg;
@@ -486,6 +494,7 @@ static void *hercules_cs_range_worker(void *arg)
     return nullptr;
 }
 
+// Range variant of cr_worker. Appends every series within radius r.
 static void *hercules_cr_range_worker(void *arg)
 {
     HerculesCRRangeWorkerData *d = (HerculesCRRangeWorkerData *)arg;
@@ -513,6 +522,8 @@ static void *hercules_cr_range_worker(void *arg)
     return nullptr;
 }
 
+// Range search pipeline. Same shape as the top-k pipeline but uses r as the bound
+// and returns every series within that radius.
 std::vector<std::pair<float, idx_t>> hercules_range_search(
     HerculesNode *root, const float *query, int dim,
     float r, const char *root_dir,
@@ -668,6 +679,8 @@ Hercules::~Hercules()
     destroy_tree(root_);
 }
 
+// Load the dataset into memory, build the Hercules tree and flush it to disk if
+// an index directory was configured.
 void Hercules::buildIndex(DataSource *data_source)
 {
     int n = (int)data_source->getTotalRecords();
@@ -705,6 +718,7 @@ void Hercules::buildIndex(DataSource *data_source)
     this->dim = (idx_t)dim;
 }
 
+// Batch top-k. One hercules_knn_search call per query.
 void Hercules::searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
     if (root_ == nullptr)

@@ -18,6 +18,7 @@ namespace daisy
 {
 
 // ---- SOFA configuration ----
+// Optional constructor parameters. Defaults follow the SOFA paper.
 struct SofaConfig
 {
     int search_workers = 4;
@@ -34,6 +35,7 @@ struct SofaConfig
 
 // ---- worker data structs (moved from .cpp) ----
 
+// Per-thread scratch and shared pointers used by the search workers.
 typedef struct SOFA_workerdata
 {
     isax_node        **nodelist;
@@ -63,6 +65,7 @@ typedef struct SOFA_workerdata
     pthread_rwlock_t *lock_range_results;
 } SOFA_workerdata;
 
+// Per-thread state used by the parallel index build.
 struct SOFA_index_worker
 {
     isax_index        *index;
@@ -86,6 +89,7 @@ struct SOFA_index_worker
     float             *fft_transform;
 };
 
+// Per-thread state used when computing the DFT of a sample subset for bin fitting.
 struct SOFA_bins_worker
 {
     isax_index    *index;
@@ -105,6 +109,7 @@ struct SOFA_bins_worker
     float         *fft_transform;
 };
 
+// Per-thread state used when partitioning DFT samples into histogram bins.
 struct SOFA_divide_worker_data
 {
     float        **dft_mem_array;
@@ -117,36 +122,47 @@ struct SOFA_divide_worker_data
 };
 
 // ---- SOFA helper function declarations ----
+
+// Worker entry points spawned by the search. rfdata points to SOFA_workerdata.
 void *SOFA_topk_search_worker(void *rfdata);
 void *SOFA_range_search_worker(void *rfdata);
 
+// Evaluate a leaf against a range query.
 void calculate_node_range_sofa(isax_index *index, isax_node *node,
                                 ts_type *query, float *fft,
                                 float **bins, bool is_norm, float r,
                                 std::vector<std::pair<float, idx_t>> *results,
                                 pthread_rwlock_t *lock_results, float *rawfile);
 
+// Push a subtree into the per-thread priority queues used during search.
 void insert_tree_node_sofa(float **bins, bool is_norm, float *fft,
                            isax_node *node, isax_index *index, float bsf,
                            pqueue_t **pq, pthread_mutex_t *lock_queue,
                            int *tnumber, int n_pqueue);
 
+// Evaluate a leaf against a top-k query and update pq_bsf if any series improves it.
 void calculate_node_topk_sofa(isax_index *index, isax_node *node,
                               ts_type *query, float *fft,
                               float **bins, bool is_norm,
                               pqueue_bsf *pq_bsf,
                               pthread_rwlock_t *lock_bsf, float *rawfile);
 
+// FFT a series and keep only the first coeff_number complex coefficients.
 void sofa_fft_from_ts(int ts_length, float norm_factor, bool is_norm,
                       fftwf_complex *ts_out, float *transform, fftwf_plan plan_forward,
                       int coeff_number);
 
+// Turn a DFT vector into an SFA word using the trained bins.
 void sofa_sfa_from_fft(float *transform, sax_type *sax_out, float **bins,
                        int paa_segments, int cardinality);
 
+// Index-build worker. Picks up blocks of series, computes their SFA words and inserts them.
 void *sofa_index_creation_worker(void *transferdata);
 
 // ---- Sofa class ----
+
+// SFA-based (SOFA) exact similarity search. Uses learned histogram bins over the
+// FFT of the dataset instead of the default iSAX breakpoints.
 class Sofa : public SimilaritySearchAlgorithm
 {
 private:
@@ -165,12 +181,16 @@ private:
     int coeff_number = 0;
     bool is_norm = false;
 
+    // Bin management. Sampled from the dataset during buildIndex and freed by the destructor.
     void sfaBinsInit();
     void sfaSetBins();
     void sfaFreeBins();
 
+    // Per-query drivers. Spawn workers, wait for them and return the results.
     pqueue_bsf sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodelist, idx_t k);
     std::vector<std::pair<float, idx_t>> sofaSearchRangeL2Squared(float *ts, float *fft, node_list *nodelist, float r);
+
+    // Batch loops that call the per-query drivers and write into I and D.
     void searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
     void searchIndexRangeL2Squared(const float *query, idx_t n_query, float r,
                                    std::vector<std::vector<idx_t>> &I,
@@ -178,22 +198,28 @@ private:
     void searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
 
 public:
+    // Default constructor. Uses SofaConfig defaults.
     Sofa(DistanceType distance_type);
+    // Explicit constructor.
     Sofa(DistanceType distance_type, const SofaConfig &config);
 
     using SimilaritySearchAlgorithm::buildIndex;
 
+    // Build the SFA bins from a sample of the dataset and then the SOFA index.
     void buildIndex(DataSource *data_source) override;
 
+    // Disk-based building is not supported. SOFA needs the raw series in memory.
     void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) override
     {
         throw std::runtime_error(
             "Sofa requires in-memory data. Use buildIndex(database, n_database, dim) instead.");
     }
 
+    // Top-k search using L2 Squared distance.
     void searchIndex(const float *query, const idx_t n_query, const idx_t k,
                      idx_t *I, float *D) override;
 
+    // Range and top-k combined entry point. Reads mode and radius from config.
     void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
                      std::vector<std::vector<idx_t>> &I,
                      std::vector<std::vector<float>> &D) override;
