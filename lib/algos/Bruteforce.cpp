@@ -171,6 +171,62 @@ namespace daisy
         }
     }
 
+    void BruteForceSearch::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                                       std::vector<std::vector<idx_t>> &I,
+                                       std::vector<std::vector<float>> &D)
+    {
+        if (config.type == QueryType::TOP_K)
+        {
+            SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+            return;
+        }
+
+        if (database == nullptr)
+        {
+            std::cerr << "[Error] Index must be built before searching\n";
+            return;
+        }
+        if (n_query == 0)
+        {
+            std::cerr << "[Error] n_query must be greater than 0\n";
+            return;
+        }
+
+        I.resize(n_query);
+        D.resize(n_query);
+
+#pragma omp parallel num_threads(num_threads)
+        {
+#pragma omp for
+            for (idx_t qi = 0; qi < n_query; qi++)
+            {
+                const float *q_vec = query + qi * dim;
+                std::vector<std::pair<float, idx_t>> hits;
+
+                for (idx_t dbi = 0; dbi < n_database; ++dbi)
+                {
+                    const float *db_vec = database + dbi * dim;
+                    float dist = distance_computer->compute_dist(const_cast<float *>(q_vec),
+                                                                 const_cast<float *>(db_vec),
+                                                                 dim,
+                                                                 config.r);
+                    if (dist <= config.r)
+                        hits.emplace_back(dist, dbi);
+                }
+
+                std::sort(hits.begin(), hits.end());
+
+                I[qi].resize(hits.size());
+                D[qi].resize(hits.size());
+                for (size_t j = 0; j < hits.size(); j++)
+                {
+                    D[qi][j] = hits[j].first;
+                    I[qi][j] = hits[j].second;
+                }
+            }
+        }
+    }
+
     BruteForceSearch::~BruteForceSearch()
     {
         delete[] database;

@@ -7,6 +7,8 @@
 #include <queue>
 #include <cfloat>
 #include <omp.h>
+#include <utility>
+#include <vector>
 #include <fftw3.h>
 #include <pthread.h>
 #include "../isax/iSAXIndex.hpp"
@@ -55,6 +57,10 @@ typedef struct SOFA_workerdata
     float             *rawfile;
     float            **bins;
     bool is_norm;
+
+    float r;
+    std::vector<std::pair<float, idx_t>> *range_results;
+    pthread_rwlock_t *lock_range_results;
 } SOFA_workerdata;
 
 struct SOFA_index_worker
@@ -112,6 +118,13 @@ struct SOFA_divide_worker_data
 
 // ---- SOFA helper function declarations ----
 void *SOFA_topk_search_worker(void *rfdata);
+void *SOFA_range_search_worker(void *rfdata);
+
+void calculate_node_range_sofa(isax_index *index, isax_node *node,
+                                ts_type *query, float *fft,
+                                float **bins, bool is_norm, float r,
+                                std::vector<std::pair<float, idx_t>> *results,
+                                pthread_rwlock_t *lock_results, float *rawfile);
 
 void insert_tree_node_sofa(float **bins, bool is_norm, float *fft,
                            isax_node *node, isax_index *index, float bsf,
@@ -157,7 +170,11 @@ private:
     void sfaFreeBins();
 
     pqueue_bsf sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodelist, idx_t k);
+    std::vector<std::pair<float, idx_t>> sofaSearchRangeL2Squared(float *ts, float *fft, node_list *nodelist, float r);
     void searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
+    void searchIndexRangeL2Squared(const float *query, idx_t n_query, float r,
+                                   std::vector<std::vector<idx_t>> &I,
+                                   std::vector<std::vector<float>> &D);
     void searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D);
 
 public:
@@ -176,6 +193,10 @@ public:
 
     void searchIndex(const float *query, const idx_t n_query, const idx_t k,
                      idx_t *I, float *D) override;
+
+    void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                     std::vector<std::vector<idx_t>> &I,
+                     std::vector<std::vector<float>> &D) override;
 
     int getNumThreads()        const { return SimilaritySearchAlgorithm::num_threads; }
     int getReadBlockLength()   const { return read_block_length; }

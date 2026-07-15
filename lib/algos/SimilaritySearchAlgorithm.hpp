@@ -4,6 +4,8 @@
 #include <variant>
 #include <unordered_map>
 #include <cfloat>
+#include <vector>
+#include <stdexcept>
 
 #include "../distance_computers/DistanceComputer.hpp"
 #include "../isax/iSAXSearch.hpp"
@@ -12,6 +14,19 @@
 namespace daisy
 {
     using idx_t = unsigned long long;
+
+    enum class QueryType
+    {
+        TOP_K,
+        RANGE
+    };
+
+    struct SearchConfig
+    {
+        idx_t k = 0;
+        float r = FLT_MAX;
+        QueryType type = QueryType::TOP_K;
+    };
 
     class SimilaritySearchAlgorithm
     {
@@ -95,6 +110,26 @@ namespace daisy
 
     public:
         virtual void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) = 0;
+
+        virtual void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                                 std::vector<std::vector<idx_t>> &I,
+                                 std::vector<std::vector<float>> &D)
+        {
+            if (config.type == QueryType::RANGE)
+                throw std::runtime_error("Range search not implemented for this algorithm");
+
+            std::vector<idx_t> flat_I(n_query * config.k);
+            std::vector<float> flat_D(n_query * config.k);
+            searchIndex(query, n_query, config.k, flat_I.data(), flat_D.data());
+
+            I.resize(n_query);
+            D.resize(n_query);
+            for (idx_t q = 0; q < n_query; q++)
+            {
+                I[q].assign(flat_I.begin() + q * config.k, flat_I.begin() + (q + 1) * config.k);
+                D[q].assign(flat_D.begin() + q * config.k, flat_D.begin() + (q + 1) * config.k);
+            }
+        }
 
         virtual void setNumThreads(int num_threads) {}
 

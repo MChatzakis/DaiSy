@@ -32,6 +32,10 @@ namespace daisy
 
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
+        void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                         std::vector<std::vector<idx_t>> &I,
+                         std::vector<std::vector<float>> &D) override;
+
         ~BruteForceSearch();
     };
 

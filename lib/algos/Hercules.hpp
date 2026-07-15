@@ -8,6 +8,8 @@
 #include <atomic>
 #include <string>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 #include <pthread.h>
 
 namespace daisy
@@ -69,6 +71,31 @@ struct HerculesCRWorkerData {
     pthread_rwlock_t *lock_bsf;
 };
 
+struct HerculesCSRangeWorkerData {
+    const std::vector<LeafCandidate> *lclist;
+    std::atomic<unsigned int> *cs_idx;
+    const std::vector<sax_type> *sax_cache;
+    const float *query_paa;
+    const sax_type *max_sax_cardinalities;
+    sax_type sax_bit_cardinality;
+    int sax_cardinality;
+    int paa_segments;
+    float mindist_sqrt;
+    float r;
+    std::vector<SeriesCandidate> local_sclist;
+};
+
+struct HerculesCRRangeWorkerData {
+    const std::vector<SeriesCandidate> *sclist;
+    std::atomic<unsigned int> *cr_idx;
+    const float *query;
+    int dim;
+    float r;
+    const char *raw_path;
+    std::vector<std::pair<float, idx_t>> *range_results;
+    pthread_rwlock_t *lock_range_results;
+};
+
 // ---- Hercules-specific index write / search ----
 bool hercules_index_write(HerculesNode *root, const float *database,
                           int dim, int leaf_size, int init_segments,
@@ -81,6 +108,13 @@ void hercules_knn_search(HerculesNode *root, const float *query, int dim,
                           int paa_segments, sax_type sax_bit_cardinality, int sax_cardinality,
                           float eapca_th, float sax_th, int n_series,
                           int num_query_threads = 1);
+
+std::vector<std::pair<float, idx_t>> hercules_range_search(
+    HerculesNode *root, const float *query, int dim,
+    float r, const char *root_dir,
+    int paa_segments, sax_type sax_bit_cardinality, int sax_cardinality,
+    float eapca_th, float sax_th, int n_series,
+    int num_query_threads = 1);
 
 // ---- Hercules class ----
 class Hercules : public SimilaritySearchAlgorithm
@@ -95,6 +129,10 @@ public:
 
     void searchIndex(const float *query, idx_t n_query, idx_t k,
                      idx_t *I, float *D) override;
+
+    void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                     std::vector<std::vector<idx_t>> &I,
+                     std::vector<std::vector<float>> &D) override;
 
     void setNumThreads(int num_threads) override
     {

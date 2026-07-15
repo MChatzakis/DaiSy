@@ -1200,6 +1200,47 @@ namespace daisy
         return NULL;
     }
 
+    void *paris_range_read_worker(void *arg)
+    {
+        paris_range_read_worker_data *wd = (paris_range_read_worker_data *)arg;
+        isax_index *index = wd->index;
+        float r = wd->r;
+        ts_type *ts = wd->ts;
+        unsigned long sum_of_lab = wd->sum_of_lab;
+
+        FILE *raw_file = fopen(index->settings->raw_filename, "rb");
+        if (raw_file == nullptr)
+            return nullptr;
+
+        ts_type *ts_buffer = (ts_type *)malloc(index->settings->ts_byte_size);
+        if (ts_buffer == nullptr) {
+            fclose(raw_file);
+            return nullptr;
+        }
+
+        while (1) {
+            unsigned long t = __sync_fetch_and_add(wd->counter, 1);
+            if (t >= sum_of_lab)
+                break;
+
+            unsigned long p = wd->load_point[t];
+            fseek(raw_file, (long)(p * (unsigned long)index->settings->ts_byte_size), SEEK_SET);
+            size_t items_read = fread(ts_buffer, index->settings->ts_byte_size, 1, raw_file);
+            (void)items_read;
+
+            float dist = ts_euclidean_distance_SIMD(ts, ts_buffer, index->settings->timeseries_size, FLT_MAX);
+            if (dist <= r) {
+                pthread_mutex_lock(wd->lock_results);
+                wd->range_results->emplace_back(dist, (idx_t)p);
+                pthread_mutex_unlock(wd->lock_results);
+            }
+        }
+
+        free(ts_buffer);
+        fclose(raw_file);
+        return nullptr;
+    }
+
     pqueue_bsf exact_topk_serial_ParIS(ts_type *ts, ts_type *paa, isax_index *index, float minimum_distance, int min_checked_leaves, int k, int maxquerythread)
     {
         FILE *raw_file = fopen(index->settings->raw_filename, "rb");
@@ -1319,5 +1360,118 @@ namespace daisy
         pqueue_bsf result = *pq_bsf;
 
         return result;
+    }
+
+    void ParIS::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                            std::vector<std::vector<idx_t>> &I,
+                            std::vector<std::vector<float>> &D)
+    {
+        if (config.type == QueryType::TOP_K) {
+            SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+            return;
+        }
+
+        if (index == nullptr || index->sax_file == nullptr || index->total_records == 0) {
+            fprintf(stderr, "Error: Index not built or sax file not ready\n");
+            I.assign(n_query, {});
+            D.assign(n_query, {});
+            return;
+        }
+
+        float r = config.r;
+        int maxquerythread = this->search_workers;
+        ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
+
+        I.assign(n_query, {});
+        D.assign(n_query, {});
+
+        for (idx_t q_loaded = 0; q_loaded < n_query; q_loaded++) {
+            const float *ts = query + q_loaded * this->dim;
+            paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
+
+            /* Phase 1: SAX-level filter — collect candidate record indices with lb <= r */
+            pthread_t *threadid = (pthread_t *)malloc(sizeof(pthread_t) * (size_t)maxquerythread);
+            ParIS_LDCW_data *essdata = (ParIS_LDCW_data *)malloc(sizeof(ParIS_LDCW_data) * (size_t)maxquerythread);
+
+            for (int i = 0; i < maxquerythread - 1; i++) {
+                essdata[i].index = index;
+                essdata[i].lock_bsf = nullptr;
+                essdata[i].start_number = (unsigned long)i * (index->sax_cache_size / (unsigned long)maxquerythread);
+                essdata[i].stop_number = (unsigned long)(i + 1) * (index->sax_cache_size / (unsigned long)maxquerythread);
+                essdata[i].paa = paa;
+                essdata[i].ts = (ts_type *)ts;
+                essdata[i].bsfdistance = r;
+                essdata[i].sum_of_lab = 0;
+                essdata[i].label_number = nullptr;
+                essdata[i].minidisvector = nullptr;
+            }
+            essdata[maxquerythread - 1].index = index;
+            essdata[maxquerythread - 1].lock_bsf = nullptr;
+            essdata[maxquerythread - 1].start_number = (unsigned long)(maxquerythread - 1) * (index->sax_cache_size / (unsigned long)maxquerythread);
+            essdata[maxquerythread - 1].stop_number = index->sax_cache_size;
+            essdata[maxquerythread - 1].paa = paa;
+            essdata[maxquerythread - 1].ts = (ts_type *)ts;
+            essdata[maxquerythread - 1].bsfdistance = r;
+            essdata[maxquerythread - 1].sum_of_lab = 0;
+            essdata[maxquerythread - 1].label_number = nullptr;
+            essdata[maxquerythread - 1].minidisvector = nullptr;
+
+            for (int i = 0; i < maxquerythread; i++)
+                pthread_create(&threadid[i], NULL, mindistance_worker, (void *)&essdata[i]);
+            for (int i = 0; i < maxquerythread; i++)
+                pthread_join(threadid[i], NULL);
+
+            unsigned long sum_of_lab = 0;
+            for (int i = 0; i < maxquerythread; i++)
+                sum_of_lab += essdata[i].sum_of_lab;
+
+            unsigned long *label_number = (unsigned long *)malloc(sizeof(unsigned long) * (sum_of_lab + 1));
+            unsigned long offset = 0;
+            for (int i = 0; i < maxquerythread; i++) {
+                if (essdata[i].label_number != nullptr) {
+                    memcpy(label_number + offset, essdata[i].label_number, sizeof(unsigned long) * essdata[i].sum_of_lab);
+                    offset += essdata[i].sum_of_lab;
+                    free(essdata[i].label_number);
+                    free(essdata[i].minidisvector);
+                }
+            }
+            free(essdata);
+            free(threadid);
+
+            /* Phase 2: exact distance computation — collect all with dist <= r */
+            std::vector<std::pair<float, idx_t>> hits;
+            pthread_mutex_t lock_results = PTHREAD_MUTEX_INITIALIZER;
+            unsigned long readcounter = 0;
+            int nread = maxquerythread * MAXREADTHREAD;
+            pthread_t *readthread = (pthread_t *)malloc(sizeof(pthread_t) * (size_t)nread);
+            paris_range_read_worker_data rdwd;
+            rdwd.index = index;
+            rdwd.ts = (ts_type *)ts;
+            rdwd.counter = &readcounter;
+            rdwd.load_point = label_number;
+            rdwd.sum_of_lab = sum_of_lab;
+            rdwd.r = r;
+            rdwd.range_results = &hits;
+            rdwd.lock_results = &lock_results;
+
+            for (int i = 0; i < nread; i++)
+                pthread_create(&readthread[i], NULL, paris_range_read_worker, (void *)&rdwd);
+            for (int i = 0; i < nread; i++)
+                pthread_join(readthread[i], NULL);
+
+            free(readthread);
+            free(label_number);
+            pthread_mutex_destroy(&lock_results);
+
+            std::sort(hits.begin(), hits.end());
+            I[q_loaded].resize(hits.size());
+            D[q_loaded].resize(hits.size());
+            for (size_t j = 0; j < hits.size(); j++) {
+                D[q_loaded][j] = hits[j].first;
+                I[q_loaded][j] = hits[j].second;
+            }
+        }
+
+        free(paa);
     }
 }

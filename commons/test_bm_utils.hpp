@@ -44,4 +44,17 @@ struct SSTestConfig
     int query_limit = 0;  // 0 = use full query file; >0 = use first query_limit queries
 };
 
-#endif 
+struct RangeTestConfig
+{
+    std::string name;
+    std::string dataset_path;
+    std::string query_path;
+    daisy::idx_t dim;
+    daisy::idx_t n_database;
+    daisy::idx_t n_query;
+    int thread_count;
+    float r_value;
+    int query_limit = 0;  // 0 = use full query file; >0 = use first query_limit queries
+};
+
+#endif

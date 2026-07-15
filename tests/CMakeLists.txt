@@ -625,3 +625,381 @@ gtest_discover_tests(
     test_Hercules_L2Square
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+# ////// DUMPYOS L2Square //////
+add_executable(
+    test_DumpyOS_L2Square
+    test_DumpyOS_L2Square.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_DumpyOS_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_DumpyOS_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_DumpyOS_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# # ////// DUMPYOS DTW //////
+# add_executable(
+#     test_DumpyOS_DTW
+#     test_DumpyOS_DTW.cpp
+#     test_utils.cpp
+# )
+#
+# target_link_libraries(
+#     test_DumpyOS_DTW
+#     PRIVATE
+#     GTest::gtest_main
+#     dino_lib
+#     commons_lib
+#     stdc++fs
+# )
+#
+# target_include_directories(test_DumpyOS_DTW
+#     PRIVATE
+#     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+#     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+# )
+#
+# gtest_discover_tests(
+#     test_DumpyOS_DTW
+#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+# )
+
+# ////// FRESH L2Square //////
+add_executable(
+    test_Fresh_L2Square
+    test_Fresh_L2Square.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Fresh_L2Square
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Fresh_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Fresh_L2Square
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// FRESH DTW //////
+add_executable(
+    test_Fresh_DTW
+    test_Fresh_DTW.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Fresh_DTW
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Fresh_DTW
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Fresh_DTW
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// Python range search test (requires BUILD_PYTHON + faiss) //////
+if(BUILD_PYTHON)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_FOUND)
+        add_test(
+            NAME test_range_search_py
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_range_search.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        set_tests_properties(test_range_search_py PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+        )
+    endif()
+endif()
+
+# ////// MESSI Range //////
+add_executable(
+    test_Messi_Range
+    test_Messi_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Messi_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Messi_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Messi_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// FRESH Range //////
+add_executable(
+    test_Fresh_Range
+    test_Fresh_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Fresh_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Fresh_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Fresh_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// DUMPYOS Range //////
+add_executable(
+    test_DumpyOS_Range
+    test_DumpyOS_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_DumpyOS_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_DumpyOS_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_DumpyOS_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// LBBRUTEFORCE Range //////
+add_executable(
+    test_LbBruteforce_Range
+    test_LbBruteforce_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_LbBruteforce_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_LbBruteforce_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_LbBruteforce_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// SING Range (conditional on CUDA) //////
+if(SING_CUDA_AVAILABLE)
+    add_executable(
+        test_Sing_Range
+        test_Sing_Range.cpp
+        test_utils.cpp
+    )
+
+    target_link_libraries(
+        test_Sing_Range
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+        CUDA::cudart
+    )
+
+    target_include_directories(test_Sing_Range
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
+    gtest_discover_tests(
+        test_Sing_Range
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+endif()
+
+# ////// HERCULES Range //////
+add_executable(
+    test_Hercules_Range
+    test_Hercules_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_Hercules_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_Hercules_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_Hercules_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// PARIS Range //////
+add_executable(
+    test_ParIS_Range
+    test_ParIS_Range.cpp
+    test_utils.cpp
+)
+
+target_link_libraries(
+    test_ParIS_Range
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+
+target_include_directories(test_ParIS_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+gtest_discover_tests(
+    test_ParIS_Range
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+# ////// SOFA Range (conditional on FFTW3) //////
+if(BUILD_SOFA_AVAILABLE)
+    add_executable(
+        test_Sofa_Range
+        test_Sofa_Range.cpp
+        test_utils.cpp
+    )
+
+    target_link_libraries(
+        test_Sofa_Range
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+    )
+
+    target_include_directories(test_Sofa_Range
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
+    gtest_discover_tests(
+        test_Sofa_Range
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+endif()
+
+# ////// ODYSSEY Range (conditional on MPI) //////
+if(BUILD_ODYSSEY_AVAILABLE)
+    add_executable(
+        test_Odyssey_Range
+        test_Odyssey_Range.cpp
+        test_utils.cpp
+    )
+
+    target_compile_definitions(test_Odyssey_Range PRIVATE ODYSSEY_MPI)
+
+    target_link_libraries(
+        test_Odyssey_Range
+        PRIVATE
+        GTest::gtest_main
+        dino_lib
+        commons_lib
+        stdc++fs
+        MPI::MPI_CXX
+    )
+
+    target_include_directories(test_Odyssey_Range
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
+    add_test(NAME test_Odyssey_Range
+        COMMAND ${MPIEXEC_EXECUTABLE} --oversubscribe ${MPIEXEC_NUMPROC_FLAG} 4
+                $<TARGET_FILE:test_Odyssey_Range>)
+    set_tests_properties(test_Odyssey_Range PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "PMIX_MCA_pcompress_base_silence_warning=1")
+endif()

@@ -6,6 +6,8 @@
 #include "../lib/algos/hodyssey/Odyssey.hpp"
 #endif
 
+#include <set>
+
 void SimilaritySearchTest::runSST(daisy::SimilaritySearchAlgorithm *search,
                                   const std::string &prefix_name,
                                   const std::string &gt_I,
@@ -53,7 +55,7 @@ void SimilaritySearchTest::runSST(daisy::SimilaritySearchAlgorithm *search,
     search->searchIndex(query, n_query, k, I, D);
 
     if (search->getResultCompareRank() == 0)
-        compareWithGroundTruth(gt_I, gt_D, I, D, n_query, k);
+        compareWithGroundTruth(gt_I, gt_D, I, D, n_query, k, rtol, atol);
 
     delete[] database;
     delete[] query;
@@ -73,4 +75,64 @@ void SimilaritySearchTest::runSSTWithDistance(daisy::DistanceType distance_type,
 {
     daisy::BruteForceSearch search(distance_type);
     runSST(&search, prefix_name, gt_I, gt_D, dataset_path, query_path, num_thread, rtol, atol);
+}
+
+void SimilaritySearchTest::runSSTRange(daisy::SimilaritySearchAlgorithm *search,
+                                       const RangeTestConfig &config,
+                                       double tol)
+{
+    daisy::idx_t n_query = config.query_limit > 0
+                               ? (daisy::idx_t)config.query_limit
+                               : config.n_query;
+
+    float *database = loadBinData(config.dataset_path.c_str(), config.n_database, config.dim, false);
+    float *query    = loadBinData(config.query_path.c_str(),   n_query,            config.dim, false);
+
+    daisy::SearchConfig cfg;
+    cfg.type = daisy::QueryType::RANGE;
+    cfg.r    = config.r_value;
+
+    daisy::BruteForceSearch gt(daisy::DistanceType::L2_SQUARED);
+    gt.buildIndex(database, config.n_database, config.dim);
+    std::vector<std::vector<daisy::idx_t>> gt_I;
+    std::vector<std::vector<float>> gt_D;
+    gt.searchIndex(query, n_query, cfg, gt_I, gt_D);
+
+#if ODYSSEY_MPI
+    if (dynamic_cast<daisy::Odyssey *>(search) != nullptr) {
+        daisy::FileDataSource data_source(config.dataset_path.c_str(), config.dim, config.n_database);
+        search->buildIndex(&data_source);
+    } else
+#endif
+    if (dynamic_cast<daisy::ParIS *>(search) != nullptr) {
+        search->buildIndex(config.dataset_path, config.dim, config.n_database);
+    } else {
+        search->buildIndex(database, config.n_database, config.dim);
+    }
+    search->setNumThreads(config.thread_count);
+
+    std::vector<std::vector<daisy::idx_t>> I;
+    std::vector<std::vector<float>> D;
+    search->searchIndex(query, n_query, cfg, I, D);
+
+    for (daisy::idx_t qi = 0; qi < n_query; qi++) {
+        for (float d : D[qi]) {
+            EXPECT_LE(d, (double)config.r_value * (1.0 + tol))
+                << "False positive at query " << qi;
+        }
+
+        std::set<daisy::idx_t> gt_set(gt_I[qi].begin(), gt_I[qi].end());
+        std::set<daisy::idx_t> algo_set(I[qi].begin(), I[qi].end());
+        size_t missing = 0;
+        for (daisy::idx_t idx : gt_set) {
+            if (!algo_set.count(idx)) missing++;
+        }
+        size_t allowed = std::max<size_t>(1, (size_t)(tol * gt_set.size()));
+        EXPECT_LE(missing, allowed)
+            << "query " << qi << ": " << missing << "/" << gt_set.size()
+            << " GT results missing (allowed " << allowed << ")";
+    }
+
+    delete[] database;
+    delete[] query;
 }

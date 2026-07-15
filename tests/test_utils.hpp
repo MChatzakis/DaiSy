@@ -15,11 +15,13 @@
 #include "../lib/algos/Sing.hpp"
 #include "../lib/algos/Sofa.hpp"
 #include "../lib/algos/Hercules.hpp"
+#include "../lib/algos/DumpyOS.hpp"
+#include "../lib/algos/Fresh.hpp"
 
 class SimilaritySearchTest : public ::testing::Test
 {
 protected:
-    
+
     void runSST(daisy::SimilaritySearchAlgorithm *search,
                 const std::string &prefix_name,
                 const std::string &gt_I,
@@ -39,6 +41,10 @@ protected:
                             int num_thread = 1,
                             double rtol = 1e-2,
                             double atol = 1e-8);
+
+    void runSSTRange(daisy::SimilaritySearchAlgorithm *search,
+                     const RangeTestConfig &config,
+                     double tol = 0.05);
 };
 
 class BruteforceDTWParameterizedTest : public SimilaritySearchTest,
@@ -137,6 +143,138 @@ class HerculesParameterizedTest : public SimilaritySearchTest,
 {
 protected:
     using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class DumpyOSParameterizedTest : public SimilaritySearchTest,
+                                  public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class DumpyOSDTWParameterizedTest : public SimilaritySearchTest,
+                                    public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class FreshParameterizedTest : public SimilaritySearchTest,
+                               public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class FreshDTWParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<SSTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSST;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+// ---- Range (distance-r) parameterized test classes ----
+
+class MessiRangeParameterizedTest : public SimilaritySearchTest,
+                                    public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class FreshRangeParameterizedTest : public SimilaritySearchTest,
+                                    public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class DumpyOSRangeParameterizedTest : public SimilaritySearchTest,
+                                      public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class LbBruteforceRangeParameterizedTest : public SimilaritySearchTest,
+                                           public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class SingRangeParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class HerculesRangeParameterizedTest : public SimilaritySearchTest,
+                                       public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class OdysseyRangeParameterizedTest : public SimilaritySearchTest,
+                                      public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class ParISRangeParameterizedTest : public SimilaritySearchTest,
+                                    public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
+class SofaRangeParameterizedTest : public SimilaritySearchTest,
+                                   public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
 
     static void SetUpTestSuite() {}
     static void TearDownTestSuite() {}

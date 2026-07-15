@@ -261,6 +261,27 @@ target_include_directories(bm_Sofa_L2Square
 )
 endif()
 
+# ////// DUMPYOS //////
+add_executable(bm_DumpyOS_L2Square
+    bm_DumpyOS_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_DumpyOS_L2Square
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+    GTest::gtest
+)
+target_include_directories(bm_DumpyOS_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
 # ////// HERCULES //////
 add_executable(bm_Hercules_L2Square
     bm_Hercules_L2Square.cpp
@@ -277,6 +298,27 @@ target_link_libraries(bm_Hercules_L2Square
     GTest::gtest
 )
 target_include_directories(bm_Hercules_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# ////// FRESH //////
+add_executable(bm_Fresh_L2Square
+    bm_Fresh_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Fresh_L2Square
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+    GTest::gtest
+)
+target_include_directories(bm_Fresh_L2Square
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
@@ -336,6 +378,214 @@ if(BUILD_SING_AVAILABLE)
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
     )
+endif()
+
+# ////// BRUTEFORCE RANGE //////
+add_executable(bm_bruteforce_Range
+    bm_bruteforce_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_bruteforce_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_bruteforce_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# ////// LBBRUTEFORCE RANGE //////
+add_executable(bm_LbBruteforce_Range
+    bm_LbBruteforce_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_LbBruteforce_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_LbBruteforce_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# ////// MESSI RANGE //////
+add_executable(bm_Messi_Range
+    bm_Messi_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Messi_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_Messi_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# ////// FRESH RANGE //////
+add_executable(bm_Fresh_Range
+    bm_Fresh_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Fresh_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_Fresh_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# ////// DUMPYOS RANGE //////
+add_executable(bm_DumpyOS_Range
+    bm_DumpyOS_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_DumpyOS_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_DumpyOS_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# ////// HERCULES RANGE //////
+add_executable(bm_Hercules_Range
+    bm_Hercules_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Hercules_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_Hercules_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# ////// PARIS RANGE //////
+add_executable(bm_ParIS_Range
+    bm_ParIS_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_ParIS_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_ParIS_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
+# ////// SOFA RANGE (conditional on FFTW3) //////
+if(BUILD_SOFA_AVAILABLE)
+add_executable(bm_Sofa_Range
+    bm_Sofa_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Sofa_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_Sofa_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+endif()
+
+# ////// ODYSSEY RANGE (conditional on MPI) //////
+if(BUILD_ODYSSEY_AVAILABLE)
+add_executable(bm_Odyssey_Range
+    bm_Odyssey_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_compile_definitions(bm_Odyssey_Range PRIVATE ODYSSEY_MPI=1)
+target_link_libraries(bm_Odyssey_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+    MPI::MPI_CXX
+)
+target_include_directories(bm_Odyssey_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+endif()
+
+# ////// SING RANGE (conditional on CUDA) //////
+if(BUILD_SING_AVAILABLE)
+add_executable(bm_Sing_Range
+    bm_Sing_Range.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Sing_Range
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_Sing_Range
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
 endif()
 
 if(DEBUG_MSG)

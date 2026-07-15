@@ -37,6 +37,15 @@ std::vector<SSTestConfig> generate_configs_custom(
     std::vector<int> thread_counts,
     std::vector<int> k_values = {1, 10, 100});
 
+std::vector<RangeTestConfig> generate_range_configs(
+    const char *name,
+    const char *data,
+    const char *query,
+    daisy::idx_t dim,
+    daisy::idx_t n_database,
+    daisy::idx_t n_query,
+    int query_limit = 0);
+
 extern const std::vector<SSTestConfig> test_configs;
 extern const std::vector<SSTestConfig> test_configs_large;
 extern const std::vector<SSTestConfig> test_configs_messi_order;
@@ -45,5 +54,7 @@ extern const std::vector<SSTestConfig> test_configs_dtw;
 extern const std::vector<SSTestConfig> test_configs_random_light;
 extern const std::vector<SSTestConfig> test_configs_random_only;
 extern const std::vector<SSTestConfig> test_configs_astro_only;
+
+extern const std::vector<RangeTestConfig> range_test_configs;
 
 #endif
