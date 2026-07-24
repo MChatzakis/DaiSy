@@ -52,6 +52,8 @@ namespace daisy
         float minimum_distance = FLT_MAX;
         int min_checked_leaves = -1;
 
+        breakpoint_mode bp_mode = BP_GAUSSIAN;
+
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
         sax_type **db_sax_representations = nullptr;
@@ -67,6 +69,20 @@ namespace daisy
         idx_t getNDatabase() const { return n_database; }
         idx_t getDim() const { return dim; }
         isax_index *getIndex() const { return index; }
+
+        // 0 = Gaussian (default), 1 = equi-depth. Set before buildIndex().
+        void setBreakpointMode(int mode) { bp_mode = (mode == 1) ? BP_EQUIDEPTH : BP_GAUSSIAN; }
+        int getBreakpointMode() const { return (int)bp_mode; }
+
+    protected:
+        // Install this index's breakpoints globally; call at build and at each search entry.
+        void activateBreakpoints()
+        {
+            if (index_settings)
+                set_active_breakpoints(index_settings->breakpoints, index_settings->breakpoints_max);
+        }
+
+    public:
 
         virtual void buildIndex(DataSource *data_source) = 0;
 

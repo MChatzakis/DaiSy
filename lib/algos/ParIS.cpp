@@ -54,10 +54,28 @@ namespace daisy
                                                         this->flush_limit,         
                                                         this->initial_fbl_size,    
                                                         this->total_loaded_leaves, 
-                                                        this->tight_bound,         
-                                                        0,                         
-                                                        1,                         
-                                                        0);
+                                                        this->tight_bound,
+                                                        0,
+                                                        1,
+                                                        0,
+                                                        this->bp_mode);
+
+        // Equi-depth breakpoints. ParIS streams from a raw float32 file, so sample leading
+        // rows from it to derive the distribution.
+        if (this->bp_mode == BP_EQUIDEPTH && this->n_database > 0 && this->dim > 0)
+        {
+            size_t cap_rows = (size_t)2000000 / (size_t)std::max(1, this->paa_segments);
+            size_t sample_rows = std::min((size_t)this->n_database, std::max((size_t)1, cap_rows));
+            std::vector<float> sample((size_t)sample_rows * (size_t)this->dim);
+            FILE *sf = fopen(filename, "rb");
+            if (sf)
+            {
+                size_t got = fread(sample.data(), sizeof(float), sample.size(), sf);
+                fclose(sf);
+                compute_equidepth_breakpoints(this->index_settings, sample.data(), got / (size_t)this->dim);
+            }
+        }
+        activateBreakpoints();
 
         this->index = isax_index_init(this->index_settings);
         isax_index *index = this->index;
@@ -151,6 +169,7 @@ namespace daisy
 
     void ParIS::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        activateBreakpoints();
         if (this->distance_type == DistanceType::L2_SQUARED)
         {
             searchIndexL2Squared(query, n_query, k, I, D);
@@ -1366,6 +1385,7 @@ namespace daisy
                             std::vector<std::vector<idx_t>> &I,
                             std::vector<std::vector<float>> &D)
     {
+        activateBreakpoints();
         if (config.type == QueryType::TOP_K) {
             SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
             return;

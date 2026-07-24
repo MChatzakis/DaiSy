@@ -23,6 +23,14 @@ namespace daisy
         unsigned long disk_data_partial;
     } meminfo;
 
+    // BP_GAUSSIAN: hardcoded N(0,1) quantiles (default, for z-normalized data).
+    // BP_EQUIDEPTH: data-adaptive empirical quantiles computed per index at build time.
+    typedef enum
+    {
+        BP_GAUSSIAN = 0,
+        BP_EQUIDEPTH = 1
+    } breakpoint_mode;
+
     typedef struct
     {
         char new_index;
@@ -64,6 +72,14 @@ namespace daisy
         int root_nodes_size;
 
         int total_loaded_leaves;
+
+        // Gaussian: alias the global tables. Equi-depth: per-index tables (the *_owned
+        // pointers hold the heap allocations). breakpoints = triangular, _max = flat.
+        breakpoint_mode bp_mode;
+        const float *breakpoints;
+        const float *breakpoints_max;
+        float *breakpoints_owned;
+        float *breakpoints_max_owned;
 
     } isax_index_settings;
 
@@ -365,7 +381,13 @@ namespace daisy
                                                   int max_leaf_size, int min_leaf_size,
                                                   int initial_leaf_buffer_size,
                                                   int max_total_buffer_size, int initial_fbl_buffer_size,
-                                                  int total_loaded_leaves, int tight_bound, int aggressive_check, int new_index, char inmemory_flag);
+                                                  int total_loaded_leaves, int tight_bound, int aggressive_check, int new_index, char inmemory_flag,
+                                                  breakpoint_mode bp_mode = BP_GAUSSIAN);
+
+    // Compute per-index equi-depth breakpoints from a sample of database (row-major
+    // [n_series * timeseries_size]). No-op unless settings->bp_mode == BP_EQUIDEPTH.
+    void compute_equidepth_breakpoints(isax_index_settings *settings,
+                                       const float *database, size_t n_series);
 
     first_buffer_layer *initialize_fbl(int initial_buffer_size, int number_of_buffers, int max_total_buffers_size, isax_index *index);
 

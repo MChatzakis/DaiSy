@@ -867,6 +867,7 @@ void Sofa::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, 
 
 void Sofa::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
 {
+    activateBreakpoints();
     if (this->distance_type == DistanceType::L2_SQUARED)
         searchIndexL2Squared(query, n_query, k, I, D);
     else if (this->distance_type == DistanceType::DTW)
@@ -879,6 +880,7 @@ void Sofa::searchIndex(const float *query, idx_t n_query, const SearchConfig &co
                        std::vector<std::vector<idx_t>> &I,
                        std::vector<std::vector<float>> &D)
 {
+    activateBreakpoints();
     if (config.type == QueryType::TOP_K) {
         SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
         return;
@@ -1047,7 +1049,11 @@ void Sofa::buildIndex(DataSource *data_source)
         this->leaf_size, this->min_leaf_size,
         this->initial_lbl_size, this->flush_limit,
         this->initial_fbl_size, this->total_loaded_leaves,
-        this->tight_bound, 0, 1, 1);
+        this->tight_bound, 0, 1, 1, this->bp_mode);
+
+    // Equi-depth breakpoints (no-op in Gaussian mode), installed as active.
+    compute_equidepth_breakpoints(this->index_settings, this->database, this->n_database);
+    activateBreakpoints();
 
     this->index = isax_index_init_inmemory(this->index_settings);
     isax_index *index = this->index;

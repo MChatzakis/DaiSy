@@ -794,7 +794,12 @@ namespace daisy
                                                         this->tight_bound,
                                                         0,
                                                         1,
-                                                        1);
+                                                        1,
+                                                        this->bp_mode);
+
+        // Equi-depth breakpoints (no-op in Gaussian mode), installed as active.
+        compute_equidepth_breakpoints(this->index_settings, this->database, this->n_database);
+        activateBreakpoints();
 
         this->index = isax_index_init_inmemory(this->index_settings);
         isax_index *index = this->index;
@@ -1074,6 +1079,7 @@ namespace daisy
                             std::vector<std::vector<idx_t>> &I,
                             std::vector<std::vector<float>> &D)
     {
+        activateBreakpoints();
         if (config.type == QueryType::TOP_K)
         {
             SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
@@ -1117,6 +1123,7 @@ namespace daisy
 
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        activateBreakpoints();
         if (this->distance_type == DistanceType::L2_SQUARED)
         {
             searchIndexL2Squared(query, n_query, k, I, D);

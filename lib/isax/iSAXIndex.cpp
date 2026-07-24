@@ -5,6 +5,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <cstring>  // for memset
+#include <sys/stat.h>  // mkdir
+#include <vector>
+#include <algorithm>
 namespace daisy
 {
 
@@ -13,7 +16,8 @@ namespace daisy
                                                   int max_leaf_size, int min_leaf_size,
                                                   int initial_leaf_buffer_size,
                                                   int max_total_buffer_size, int initial_fbl_buffer_size,
-                                                  int total_loaded_leaves, int tight_bound, int aggressive_check, int new_index, char inmemory_flag)
+                                                  int total_loaded_leaves, int tight_bound, int aggressive_check, int new_index, char inmemory_flag,
+                                                  breakpoint_mode bp_mode)
     {
         int i;
         isax_index_settings *settings = (isax_index_settings *)malloc(sizeof(isax_index_settings));
@@ -104,7 +108,8 @@ namespace daisy
         float c_size = ceil(log10(settings->sax_alphabet_cardinality + 1));
         settings->max_filename_size = settings->paa_segments *
                                           ((c_size * 2) + 2) +
-                                      5 + strlen(root_directory);
+                                      5 + strlen(root_directory) +
+                                      64;  // margin for the default node-file directory prefix
 
         if (paa_segments > sax_bit_cardinality)
         {
@@ -146,7 +151,93 @@ namespace daisy
             settings->max_total_buffer_size = settings->max_total_full_buffer_size;
         }
 
+        // Default to the Gaussian tables; replaced by compute_equidepth_breakpoints().
+        settings->bp_mode = bp_mode;
+        settings->breakpoints = sax_breakpoints;
+        settings->breakpoints_max = sax_breakpointsnew3;
+        settings->breakpoints_owned = NULL;
+        settings->breakpoints_max_owned = NULL;
+
         return settings;
+    }
+
+    void compute_equidepth_breakpoints(isax_index_settings *settings,
+                                       const float *database, size_t n_series)
+    {
+        // No-op unless equi-depth was requested; keeps the Gaussian defaults.
+        if (settings == NULL || settings->bp_mode != BP_EQUIDEPTH)
+            return;
+        if (database == NULL || n_series == 0)
+            return;
+
+        const int seg = settings->paa_segments;
+        const int vps = settings->ts_values_per_paa_segment;
+        const int ts_size = settings->timeseries_size;
+        const int max_card = settings->sax_alphabet_cardinality;  // e.g. 256 for 8-bit SAX
+        if (seg <= 0 || vps <= 0 || max_card < 2)
+            return;
+
+        // 1. Pool PAA values across (subsampled) series and all segments (global equi-depth).
+        const size_t SAMPLE_CAP = 2000000;  // cap on pooled PAA values
+        size_t max_series = SAMPLE_CAP / (size_t)seg;
+        if (max_series == 0) max_series = 1;
+        size_t stride = 1;
+        if (n_series > max_series)
+            stride = (n_series + max_series - 1) / max_series;
+
+        std::vector<float> pool;
+        pool.reserve(((n_series + stride - 1) / stride) * (size_t)seg);
+        std::vector<float> paa(seg);
+        for (size_t s = 0; s < n_series; s += stride)
+        {
+            paa_from_ts(database + s * (size_t)ts_size, paa.data(), seg, vps);
+            for (int j = 0; j < seg; j++)
+                pool.push_back(paa[j]);
+        }
+        if (pool.empty())
+            return;
+        std::sort(pool.begin(), pool.end());
+
+        // 2. Empirical quantile function (interpolated, monotone). One shared function for
+        // all cardinalities preserves the iSAX nesting property (q(j/c) == q(2j/2c)).
+        const size_t N = pool.size();
+        const float *pd = pool.data();
+        auto quantile = [pd, N](double p) -> float {
+            if (p <= 0.0) return pd[0];
+            if (p >= 1.0) return pd[N - 1];
+            double x = p * (double)(N - 1);
+            size_t lo = (size_t)x;
+            if (lo + 1 >= N) return pd[N - 1];
+            double frac = x - (double)lo;
+            return (float)(pd[lo] * (1.0 - frac) + pd[lo + 1] * frac);
+        };
+
+        // 3. Triangular table (same layout as sax_breakpoints): card c at offset (c-1)(c-2)/2.
+        size_t tri_size = ((size_t)max_card * (size_t)(max_card - 1)) / 2;
+        float *tri = (float *)malloc(sizeof(float) * tri_size);
+        if (tri == NULL) return;  // keep Gaussian defaults on OOM
+        for (int c = 2; c <= max_card; c++)
+        {
+            size_t off = ((size_t)(c - 1) * (size_t)(c - 2)) / 2;
+            for (int j = 1; j <= c - 1; j++)
+                tri[off + (size_t)(j - 1)] = quantile((double)j / (double)c);
+        }
+
+        // 4. Flat max-cardinality table (same layout as sax_breakpointsnew3).
+        int max_bp = max_card - 1;  // 255 for cardinality 256
+        float *flat = (float *)malloc(sizeof(float) * (size_t)max_bp);
+        if (flat == NULL) { free(tri); return; }
+        size_t off_max = ((size_t)(max_card - 1) * (size_t)(max_card - 2)) / 2;
+        for (int k = 0; k < max_bp; k++)
+            flat[k] = tri[off_max + (size_t)k];
+
+        // 5. Publish (freeing any previously owned tables).
+        if (settings->breakpoints_owned) free(settings->breakpoints_owned);
+        if (settings->breakpoints_max_owned) free(settings->breakpoints_max_owned);
+        settings->breakpoints_owned = tri;
+        settings->breakpoints_max_owned = flat;
+        settings->breakpoints = tri;
+        settings->breakpoints_max = flat;
     }
 
     first_buffer_layer *initialize_fbl(int initial_buffer_size, int number_of_buffers,
@@ -803,10 +894,10 @@ namespace daisy
 
         if (sax_value == 0 || sax_value == alphabeta_size - 1)
         {
-            return sax_breakpoints[offset + sax_value] + (sax_breakpoints[offset + sax_value] - sax_breakpoints[offset + alphabeta_size / 2 - 1]) / 2;
+            return daisy_active_breakpoints[offset + sax_value] + (daisy_active_breakpoints[offset + sax_value] - daisy_active_breakpoints[offset + alphabeta_size / 2 - 1]) / 2;
         }
 
-        return (sax_breakpoints[offset + sax_value - 1] + sax_breakpoints[offset + sax_value]) / 2;
+        return (daisy_active_breakpoints[offset + sax_value - 1] + daisy_active_breakpoints[offset + sax_value]) / 2;
     }
 
     int informed_split_decision(isax_node_split_data *split_data,
@@ -872,7 +963,7 @@ namespace daisy
                 break_point_id = (break_point_id >> ((settings->sax_bit_cardinality) - (new_bit_cardinality))) << 1;
                 int new_cardinality = pow(2, new_bit_cardinality + 1);
                 int offset = (new_cardinality - 1) * (new_cardinality - 2) / 2;
-                float b = sax_breakpoints[offset + break_point_id];
+                float b = daisy_active_breakpoints[offset + break_point_id];
 
                 if (segment_to_split == -1)
                 {
@@ -1494,8 +1585,20 @@ namespace daisy
         int i;
 
         node->filename = (char *)malloc(sizeof(char) * index->settings->max_filename_size);
-        sprintf(node->filename, "%s", index->settings->root_directory);
-        int l = (int)strlen(index->settings->root_directory);
+        const char *root_dir = index->settings->root_directory;
+        int l;
+        // With no configured root directory (algorithms pass ""), contain the on-disk node
+        // files in a dedicated dir instead of scattering them across the CWD.
+        if (root_dir == NULL || root_dir[0] == '\0')
+        {
+            static const char *node_dir = "daisy_index_nodes";
+            mkdir(node_dir, 0777);  // idempotent
+            l = sprintf(node->filename, "%s/", node_dir);
+        }
+        else
+        {
+            l = sprintf(node->filename, "%s", root_dir);
+        }
 
         // If this has a parent then it is not a root node and as such it does have some
         // split data on its parent about the cardinalities.
