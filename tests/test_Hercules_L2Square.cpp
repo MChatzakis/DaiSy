@@ -9,7 +9,8 @@ TEST_P(HerculesParameterizedTest, AllConfigurations)
     const SSTestConfig &config = GetParam();
 
     daisy::HerculesConfig cfg;
-    cfg.index_dir = "/tmp/hercules_" + config.name + "_k" + std::to_string(config.k_value);
+    cfg.index_dir = "/tmp/hercules_" + config.name + "_k" + std::to_string(config.k_value) +
+                    "_t" + std::to_string(config.thread_count);
 
     daisy::Hercules search(daisy::DistanceType::L2_SQUARED, cfg);
 

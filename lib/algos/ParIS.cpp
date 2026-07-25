@@ -6,6 +6,9 @@
 #include <pthread.h>
 #include <cstring>
 #include <algorithm>
+#include <atomic>
+#include <string>
+#include <unistd.h>  // getpid
 
 namespace daisy
 {
@@ -44,8 +47,14 @@ namespace daisy
             throw std::runtime_error("FileDataSource does not have a filename");
         }
 
-        this->index_settings = isax_index_settings_init("",                        
-                                                        this->dim,                 
+        // Unique per-instance prefix so concurrent ParIS indices don't share on-disk files
+        // (root_directory is used as a filename prefix: "<prefix>isax_file.sax", etc.).
+        static std::atomic<unsigned long> paris_uid{0};
+        this->index_prefix_ = "/tmp/paris_" + std::to_string((unsigned long)getpid()) + "_" +
+                              std::to_string(paris_uid.fetch_add(1)) + "_";
+
+        this->index_settings = isax_index_settings_init(this->index_prefix_.c_str(),
+                                                        this->dim,
                                                         this->paa_segments,        
                                                         this->sax_cardinality,     
                                                         this->leaf_size,           
@@ -130,38 +139,46 @@ namespace daisy
 
         isax_index_binary_file_m(filename, ts_num, index, calculate_thread, this->read_block_length);
 
-        /* ParIS is on-disk: do not load SAX into memory. Reopen file for reading and set size. */
-        if (index->sax_file != nullptr && index->total_records > 0)
+        /* ParIS is on-disk and reads SAX from isax_file.sax on demand during search.
+         * The cache streamed by isax_index_binary_file_m can end up duplicated/misaligned
+         * (two independent write paths), which makes the range search's Phase-1 SAX filter
+         * prune valid candidates. Rewrite the cache cleanly from the raw file so record i's
+         * SAX is exactly at offset i, then reopen it read-only. */
+        if (index->sax_file != nullptr)
         {
-            fflush(index->sax_file);
-            char *sax_path = (char *)malloc((strlen(index->settings->root_directory) + 15) * sizeof(char));
-            strcpy(sax_path, index->settings->root_directory);
-            strcat(sax_path, "isax_file.sax");
             fclose(index->sax_file);
-            index->sax_file = fopen(sax_path, "rb");
-            free(sax_path);
-            if (index->sax_file != nullptr)
-            {
-                index->sax_cache_size = (unsigned long)index->total_records;
-                /* sax_cache stays nullptr: search will read SAX from sax_file on demand */
-            }
+            index->sax_file = nullptr;
         }
-        else if (index->sax_file != nullptr && index->total_records == 0)
         {
-            fseek(index->sax_file, 0, SEEK_END);
-            long file_sz = ftell(index->sax_file);
-            rewind(index->sax_file);
-            if (file_sz > 0 && index->settings->sax_byte_size > 0)
-            {
-                index->total_records = (unsigned long long)(file_sz / (long)index->settings->sax_byte_size);
-                index->sax_cache_size = (unsigned long)index->total_records;
-            }
-            fclose(index->sax_file);
             char *sax_path = (char *)malloc((strlen(index->settings->root_directory) + 15) * sizeof(char));
             strcpy(sax_path, index->settings->root_directory);
             strcat(sax_path, "isax_file.sax");
+
+            FILE *raw = fopen(filename, "rb");
+            FILE *sf = fopen(sax_path, "wb");
+            if (raw != nullptr && sf != nullptr)
+            {
+                ts_type *ts_buf = (ts_type *)malloc((size_t)index->settings->ts_byte_size);
+                sax_type *sax_buf = (sax_type *)malloc((size_t)index->settings->sax_byte_size);
+                for (int r = 0; r < ts_num; r++)
+                {
+                    if (fread(ts_buf, (size_t)index->settings->ts_byte_size, 1, raw) != 1)
+                        break;
+                    sax_from_ts(ts_buf, sax_buf, index->settings->ts_values_per_paa_segment,
+                                index->settings->paa_segments, index->settings->sax_alphabet_cardinality,
+                                index->settings->sax_bit_cardinality);
+                    fwrite(sax_buf, (size_t)index->settings->sax_byte_size, 1, sf);
+                }
+                free(ts_buf);
+                free(sax_buf);
+            }
+            if (raw != nullptr) fclose(raw);
+            if (sf != nullptr) fclose(sf);
+
             index->sax_file = fopen(sax_path, "rb");
             free(sax_path);
+            index->total_records = (unsigned long long)ts_num;
+            index->sax_cache_size = (unsigned long)ts_num;
         }
 
         fprintf(stderr, ">>> Finished indexing\n");

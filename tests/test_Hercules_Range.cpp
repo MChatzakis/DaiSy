@@ -8,7 +8,8 @@ TEST_P(HerculesRangeParameterizedTest, AllConfigurations)
 
     daisy::HerculesConfig cfg;
     cfg.index_dir = "/tmp/hercules_range_" + config.name +
-                    "_r" + std::to_string((int)config.r_value);
+                    "_r" + std::to_string((int)config.r_value) +
+                    "_t" + std::to_string(config.thread_count);
 
     daisy::Hercules search(daisy::DistanceType::L2_SQUARED, cfg);
     runSSTRange(&search, config);

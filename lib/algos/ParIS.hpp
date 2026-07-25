@@ -9,6 +9,7 @@
 #include <queue>
 #include <utility>
 #include <vector>
+#include <string>
 #include <cfloat>
 #include <omp.h>
 #include <pthread.h>
@@ -90,6 +91,10 @@ namespace daisy
         int index_workers = 32;
         int read_block_length = 100000;
         int n_pqueue = 42;
+        // Per-instance filename prefix for the on-disk index files (isax_file.sax, node
+        // files). Keeps concurrent ParIS indices — e.g. parallel tests — from clobbering
+        // a shared file in the CWD. Must outlive index_settings (stores the pointer).
+        std::string index_prefix_;
 
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
