@@ -43,13 +43,6 @@ PYBIND11_MODULE(_core, m)
         .value("DTW", daisy::DistanceType::DTW)
         .export_values();
 
-    ////// BREAKPOINTMODE //////
-    // GAUSSIAN (default, z-normalized data) or EQUIDEPTH (data-adaptive, per index).
-    pybind11::enum_<daisy::breakpoint_mode>(m, "BreakpointMode", pybind11::arithmetic())
-        .value("GAUSSIAN", daisy::BP_GAUSSIAN)
-        .value("EQUIDEPTH", daisy::BP_EQUIDEPTH)
-        .export_values();
-
     ////// QUERYTYPE //////
     pybind11::enum_<daisy::QueryType>(m, "QueryType")
         .value("TOP_K", daisy::QueryType::TOP_K)
@@ -147,8 +140,8 @@ PYBIND11_MODULE(_core, m)
         .def("setNumThreads", &daisy::LbBruteforce::setNumThreads, "Set the number of threads to use")
         .def("setPaaSegments", &daisy::LbBruteforce::setPaaSegments, "Set the number of PAA segments")
         .def("setSaxCardinality", &daisy::LbBruteforce::setSaxCardinality, "Set the SAX cardinality")
-        .def("setBreakpointMode", &daisy::LbBruteforce::setBreakpointMode, "Set breakpoint mode: 0=Gaussian (default), 1=equi-depth (data-adaptive)")
-        .def("getBreakpointMode", &daisy::LbBruteforce::getBreakpointMode, "Get the breakpoint mode (0=Gaussian, 1=equi-depth)")
+        .def("setNormalized", &daisy::LbBruteforce::setNormalized, "Declare whether input data is z-normalized (default true). Pass false for raw data to use data-adaptive breakpoints. Call before buildIndex().")
+        .def("getNormalized", &daisy::LbBruteforce::getNormalized, "Whether the index treats input data as z-normalized")
         .def("setLeafSize", &daisy::LbBruteforce::setLeafSize, "Set the leaf size")
         .def("setMinLeafSize", &daisy::LbBruteforce::setMinLeafSize, "Set the minimum leaf size")
         .def("setInitialLblSize", &daisy::LbBruteforce::setInitialLblSize, "Set the initial size of the lower-bound leaf buffer (LBL)")
@@ -290,8 +283,8 @@ PYBIND11_MODULE(_core, m)
         .def("setNumThreads", &daisy::Messi::setNumThreads, "Set the number of threads to use for both indexing and search")
         .def("setPaaSegments", &daisy::Messi::setPaaSegments, "Set the number of PAA segments")
         .def("setSaxCardinality", &daisy::Messi::setSaxCardinality, "Set the SAX cardinality")
-        .def("setBreakpointMode", &daisy::Messi::setBreakpointMode, "Set breakpoint mode: 0=Gaussian (default), 1=equi-depth (data-adaptive)")
-        .def("getBreakpointMode", &daisy::Messi::getBreakpointMode, "Get the breakpoint mode (0=Gaussian, 1=equi-depth)")
+        .def("setNormalized", &daisy::Messi::setNormalized, "Declare whether input data is z-normalized (default true). Pass false for raw data to use data-adaptive breakpoints. Call before buildIndex().")
+        .def("getNormalized", &daisy::Messi::getNormalized, "Whether the index treats input data as z-normalized")
         .def("setLeafSize", &daisy::Messi::setLeafSize, "Set the leaf size of the index tree")
         .def("setMinLeafSize", &daisy::Messi::setMinLeafSize, "Set the minimum size of a leaf")
         .def("setInitialLblSize", &daisy::Messi::setInitialLblSize, "Set the initial LBL size")
@@ -442,8 +435,8 @@ PYBIND11_MODULE(_core, m)
 
         // Setters
         .def("setNumThreads", &daisy::ParIS::setNumThreads, "Set the number of threads to use")
-        .def("setBreakpointMode", &daisy::ParIS::setBreakpointMode, "Set breakpoint mode: 0=Gaussian (default), 1=equi-depth (data-adaptive)")
-        .def("getBreakpointMode", &daisy::ParIS::getBreakpointMode, "Get the breakpoint mode (0=Gaussian, 1=equi-depth)")
+        .def("setNormalized", &daisy::ParIS::setNormalized, "Declare whether input data is z-normalized (default true). Pass false for raw data to use data-adaptive breakpoints. Call before buildIndex().")
+        .def("getNormalized", &daisy::ParIS::getNormalized, "Whether the index treats input data as z-normalized")
         .def("setWarpingWindow", &daisy::ParIS::setWarpingWindow, "Set the warping window size for DTW (typically 10% of time series length)")
 
         // Getters
@@ -586,8 +579,6 @@ PYBIND11_MODULE(_core, m)
 
         // Setters
         .def("setNumThreads", &daisy::Sofa::setNumThreads, "Set the number of threads to use for both indexing and search")
-        .def("setBreakpointMode", &daisy::Sofa::setBreakpointMode, "Set breakpoint mode: 0=Gaussian (default), 1=equi-depth (data-adaptive)")
-        .def("getBreakpointMode", &daisy::Sofa::getBreakpointMode, "Get the breakpoint mode (0=Gaussian, 1=equi-depth)")
         .def("setWordLength", &daisy::Sofa::setWordLength, "Set the SFA word length")
         .def("setAlphabetSize", &daisy::Sofa::setAlphabetSize, "Set the alphabet size")
         .def("setSearchWorkers", &daisy::Sofa::setSearchWorkers, "Set the number of search worker threads")
@@ -782,8 +773,8 @@ PYBIND11_MODULE(_core, m)
         .def("setNumThreads", &daisy::Fresh::setNumThreads, "Set the number of threads to use for both indexing and search")
         .def("setPaaSegments", &daisy::Fresh::setPaaSegments, "Set the number of PAA segments")
         .def("setSaxCardinality", &daisy::Fresh::setSaxCardinality, "Set the SAX cardinality")
-        .def("setBreakpointMode", &daisy::Fresh::setBreakpointMode, "Set breakpoint mode: 0=Gaussian (default), 1=equi-depth (data-adaptive)")
-        .def("getBreakpointMode", &daisy::Fresh::getBreakpointMode, "Get the breakpoint mode (0=Gaussian, 1=equi-depth)")
+        .def("setNormalized", &daisy::Fresh::setNormalized, "Declare whether input data is z-normalized (default true). Pass false for raw data to use data-adaptive breakpoints. Call before buildIndex().")
+        .def("getNormalized", &daisy::Fresh::getNormalized, "Whether the index treats input data as z-normalized")
         .def("setLeafSize", &daisy::Fresh::setLeafSize, "Set the leaf size of the index tree")
         .def("setMinLeafSize", &daisy::Fresh::setMinLeafSize, "Set the minimum size of a leaf")
         .def("setInitialLblSize", &daisy::Fresh::setInitialLblSize, "Set the initial LBL size")

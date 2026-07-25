@@ -1475,7 +1475,6 @@ void Fresh::searchIndex(const float *query, idx_t n_query, const SearchConfig &c
                         std::vector<std::vector<idx_t>> &I,
                         std::vector<std::vector<float>> &D)
 {
-    activateBreakpoints();
     if (config.type == QueryType::TOP_K)
     {
         SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
@@ -1519,7 +1518,6 @@ void Fresh::searchIndex(const float *query, idx_t n_query, const SearchConfig &c
 
 void Fresh::searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
-    activateBreakpoints();
     if (this->distance_type == DistanceType::L2_SQUARED)
         searchIndexL2Squared(query, n_query, k, I, D);
     else if (this->distance_type == DistanceType::DTW)
