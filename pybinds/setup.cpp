@@ -257,7 +257,6 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
     ////// COCONUT //////
-    // NOTE: compile-verified pattern mirrors LbBruteforce; needs a BUILD_PYTHON build to confirm.
     pybind11::class_<daisy::Coconut>(m, "Coconut", "COCONUT sortable-SAX index (static bottom-up build + streaming insert)")
         .def(pybind11::init<daisy::DistanceType>(), "Create a new Coconut with the given distance metric")
 
