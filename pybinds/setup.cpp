@@ -12,6 +12,7 @@
 #include "../lib/distance_computers/DistanceComputer.hpp"
 #include "../lib/algos/Bruteforce.hpp"
 #include "../lib/algos/LbBruteforce.hpp"
+#include "../lib/algos/Coconut.hpp"
 #include "../lib/algos/Messi.hpp"
 #if ODYSSEY_MPI
 #include "../lib/algos/hodyssey/Odyssey.hpp"
@@ -254,6 +255,68 @@ PYBIND11_MODULE(_core, m)
             std::vector<std::vector<float>> D;
             self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
             return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
+
+    ////// COCONUT //////
+    // NOTE: compile-verified pattern mirrors LbBruteforce; needs a BUILD_PYTHON build to confirm.
+    pybind11::class_<daisy::Coconut>(m, "Coconut", "COCONUT sortable-SAX index (static bottom-up build + streaming insert)")
+        .def(pybind11::init<daisy::DistanceType>(), "Create a new Coconut with the given distance metric")
+
+        .def("getPaaSegments", &daisy::Coconut::getPaaSegments, "Get the number of PAA segments")
+        .def("getSaxCardinality", &daisy::Coconut::getSaxCardinality, "Get the SAX bit cardinality")
+        .def("getLeafSize", &daisy::Coconut::getLeafSize, "Get the records-per-leaf-file capacity")
+        .def("setNumThreads", &daisy::Coconut::setNumThreads, "Set the number of threads to use")
+        .def("setPaaSegments", &daisy::Coconut::setPaaSegments, "Set the number of PAA segments (must divide the series length)")
+        .def("setSaxCardinality", &daisy::Coconut::setSaxCardinality, "Set the SAX bit cardinality")
+        .def("setLeafSize", &daisy::Coconut::setLeafSize, "Set the records-per-leaf-file capacity")
+
+        // Static bottom-up build from a 2D float32 numpy array.
+        .def("buildIndex", [](daisy::Coconut &self, pybind11::array_t<float> db)
+             {
+            pybind11::buffer_info buf = db.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("Database array must be 2D");
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
+
+        // Streaming: insert one series (1D) or a batch (2D) into a live index.
+        .def("insert", [](daisy::Coconut &self, pybind11::array_t<float> series)
+             {
+            pybind11::buffer_info buf = series.request();
+            if (buf.ndim != 1)
+                throw std::runtime_error("insert expects a 1D float32 array");
+            self.insert(static_cast<float *>(buf.ptr)); }, "Insert a single series (1D float32 array) into the live index")
+
+        .def("insertBatch", [](daisy::Coconut &self, pybind11::array_t<float> batch)
+             {
+            pybind11::buffer_info buf = batch.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("insertBatch expects a 2D float32 array");
+            self.insertBatch(static_cast<float *>(buf.ptr), buf.shape[0]); }, "Insert a batch of series (2D float32 array) into the live index")
+
+        // kNN search returning (indices, distances).
+        .def("searchIndex", [](daisy::Coconut &self, pybind11::array_t<float> query, daisy::idx_t k)
+             {
+            pybind11::buffer_info buf = query.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+
+            std::vector<daisy::idx_t> indices(buf.shape[0] * k);
+            std::vector<float> distances(buf.shape[0] * k);
+            self.searchIndex(static_cast<float *>(buf.ptr), buf.shape[0], k, indices.data(), distances.data());
+
+            return pybind11::make_tuple(
+                pybind11::array_t<daisy::idx_t>(pybind11::buffer_info(
+                    indices.data(), sizeof(daisy::idx_t),
+                    pybind11::format_descriptor<daisy::idx_t>::format(), 2,
+                    std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)},
+                    std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(sizeof(daisy::idx_t) * k), static_cast<pybind11::ssize_t>(sizeof(daisy::idx_t))})),
+                pybind11::array_t<float>(pybind11::buffer_info(
+                    distances.data(), sizeof(float),
+                    pybind11::format_descriptor<float>::format(), 2,
+                    std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)},
+                    std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(sizeof(float) * k), static_cast<pybind11::ssize_t>(sizeof(float))}))); }, "kNN search: returns (indices, distances)");
 
     ////// MESSI //////
     pybind11::class_<daisy::Messi>(m, "Messi", "MESSI (Multi-Queue Efficient SAX Similarity Index) algorithm for time series similarity search")

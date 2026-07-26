@@ -48,6 +48,7 @@ The following table summarizes the key features of each algorithm:
 | **[Hercules](https://helios2.mi.parisdescartes.fr/~themisp/publications/pvldb22-hercules.pdf)** | In-memory hierarchical similarity search using EAPCA and SAX-based pruning |
 | **[DumpyOS](https://helios2.mi.parisdescartes.fr/~themisp/publications/vldbj24-dumpyos.pdf)** | In-memory scalable data series similarity search using an adaptive multi-ary iSAX index |
 | **[FreSH](http://publications.ics.forth.gr/tech-reports/2023/2023.TR489_FreSh_A_LockFree_Data_Series_Index.pdf)** | In-memory lock-free parallel similarity search using an iSAX index (SRDS 2023) |
+| **[COCONUT](http://www.vldb.org/pvldb/vol11/p677-kondylakis.pdf)** | Sortable-SAX index built bottom-up; supports both static datasets and **streaming** (incremental) inserts (PVLDB 2018) |
 
 
 

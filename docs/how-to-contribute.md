@@ -11,7 +11,8 @@ You may reach us by contacting the main authors of the project, [Francesca Del G
 Here is a (non-exhaustive) mockup of our future and ongoing goals:
 
 - Extension of DaiSy for subsequence similarity search
-- Extension of DaiSy for more algorithms (e.g., SFA, Hercules, Coconut, Dumpy, etc.)
+- Extension of DaiSy for more algorithms
+- Streaming / updatable indexing for more algorithms (currently supported by Coconut)
 - Implementation of a DaiSy autotuner to automatically optimize indexing and search parameters
 - Extension of DaiSy to support learned optimization approaches, e.g., LeaFi and ProS
 

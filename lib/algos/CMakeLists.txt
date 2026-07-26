@@ -27,6 +27,15 @@ if(DEBUG_MSG)
     message(STATUS "Bruteforce.cpp added.")
 endif()
 
+# ////// COCONUT //////
+if(DEBUG_MSG)
+    message(STATUS "Adding Coconut.cpp to dino_lib sources.")
+endif()
+target_sources(dino_lib
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Coconut.cpp
+)
+
 # ////// LBBRUTEFORCE //////
 if(DEBUG_MSG)
     message(STATUS "Adding LbBruteforce.cpp to dino_lib sources.")

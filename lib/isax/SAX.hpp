@@ -15,6 +15,10 @@ namespace daisy
     enum response paa_from_ts(const ts_type *ts_in, ts_type *paa_out, int segments, int ts_values_per_segment);
     enum response sax_from_paa(ts_type *paa, sax_type *sax, int segments, int cardinality, int bit_cardinality);
 
+    // COCONUT "sortable SAX": bit-interleave a SAX word so byte order preserves SAX
+    // neighbourhood (enables bottom-up build + ordered inserts). out/sax are `segments` bytes.
+    void sortable_sax_from_sax(const sax_type *sax, sax_type *out, int segments, int bit_cardinality);
+
     float minidist_paa_to_isax(float *paa, sax_type *sax,
                                sax_type *sax_cardinalities,
                                sax_type max_bit_cardinality,

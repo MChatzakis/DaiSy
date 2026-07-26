@@ -140,6 +140,26 @@ if(DEBUG_MSG)
     message(STATUS "Include directories added for bm_LbBruteforce_L2Square.")
 endif()
 
+# ////// COCONUT //////
+add_executable(bm_Coconut_L2Square
+    bm_Coconut_L2Square.cpp
+    bm_utils.cpp
+    ../commons/paramSetup.cpp
+    ../commons/test_bm_utils.cpp
+    ../commons/dataloaders.cpp
+)
+target_link_libraries(bm_Coconut_L2Square
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_Coconut_L2Square
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+
 # ////// MESSI //////
 if(DEBUG_MSG)
     message(STATUS "---")
