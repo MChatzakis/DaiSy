@@ -105,8 +105,8 @@ namespace daisy
         __m256i lower_juge_nzerov_1 = _mm256_andnot_si256(lower_juge_zerov_1, vectorsignbit);
         __m256 minvalv = _mm256_set1_ps((float)min_val);
 
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpointsnew3, region_lowerv_0, 4);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpointsnew3, region_lowerv_1, 4);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_lowerv_0, 4);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_lowerv_1, 4);
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_castsi256_ps(_mm256_or_si256(
             _mm256_and_si256(lower_juge_zerov_0, _mm256_castps_si256(minvalv)),
             _mm256_and_si256(lower_juge_nzerov_0, _mm256_castps_si256(lsax_breakpoints_shiftv_0))));
@@ -114,8 +114,8 @@ namespace daisy
             _mm256_and_si256(lower_juge_zerov_1, _mm256_castps_si256(minvalv)),
             _mm256_and_si256(lower_juge_nzerov_1, _mm256_castps_si256(lsax_breakpoints_shiftv_1))));
 
-        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpointsnew3, region_upperv_0, 4);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpointsnew3, region_upperv_1, 4);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_upperv_0, 4);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_upperv_1, 4);
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_nmaxv_0 = _mm256_andnot_si256(upper_juge_maxv_0, vectorsignbit);
@@ -267,7 +267,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_lower = sax_breakpointsnew3[region_lower];
+                breakpoint_lower = daisy_active_breakpoints_max[region_lower];
             }
             if (region_upper == (sax_type)(max_cardinality - 1))
             {
@@ -275,7 +275,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_upper = sax_breakpointsnew3[region_upper + 1];
+                breakpoint_upper = daisy_active_breakpoints_max[region_upper + 1];
             }
 
             if (breakpoint_lower > paa[i])
@@ -471,7 +471,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_lower = sax_breakpointsnew3[region_lower - 1];
+                breakpoint_lower = daisy_active_breakpoints_max[region_lower - 1];
             }
             if (region_upper == (sax_type)(max_cardinality - 1))
             {
@@ -479,7 +479,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_upper = sax_breakpointsnew3[region_upper];
+                breakpoint_upper = daisy_active_breakpoints_max[region_upper];
             }
 
             (void)mask;

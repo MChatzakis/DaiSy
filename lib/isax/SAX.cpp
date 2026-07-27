@@ -31,6 +31,16 @@ namespace daisy
         }
     }
 
+    // Default to the Gaussian tables; replaced per-index via set_active_breakpoints().
+    const float *daisy_active_breakpoints = sax_breakpoints;
+    const float *daisy_active_breakpoints_max = sax_breakpointsnew3;
+
+    void set_active_breakpoints(const float *breakpoints, const float *breakpoints_max)
+    {
+        daisy_active_breakpoints = breakpoints ? breakpoints : sax_breakpoints;
+        daisy_active_breakpoints_max = breakpoints_max ? breakpoints_max : sax_breakpointsnew3;
+    }
+
     int compare(const void *a, const void *b)
     {
         float *c = (float *)b - 1;
@@ -81,14 +91,14 @@ namespace daisy
         {
             sax_out[si] = 0;
 
-            // First object = sax_breakpoints[offset]
-            // Last object = sax_breakpoints[offset + cardinality - 2]
+            // First object = daisy_active_breakpoints[offset]
+            // Last object = daisy_active_breakpoints[offset + cardinality - 2]
             // Size of sub-array = cardinality - 1
 
-            float *res = (float *)bsearch(&paa[si], &sax_breakpoints[offset], cardinality - 1,
+            float *res = (float *)bsearch(&paa[si], &daisy_active_breakpoints[offset], cardinality - 1,
                                           sizeof(ts_type), compare);
             if (res != NULL)
-                sax_out[si] = (int)(res - &sax_breakpoints[offset]);
+                sax_out[si] = (int)(res - &daisy_active_breakpoints[offset]);
             else if (paa[si] > 0)
                 sax_out[si] = cardinality - 1;
         }
@@ -121,14 +131,14 @@ namespace daisy
         {
             sax[si] = 0;
 
-            // First object = sax_breakpoints[offset]
-            // Last object = sax_breakpoints[offset + cardinality - 2]
+            // First object = daisy_active_breakpoints[offset]
+            // Last object = daisy_active_breakpoints[offset + cardinality - 2]
             // Size of sub-array = cardinality - 1
 
-            float *res = (float *)bsearch(&paa[si], &sax_breakpoints[offset], cardinality - 1,
+            float *res = (float *)bsearch(&paa[si], &daisy_active_breakpoints[offset], cardinality - 1,
                                           sizeof(ts_type), compare);
             if (res != NULL)
-                sax[si] = (int)(res - &sax_breakpoints[offset]);
+                sax[si] = (int)(res - &daisy_active_breakpoints[offset]);
             else if (paa[si] > 0)
                 sax[si] = cardinality - 1;
         }
@@ -172,7 +182,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_lower = sax_breakpoints[offset + region_lower - 1];
+                breakpoint_lower = daisy_active_breakpoints[offset + region_lower - 1];
             }
             if (region_upper == max_cardinality - 1)
             {
@@ -180,7 +190,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_upper = sax_breakpoints[offset + region_upper];
+                breakpoint_upper = daisy_active_breakpoints[offset + region_upper];
             }
 
             if (breakpoint_lower > paa[i])
@@ -267,43 +277,43 @@ namespace daisy
         __m256 minvalv = _mm256_set1_ps(min_val);
 
         //__m256 lsax_breakpoints_shiftv_0 _mm256_i32gather_ps (sax_breakpoints, __m256i vindex, const int scale)
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_set_ps(sax_breakpoints[offset + region_lower[7] - 1],
-                                                         sax_breakpoints[offset + region_lower[6] - 1],
-                                                         sax_breakpoints[offset + region_lower[5] - 1],
-                                                         sax_breakpoints[offset + region_lower[4] - 1],
-                                                         sax_breakpoints[offset + region_lower[3] - 1],
-                                                         sax_breakpoints[offset + region_lower[2] - 1],
-                                                         sax_breakpoints[offset + region_lower[1] - 1],
-                                                         sax_breakpoints[offset + region_lower[0] - 1]);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_set_ps(sax_breakpoints[offset + region_lower[15] - 1],
-                                                         sax_breakpoints[offset + region_lower[14] - 1],
-                                                         sax_breakpoints[offset + region_lower[13] - 1],
-                                                         sax_breakpoints[offset + region_lower[12] - 1],
-                                                         sax_breakpoints[offset + region_lower[11] - 1],
-                                                         sax_breakpoints[offset + region_lower[10] - 1],
-                                                         sax_breakpoints[offset + region_lower[9] - 1],
-                                                         sax_breakpoints[offset + region_lower[8] - 1]);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_set_ps(daisy_active_breakpoints[offset + region_lower[7] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[6] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[5] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[4] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[3] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[2] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[1] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[0] - 1]);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_set_ps(daisy_active_breakpoints[offset + region_lower[15] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[14] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[13] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[12] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[11] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[10] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[9] - 1],
+                                                         daisy_active_breakpoints[offset + region_lower[8] - 1]);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_0, (__m256i)lsax_breakpoints_shiftv_0));
         __m256 breakpoint_lowerv_1 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
         // uper
-        __m256 usax_breakpoints_shiftv_0 = _mm256_set_ps(sax_breakpoints[offset + region_upper[7]],
-                                                         sax_breakpoints[offset + region_upper[6]],
-                                                         sax_breakpoints[offset + region_upper[5]],
-                                                         sax_breakpoints[offset + region_upper[4]],
-                                                         sax_breakpoints[offset + region_upper[3]],
-                                                         sax_breakpoints[offset + region_upper[2]],
-                                                         sax_breakpoints[offset + region_upper[1]],
-                                                         sax_breakpoints[offset + region_upper[0]]);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_set_ps(sax_breakpoints[offset + region_upper[15]],
-                                                         sax_breakpoints[offset + region_upper[14]],
-                                                         sax_breakpoints[offset + region_upper[13]],
-                                                         sax_breakpoints[offset + region_upper[12]],
-                                                         sax_breakpoints[offset + region_upper[11]],
-                                                         sax_breakpoints[offset + region_upper[10]],
-                                                         sax_breakpoints[offset + region_upper[9]],
-                                                         sax_breakpoints[offset + region_upper[8]]);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_set_ps(daisy_active_breakpoints[offset + region_upper[7]],
+                                                         daisy_active_breakpoints[offset + region_upper[6]],
+                                                         daisy_active_breakpoints[offset + region_upper[5]],
+                                                         daisy_active_breakpoints[offset + region_upper[4]],
+                                                         daisy_active_breakpoints[offset + region_upper[3]],
+                                                         daisy_active_breakpoints[offset + region_upper[2]],
+                                                         daisy_active_breakpoints[offset + region_upper[1]],
+                                                         daisy_active_breakpoints[offset + region_upper[0]]);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_set_ps(daisy_active_breakpoints[offset + region_upper[15]],
+                                                         daisy_active_breakpoints[offset + region_upper[14]],
+                                                         daisy_active_breakpoints[offset + region_upper[13]],
+                                                         daisy_active_breakpoints[offset + region_upper[12]],
+                                                         daisy_active_breakpoints[offset + region_upper[11]],
+                                                         daisy_active_breakpoints[offset + region_upper[10]],
+                                                         daisy_active_breakpoints[offset + region_upper[9]],
+                                                         daisy_active_breakpoints[offset + region_upper[8]]);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -429,8 +439,8 @@ namespace daisy
 
         __m256 minvalv = _mm256_set1_ps((float)min_val);
 
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpointsnew3, region_lowerv_0, 4);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpointsnew3, region_lowerv_1, 4);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_lowerv_0, 4);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_lowerv_1, 4);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(
             _mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv),
@@ -439,8 +449,8 @@ namespace daisy
             _mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv),
             _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
-        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpointsnew3, region_upperv_0, 4);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpointsnew3, region_upperv_1, 4);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_upperv_0, 4);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_upperv_1, 4);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -642,15 +652,15 @@ namespace daisy
 
         __m256 minvalv = _mm256_set1_ps(min_val);
 
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpoints, region_lowerv_0_offset, 4);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpoints, region_lowerv_1_offset, 4);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints, region_lowerv_0_offset, 4);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints, region_lowerv_1_offset, 4);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_0, (__m256i)lsax_breakpoints_shiftv_0));
         __m256 breakpoint_lowerv_1 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
         // uper
-        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpoints, region_upperv_0_offset, 4);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpoints, region_upperv_1_offset, 4);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints, region_upperv_0_offset, 4);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints, region_upperv_1_offset, 4);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -786,47 +796,47 @@ namespace daisy
 
         __m256 minvalv = _mm256_set1_ps(min_val);
 
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpoints, region_lowerv_0_offset, 4);
-        //__m256 lsax_breakpoints_shiftv_0= _mm256_set_ps (sax_breakpoints[region_lower[7]],
-        // sax_breakpoints[region_lower[6]],
-        // sax_breakpoints[region_lower[5]],
-        // sax_breakpoints[region_lower[4]],
-        // sax_breakpoints[region_lower[3]],
-        // sax_breakpoints[region_lower[2]],
-        // sax_breakpoints[region_lower[1]],
-        // sax_breakpoints[region_lower[0]]);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpoints, region_lowerv_1_offset, 4);
-        //__m256 lsax_breakpoints_shiftv_1= _mm256_set_ps (sax_breakpoints[region_lower[15]],
-        // sax_breakpoints[region_lower[14]],
-        // sax_breakpoints[region_lower[13]],
-        // sax_breakpoints[region_lower[12]],
-        // sax_breakpoints[region_lower[11]],
-        // sax_breakpoints[region_lower[10]],
-        // sax_breakpoints[region_lower[9]],
-        // sax_breakpoints[region_lower[8]]);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints, region_lowerv_0_offset, 4);
+        //__m256 lsax_breakpoints_shiftv_0= _mm256_set_ps (daisy_active_breakpoints[region_lower[7]],
+        // daisy_active_breakpoints[region_lower[6]],
+        // daisy_active_breakpoints[region_lower[5]],
+        // daisy_active_breakpoints[region_lower[4]],
+        // daisy_active_breakpoints[region_lower[3]],
+        // daisy_active_breakpoints[region_lower[2]],
+        // daisy_active_breakpoints[region_lower[1]],
+        // daisy_active_breakpoints[region_lower[0]]);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints, region_lowerv_1_offset, 4);
+        //__m256 lsax_breakpoints_shiftv_1= _mm256_set_ps (daisy_active_breakpoints[region_lower[15]],
+        // daisy_active_breakpoints[region_lower[14]],
+        // daisy_active_breakpoints[region_lower[13]],
+        // daisy_active_breakpoints[region_lower[12]],
+        // daisy_active_breakpoints[region_lower[11]],
+        // daisy_active_breakpoints[region_lower[10]],
+        // daisy_active_breakpoints[region_lower[9]],
+        // daisy_active_breakpoints[region_lower[8]]);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_0, (__m256i)lsax_breakpoints_shiftv_0));
         __m256 breakpoint_lowerv_1 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
         // uper
-        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(sax_breakpoints, region_upperv_0_offset, 4);
-        //__m256 usax_breakpoints_shiftv_0= _mm256_set_ps (sax_breakpoints[region_upper[7]],
-        // sax_breakpoints[region_upper[6]],
-        // sax_breakpoints[region_upper[5]],
-        // sax_breakpoints[region_upper[4]],
-        // sax_breakpoints[region_upper[3]],
-        // sax_breakpoints[region_upper[2]],
-        // sax_breakpoints[region_upper[1]],
-        // sax_breakpoints[region_upper[0]]);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(sax_breakpoints, region_upperv_1_offset, 4);
-        //__m256 usax_breakpoints_shiftv_1= _mm256_set_ps (sax_breakpoints[region_upper[15]],
-        // sax_breakpoints[region_upper[14]],
-        // sax_breakpoints[region_upper[13]],
-        // sax_breakpoints[region_upper[12]],
-        // sax_breakpoints[region_upper[11]],
-        // sax_breakpoints[region_upper[10]],
-        // sax_breakpoints[region_upper[9]],
-        // sax_breakpoints[region_upper[8]]);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints, region_upperv_0_offset, 4);
+        //__m256 usax_breakpoints_shiftv_0= _mm256_set_ps (daisy_active_breakpoints[region_upper[7]],
+        // daisy_active_breakpoints[region_upper[6]],
+        // daisy_active_breakpoints[region_upper[5]],
+        // daisy_active_breakpoints[region_upper[4]],
+        // daisy_active_breakpoints[region_upper[3]],
+        // daisy_active_breakpoints[region_upper[2]],
+        // daisy_active_breakpoints[region_upper[1]],
+        // daisy_active_breakpoints[region_upper[0]]);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints, region_upperv_1_offset, 4);
+        //__m256 usax_breakpoints_shiftv_1= _mm256_set_ps (daisy_active_breakpoints[region_upper[15]],
+        // daisy_active_breakpoints[region_upper[14]],
+        // daisy_active_breakpoints[region_upper[13]],
+        // daisy_active_breakpoints[region_upper[12]],
+        // daisy_active_breakpoints[region_upper[11]],
+        // daisy_active_breakpoints[region_upper[10]],
+        // daisy_active_breakpoints[region_upper[9]],
+        // daisy_active_breakpoints[region_upper[8]]);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -1103,7 +1113,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_lower = sax_breakpoints[offset + region_lower - 1];
+                breakpoint_lower = daisy_active_breakpoints[offset + region_lower - 1];
             }
             if (region_upper == max_cardinality - 1)
             {
@@ -1111,7 +1121,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_upper = sax_breakpoints[offset + region_upper];
+                breakpoint_upper = daisy_active_breakpoints[offset + region_upper];
             }
 
             if (breakpoint_lower > paaU[i])

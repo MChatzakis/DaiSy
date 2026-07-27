@@ -1018,3 +1018,27 @@ target_link_libraries(test_Coconut_Streaming PRIVATE GTest::gtest_main dino_lib 
 target_include_directories(test_Coconut_Streaming PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
 gtest_discover_tests(test_Coconut_Streaming WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# non-normalized data
+add_executable(
+    test_equidepth
+    test_equidepth.cpp
+    test_utils.cpp
+)
+target_link_libraries(
+    test_equidepth
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+target_include_directories(test_equidepth
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+gtest_discover_tests(
+    test_equidepth
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)

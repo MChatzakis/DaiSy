@@ -9,6 +9,14 @@
 
 namespace daisy
 {
+    // Process-global active breakpoints (triangular / flat-max). Default to the Gaussian
+    // tables; an index installs its own via set_active_breakpoints() before build/search.
+    extern const float *daisy_active_breakpoints;
+    extern const float *daisy_active_breakpoints_max;
+
+    // NULL args restore the Gaussian defaults.
+    void set_active_breakpoints(const float *breakpoints, const float *breakpoints_max);
+
     int compare(const void *a, const void *b);
 
     enum response sax_from_ts(ts_type *ts_in, sax_type *sax_out, int ts_values_per_segment, int segments, int cardinality, int bit_cardinality);

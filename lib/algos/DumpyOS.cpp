@@ -420,13 +420,13 @@ static void get_value_range(int sax_val, int bc, double* lb, double* ub) {
     int offset = ((cardinality - 1) * (cardinality - 2)) / 2;
     if (sax_val == 0) {
         *lb = -std::numeric_limits<double>::max();
-        *ub = sax_breakpoints[offset];
+        *ub = daisy_active_breakpoints[offset];
     } else if (sax_val == cardinality - 1) {
-        *lb = sax_breakpoints[offset + sax_val - 1];
+        *lb = daisy_active_breakpoints[offset + sax_val - 1];
         *ub = std::numeric_limits<double>::max();
     } else {
-        *lb = sax_breakpoints[offset + sax_val - 1];
-        *ub = sax_breakpoints[offset + sax_val];
+        *lb = daisy_active_breakpoints[offset + sax_val - 1];
+        *ub = daisy_active_breakpoints[offset + sax_val];
     }
 }
 
