@@ -84,6 +84,7 @@ Based on the available hardware, you can specify the below arguments to enable/d
 | `BUILD_DEMO` | Build demonstration applications | `ON` | Core library |
 | `BUILD_ODYSSEY` | Enable MPI for distributed computing | `OFF` | OpenMPI/MPICH |
 | `BUILD_SING` | Enable CUDA for GPU acceleration | `OFF` | CUDA Toolkit |
+| `BUILD_COCONUT` | Enable the COCONUT sortable-SAX algorithm | `ON` | Core library |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
 | `BUILD_SOFA` | Enable SOFA with SFA-Based indexing | `OFF` | FFTW3 | 
 
@@ -188,7 +189,6 @@ DaiSy licensed under the [MIT License](LICENSE).
 For questions and suggestions through mail, you can contact us at [manos.chatzaki@gmail.com](mailto:manos.chatzaki@gmail.com).-->
 
 The logo of DaiSy was designed by [Eva Chamilaki](https://evachamilaki.github.io).
-
 
 
 

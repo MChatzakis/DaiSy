@@ -28,13 +28,20 @@ if(DEBUG_MSG)
 endif()
 
 # ////// COCONUT //////
-if(DEBUG_MSG)
-    message(STATUS "Adding Coconut.cpp to dino_lib sources.")
+if(BUILD_COCONUT)
+    if(DEBUG_MSG)
+        message(STATUS "Adding Coconut.cpp to dino_lib sources.")
+    endif()
+    target_sources(dino_lib
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Coconut.cpp
+    )
+    target_compile_definitions(dino_lib PUBLIC COCONUT_ENABLED)
+else()
+    if(DEBUG_MSG)
+        message(STATUS "BUILD_COCONUT is OFF. Skipping Coconut sources.")
+    endif()
 endif()
-target_sources(dino_lib
-    PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/Coconut.cpp
-)
 
 # ////// LBBRUTEFORCE //////
 if(DEBUG_MSG)
