@@ -37,6 +37,7 @@
 *.part
 *.full
 isax_file.sax
+daisy_index_nodes/
 
 # Build directories
 build/

@@ -899,7 +899,12 @@ void Fresh::buildIndex(DataSource *data_source)
                                                     this->tight_bound,
                                                     0,
                                                     1,
-                                                    1);
+                                                    1,
+                                                    this->bp_mode);
+
+    // Equi-depth breakpoints (no-op in Gaussian mode), installed as active.
+    compute_equidepth_breakpoints(this->index_settings, this->database, this->n_database);
+    activateBreakpoints();
 
     this->index = isax_index_init_inmemory(this->index_settings);
     isax_index *index = this->index;

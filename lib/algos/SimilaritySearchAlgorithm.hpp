@@ -52,6 +52,8 @@ namespace daisy
         float minimum_distance = FLT_MAX;
         int min_checked_leaves = -1;
 
+        breakpoint_mode bp_mode = BP_GAUSSIAN_HARDCODED;
+
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
         sax_type **db_sax_representations = nullptr;
@@ -67,6 +69,25 @@ namespace daisy
         idx_t getNDatabase() const { return n_database; }
         idx_t getDim() const { return dim; }
         isax_index *getIndex() const { return index; }
+
+        // Declares whether the input data is z-normalized
+        //   normalized == true  (default) -> hardcoded Gaussian breakpoints
+        //   normalized == false           -> data-adaptive equi-depth breakpoints
+        // DaiSy does not normalize data itself
+        virtual void setNormalized(bool normalized)
+        {
+            bp_mode = normalized ? BP_GAUSSIAN_HARDCODED : BP_EQUIDEPTH;
+        }
+        bool getNormalized() const { return bp_mode == BP_GAUSSIAN_HARDCODED; }
+
+    protected:
+        void activateBreakpoints()
+        {
+            if (index_settings)
+                set_active_breakpoints(index_settings->breakpoints, index_settings->breakpoints_max);
+        }
+
+    public:
 
         virtual void buildIndex(DataSource *data_source) = 0;
 

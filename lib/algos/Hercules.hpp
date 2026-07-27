@@ -157,6 +157,14 @@ public:
         config_.num_query_threads = num_threads;
     }
 
+    // Hercules only supports z-normalized data
+    void setNormalized(bool normalized) override
+    {
+        if (!normalized)
+            throw std::runtime_error(
+                "Hercules currently supports only z-normalized data (equi-depth breakpoints not implemented).");
+    }
+
     ~Hercules() override;
 
 private:
