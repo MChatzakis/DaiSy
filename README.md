@@ -48,6 +48,7 @@ The following table summarizes the key features of each algorithm:
 | **[Hercules](https://helios2.mi.parisdescartes.fr/~themisp/publications/pvldb22-hercules.pdf)** | In-memory hierarchical similarity search using EAPCA and SAX-based pruning |
 | **[DumpyOS](https://helios2.mi.parisdescartes.fr/~themisp/publications/vldbj24-dumpyos.pdf)** | In-memory scalable data series similarity search using an adaptive multi-ary iSAX index |
 | **[FreSH](http://publications.ics.forth.gr/tech-reports/2023/2023.TR489_FreSh_A_LockFree_Data_Series_Index.pdf)** | In-memory lock-free parallel similarity search using an iSAX index (SRDS 2023) |
+| **[COCONUT](http://www.vldb.org/pvldb/vol11/p677-kondylakis.pdf)** | Sortable-SAX index built bottom-up; supports both static datasets and **streaming** (incremental) inserts (PVLDB 2018) |
 
 
 
@@ -83,6 +84,7 @@ Based on the available hardware, you can specify the below arguments to enable/d
 | `BUILD_DEMO` | Build demonstration applications | `ON` | Core library |
 | `BUILD_ODYSSEY` | Enable MPI for distributed computing | `OFF` | OpenMPI/MPICH |
 | `BUILD_SING` | Enable CUDA for GPU acceleration | `OFF` | CUDA Toolkit |
+| `BUILD_COCONUT` | Enable the COCONUT sortable-SAX algorithm | `ON` | Core library |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
 | `BUILD_SOFA` | Enable SOFA with SFA-Based indexing | `OFF` | FFTW3 | 
 
@@ -187,7 +189,6 @@ DaiSy licensed under the [MIT License](LICENSE).
 For questions and suggestions through mail, you can contact us at [manos.chatzaki@gmail.com](mailto:manos.chatzaki@gmail.com).-->
 
 The logo of DaiSy was designed by [Eva Chamilaki](https://evachamilaki.github.io).
-
 
 
 

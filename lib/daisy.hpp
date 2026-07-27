@@ -3,6 +3,7 @@
 
 #include "algos/Bruteforce.hpp"
 #include "algos/LbBruteforce.hpp"
+#include "algos/Coconut.hpp"
 #include "algos/Messi.hpp"
 #include "algos/ParIS.hpp"
 #include "algos/Sing.hpp"

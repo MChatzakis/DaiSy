@@ -1005,6 +1005,24 @@ if(BUILD_ODYSSEY_AVAILABLE)
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         ENVIRONMENT "PMIX_MCA_pcompress_base_silence_warning=1")
 endif()
+# ////// COCONUT (static kNN) //////
+if(BUILD_COCONUT)
+    add_executable(test_Coconut_L2Square test_Coconut_L2Square.cpp test_utils.cpp)
+    target_link_libraries(test_Coconut_L2Square PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+    target_include_directories(test_Coconut_L2Square PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+    gtest_discover_tests(test_Coconut_L2Square WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # ////// COCONUT (streaming kNN) //////
+    add_executable(test_Coconut_Streaming test_Coconut_Streaming.cpp test_utils.cpp)
+    target_link_libraries(test_Coconut_Streaming PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+    target_include_directories(test_Coconut_Streaming PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+    gtest_discover_tests(test_Coconut_Streaming WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+elseif(DEBUG_MSG)
+    message(STATUS "BUILD_COCONUT is OFF. Skipping Coconut tests.")
+endif()
+
 # non-normalized data
 add_executable(
     test_equidepth

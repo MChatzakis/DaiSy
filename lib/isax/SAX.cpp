@@ -7,6 +7,30 @@
 namespace daisy
 {
 
+    // COCONUT sortable SAX (invSax): bit-interleave the SAX across segments, MSB plane first,
+    // so byte order preserves SAX neighbourhood. sax/out are `segments` bytes each.
+    void sortable_sax_from_sax(const sax_type *sax, sax_type *out, int segments, int bit_cardinality)
+    {
+        for (int j = 0; j < segments; j++)
+            out[j] = 0;
+
+        int segi = 0;
+        int invj = bit_cardinality - 1;
+        for (int i = bit_cardinality - 1; i >= 0; i--)
+        {
+            for (int j = 0; j < segments; j++)
+            {
+                unsigned int bit = ((unsigned int)sax[j] >> i) & 1u;
+                out[segi] |= (sax_type)(bit << invj);
+                if (--invj < 0)
+                {
+                    segi++;
+                    invj = bit_cardinality - 1;
+                }
+            }
+        }
+    }
+
     // Default to the Gaussian tables; replaced per-index via set_active_breakpoints().
     const float *daisy_active_breakpoints = sax_breakpoints;
     const float *daisy_active_breakpoints_max = sax_breakpointsnew3;

@@ -37,6 +37,27 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_bruteforce_L2Square.")
     endif()
 
+    # ////// COCONUT (static + streaming) //////
+    if(BUILD_COCONUT)
+        if(DEBUG_MSG)
+            message(STATUS "## Demo: Coconut")
+        endif()
+        add_executable(demo_Coconut_L2Square demo_Coconut_L2Square.cpp)
+        target_link_libraries(demo_Coconut_L2Square PRIVATE dino_lib commons_lib)
+        target_include_directories(demo_Coconut_L2Square PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
+        add_executable(demo_Coconut_Streaming demo_Coconut_Streaming.cpp)
+        target_link_libraries(demo_Coconut_Streaming PRIVATE dino_lib commons_lib)
+        target_include_directories(demo_Coconut_Streaming PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
+    elseif(DEBUG_MSG)
+        message(STATUS "BUILD_COCONUT is OFF. Skipping Coconut demos.")
+    endif()
+
     # ////// BRUTEFORCE DTW //////
     if(DEBUG_MSG)
         message(STATUS "---")
@@ -562,4 +583,3 @@ else()
         message(STATUS "BUILD_DEMO is FALSE. Demo executables will NOT be built.")
     endif()
 endif()
-

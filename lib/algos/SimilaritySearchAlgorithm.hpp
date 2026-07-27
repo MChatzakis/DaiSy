@@ -103,6 +103,21 @@ namespace daisy
             buildIndex(&data_source);
         }
 
+        // Streaming API: incrementally add series to a live index. Only some algorithms
+        // support it (currently Coconut); the default throws.
+        virtual void insert(const float *series)
+        {
+            (void)series;
+            throw std::runtime_error("streaming insert not supported by this algorithm");
+        }
+
+        virtual void insertBatch(const float *data, idx_t n)
+        {
+            (void)data;
+            (void)n;
+            throw std::runtime_error("streaming insert not supported by this algorithm");
+        }
+
     protected:
         bool validateSearchParams(const idx_t k, const idx_t n_query) const
         {

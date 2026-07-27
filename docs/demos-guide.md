@@ -3,6 +3,11 @@
 The demos module provides practical examples of how to use the DaiSy library's algorithms for data series similarity search. 
 Each demo illustrates a specific algorithm or specific distance metric. This module includes both C++ and Python implementations for various algorithms and use cases.
 
+Most demos follow the same batch pattern: `buildIndex(...)` once, then `searchIndex(...)`.
+The **Coconut** algorithm additionally supports **streaming**: `demo_Coconut_L2Square` shows
+the static (batch) build, while `demo_Coconut_Streaming` builds on an initial batch and then
+`insert`/`insertBatch`es new series into the live index, querying after each step.
+
 ## Demo Program Structure
 
 All demos are located in the [`demos/`](../demos/) directory.
