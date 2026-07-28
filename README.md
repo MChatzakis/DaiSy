@@ -9,7 +9,7 @@
 <a href="https://github.com/MChatzakis/daisy/stargazers"><img src="https://img.shields.io/github/stars/MChatzakis/daisy?style=social" alt="GitHub Stars"></a>
 </p>
 
-<h4 align="center">Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Panagiota Fatourou, Themis Palpanas</h4>
+<!--<h4 align="center">Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Panagiota Fatourou, Themis Palpanas</h4>-->
 
 Exact similarity search over large collections of data series is a fundamental operation in modern applications, yet existing solutions are often fragmented, specialized, or tailored to specific execution environments.
 We present DaiSy (**Da**ta series s**i**milarity **S**earch librar**y**), a unified library for exact data series and vector similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework.
@@ -188,7 +188,6 @@ cd build
 ## Acknowledgements
 Work supported by EU Horizon projects ARMADA (101168951), TwinODIS (101160009), DataGEMS (101188416), and YΠAIΘA & NextGenerationEU project HARSH (YΠ3TA − 0560901) that is carried out within the framework of the National Recovery and Resilience Plan “Greece 2.0” with funding from the European Union – NextGenerationEU.
 Manos Chatzakis is supported with a PhD Scholarship from the Onassis Foundation.
-
 The logo of DaiSy was designed by [Eva Chamilaki](https://evachamilaki.github.io).
 
 <!--DaiSy is developed by researchers at the [diNo research group, LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
