@@ -1,0 +1,81 @@
+name: Publish to PyPI
+
+# Runs on every push to main. Publishing to PyPI only happens if the
+# version in pyproject.toml differs from the version currently published
+# on PyPI (PyPI rejects re-uploading an existing version, so commits that
+# don't bump the version are built but not uploaded).
+#
+# Requires a repo secret PYPI_API_TOKEN containing a PyPI API token with
+# upload permission for the daisy-exact-search project.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: pypi-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libomp-dev
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_DaiSy.txt
+
+      - name: Determine whether this version needs publishing
+        id: version_check
+        run: |
+          LOCAL_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "Local version: $LOCAL_VERSION"
+
+          HTTP_STATUS=$(curl -s -o /tmp/pypi.json -w "%{http_code}" https://pypi.org/pypi/daisy-exact-search/json)
+          if [ "$HTTP_STATUS" = "200" ]; then
+            PUBLISHED_VERSION=$(python -c "import json; print(json.load(open('/tmp/pypi.json'))['info']['version'])")
+          else
+            PUBLISHED_VERSION="none"
+          fi
+          echo "Currently published version on PyPI: $PUBLISHED_VERSION"
+
+          if [ "$LOCAL_VERSION" = "$PUBLISHED_VERSION" ]; then
+            echo "Version unchanged, skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version changed, will publish $LOCAL_VERSION."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build distributions
+        if: steps.version_check.outputs.should_publish == 'true'
+        run: python -m build
+
+      - name: Verify distributions
+        if: steps.version_check.outputs.should_publish == 'true'
+        run: twine check dist/*
+
+      - name: Publish to PyPI
+        if: steps.version_check.outputs.should_publish == 'true'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload --non-interactive dist/*
