@@ -12,7 +12,7 @@
 <h4 align="center">Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Panagiota Fatourou, Themis Palpanas</h4>
 
 Exact similarity search over large collections of data series is a fundamental operation in modern applications, yet existing solutions are often fragmented, specialized, or tailored to specific execution environments.
-We present DaiSy (**Da**ta series s**i**milarity **S**earch librar**y**), a unified library for exact data series similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework.
+We present DaiSy (**Da**ta series s**i**milarity **S**earch librar**y**), a unified library for exact data series and vector similarity search that integrates multiple state-of-the-art algorithms within a single, coherent framework.
 DaiSy is the first library to support exact similarity search across diverse execution environments, including implementations for disk-based, in-memory, GPU-accelerated, and distributed scalable similarity search.
 The library supports interfaces in both C++ and Python, enabling researchers and practitioners to easily integrate its functionality in a variety of tasks. 
 
@@ -20,10 +20,18 @@ The library supports interfaces in both C++ and Python, enabling researchers and
 
 ## How to Cite
 
-When using DaiSy, please consider cite the following artifacts:
+DaiSy has been [accepted for publication](https://arxiv.org/pdf/2603.27719) at SIGMOD Record!
+When using DaiSy, please cite the following artifacts:
 
 ```latex
-@misc{daisy2026,
+@article{daisy2026preprint,
+  title={DaiSy: A Library for Scalable Data Series Similarity Search},
+  author={Del Gaudio, Francesca and Chatzakis, Manos and Ravendirane, Gayathiri and Peng, Botao and Palpanas, Themis},
+  journal={arXiv preprint arXiv:2603.27719},
+  year={2026}
+}
+
+@misc{daisy2026github,
   title        = {{The DaiSy Library for Fast and Exact, Data Series and Vector Similarity Search}},
   author       ={Francesca Del Gaudio, Manos Chatzakis, Gayathiri Ravendirane, Botao Peng, Panagiota Fatourou, Themis Palpanas},
   year         = {2026},
@@ -177,18 +185,20 @@ cd build
 ```
 -->
 
-## About
+## Acknowledgements
+Work supported by EU Horizon projects ARMADA (101168951), TwinODIS (101160009), DataGEMS (101188416), and YΠAIΘA & NextGenerationEU project HARSH (YΠ3TA − 0560901) that is carried out within the framework of the National Recovery and Resilience Plan “Greece 2.0” with funding from the European Union – NextGenerationEU.
+Manos Chatzakis is supported with a PhD Scholarship from the Onassis Foundation.
 
-Work supported by ΥΠ AI ΘΑ & NextGenerationEU project HARSH (ΥΠ3ΤΑ-0560901).
+The logo of DaiSy was designed by [Eva Chamilaki](https://evachamilaki.github.io).
 
 <!--DaiSy is developed by researchers at the [diNo research group, LIPADE, Université Paris Cité](https://dino.mi.parisdescartes.fr/). 
 
+Work supported by ΥΠ AI ΘΑ & NextGenerationEU project HARSH (ΥΠ3ΤΑ-0560901).
 It is provided with no warranty, and we encourage contributions from the community to enhance its capabilities and performance. For questions, issues, or contributions, please open an issue or submit a pull request on GitHub.
 DaiSy licensed under the [MIT License](LICENSE).
 
 For questions and suggestions through mail, you can contact us at [manos.chatzaki@gmail.com](mailto:manos.chatzaki@gmail.com).-->
 
-The logo of DaiSy was designed by [Eva Chamilaki](https://evachamilaki.github.io).
 
 
 
