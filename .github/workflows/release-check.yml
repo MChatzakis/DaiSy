@@ -100,6 +100,33 @@ jobs:
           /tmp/wheel-test/bin/pip install --upgrade pip
           /tmp/wheel-test/bin/pip install dist/*.whl
 
+      # daisy/__init__.py turns a failed extension load into a warning, and the
+      # next import of daisy._core then reports "already registered" rather than
+      # the original cause. Exec the .so on its own, in its own process, so a
+      # broken extension reports the error it actually raised.
+      - name: Check the extension initialises
+        run: |
+          cd /tmp
+          /tmp/wheel-test/bin/python - <<'PY'
+          import glob
+          import importlib.util
+          import os
+
+          # find_spec locates the package without running its __init__.py.
+          spec = importlib.util.find_spec("daisy")
+          assert spec is not None and spec.origin, "daisy is not importable at all"
+
+          matches = glob.glob(os.path.join(os.path.dirname(spec.origin), "_core*.so"))
+          assert matches, "the wheel installed no _core extension"
+
+          core_spec = importlib.util.spec_from_file_location("_core", matches[0])
+          module = importlib.util.module_from_spec(core_spec)
+          core_spec.loader.exec_module(module)
+
+          print("extension initialised:", matches[0])
+          print("exported:", sorted(n for n in dir(module) if n[0].isupper()))
+          PY
+
       - name: Smoke-test the installed package
         run: |
           cd /tmp
@@ -107,8 +134,6 @@ jobs:
           import numpy as np
 
           import daisy
-          # daisy/__init__.py downgrades a missing extension to a warning, so
-          # import the extension explicitly or a broken wheel looks healthy.
           from daisy import _core
 
           print("daisy imported from", daisy.__file__)

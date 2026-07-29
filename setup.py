@@ -111,6 +111,7 @@ try:
         "commons/common.cpp",
         "commons/dataloaders.cpp",
         "commons/paramSetup.cpp",
+        "commons/VectorDataLoader.cpp",
         # lib - distance computers
         "lib/distance_computers/DistanceComputer.cpp",
         # lib - isax
@@ -118,10 +119,22 @@ try:
         "lib/isax/iSAXIndex.cpp",
         "lib/isax/iSAXPqueue.cpp",
         "lib/isax/iSAXSearch.cpp",
+        # lib - ds_tree (Hercules builds on it)
+        "lib/ds_tree/ds_tree_index.cpp",
+        "lib/ds_tree/ds_tree_search.cpp",
         # lib - utils
         "lib/utils/TimerManager.cpp",
         # lib - algos
+        # Every class pybinds/setup.cpp binds unconditionally needs its
+        # translation unit here, or the extension builds and then fails to load
+        # on the first undefined typeinfo. Sofa and Sing are the exceptions:
+        # their bindings sit behind SOFA_FFTW_ENABLED and SING_CUDA_ENABLED,
+        # neither of which this build defines as non-zero.
         "lib/algos/Bruteforce.cpp",
+        "lib/algos/Coconut.cpp",
+        "lib/algos/DumpyOS.cpp",
+        "lib/algos/Fresh.cpp",
+        "lib/algos/Hercules.cpp",
         "lib/algos/LbBruteforce.cpp",
         "lib/algos/Messi.cpp",
         "lib/algos/ParIS.cpp",

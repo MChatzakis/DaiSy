@@ -1,9 +1,9 @@
 include README.md
 include requirements_DaiSy.txt
 recursive-include daisy *.py
-recursive-include lib *.hpp *.cpp
-recursive-include commons *.hpp *.cpp
-recursive-include pybinds *.cpp
+recursive-include lib *.h *.hpp *.cpp
+recursive-include commons *.h *.hpp *.cpp
+recursive-include pybinds *.h *.hpp *.cpp
 recursive-exclude build *
 recursive-exclude DaiSy_env *
 recursive-exclude faiss_env * 
