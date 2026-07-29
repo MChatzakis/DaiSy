@@ -13,8 +13,10 @@
 #include <stdexcept>
 #include <string>
 
-// Detect AVX support
-#if defined(__AVX__) || defined(_M_AVX)
+// Detect AVX2 support. The guarded code uses AVX2 intrinsics (_mm256_srlv_epi32,
+// _mm256_cvtepu8_epi16 and friends), so testing for plain __AVX__ turned a CPU
+// with AVX but no AVX2 into a compile error instead of the scalar fallback.
+#if defined(__AVX2__)
     #define DAISY_SIMD_AVAILABLE 1
     #include <immintrin.h>
 #else

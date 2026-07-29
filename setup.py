@@ -180,8 +180,25 @@ try:
         link_args.append("-fopenmp")
     
     # SIMD optimizations (not reliable on ARM64 Macs)
+    #
+    # -march=native tunes for the machine doing the build, which is what you
+    # want when compiling from source but not when building a wheel for other
+    # people: SIMD.hpp picks its code path at compile time, so a wheel built on
+    # a runner with a wider instruction set dies with SIGILL elsewhere. Set
+    # DAISY_PORTABLE_BUILD=1 when producing a redistributable wheel; -mavx
+    # stays, so DAISY_SIMD_AVAILABLE is still 1.
+    PORTABLE_BUILD = os.environ.get("DAISY_PORTABLE_BUILD", "0").lower() in ("1", "true", "yes")
+
     if not (IS_MACOS and platform.machine() in ("arm64", "aarch64")):
-        compile_args.extend(["-mavx", "-march=native"])
+        compile_args.append("-mavx")
+        if PORTABLE_BUILD:
+            # The guarded code needs AVX2, not just AVX, so a portable wheel has
+            # to name AVX2 explicitly once -march=native is gone. That puts the
+            # floor at Haswell (2013).
+            print("[DaiSy] Portable build requested - targeting AVX2 instead of -march=native")
+            compile_args.append("-mavx2")
+        else:
+            compile_args.append("-march=native")
     
     # Get the project root directory as absolute path
     project_root = str(Path(__file__).parent.absolute())

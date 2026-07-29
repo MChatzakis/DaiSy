@@ -49,9 +49,29 @@ jobs:
       # The output is teed to a file so a compiler error stays downloadable as
       # an artifact; the raw job log needs a GitHub token to read back.
       - name: Build distributions
+        env:
+          DAISY_PORTABLE_BUILD: "1"
         run: |
           set -o pipefail
           python -m build 2>&1 | tee build.log
+
+      # `python -m build` tags a Linux wheel linux_x86_64, which PyPI refuses.
+      # auditwheel rewrites the tag to the glibc the wheel actually needs and
+      # vendors in the shared libraries it links, libgomp among them.
+      - name: Repair the Linux wheel
+        run: |
+          set -euo pipefail
+          # auditwheel shells out to patchelf and wants >= 0.14; the PyPI
+          # package ships a current binary, so we do not depend on whatever
+          # the runner image happens to carry.
+          pip install auditwheel patchelf
+          mkdir -p wheelhouse
+          for wheel in dist/*.whl; do
+            auditwheel repair "$wheel" --wheel-dir wheelhouse
+          done
+          rm dist/*.whl
+          mv wheelhouse/*.whl dist/
+          ls -l dist/
 
       # gcc prints one error and then many follow-on lines, so surface the
       # first errors in the job summary instead of making people scroll.
