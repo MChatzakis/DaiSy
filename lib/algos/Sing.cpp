@@ -36,6 +36,11 @@ namespace daisy
 #else
     void LBDfloatstreamGPU(sax_type *gsaxarray, float *positionmap, ts_type *paa, float *gqts, float bsf,
                            unsigned long size, float *gpositionmap, int paa_segments, float mindist_sqrt);
+    void LBDshortstreamGPUinsidedynamicratev2dtw(sax_type *gsaxarray, short *positionmap,
+                                                 ts_type *paaU, ts_type *paaL, float *gqtsU, float *gqtsL,
+                                                 float bsf, unsigned long size, short *gpositionmap,
+                                                 int paa_segments, float mindist_sqrt, unsigned long *gpuoffset,
+                                                 float shortrate, int chunknumber, bool *activechunk);
 #endif
     first_buffer_layer2 *initialize_simrec(int initial_buffer_size, int number_of_buffers,
                                            int max_total_buffers_size, isax_index *index);
@@ -1363,7 +1368,34 @@ namespace daisy
         (void)gpositionmap;
         (void)paa_segments;
         (void)mindist_sqrt;
-        
+
+    }
+
+    // The DTW search stages this on the GPU between two barriers, so the CPU
+    // build has to leave gpuoffset alone: the worker threads are already
+    // running and hold a pointer to it.
+    void LBDshortstreamGPUinsidedynamicratev2dtw(sax_type *gsaxarray, short *positionmap,
+                                                 ts_type *paaU, ts_type *paaL, float *gqtsU, float *gqtsL,
+                                                 float bsf, unsigned long size, short *gpositionmap,
+                                                 int paa_segments, float mindist_sqrt, unsigned long *gpuoffset,
+                                                 float shortrate, int chunknumber, bool *activechunk)
+    {
+        (void)gsaxarray;
+        (void)positionmap;
+        (void)paaU;
+        (void)paaL;
+        (void)gqtsU;
+        (void)gqtsL;
+        (void)bsf;
+        (void)size;
+        (void)gpositionmap;
+        (void)paa_segments;
+        (void)mindist_sqrt;
+        (void)gpuoffset;
+        (void)shortrate;
+        (void)chunknumber;
+        (void)activechunk;
+
     }
 #endif
 

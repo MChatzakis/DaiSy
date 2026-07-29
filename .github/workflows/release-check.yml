@@ -1,0 +1,167 @@
+name: Release dry-run
+
+# Rehearses the PyPI release on every pull request, so a release that would be
+# rejected is caught here instead of on a push to main. It mirrors the
+# environment and the build steps of pypi-release.yml exactly, but stops short
+# of `twine upload`.
+#
+# Note that this covers ground ci.yml does not: ci.yml builds via CMake with
+# -DBUILD_SING=OFF, while setup.py always compiles every source in the package.
+# A file CMake skips can therefore break the release build while CI stays green.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Kept in step with pypi-release.yml: the release publishes a single
+      # cp312 wheel, so that is the interpreter the rehearsal has to use.
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libomp-dev
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_DaiSy.txt
+
+      # The step that would have caught the current breakage: `python -m build`
+      # compiles the full extension, including sources CMake leaves out.
+      # The output is teed to a file so a compiler error stays downloadable as
+      # an artifact; the raw job log needs a GitHub token to read back.
+      - name: Build distributions
+        env:
+          DAISY_PORTABLE_BUILD: "1"
+        run: |
+          set -o pipefail
+          python -m build 2>&1 | tee build.log
+
+      # `python -m build` tags a Linux wheel linux_x86_64, which PyPI refuses.
+      # auditwheel rewrites the tag to the glibc the wheel actually needs and
+      # vendors in the shared libraries it links, libgomp among them.
+      - name: Repair the Linux wheel
+        run: |
+          set -euo pipefail
+          # auditwheel shells out to patchelf and wants >= 0.14; the PyPI
+          # package ships a current binary, so we do not depend on whatever
+          # the runner image happens to carry.
+          pip install auditwheel patchelf
+          mkdir -p wheelhouse
+          for wheel in dist/*.whl; do
+            auditwheel repair "$wheel" --wheel-dir wheelhouse
+          done
+          rm dist/*.whl
+          mv wheelhouse/*.whl dist/
+          ls -l dist/
+
+      # gcc prints one error and then many follow-on lines, so surface the
+      # first errors in the job summary instead of making people scroll.
+      - name: Summarise build errors
+        if: failure()
+        run: |
+          {
+            echo "### First errors from \`python -m build\`"
+            echo '```'
+            grep -E -m 20 '(^|:)[0-9]+:[0-9]+: error:|^error:|^ERROR' build.log || echo "no error lines matched; see the build-log artifact"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify distribution metadata
+        run: twine check --strict dist/*
+
+      - name: Verify artifacts are publishable
+        run: python scripts/check_release_artifacts.py --dist-dir dist --check-pypi
+
+      # Installing the built wheel rather than the source tree is what makes
+      # this a packaging test: it catches a package that compiles but ships
+      # without its Python files or its compiled extension.
+      - name: Install the built wheel into a clean environment
+        run: |
+          python -m venv /tmp/wheel-test
+          /tmp/wheel-test/bin/pip install --upgrade pip
+          /tmp/wheel-test/bin/pip install dist/*.whl
+
+      # daisy/__init__.py turns a failed extension load into a warning, and the
+      # next import of daisy._core then reports "already registered" rather than
+      # the original cause. Exec the .so on its own, in its own process, so a
+      # broken extension reports the error it actually raised.
+      - name: Check the extension initialises
+        run: |
+          cd /tmp
+          /tmp/wheel-test/bin/python - <<'PY'
+          import glob
+          import importlib.util
+          import os
+
+          # find_spec locates the package without running its __init__.py.
+          spec = importlib.util.find_spec("daisy")
+          assert spec is not None and spec.origin, "daisy is not importable at all"
+
+          matches = glob.glob(os.path.join(os.path.dirname(spec.origin), "_core*.so"))
+          assert matches, "the wheel installed no _core extension"
+
+          core_spec = importlib.util.spec_from_file_location("_core", matches[0])
+          module = importlib.util.module_from_spec(core_spec)
+          core_spec.loader.exec_module(module)
+
+          print("extension initialised:", matches[0])
+          print("exported:", sorted(n for n in dir(module) if n[0].isupper()))
+          PY
+
+      - name: Smoke-test the installed package
+        run: |
+          cd /tmp
+          /tmp/wheel-test/bin/python - <<'PY'
+          import numpy as np
+
+          import daisy
+          from daisy import _core
+
+          print("daisy imported from", daisy.__file__)
+          print("extension imported from", _core.__file__)
+
+          rng = np.random.default_rng(0)
+          database = rng.random((256, 64), dtype=np.float32)
+          # searchIndex takes a 2D batch of queries, one row per query.
+          query = database[7:8].copy()
+
+          search = daisy.BruteForceSearch(daisy.DistanceType.L2_SQUARED)
+          search.buildIndex(database)
+          indices, distances = search.searchIndex(query, 5)
+
+          print("top-5 indices:", indices[0])
+          print("top-5 distances:", distances[0])
+
+          assert indices[0][0] == 7, "nearest neighbour of a database row must be itself, got %r" % (indices[0][0],)
+          assert distances[0][0] < 1e-4, "self-distance should be ~0, got %r" % (distances[0][0],)
+          print("smoke test passed")
+          PY
+
+      - name: Upload distributions and build log for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-check-${{ github.sha }}
+          path: |
+            dist/
+            build.log
+          if-no-files-found: warn

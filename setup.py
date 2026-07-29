@@ -11,7 +11,7 @@ from setuptools.command.build_py import build_py as _build_py
 from setuptools.command.build_ext import build_ext as _build_ext
 
 # Version
-__version__ = "1.0.8"
+__version__ = "1.0.9"
 
 # Detect platform
 IS_MACOS = sys.platform == "darwin"
@@ -111,6 +111,7 @@ try:
         "commons/common.cpp",
         "commons/dataloaders.cpp",
         "commons/paramSetup.cpp",
+        "commons/VectorDataLoader.cpp",
         # lib - distance computers
         "lib/distance_computers/DistanceComputer.cpp",
         # lib - isax
@@ -118,10 +119,22 @@ try:
         "lib/isax/iSAXIndex.cpp",
         "lib/isax/iSAXPqueue.cpp",
         "lib/isax/iSAXSearch.cpp",
+        # lib - ds_tree (Hercules builds on it)
+        "lib/ds_tree/ds_tree_index.cpp",
+        "lib/ds_tree/ds_tree_search.cpp",
         # lib - utils
         "lib/utils/TimerManager.cpp",
         # lib - algos
+        # Every class pybinds/setup.cpp binds unconditionally needs its
+        # translation unit here, or the extension builds and then fails to load
+        # on the first undefined typeinfo. Sofa and Sing are the exceptions:
+        # their bindings sit behind SOFA_FFTW_ENABLED and SING_CUDA_ENABLED,
+        # neither of which this build defines as non-zero.
         "lib/algos/Bruteforce.cpp",
+        "lib/algos/Coconut.cpp",
+        "lib/algos/DumpyOS.cpp",
+        "lib/algos/Fresh.cpp",
+        "lib/algos/Hercules.cpp",
         "lib/algos/LbBruteforce.cpp",
         "lib/algos/Messi.cpp",
         "lib/algos/ParIS.cpp",
@@ -180,8 +193,25 @@ try:
         link_args.append("-fopenmp")
     
     # SIMD optimizations (not reliable on ARM64 Macs)
+    #
+    # -march=native tunes for the machine doing the build, which is what you
+    # want when compiling from source but not when building a wheel for other
+    # people: SIMD.hpp picks its code path at compile time, so a wheel built on
+    # a runner with a wider instruction set dies with SIGILL elsewhere. Set
+    # DAISY_PORTABLE_BUILD=1 when producing a redistributable wheel; -mavx
+    # stays, so DAISY_SIMD_AVAILABLE is still 1.
+    PORTABLE_BUILD = os.environ.get("DAISY_PORTABLE_BUILD", "0").lower() in ("1", "true", "yes")
+
     if not (IS_MACOS and platform.machine() in ("arm64", "aarch64")):
-        compile_args.extend(["-mavx", "-march=native"])
+        compile_args.append("-mavx")
+        if PORTABLE_BUILD:
+            # The guarded code needs AVX2, not just AVX, so a portable wheel has
+            # to name AVX2 explicitly once -march=native is gone. That puts the
+            # floor at Haswell (2013).
+            print("[DaiSy] Portable build requested - targeting AVX2 instead of -march=native")
+            compile_args.append("-mavx2")
+        else:
+            compile_args.append("-march=native")
     
     # Get the project root directory as absolute path
     project_root = str(Path(__file__).parent.absolute())

@@ -721,7 +721,10 @@ PYBIND11_MODULE(_core, m)
         .def_readwrite("flush_buffer_size", &daisy::HerculesConfig::flush_buffer_size)
         .def_readwrite("index_dir", &daisy::HerculesConfig::index_dir);
 
-    pybind11::class_<daisy::Hercules, daisy::SimilaritySearchAlgorithm>(m, "Hercules", "Hercules hierarchical time series similarity index")
+    // Bound without SimilaritySearchAlgorithm: the base is abstract and never
+    // registered, and naming it here makes module init fail with "referenced
+    // unknown base type". Every other algorithm is bound the same way.
+    pybind11::class_<daisy::Hercules>(m, "Hercules", "Hercules hierarchical time series similarity index")
         .def(pybind11::init<daisy::DistanceType>(), "Create a new Hercules with the given distance metric")
         .def(pybind11::init<daisy::DistanceType, daisy::HerculesConfig>(), "Create a new Hercules with the given distance metric and configuration")
         .def("setNumThreads", &daisy::Hercules::setNumThreads, "Set the number of query threads")
@@ -770,7 +773,7 @@ PYBIND11_MODULE(_core, m)
         .def_readwrite("fill_lower", &daisy::DumpyOSConfig::fill_lower)
         .def_readwrite("fill_upper", &daisy::DumpyOSConfig::fill_upper);
 
-    pybind11::class_<daisy::DumpyOS, daisy::SimilaritySearchAlgorithm>(m, "DumpyOS", "DumpyOS iSAX-based multi-ary adaptive time series similarity index")
+    pybind11::class_<daisy::DumpyOS>(m, "DumpyOS", "DumpyOS iSAX-based multi-ary adaptive time series similarity index")
         .def(pybind11::init<daisy::DistanceType>(), "Create a new DumpyOS with the given distance metric")
         .def(pybind11::init<daisy::DistanceType, daisy::DumpyOSConfig>(), "Create a new DumpyOS with the given distance metric and configuration")
         .def("setNumThreads", &daisy::DumpyOS::setNumThreads, "Set the number of threads")

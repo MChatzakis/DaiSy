@@ -17,7 +17,7 @@ All algorithms support top-k search via searchIndex(query, k) and range
 (distance-r) search via searchIndex(query, SearchConfig(type=QueryType.RANGE, r=r)).
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.9"
 __author__ = ""
 
 try:
