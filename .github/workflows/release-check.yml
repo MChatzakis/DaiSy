@@ -1,0 +1,104 @@
+name: Release dry-run
+
+# Rehearses the PyPI release on every pull request, so a release that would be
+# rejected is caught here instead of on a push to main. It mirrors the
+# environment and the build steps of pypi-release.yml exactly, but stops short
+# of `twine upload`.
+#
+# Note that this covers ground ci.yml does not: ci.yml builds via CMake with
+# -DBUILD_SING=OFF, while setup.py always compiles every source in the package.
+# A file CMake skips can therefore break the release build while CI stays green.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Kept in step with pypi-release.yml: the release publishes a single
+      # cp312 wheel, so that is the interpreter the rehearsal has to use.
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libomp-dev
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_DaiSy.txt
+
+      # The step that would have caught the current breakage: `python -m build`
+      # compiles the full extension, including sources CMake leaves out.
+      - name: Build distributions
+        run: python -m build
+
+      - name: Verify distribution metadata
+        run: twine check --strict dist/*
+
+      - name: Verify artifacts are publishable
+        run: python scripts/check_release_artifacts.py --dist-dir dist --check-pypi
+
+      # Installing the built wheel rather than the source tree is what makes
+      # this a packaging test: it catches a package that compiles but ships
+      # without its Python files or its compiled extension.
+      - name: Install the built wheel into a clean environment
+        run: |
+          python -m venv /tmp/wheel-test
+          /tmp/wheel-test/bin/pip install --upgrade pip
+          /tmp/wheel-test/bin/pip install dist/*.whl
+
+      - name: Smoke-test the installed package
+        run: |
+          cd /tmp
+          /tmp/wheel-test/bin/python - <<'PY'
+          import numpy as np
+
+          import daisy
+          # daisy/__init__.py downgrades a missing extension to a warning, so
+          # import the extension explicitly or a broken wheel looks healthy.
+          from daisy import _core
+
+          print("daisy imported from", daisy.__file__)
+          print("extension imported from", _core.__file__)
+
+          rng = np.random.default_rng(0)
+          database = rng.random((256, 64), dtype=np.float32)
+          # searchIndex takes a 2D batch of queries, one row per query.
+          query = database[7:8].copy()
+
+          search = daisy.BruteForceSearch(daisy.DistanceType.L2_SQUARED)
+          search.buildIndex(database)
+          indices, distances = search.searchIndex(query, 5)
+
+          print("top-5 indices:", indices[0])
+          print("top-5 distances:", distances[0])
+
+          assert indices[0][0] == 7, "nearest neighbour of a database row must be itself, got %r" % (indices[0][0],)
+          assert distances[0][0] < 1e-4, "self-distance should be ~0, got %r" % (distances[0][0],)
+          print("smoke test passed")
+          PY
+
+      - name: Upload distributions for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          if-no-files-found: warn
