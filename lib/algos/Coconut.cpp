@@ -153,17 +153,22 @@ namespace daisy
             insert(data + (size_t)i * this->dim);
     }
 
-    void Coconut::readSeriesFromLeaf(int leaf_no, int slot, float *out) const
+    void Coconut::readSeriesAt(FILE *lf, int slot, float *out) const
     {
-        FILE *lf = fopen(leafPath(leaf_no).c_str(), "rb");
-        if (!lf)
-            return;
         const long record_bytes = (long)this->paa_segments * (long)sizeof(sax_type) +
                                    (long)this->dim * (long)sizeof(float);
         // seek past this slot's inv-SAX to its raw TS
         fseek(lf, (long)slot * record_bytes + (long)this->paa_segments * (long)sizeof(sax_type), SEEK_SET);
         size_t got = fread(out, sizeof(float), this->dim, lf);
         (void)got;
+    }
+
+    void Coconut::readSeriesFromLeaf(int leaf_no, int slot, float *out) const
+    {
+        FILE *lf = fopen(leafPath(leaf_no).c_str(), "rb");
+        if (!lf)
+            return;
+        readSeriesAt(lf, slot, out);
         fclose(lf);
     }
 
@@ -248,6 +253,113 @@ namespace daisy
             {
                 D[q * k + j] = FLT_MAX;
                 I[q * k + j] = 0;
+            }
+        }
+    }
+
+    void Coconut::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                              std::vector<std::vector<idx_t>> &I,
+                              std::vector<std::vector<float>> &D)
+    {
+        if (config.type == QueryType::TOP_K)
+        {
+            SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
+            return;
+        }
+        if (this->distance_type != DistanceType::L2_SQUARED)
+            throw std::runtime_error("Coconut range search only supports L2_SQUARED.");
+
+        const int seg = this->paa_segments;
+        const float r = config.r;
+        // Early-abandon just past r: a partial sum can then never tie with r and be mistaken
+        // for a hit, while every series actually within the radius is still summed in full.
+        const float abandon_bound = std::nextafter(r, FLT_MAX);
+
+        I.assign(n_query, {});
+        D.assign(n_query, {});
+
+#pragma omp parallel for num_threads(num_threads)
+        for (idx_t q = 0; q < n_query; q++)
+        {
+            const float *qts = query + (size_t)q * this->dim;
+            std::vector<float> paa(seg);
+            std::vector<float> ts(this->dim);
+            std::vector<std::pair<float, idx_t>> hits;
+
+            paa_from_ts(qts, paa.data(), seg, this->ts_values_per_segment_);
+
+            // Leaf at a time: a wide radius leaves many candidates per leaf, and opening the
+            // leaf file once for all of them keeps the scan from degenerating into one
+            // fopen/fclose per record the way a k-NN query's tight BSF never exposes.
+            const size_t cap = (size_t)this->leaf_capacity;
+            const size_t n_leaves = (records_.size() + cap - 1) / cap;
+            std::vector<size_t> candidates;
+
+            for (size_t leaf_no = 0; leaf_no < n_leaves; leaf_no++)
+            {
+                const size_t begin = leaf_no * cap;
+                const size_t end = std::min(begin + cap, records_.size());
+
+                candidates.clear();
+                for (size_t p = begin; p < end; p++)
+                {
+                    float mindist = minidist_paa_to_isax(
+                        paa.data(),
+                        const_cast<sax_type *>(records_[p].sax.data()),
+                        const_cast<sax_type *>(this->max_cardinalities_.data()),
+                        (sax_type)this->sax_cardinality,
+                        this->sax_alphabet_cardinality_,
+                        seg, MINVAL, MAXVAL, this->mindist_sqrt_);
+
+                    if (mindist <= r)  // lower bound outside the radius -> prune
+                        candidates.push_back(p);
+                }
+
+                if (candidates.empty())
+                    continue;
+
+                FILE *lf = fopen(leafPath((int)leaf_no).c_str(), "rb");
+                if (!lf)
+                    continue;
+                for (size_t p : candidates)
+                {
+                    readSeriesAt(lf, (int)(p - begin), ts.data());
+                    float dist = ts_euclidean_distance_SIMD(const_cast<float *>(qts), ts.data(),
+                                                            (int)this->dim, abandon_bound);
+                    if (dist <= r)
+                        hits.emplace_back(dist, records_[p].series_id);
+                }
+                fclose(lf);
+            }
+
+            // Scan the in-memory streaming buffer (raw TS already in memory).
+            for (size_t b = 0; b < buffer_records_.size(); b++)
+            {
+                float mindist = minidist_paa_to_isax(
+                    paa.data(),
+                    const_cast<sax_type *>(buffer_records_[b].sax.data()),
+                    const_cast<sax_type *>(this->max_cardinalities_.data()),
+                    (sax_type)this->sax_cardinality,
+                    this->sax_alphabet_cardinality_,
+                    seg, MINVAL, MAXVAL, this->mindist_sqrt_);
+
+                if (mindist > r)
+                    continue;
+
+                float *bts = buffer_data_.data() + b * (size_t)this->dim;
+                float dist = ts_euclidean_distance_SIMD(const_cast<float *>(qts), bts,
+                                                        (int)this->dim, abandon_bound);
+                if (dist <= r)
+                    hits.emplace_back(dist, buffer_records_[b].series_id);
+            }
+
+            std::sort(hits.begin(), hits.end());
+            I[q].resize(hits.size());
+            D[q].resize(hits.size());
+            for (size_t j = 0; j < hits.size(); j++)
+            {
+                D[q][j] = hits[j].first;
+                I[q][j] = hits[j].second;
             }
         }
     }

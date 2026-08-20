@@ -5,6 +5,7 @@
 
 #include "../isax/iSAXTypes.hpp"
 
+#include <cstdio>
 #include <string>
 #include <vector>
 #include <cfloat>
@@ -15,8 +16,8 @@ namespace daisy
     // COCONUT (Kondylakis et al., VLDB'18): a "sortable SAX" key (bit-interleaved SAX) orders
     // series so the index can be built bottom-up by sorting and extended by streaming inserts.
     // buildIndex sorts records onto on-disk leaves ([inv-SAX][raw TS] each); searchIndex does
-    // exact kNN via SAX MINDIST + L2 refinement. Follow-ups: paged B-tree, out-of-core sort,
-    // LSM merge of the insert buffer, equi-depth breakpoints.
+    // exact kNN or range search via SAX MINDIST + L2 refinement. Follow-ups: paged B-tree,
+    // out-of-core sort, LSM merge of the insert buffer, equi-depth breakpoints.
     class Coconut : public SimilaritySearchAlgorithm
     {
     public:
@@ -40,6 +41,11 @@ namespace daisy
         }
 
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
+
+        // Range search: every series within radius r of the query, in ascending distance order.
+        void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
+                         std::vector<std::vector<idx_t>> &I,
+                         std::vector<std::vector<float>> &D) override;
 
         // Streaming: add series to a live index (needs buildIndex first). New series go into
         // an in-memory buffer that queries scan alongside the on-disk index.
@@ -73,6 +79,7 @@ namespace daisy
 
         std::string leafPath(int leaf_no) const;
         void readSeriesFromLeaf(int leaf_no, int slot, float *out) const;
+        void readSeriesAt(FILE *lf, int slot, float *out) const;  // slot of an already-open leaf
         void cleanupLeafFiles();
     };
 

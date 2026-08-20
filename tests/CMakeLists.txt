@@ -1019,6 +1019,13 @@ if(BUILD_COCONUT)
     target_include_directories(test_Coconut_Streaming PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
     gtest_discover_tests(test_Coconut_Streaming WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # ////// COCONUT Range //////
+    add_executable(test_Coconut_Range test_Coconut_Range.cpp test_utils.cpp)
+    target_link_libraries(test_Coconut_Range PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+    target_include_directories(test_Coconut_Range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+    gtest_discover_tests(test_Coconut_Range WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 elseif(DEBUG_MSG)
     message(STATUS "BUILD_COCONUT is OFF. Skipping Coconut tests.")
 endif()
