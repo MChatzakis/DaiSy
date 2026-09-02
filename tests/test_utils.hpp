@@ -280,4 +280,14 @@ protected:
     static void TearDownTestSuite() {}
 };
 
+class CoconutRangeParameterizedTest : public SimilaritySearchTest,
+                                      public ::testing::WithParamInterface<RangeTestConfig>
+{
+protected:
+    using SimilaritySearchTest::runSSTRange;
+
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
+};
+
 #endif
