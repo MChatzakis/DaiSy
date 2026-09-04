@@ -104,7 +104,7 @@ namespace daisy
         }
 
         // Streaming API: incrementally add series to a live index. Only some algorithms
-        // support it (currently Coconut); the default throws.
+        // support it (BruteForceSearch, LbBruteforce, and Coconut); the default throws.
         virtual void insert(const float *series)
         {
             (void)series;

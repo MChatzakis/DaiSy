@@ -13,6 +13,9 @@ namespace daisy
     class BruteForceSearch : public SimilaritySearchAlgorithm
     {
     private:
+        idx_t database_capacity = 0;
+
+        void reserveDatabase(idx_t required_capacity);
         void searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
         void searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D);
 
@@ -30,13 +33,17 @@ namespace daisy
             throw std::runtime_error("BruteForceSearch requires in-memory data. Use buildIndex(database, n_database, dim) instead.");
         }
 
+        // Append owned copies of new series to the live in-memory database.
+        void insert(const float *series) override;
+        void insertBatch(const float *data, idx_t n) override;
+
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
         void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
                          std::vector<std::vector<idx_t>> &I,
                          std::vector<std::vector<float>> &D) override;
 
-        ~BruteForceSearch();
+        ~BruteForceSearch() override;
     };
 
 }
