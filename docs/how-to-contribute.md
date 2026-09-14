@@ -12,7 +12,7 @@ Here is a (non-exhaustive) mockup of our future and ongoing goals:
 
 - Extension of DaiSy for subsequence similarity search
 - Extension of DaiSy for more algorithms (e.g., SFA, Hercules, Dumpy, etc.)
-- Streaming / updatable indexing for more algorithms (currently supported by Coconut)
+- Streaming / updatable indexing for more algorithms (currently supported by Bruteforce, LbBruteforce, and Coconut)
 - Implementation of a DaiSy autotuner to automatically optimize indexing and search parameters
 - Extension of DaiSy to support learned optimization approaches, e.g., LeaFi and ProS
 

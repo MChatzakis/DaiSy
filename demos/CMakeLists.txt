@@ -37,6 +37,13 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_bruteforce_L2Square.")
     endif()
 
+    add_executable(demo_Bruteforce_Streaming demo_Bruteforce_Streaming.cpp)
+    target_link_libraries(demo_Bruteforce_Streaming PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_Bruteforce_Streaming PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
     # ////// COCONUT (static + streaming) //////
     if(BUILD_COCONUT)
         if(DEBUG_MSG)
@@ -123,6 +130,13 @@ if(BUILD_DEMO)
     if(DEBUG_MSG)
         message(STATUS "Include directories added for demo_LbBruteforce_L2Square.")
     endif()
+
+    add_executable(demo_LbBruteforce_Streaming demo_LbBruteforce_Streaming.cpp)
+    target_link_libraries(demo_LbBruteforce_Streaming PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_LbBruteforce_Streaming PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
 
     # ////// LBBRUTEFORCE DTW //////
     if(DEBUG_MSG)

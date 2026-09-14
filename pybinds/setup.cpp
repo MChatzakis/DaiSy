@@ -82,6 +82,25 @@ PYBIND11_MODULE(_core, m)
             daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
             self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
 
+        // Streaming: append one vector or a batch to the live in-memory database.
+        .def("insert", [](daisy::BruteForceSearch &self, pybind11::array_t<float> series)
+             {
+            pybind11::buffer_info buf = series.request();
+            if (buf.ndim != 1)
+                throw std::runtime_error("insert expects a 1D float32 array");
+            if (self.getDim() != 0 && static_cast<daisy::idx_t>(buf.shape[0]) != self.getDim())
+                throw std::runtime_error("insert series dimension does not match the index dimension");
+            self.insert(static_cast<float *>(buf.ptr)); }, "Incrementally insert one series into the live index")
+
+        .def("insertBatch", [](daisy::BruteForceSearch &self, pybind11::array_t<float> batch)
+             {
+            pybind11::buffer_info buf = batch.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("insertBatch expects a 2D float32 array");
+            if (self.getDim() != 0 && static_cast<daisy::idx_t>(buf.shape[1]) != self.getDim())
+                throw std::runtime_error("insertBatch series dimension does not match the index dimension");
+            self.insertBatch(static_cast<float *>(buf.ptr), buf.shape[0]); }, "Incrementally insert a batch of series into the live index")
+
         // Bind method to perform similarity search
         .def("searchIndex", [](daisy::BruteForceSearch &self, pybind11::array_t<float> query, daisy::idx_t k)
              {
@@ -164,6 +183,25 @@ PYBIND11_MODULE(_core, m)
             // Create InMemoryDataSource from numpy array
             daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
             self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
+
+        // Streaming: append raw series and their SAX summaries to the live index.
+        .def("insert", [](daisy::LbBruteforce &self, pybind11::array_t<float> series)
+             {
+            pybind11::buffer_info buf = series.request();
+            if (buf.ndim != 1)
+                throw std::runtime_error("insert expects a 1D float32 array");
+            if (self.getDim() != 0 && static_cast<daisy::idx_t>(buf.shape[0]) != self.getDim())
+                throw std::runtime_error("insert series dimension does not match the index dimension");
+            self.insert(static_cast<float *>(buf.ptr)); }, "Incrementally insert one series and its SAX summary into the live index")
+
+        .def("insertBatch", [](daisy::LbBruteforce &self, pybind11::array_t<float> batch)
+             {
+            pybind11::buffer_info buf = batch.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("insertBatch expects a 2D float32 array");
+            if (self.getDim() != 0 && static_cast<daisy::idx_t>(buf.shape[1]) != self.getDim())
+                throw std::runtime_error("insertBatch series dimension does not match the index dimension");
+            self.insertBatch(static_cast<float *>(buf.ptr), buf.shape[0]); }, "Incrementally insert a batch of series and their SAX summaries into the live index")
 
         // Search the index using a query array and return (indices, distances)
         .def("searchIndex", [](daisy::LbBruteforce &self, pybind11::array_t<float> query, daisy::idx_t k)

@@ -82,6 +82,14 @@ if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_bruteforce_L2Square.")
 endif()
 
+# ////// BRUTEFORCE Streaming //////
+add_executable(test_Bruteforce_Streaming test_Bruteforce_Streaming.cpp)
+target_link_libraries(test_Bruteforce_Streaming PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+target_include_directories(test_Bruteforce_Streaming PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+gtest_discover_tests(test_Bruteforce_Streaming WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
 # # ////// BRUTEFORCE DTW ////// 
 #  if(DEBUG_MSG)
 #      message(STATUS "---")
@@ -185,6 +193,14 @@ gtest_discover_tests(
 if(DEBUG_MSG)
     message(STATUS "Tests discovered for test_LbBruteforce_L2Square.")
 endif()
+
+# ////// LBBRUTEFORCE Streaming //////
+add_executable(test_LbBruteforce_Streaming test_LbBruteforce_Streaming.cpp)
+target_link_libraries(test_LbBruteforce_Streaming PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+target_include_directories(test_LbBruteforce_Streaming PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+gtest_discover_tests(test_LbBruteforce_Streaming WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # # ////// LBBRUTEFORCE DTW ////// 
 #  if(DEBUG_MSG)
@@ -746,6 +762,15 @@ if(BUILD_PYTHON)
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         )
         set_tests_properties(test_range_search_py PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+        )
+
+        add_test(
+            NAME test_streaming_py
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_streaming.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        set_tests_properties(test_streaming_py PROPERTIES
             ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
         )
     endif()

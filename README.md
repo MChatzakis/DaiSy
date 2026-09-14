@@ -46,8 +46,8 @@ The following table summarizes the key features of each algorithm:
 
 | Algorithm | Description |
 |-----------|-------------|
-| **Bruteforce** | Naive parallel similarity search implementation |
-| **Lower Bound Bruteforce** | Optimized bruteforce with lower bounding for the distance calculations |
+| **Bruteforce** | Naive parallel similarity search implementation with incremental streaming inserts |
+| **Lower Bound Bruteforce** | Optimized bruteforce with lower bounding and incremental streaming inserts |
 | **[MESSI](https://helios2.mi.parisdescartes.fr/~themisp/messi/)** | In-memory parallel similarity search |
 | **[PARIS](https://helios2.mi.parisdescartes.fr/~themisp/paris/)** | Disk-based parallel similarity search |
 | **[SING](https://helios2.mi.parisdescartes.fr/~themisp/sing/)** | GPU-accelerated in-memory parallel similarity search |
@@ -57,6 +57,23 @@ The following table summarizes the key features of each algorithm:
 | **[DumpyOS](https://helios2.mi.parisdescartes.fr/~themisp/publications/vldbj24-dumpyos.pdf)** | In-memory scalable data series similarity search using an adaptive multi-ary iSAX index |
 | **[FreSH](http://publications.ics.forth.gr/tech-reports/2023/2023.TR489_FreSh_A_LockFree_Data_Series_Index.pdf)** | In-memory lock-free parallel similarity search using an iSAX index (SRDS 2023) |
 | **[COCONUT](http://www.vldb.org/pvldb/vol11/p677-kondylakis.pdf)** | Sortable-SAX index built bottom-up; supports both static datasets and **streaming** (incremental) inserts (PVLDB 2018) |
+
+### Incremental streaming inserts
+
+`BruteForceSearch`, `LbBruteforce`, and `Coconut` implement the common streaming API. Build
+the initial index once, then append one series or a contiguous batch without rebuilding:
+
+```cpp
+daisy::BruteForceSearch search(daisy::DistanceType::L2_SQUARED);
+search.buildIndex(initial_data, initial_size, dim);
+search.insert(one_series);
+search.insertBatch(batch_data, batch_size);
+```
+
+Inserted series receive consecutive IDs beginning at the size of the initial database and are
+immediately visible to top-k and range searches. `LbBruteforce` computes a SAX summary for each
+insert using the breakpoints established during the initial build. Inserts can reallocate the
+owned database, so callers should not retain a pointer returned by `getDatabase()` across them.
 
 
 
@@ -197,8 +214,6 @@ It is provided with no warranty, and we encourage contributions from the communi
 DaiSy licensed under the [MIT License](LICENSE).
 
 For questions and suggestions through mail, you can contact us at [manos.chatzaki@gmail.com](mailto:manos.chatzaki@gmail.com).-->
-
-
 
 
 

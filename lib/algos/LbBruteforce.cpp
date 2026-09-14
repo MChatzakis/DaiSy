@@ -1,6 +1,12 @@
 #include "LbBruteforce.hpp"
 #include "../isax/iSAXIndex.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <new>
+
 namespace daisy
 {
 
@@ -37,8 +43,14 @@ namespace daisy
 
     void LbBruteforce::buildIndex(DataSource *data_source)
     {
+        if (data_source == nullptr)
+            throw std::invalid_argument("LbBruteforce::buildIndex received a null data source");
+
         this->dim = data_source->getDim();
         this->n_database = data_source->getTotalRecords();
+
+        if (this->dim == 0)
+            throw std::invalid_argument("LbBruteforce::buildIndex requires a positive dimension");
 
         if (this->n_database == 0)
         {
@@ -55,7 +67,11 @@ namespace daisy
             data_source->reset();
         }
 
-        this->database = new float[this->n_database * this->dim];
+        this->database_capacity = std::max<idx_t>(this->n_database, 1);
+        if (this->database_capacity > std::numeric_limits<size_t>::max() / this->dim)
+            throw std::length_error("LbBruteforce database is too large");
+
+        this->database = new float[static_cast<size_t>(this->database_capacity) * this->dim];
         float *record = new float[this->dim];
         idx_t idx = 0;
         while (data_source->nextRecord(record))
@@ -87,7 +103,10 @@ namespace daisy
 
         this->index = isax_index_init_inmemory(this->index_settings);
 
-        this->db_sax_representations = (sax_type **)malloc(n_database * sizeof(sax_type *));
+        this->db_sax_representations =
+            (sax_type **)malloc(static_cast<size_t>(this->database_capacity) * sizeof(sax_type *));
+        if (this->db_sax_representations == nullptr)
+            throw std::bad_alloc();
 
 #pragma omp parallel for num_threads(num_threads)
         for (idx_t dbi = 0; dbi < n_database; dbi++)
@@ -105,6 +124,130 @@ namespace daisy
                 fprintf(stderr, "error: cannot insert record in index, since sax representation failed to be created");
                 exit(EXIT_FAILURE);
             }
+        }
+    }
+
+    void LbBruteforce::reserveDatabase(idx_t required_capacity)
+    {
+        if (required_capacity <= this->database_capacity)
+            return;
+
+        idx_t new_capacity = std::max<idx_t>(this->database_capacity, 1);
+        while (new_capacity < required_capacity)
+        {
+            if (new_capacity > std::numeric_limits<idx_t>::max() / 2)
+            {
+                new_capacity = required_capacity;
+                break;
+            }
+            new_capacity *= 2;
+        }
+
+        if (new_capacity > std::numeric_limits<size_t>::max() / this->dim ||
+            new_capacity > std::numeric_limits<size_t>::max() / sizeof(sax_type *))
+            throw std::length_error("LbBruteforce database is too large");
+
+        std::unique_ptr<float[]> grown_database(
+            new float[static_cast<size_t>(new_capacity) * static_cast<size_t>(this->dim)]);
+        std::copy_n(this->database,
+                    static_cast<size_t>(this->n_database) * static_cast<size_t>(this->dim),
+                    grown_database.get());
+
+        sax_type **grown_sax =
+            (sax_type **)malloc(static_cast<size_t>(new_capacity) * sizeof(sax_type *));
+        if (grown_sax == nullptr)
+            throw std::bad_alloc();
+        std::copy_n(this->db_sax_representations,
+                    static_cast<size_t>(this->n_database), grown_sax);
+
+        delete[] this->database;
+        free(this->db_sax_representations);
+        this->database = grown_database.release();
+        this->db_sax_representations = grown_sax;
+        this->database_capacity = new_capacity;
+    }
+
+    void LbBruteforce::insert(const float *series)
+    {
+        insertBatch(series, 1);
+    }
+
+    void LbBruteforce::insertBatch(const float *data, idx_t n)
+    {
+        if (n == 0)
+            return;
+        if (this->database == nullptr || this->index == nullptr ||
+            this->index_settings == nullptr || this->dim == 0)
+            throw std::runtime_error("LbBruteforce::insertBatch requires an initial buildIndex first");
+        if (data == nullptr)
+            throw std::invalid_argument("LbBruteforce::insertBatch received null data");
+        if (n > std::numeric_limits<idx_t>::max() - this->n_database)
+            throw std::length_error("LbBruteforce database size overflow");
+        if (n > std::numeric_limits<size_t>::max() / this->dim)
+            throw std::length_error("LbBruteforce insert batch is too large");
+
+        const idx_t required_capacity = this->n_database + n;
+        const size_t current_values =
+            static_cast<size_t>(this->n_database) * static_cast<size_t>(this->dim);
+        const size_t inserted_values = static_cast<size_t>(n) * static_cast<size_t>(this->dim);
+        const uintptr_t database_begin = reinterpret_cast<uintptr_t>(this->database);
+        const uintptr_t database_end = database_begin + current_values * sizeof(float);
+        const uintptr_t data_address = reinterpret_cast<uintptr_t>(data);
+        const bool aliases_database = data_address >= database_begin && data_address < database_end;
+        size_t source_offset = 0;
+        if (aliases_database)
+        {
+            const uintptr_t byte_offset = data_address - database_begin;
+            if (byte_offset % sizeof(float) != 0)
+                throw std::invalid_argument("LbBruteforce::insertBatch received an unaligned database pointer");
+            source_offset = static_cast<size_t>(byte_offset / sizeof(float));
+            if (inserted_values > current_values - source_offset)
+                throw std::invalid_argument("LbBruteforce::insertBatch source exceeds the live database");
+        }
+
+        reserveDatabase(required_capacity);
+        const float *source_data = aliases_database ? this->database + source_offset : data;
+
+        activateBreakpoints();
+
+        std::vector<sax_type *> new_sax_records;
+        new_sax_records.reserve(static_cast<size_t>(n));
+        try
+        {
+            for (idx_t i = 0; i < n; ++i)
+            {
+                sax_type *sax = (sax_type *)malloc(
+                    sizeof(sax_type) * this->index->settings->paa_segments);
+                if (sax == nullptr)
+                    throw std::bad_alloc();
+
+                const float *series = source_data + static_cast<size_t>(i) * this->dim;
+                if (!this->distance_computer->compute_sax_from_ts(
+                        series,
+                        sax,
+                        this->index->settings->ts_values_per_paa_segment,
+                        this->index->settings->paa_segments,
+                        this->index->settings->sax_alphabet_cardinality,
+                        this->index->settings->sax_bit_cardinality))
+                {
+                    free(sax);
+                    throw std::runtime_error("LbBruteforce::insertBatch failed to compute SAX representation");
+                }
+                new_sax_records.push_back(sax);
+            }
+
+            std::copy_n(source_data,
+                        inserted_values,
+                        this->database + static_cast<size_t>(this->n_database) * this->dim);
+            for (idx_t i = 0; i < n; ++i)
+                this->db_sax_representations[this->n_database + i] = new_sax_records[i];
+            this->n_database = required_capacity;
+        }
+        catch (...)
+        {
+            for (sax_type *sax : new_sax_records)
+                free(sax);
+            throw;
         }
     }
 
@@ -127,6 +270,10 @@ namespace daisy
 
     void LbBruteforce::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        if (!validateSearchParams(k, n_query))
+            return;
+        activateBreakpoints();
+
 #pragma omp parallel num_threads(num_threads)
         {
 #pragma omp for
@@ -196,6 +343,10 @@ namespace daisy
 
     void LbBruteforce::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        if (!validateSearchParams(k, n_query))
+            return;
+        activateBreakpoints();
+
 #pragma omp parallel num_threads(num_threads)
         {
 #pragma omp for
@@ -297,6 +448,12 @@ namespace daisy
             return;
         }
 
+        if (database == nullptr || index == nullptr)
+            throw std::runtime_error("LbBruteforce index must be built before searching");
+        if (n_query == 0)
+            throw std::invalid_argument("n_query must be greater than 0");
+        activateBreakpoints();
+
         float r = config.r;
         I.assign(n_query, {});
         D.assign(n_query, {});
@@ -364,15 +521,29 @@ namespace daisy
             free(db_sax_representations[dbi]);
         }
         free(db_sax_representations);
+        db_sax_representations = nullptr;
 
         if (this->index)
         {
+            if (this->index->fbl)
+            {
+                destroy_fbl(this->index->fbl);
+                this->index->fbl = nullptr;
+            }
+            free(this->index->answer);
+            this->index->answer = nullptr;
             free(this->index);
             this->index = nullptr;
         }
 
         if (this->index_settings)
         {
+            if (daisy_active_breakpoints == this->index_settings->breakpoints)
+                set_active_breakpoints(nullptr, nullptr);
+            free(this->index_settings->max_sax_cardinalities);
+            free(this->index_settings->bit_masks);
+            free(this->index_settings->breakpoints_owned);
+            free(this->index_settings->breakpoints_max_owned);
             free(this->index_settings);
             this->index_settings = nullptr;
         }

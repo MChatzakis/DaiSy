@@ -637,6 +637,14 @@ namespace daisy
         __m256i region_lowerv_1_offset = _mm256_add_epi32(region_lowerv_1, vloweroffset);
         __m256i region_upperv_0_offset = _mm256_add_epi32(region_upperv_0, vupperoffset);
         __m256i region_upperv_1_offset = _mm256_add_epi32(region_upperv_1, vupperoffset);
+        // The upper edge of the last SAX region is represented by max_val rather than a
+        // table entry. Clamp that lane before the unconditional AVX2 gather; the gathered
+        // value is discarded by upper_juge_maxv_* below, but reading index tri_size would
+        // otherwise be one float past the breakpoint table.
+        const __m256i last_breakpoint_offset =
+            _mm256_set1_epi32(offset + max_cardinality - 2);
+        region_upperv_0_offset = _mm256_min_epi32(region_upperv_0_offset, last_breakpoint_offset);
+        region_upperv_1_offset = _mm256_min_epi32(region_upperv_1_offset, last_breakpoint_offset);
         _mm256_storeu_si256((__m256i_u *)&(region_lower[0]), region_lowerv_0);
         _mm256_storeu_si256((__m256i_u *)&(region_lower[8]), region_lowerv_1);
         _mm256_storeu_si256((__m256i_u *)&(region_upper[0]), region_upperv_0);

@@ -65,7 +65,10 @@ These algorithms do not all share the same dependency profile or feature set.
 
 - Top-k search is the baseline capability.
 - Range search is modeled through `SearchConfig` and is not universally implemented.
-- Streaming insert is not a generic capability; default behavior throws.
+- Streaming insert is implemented by `BruteForceSearch`, `LbBruteforce`, and `Coconut`;
+  the base implementation still throws for algorithms that do not support it.
+- Bruteforce streaming grows the owned in-memory database incrementally. LbBruteforce also
+  computes SAX summaries incrementally, using the breakpoint set fixed by the initial build.
 - `setNormalized(bool)` is a declaration about the input data, not a preprocessing step.
 - Data can come from in-memory arrays or file-backed sources via `DataSource`.
 
