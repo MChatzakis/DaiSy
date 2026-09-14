@@ -209,6 +209,18 @@ if(DEBUG_MSG)
     message(STATUS "Include directories added for bm_Messi_L2Square.")
 endif()
 
+add_executable(bm_Messi_Streaming bm_Messi_Streaming.cpp)
+target_link_libraries(bm_Messi_Streaming
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    dino_lib
+)
+target_include_directories(bm_Messi_Streaming
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+)
+
 # ////// FAISS FLAT //////
 if(DEBUG_MSG)
     message(STATUS "---")

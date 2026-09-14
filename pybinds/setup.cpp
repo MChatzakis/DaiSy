@@ -408,8 +408,12 @@ PYBIND11_MODULE(_core, m)
         .def("setWarpingWindow", &daisy::Messi::setWarpingWindow, "Set the warping window size for DTW")
 
         // Build the index from a 2D NumPy array
-        .def("buildIndex", [](daisy::Messi &self, pybind11::array_t<float> db)
+        .def("buildIndex", [](daisy::Messi &self, pybind11::array db)
              {
+            if (!db.dtype().is(pybind11::dtype::of<float>()))
+                throw std::runtime_error("Database array must have dtype float32");
+            if ((db.flags() & pybind11::array::c_style) == 0)
+                throw std::runtime_error("Database array must be C-contiguous");
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Database array must be 2D");
@@ -419,7 +423,35 @@ PYBIND11_MODULE(_core, m)
             
             // Create InMemoryDataSource from numpy array
             daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
-            self.buildIndex(&data_source); }, "Build the MESSI index from a 2D float32 NumPy array")
+            self.buildIndex(&data_source); },
+             pybind11::keep_alive<1, 2>(),
+             "Build the MESSI index from a contiguous 2D float32 NumPy array")
+
+        // Streaming: append one series or a contiguous batch to the live tree.
+        .def("insert", [](daisy::Messi &self,
+                          pybind11::array_t<float, pybind11::array::c_style |
+                                                        pybind11::array::forcecast> series)
+             {
+            pybind11::buffer_info buf = series.request();
+            if (buf.ndim != 1)
+                throw std::runtime_error("insert expects a 1D float32 array");
+            if (self.getDim() != 0 && static_cast<daisy::idx_t>(buf.shape[0]) != self.getDim())
+                throw std::runtime_error("insert series dimension does not match the index dimension");
+            self.insert(static_cast<float *>(buf.ptr)); },
+             "Incrementally insert one series into the live MESSI index")
+
+        .def("insertBatch", [](daisy::Messi &self,
+                               pybind11::array_t<float, pybind11::array::c_style |
+                                                             pybind11::array::forcecast> batch)
+             {
+            pybind11::buffer_info buf = batch.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("insertBatch expects a 2D float32 array");
+            if (self.getDim() != 0 && static_cast<daisy::idx_t>(buf.shape[1]) != self.getDim())
+                throw std::runtime_error("insertBatch series dimension does not match the index dimension");
+            self.insertBatch(static_cast<float *>(buf.ptr),
+                             static_cast<daisy::idx_t>(buf.shape[0])); },
+             "Incrementally insert a batch of series into the live MESSI index")
 
         // Search the index with query array and return top-k results
         .def("searchIndex", [](daisy::Messi &self, pybind11::array_t<float> query, daisy::idx_t k)

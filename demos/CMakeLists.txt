@@ -204,6 +204,13 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_Messi_L2Square.")
     endif()
 
+    add_executable(demo_Messi_Streaming demo_Messi_Streaming.cpp)
+    target_link_libraries(demo_Messi_Streaming PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_Messi_Streaming PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
     # ////// MESSI DTW //////
     if(DEBUG_MSG)
         message(STATUS "---")

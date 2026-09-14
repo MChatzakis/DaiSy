@@ -358,6 +358,30 @@ gtest_discover_tests(test_LbBruteforce_Streaming WORKING_DIRECTORY ${CMAKE_SOURC
      message(STATUS "Tests discovered for test_Messi_L2Square.")
  endif()
 
+# ////// MESSI streaming //////
+add_executable(
+    test_Messi_Streaming
+    test_Messi_Streaming.cpp
+    test_utils.cpp
+)
+target_link_libraries(
+    test_Messi_Streaming
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+target_include_directories(test_Messi_Streaming
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+gtest_discover_tests(
+    test_Messi_Streaming
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 # ////// ODYSSEY L2Square (conditional on MPI) //////
 # Odyssey tests must run under mpirun (e.g. mpirun -np 4); one CTest entry runs all GTest cases.
 if(DEBUG_MSG)
