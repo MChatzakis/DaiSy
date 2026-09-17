@@ -33,7 +33,8 @@ namespace daisy
                                               index->settings->sax_alphabet_cardinality,
                                               index->settings->paa_segments,
                                               MINVAL, MAXVAL,
-                                              index->settings->mindist_sqrt);
+                                              index->settings->mindist_sqrt,
+                                              index->settings->breakpoints);
 
         if (distance < bsf)
         {
@@ -80,7 +81,8 @@ namespace daisy
                                                   index->settings->sax_alphabet_cardinality,
                                                   index->settings->paa_segments,
                                                   MINVAL, MAXVAL,
-                                                  index->settings->mindist_sqrt);
+                                                  index->settings->mindist_sqrt,
+                                                  index->settings->breakpoints);
         if (distance <= bsf)
         {
             if (node->is_leaf)
@@ -165,7 +167,8 @@ namespace daisy
                                                                index->settings->sax_bit_cardinality,
                                                                index->settings->sax_alphabet_cardinality,
                                                                index->settings->paa_segments, MINVAL, MAXVAL,
-                                                               index->settings->mindist_sqrt);
+                                                               index->settings->mindist_sqrt,
+                                                               index->settings->breakpoints);
                 if (distmin <= pq_bsf->knn[pq_bsf->k - 1])
                 {
                     float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
@@ -210,7 +213,8 @@ namespace daisy
                                                         index->settings->sax_bit_cardinality,
                                                         index->settings->sax_alphabet_cardinality,
                                                         index->settings->paa_segments, MINVAL, MAXVAL,
-                                                        index->settings->mindist_sqrt);
+                                                        index->settings->mindist_sqrt,
+                                                        index->settings->breakpoints);
 
             if (distmin <= bsf)
             {
@@ -531,7 +535,8 @@ namespace daisy
                                                            index->settings->sax_bit_cardinality,
                                                            index->settings->sax_alphabet_cardinality,
                                                            index->settings->paa_segments, MINVAL, MAXVAL,
-                                                           index->settings->mindist_sqrt);
+                                                           index->settings->mindist_sqrt,
+                                                           index->settings->breakpoints);
             if (distmin <= r)
             {
                 float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
@@ -1088,11 +1093,6 @@ namespace daisy
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        // Lower bounds read the active breakpoints, which are global: interleaving
-        // searches with inserts (or with another live index) can leave a different
-        // table installed, so reinstall ours before every search.
-        activateBreakpoints();
-
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
 
         node_list nodelist;
@@ -1167,8 +1167,6 @@ namespace daisy
 
     void Messi::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        activateBreakpoints();
-
         isax_index *index = this->index;
 
         node_list nodelist;
@@ -1308,7 +1306,6 @@ namespace daisy
             return;
         }
 
-        activateBreakpoints();
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         node_list nodelist;
         nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * (int)pow(2, index->settings->paa_segments));

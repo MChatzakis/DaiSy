@@ -272,7 +272,6 @@ namespace daisy
     {
         if (!validateSearchParams(k, n_query))
             return;
-        activateBreakpoints();
 
 #pragma omp parallel num_threads(num_threads)
         {
@@ -308,7 +307,8 @@ namespace daisy
                         index->settings->paa_segments,
                         MINVAL,
                         MAXVAL,
-                        index->settings->mindist_sqrt);
+                        index->settings->mindist_sqrt,
+                        index->settings->breakpoints);
                     if (minimum_distance < bound)
                     {
                         float dist = this->distance_computer->compute_dist_SIMD(const_cast<float *>(q_vec),
@@ -345,7 +345,6 @@ namespace daisy
     {
         if (!validateSearchParams(k, n_query))
             return;
-        activateBreakpoints();
 
 #pragma omp parallel num_threads(num_threads)
         {
@@ -401,7 +400,8 @@ namespace daisy
                         index->settings->paa_segments,
                         MINVAL,
                         MAXVAL,
-                        index->settings->mindist_sqrt);
+                        index->settings->mindist_sqrt,
+                        index->settings->breakpoints);
 
                     if (minimum_distance < bound)
                     {
@@ -452,7 +452,6 @@ namespace daisy
             throw std::runtime_error("LbBruteforce index must be built before searching");
         if (n_query == 0)
             throw std::invalid_argument("n_query must be greater than 0");
-        activateBreakpoints();
 
         float r = config.r;
         I.assign(n_query, {});
@@ -486,7 +485,8 @@ namespace daisy
                         index->settings->paa_segments,
                         MINVAL,
                         MAXVAL,
-                        index->settings->mindist_sqrt);
+                        index->settings->mindist_sqrt,
+                        index->settings->breakpoints);
 
                     if (minimum_distance <= r) {
                         float dist = this->distance_computer->compute_dist_SIMD(

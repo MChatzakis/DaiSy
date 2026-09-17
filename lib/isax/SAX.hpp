@@ -11,6 +11,12 @@ namespace daisy
 {
     // Process-global active breakpoints (triangular / flat-max). Default to the Gaussian
     // tables; an index installs its own via set_active_breakpoints() before build/search.
+    //
+    // Being process-global, these are only correct while a single index is live: two indices
+    // with different (equi-depth) tables would read each other's. They are being retired. The
+    // lower-bound helpers below now take the tables explicitly, and a null argument means
+    // "fall back to the global" so un-migrated callers keep working. Query paths that pass
+    // their own tables need no set_active_breakpoints() call at all.
     extern const float *daisy_active_breakpoints;
     extern const float *daisy_active_breakpoints_max;
 
@@ -34,7 +40,8 @@ namespace daisy
                                int number_of_segments,
                                int min_val,
                                int max_val,
-                               float ratio_sqrt);
+                               float ratio_sqrt,
+                               const float *bp = nullptr);
 
     float minidist_paa_to_isax_raw_SIMD(float *paa, sax_type *sax,
                                         sax_type *sax_cardinalities,
@@ -43,7 +50,8 @@ namespace daisy
                                         int number_of_segments,
                                         int min_val,
                                         int max_val,
-                                        float ratio_sqrt);
+                                        float ratio_sqrt,
+                                        const float *bp = nullptr);
 
     float ts_euclidean_distance(ts_type *t, ts_type *s, int size, float bound);
 
@@ -56,7 +64,8 @@ namespace daisy
                                          int number_of_segments,
                                          int min_val,
                                          int max_val,
-                                         float ratio_sqrt);
+                                         float ratio_sqrt,
+                                         const float *bp = nullptr);
 
     float minidist_paa_to_isax_raw_DTW_SING_SIMD(float *paaU, float *paaL, sax_type *sax,
                                                  sax_type *sax_cardinalities,
@@ -65,7 +74,8 @@ namespace daisy
                                                  int number_of_segments,
                                                  int min_val,
                                                  int max_val,
-                                                 float ratio_sqrt);
+                                                 float ratio_sqrt,
+                                                 const float *bp_max = nullptr);
 
     float minidist_paa_to_isax_raw_DTW_SIMD(float *paaU, float *paaL, sax_type *sax,
                                             sax_type *sax_cardinalities,
@@ -74,7 +84,8 @@ namespace daisy
                                             int number_of_segments,
                                             int min_val,
                                             int max_val,
-                                            float ratio_sqrt);
+                                            float ratio_sqrt,
+                                            const float *bp = nullptr);
 
     float lb_keogh_data_bound(float *qo, float *tu, float *tl, float *cb, int len, float bsf);
     
@@ -87,7 +98,8 @@ namespace daisy
                                    int number_of_segments,
                                    int min_val,
                                    int max_val,
-                                   float ratio_sqrt);
+                                   float ratio_sqrt,
+                                   const float *bp = nullptr);
 
 }
 

@@ -153,8 +153,12 @@ namespace daisy
                                int number_of_segments,
                                int min_val,
                                int max_val,
-                               float ratio_sqrt)
+                               float ratio_sqrt,
+                               const float *bp)
     {
+        // A null table means the caller has not been migrated off the global yet.
+        if (bp == nullptr)
+            bp = daisy_active_breakpoints;
 
         float distance = 0;
         // TODO: Store offset in index settings. and pass index settings as parameter.
@@ -182,7 +186,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_lower = daisy_active_breakpoints[offset + region_lower - 1];
+                breakpoint_lower = bp[offset + region_lower - 1];
             }
             if (region_upper == max_cardinality - 1)
             {
@@ -190,7 +194,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_upper = daisy_active_breakpoints[offset + region_upper];
+                breakpoint_upper = bp[offset + region_upper];
             }
 
             if (breakpoint_lower > paa[i])
@@ -215,8 +219,12 @@ namespace daisy
                                         int number_of_segments,
                                         int min_val,
                                         int max_val,
-                                        float ratio_sqrt)
+                                        float ratio_sqrt,
+                                        const float *bp)
     {
+        // A null table means the caller has not been migrated off the global yet.
+        if (bp == nullptr)
+            bp = daisy_active_breakpoints;
 
         int region_upper[16], region_lower[16];
         float distancef[16];
@@ -277,43 +285,43 @@ namespace daisy
         __m256 minvalv = _mm256_set1_ps(min_val);
 
         //__m256 lsax_breakpoints_shiftv_0 _mm256_i32gather_ps (sax_breakpoints, __m256i vindex, const int scale)
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_set_ps(daisy_active_breakpoints[offset + region_lower[7] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[6] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[5] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[4] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[3] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[2] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[1] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[0] - 1]);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_set_ps(daisy_active_breakpoints[offset + region_lower[15] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[14] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[13] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[12] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[11] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[10] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[9] - 1],
-                                                         daisy_active_breakpoints[offset + region_lower[8] - 1]);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_set_ps(bp[offset + region_lower[7] - 1],
+                                                         bp[offset + region_lower[6] - 1],
+                                                         bp[offset + region_lower[5] - 1],
+                                                         bp[offset + region_lower[4] - 1],
+                                                         bp[offset + region_lower[3] - 1],
+                                                         bp[offset + region_lower[2] - 1],
+                                                         bp[offset + region_lower[1] - 1],
+                                                         bp[offset + region_lower[0] - 1]);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_set_ps(bp[offset + region_lower[15] - 1],
+                                                         bp[offset + region_lower[14] - 1],
+                                                         bp[offset + region_lower[13] - 1],
+                                                         bp[offset + region_lower[12] - 1],
+                                                         bp[offset + region_lower[11] - 1],
+                                                         bp[offset + region_lower[10] - 1],
+                                                         bp[offset + region_lower[9] - 1],
+                                                         bp[offset + region_lower[8] - 1]);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_0, (__m256i)lsax_breakpoints_shiftv_0));
         __m256 breakpoint_lowerv_1 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
         // uper
-        __m256 usax_breakpoints_shiftv_0 = _mm256_set_ps(daisy_active_breakpoints[offset + region_upper[7]],
-                                                         daisy_active_breakpoints[offset + region_upper[6]],
-                                                         daisy_active_breakpoints[offset + region_upper[5]],
-                                                         daisy_active_breakpoints[offset + region_upper[4]],
-                                                         daisy_active_breakpoints[offset + region_upper[3]],
-                                                         daisy_active_breakpoints[offset + region_upper[2]],
-                                                         daisy_active_breakpoints[offset + region_upper[1]],
-                                                         daisy_active_breakpoints[offset + region_upper[0]]);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_set_ps(daisy_active_breakpoints[offset + region_upper[15]],
-                                                         daisy_active_breakpoints[offset + region_upper[14]],
-                                                         daisy_active_breakpoints[offset + region_upper[13]],
-                                                         daisy_active_breakpoints[offset + region_upper[12]],
-                                                         daisy_active_breakpoints[offset + region_upper[11]],
-                                                         daisy_active_breakpoints[offset + region_upper[10]],
-                                                         daisy_active_breakpoints[offset + region_upper[9]],
-                                                         daisy_active_breakpoints[offset + region_upper[8]]);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_set_ps(bp[offset + region_upper[7]],
+                                                         bp[offset + region_upper[6]],
+                                                         bp[offset + region_upper[5]],
+                                                         bp[offset + region_upper[4]],
+                                                         bp[offset + region_upper[3]],
+                                                         bp[offset + region_upper[2]],
+                                                         bp[offset + region_upper[1]],
+                                                         bp[offset + region_upper[0]]);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_set_ps(bp[offset + region_upper[15]],
+                                                         bp[offset + region_upper[14]],
+                                                         bp[offset + region_upper[13]],
+                                                         bp[offset + region_upper[12]],
+                                                         bp[offset + region_upper[11]],
+                                                         bp[offset + region_upper[10]],
+                                                         bp[offset + region_upper[9]],
+                                                         bp[offset + region_upper[8]]);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -378,8 +386,12 @@ namespace daisy
                                                  int number_of_segments,
                                                  int min_val,
                                                  int max_val,
-                                                 float ratio_sqrt)
+                                                 float ratio_sqrt,
+                                                 const float *bp_max)
     {
+        // A null table means the caller has not been migrated off the global yet.
+        if (bp_max == nullptr)
+            bp_max = daisy_active_breakpoints_max;
         int region_upper[16], region_lower[16];
         float distancef[16];
         int offset = 0;
@@ -439,8 +451,8 @@ namespace daisy
 
         __m256 minvalv = _mm256_set1_ps((float)min_val);
 
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_lowerv_0, 4);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_lowerv_1, 4);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(bp_max, region_lowerv_0, 4);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(bp_max, region_lowerv_1, 4);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(
             _mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv),
@@ -449,8 +461,8 @@ namespace daisy
             _mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv),
             _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
-        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_upperv_0, 4);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints_max, region_upperv_1, 4);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(bp_max, region_upperv_0, 4);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(bp_max, region_upperv_1, 4);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -582,8 +594,12 @@ namespace daisy
                                          int number_of_segments,
                                          int min_val,
                                          int max_val,
-                                         float ratio_sqrt)
+                                         float ratio_sqrt,
+                                         const float *bp)
     {
+        // A null table means the caller has not been migrated off the global yet.
+        if (bp == nullptr)
+            bp = daisy_active_breakpoints;
 
         int region_upper[16], region_lower[16];
         float distancef[16];
@@ -660,15 +676,15 @@ namespace daisy
 
         __m256 minvalv = _mm256_set1_ps(min_val);
 
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints, region_lowerv_0_offset, 4);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints, region_lowerv_1_offset, 4);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(bp, region_lowerv_0_offset, 4);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(bp, region_lowerv_1_offset, 4);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_0, (__m256i)lsax_breakpoints_shiftv_0));
         __m256 breakpoint_lowerv_1 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
         // uper
-        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints, region_upperv_0_offset, 4);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints, region_upperv_1_offset, 4);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(bp, region_upperv_0_offset, 4);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(bp, region_upperv_1_offset, 4);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -733,8 +749,12 @@ namespace daisy
                                             int number_of_segments,
                                             int min_val,
                                             int max_val,
-                                            float ratio_sqrt)
+                                            float ratio_sqrt,
+                                            const float *bp)
     {
+        // A null table means the caller has not been migrated off the global yet.
+        if (bp == nullptr)
+            bp = daisy_active_breakpoints;
 
         int region_upper[16], region_lower[16];
         float distancef[16];
@@ -804,47 +824,47 @@ namespace daisy
 
         __m256 minvalv = _mm256_set1_ps(min_val);
 
-        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints, region_lowerv_0_offset, 4);
-        //__m256 lsax_breakpoints_shiftv_0= _mm256_set_ps (daisy_active_breakpoints[region_lower[7]],
-        // daisy_active_breakpoints[region_lower[6]],
-        // daisy_active_breakpoints[region_lower[5]],
-        // daisy_active_breakpoints[region_lower[4]],
-        // daisy_active_breakpoints[region_lower[3]],
-        // daisy_active_breakpoints[region_lower[2]],
-        // daisy_active_breakpoints[region_lower[1]],
-        // daisy_active_breakpoints[region_lower[0]]);
-        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints, region_lowerv_1_offset, 4);
-        //__m256 lsax_breakpoints_shiftv_1= _mm256_set_ps (daisy_active_breakpoints[region_lower[15]],
-        // daisy_active_breakpoints[region_lower[14]],
-        // daisy_active_breakpoints[region_lower[13]],
-        // daisy_active_breakpoints[region_lower[12]],
-        // daisy_active_breakpoints[region_lower[11]],
-        // daisy_active_breakpoints[region_lower[10]],
-        // daisy_active_breakpoints[region_lower[9]],
-        // daisy_active_breakpoints[region_lower[8]]);
+        __m256 lsax_breakpoints_shiftv_0 = _mm256_i32gather_ps(bp, region_lowerv_0_offset, 4);
+        //__m256 lsax_breakpoints_shiftv_0= _mm256_set_ps (bp[region_lower[7]],
+        // bp[region_lower[6]],
+        // bp[region_lower[5]],
+        // bp[region_lower[4]],
+        // bp[region_lower[3]],
+        // bp[region_lower[2]],
+        // bp[region_lower[1]],
+        // bp[region_lower[0]]);
+        __m256 lsax_breakpoints_shiftv_1 = _mm256_i32gather_ps(bp, region_lowerv_1_offset, 4);
+        //__m256 lsax_breakpoints_shiftv_1= _mm256_set_ps (bp[region_lower[15]],
+        // bp[region_lower[14]],
+        // bp[region_lower[13]],
+        // bp[region_lower[12]],
+        // bp[region_lower[11]],
+        // bp[region_lower[10]],
+        // bp[region_lower[9]],
+        // bp[region_lower[8]]);
 
         __m256 breakpoint_lowerv_0 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_0, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_0, (__m256i)lsax_breakpoints_shiftv_0));
         __m256 breakpoint_lowerv_1 = (__m256)_mm256_or_si256(_mm256_and_si256(lower_juge_zerov_1, (__m256i)minvalv), _mm256_and_si256(lower_juge_nzerov_1, (__m256i)lsax_breakpoints_shiftv_1));
 
         // uper
-        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(daisy_active_breakpoints, region_upperv_0_offset, 4);
-        //__m256 usax_breakpoints_shiftv_0= _mm256_set_ps (daisy_active_breakpoints[region_upper[7]],
-        // daisy_active_breakpoints[region_upper[6]],
-        // daisy_active_breakpoints[region_upper[5]],
-        // daisy_active_breakpoints[region_upper[4]],
-        // daisy_active_breakpoints[region_upper[3]],
-        // daisy_active_breakpoints[region_upper[2]],
-        // daisy_active_breakpoints[region_upper[1]],
-        // daisy_active_breakpoints[region_upper[0]]);
-        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(daisy_active_breakpoints, region_upperv_1_offset, 4);
-        //__m256 usax_breakpoints_shiftv_1= _mm256_set_ps (daisy_active_breakpoints[region_upper[15]],
-        // daisy_active_breakpoints[region_upper[14]],
-        // daisy_active_breakpoints[region_upper[13]],
-        // daisy_active_breakpoints[region_upper[12]],
-        // daisy_active_breakpoints[region_upper[11]],
-        // daisy_active_breakpoints[region_upper[10]],
-        // daisy_active_breakpoints[region_upper[9]],
-        // daisy_active_breakpoints[region_upper[8]]);
+        __m256 usax_breakpoints_shiftv_0 = _mm256_i32gather_ps(bp, region_upperv_0_offset, 4);
+        //__m256 usax_breakpoints_shiftv_0= _mm256_set_ps (bp[region_upper[7]],
+        // bp[region_upper[6]],
+        // bp[region_upper[5]],
+        // bp[region_upper[4]],
+        // bp[region_upper[3]],
+        // bp[region_upper[2]],
+        // bp[region_upper[1]],
+        // bp[region_upper[0]]);
+        __m256 usax_breakpoints_shiftv_1 = _mm256_i32gather_ps(bp, region_upperv_1_offset, 4);
+        //__m256 usax_breakpoints_shiftv_1= _mm256_set_ps (bp[region_upper[15]],
+        // bp[region_upper[14]],
+        // bp[region_upper[13]],
+        // bp[region_upper[12]],
+        // bp[region_upper[11]],
+        // bp[region_upper[10]],
+        // bp[region_upper[9]],
+        // bp[region_upper[8]]);
 
         __m256i upper_juge_maxv_0 = _mm256_cmpeq_epi32(region_upperv_0, _mm256_set1_epi32(max_cardinality - 1));
         __m256i upper_juge_maxv_1 = _mm256_cmpeq_epi32(region_upperv_1, _mm256_set1_epi32(max_cardinality - 1));
@@ -1090,8 +1110,12 @@ namespace daisy
                                    int number_of_segments,
                                    int min_val,
                                    int max_val,
-                                   float ratio_sqrt)
+                                   float ratio_sqrt,
+                                   const float *bp)
     {
+        // A null table means the caller has not been migrated off the global yet.
+        if (bp == nullptr)
+            bp = daisy_active_breakpoints;
 
         float distance = 0;
         // TODO: Store offset in index settings. and pass index settings as parameter.
@@ -1121,7 +1145,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_lower = daisy_active_breakpoints[offset + region_lower - 1];
+                breakpoint_lower = bp[offset + region_lower - 1];
             }
             if (region_upper == max_cardinality - 1)
             {
@@ -1129,7 +1153,7 @@ namespace daisy
             }
             else
             {
-                breakpoint_upper = daisy_active_breakpoints[offset + region_upper];
+                breakpoint_upper = bp[offset + region_upper];
             }
 
             if (breakpoint_lower > paaU[i])
