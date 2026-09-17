@@ -21,18 +21,27 @@ int main()
     search.setSearchWorkers(4);
     search.buildIndex(stream, initial, dim);
 
-    search.insert(stream + initial * dim);
-    search.insertBatch(stream + (initial + 1) * dim, batch - 1);
-
     daisy::idx_t *indices = new daisy::idx_t[n_query * k];
     float *distances = new float[n_query * k];
-    search.searchIndex(query, n_query, k, indices, distances);
 
-    std::printf("MESSI now contains %llu series. Query 0 kNN: ",
-                search.getNDatabase());
-    for (daisy::idx_t j = 0; j < k; ++j)
-        std::printf("%llu(%.3f) ", indices[j], distances[j]);
-    std::printf("\n");
+    // The index stays queryable between updates: search after every addition.
+    auto queryAndReport = [&](const char *stage)
+    {
+        search.searchIndex(query, n_query, k, indices, distances);
+        std::printf("%-16s MESSI contains %llu series. Query 0 kNN: ",
+                    stage, search.getNDatabase());
+        for (daisy::idx_t j = 0; j < k; ++j)
+            std::printf("%llu(%.3f) ", indices[j], distances[j]);
+        std::printf("\n");
+    };
+
+    queryAndReport("after build");
+
+    search.insert(stream + initial * dim);
+    queryAndReport("after insert");
+
+    search.insertBatch(stream + (initial + 1) * dim, batch - 1);
+    queryAndReport("after batch");
 
     delete[] stream;
     delete[] query;

@@ -19,9 +19,18 @@ class StreamingBindingsTest(unittest.TestCase):
                     index.setIndexWorkers(1)
                     index.setSearchWorkers(1)
                 index.buildIndex(data[:3])
-                index.insert(data[3])
-                index.insertBatch(data[4:])
 
+                # Every addition leaves the index queryable, so search in between.
+                indices, distances = index.searchIndex(data[2:3], 1)
+                self.assertEqual(int(indices[0, 0]), 2)
+                self.assertAlmostEqual(float(distances[0, 0]), 0.0, places=6)
+
+                index.insert(data[3])
+                indices, distances = index.searchIndex(data[3:4], 1)
+                self.assertEqual(int(indices[0, 0]), 3)
+                self.assertAlmostEqual(float(distances[0, 0]), 0.0, places=6)
+
+                index.insertBatch(data[4:])
                 indices, distances = index.searchIndex(data[7:8], 1)
                 self.assertEqual(int(indices[0, 0]), 7)
                 self.assertAlmostEqual(float(distances[0, 0]), 0.0, places=6)

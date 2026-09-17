@@ -1088,6 +1088,11 @@ namespace daisy
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        // Lower bounds read the active breakpoints, which are global: interleaving
+        // searches with inserts (or with another live index) can leave a different
+        // table installed, so reinstall ours before every search.
+        activateBreakpoints();
+
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
 
         node_list nodelist;
@@ -1162,6 +1167,8 @@ namespace daisy
 
     void Messi::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        activateBreakpoints();
+
         isax_index *index = this->index;
 
         node_list nodelist;
@@ -1295,13 +1302,13 @@ namespace daisy
                             std::vector<std::vector<idx_t>> &I,
                             std::vector<std::vector<float>> &D)
     {
-        activateBreakpoints();
         if (config.type == QueryType::TOP_K)
         {
             SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
             return;
         }
 
+        activateBreakpoints();
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         node_list nodelist;
         nodelist.nlist = (isax_node **)malloc(sizeof(isax_node *) * (int)pow(2, index->settings->paa_segments));
@@ -1339,7 +1346,6 @@ namespace daisy
 
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
-        activateBreakpoints();
         if (this->distance_type == DistanceType::L2_SQUARED)
         {
             searchIndexL2Squared(query, n_query, k, I, D);

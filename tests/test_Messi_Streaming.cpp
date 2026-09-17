@@ -150,16 +150,22 @@ TEST(MessiStreamingTest, CreatesMissingRootAndSplitsExistingLeaf)
     daisy::isax_node *initial_root = search.getIndex()->first_node;
     const unsigned long roots_before = search.getIndex()->root_nodes;
 
+    daisy::idx_t index = 0;
+    float distance = -1.0f;
+
     // Same SAX root at capacity: the incremental insert must split the leaf.
     search.insert(initial.data());
     EXPECT_FALSE(initial_root->is_leaf);
+
+    // The split tree stays searchable before the next insert arrives.
+    search.searchIndex(initial.data(), 1, 1, &index, &distance);
+    EXPECT_LT(index, search.getNDatabase());
+    EXPECT_FLOAT_EQ(distance, 0.0f);
 
     // Negating every segment flips the root SAX mask, forcing root creation.
     search.insert(opposite.data());
     EXPECT_GT(search.getIndex()->root_nodes, roots_before);
 
-    daisy::idx_t index = 0;
-    float distance = -1.0f;
     search.searchIndex(opposite.data(), 1, 1, &index, &distance);
     EXPECT_EQ(index, 3u);
     EXPECT_FLOAT_EQ(distance, 0.0f);
@@ -170,11 +176,19 @@ TEST(MessiStreamingTest, DtwSearchIncludesInsertedSeries)
     auto all = makeSeries(8, 80);
     daisy::Messi search(daisy::DistanceType::DTW, streamingConfig());
     search.buildIndex(all.data(), 4, DIM);
-    search.insert(all.data() + 4 * DIM);
-    search.insertBatch(all.data() + 5 * DIM, 3);
 
     daisy::idx_t index = 0;
     float distance = -1.0f;
+    search.searchIndex(all.data() + 3 * DIM, 1, 1, &index, &distance);
+    EXPECT_EQ(index, 3u);
+    EXPECT_NEAR(distance, 0.0f, 1e-6f);
+
+    search.insert(all.data() + 4 * DIM);
+    search.searchIndex(all.data() + 4 * DIM, 1, 1, &index, &distance);
+    EXPECT_EQ(index, 4u);
+    EXPECT_NEAR(distance, 0.0f, 1e-6f);
+
+    search.insertBatch(all.data() + 5 * DIM, 3);
     search.searchIndex(all.data() + 7 * DIM, 1, 1, &index, &distance);
     EXPECT_EQ(index, 7u);
     EXPECT_NEAR(distance, 0.0f, 1e-6f);
@@ -192,8 +206,12 @@ TEST(MessiStreamingTest, EquidepthInsertsReuseInitialBreakpoints)
     daisy::Messi search(daisy::DistanceType::L2_SQUARED, streamingConfig());
     search.setNormalized(false);
     search.buildIndex(all.data(), 8, DIM);
-    search.insertBatch(all.data() + 8 * DIM, 8);
+    expectL2MatchesBruteforce(search, all, 8, queries, 4, 4);
 
+    search.insertBatch(all.data() + 8 * DIM, 4);
+    expectL2MatchesBruteforce(search, all, 12, queries, 4, 4);
+
+    search.insertBatch(all.data() + 12 * DIM, 4);
     expectL2MatchesBruteforce(search, all, 16, queries, 4, 4);
 }
 
@@ -205,10 +223,28 @@ TEST(MessiStreamingTest, CanInsertFromItsOwnDatabaseAcrossReallocation)
 
     search.insert(search.getDatabase() + DIM);
     ASSERT_EQ(search.getNDatabase(), 5u);
+
+    // The series now appears twice, so assert on the hit contents instead of its id.
+    daisy::idx_t index = 0;
+    float distance = -1.0f;
+    search.searchIndex(initial.data() + DIM, 1, 1, &index, &distance);
+    EXPECT_FLOAT_EQ(distance, 0.0f);
+    ASSERT_LT(index, search.getNDatabase());
+    for (int j = 0; j < DIM; ++j)
+        EXPECT_FLOAT_EQ(search.getDatabase()[static_cast<size_t>(index) * DIM + j],
+                        initial[DIM + j]);
+
     const float *owned_database = search.getDatabase();
     search.insertBatch(owned_database, 4);
     ASSERT_EQ(search.getNDatabase(), 9u);
 
     for (int i = 0; i < 4 * DIM; ++i)
         EXPECT_FLOAT_EQ(search.getDatabase()[5 * DIM + i], initial[i]);
+
+    search.searchIndex(initial.data() + 3 * DIM, 1, 1, &index, &distance);
+    EXPECT_FLOAT_EQ(distance, 0.0f);
+    ASSERT_LT(index, search.getNDatabase());
+    for (int j = 0; j < DIM; ++j)
+        EXPECT_FLOAT_EQ(search.getDatabase()[static_cast<size_t>(index) * DIM + j],
+                        initial[3 * DIM + j]);
 }
