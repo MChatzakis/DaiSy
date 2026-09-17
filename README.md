@@ -79,6 +79,25 @@ index. Its first insert copies a borrowed initial in-memory database into owned 
 Streaming updates are not concurrent with queries. Inserts can reallocate the owned database,
 so callers should not retain a pointer returned by `getDatabase()` across them.
 
+### Range (distance-r) queries
+
+Every algorithm except Coconut's streaming-only paths answers range queries through
+`SearchConfig`. Instead of a fixed `k`, each query returns however many series fall within the
+radius, so the results come back as one vector per query:
+
+```cpp
+daisy::SearchConfig config;
+config.type = daisy::QueryType::RANGE;
+config.r = radius;                 // squared L2 distance
+
+std::vector<std::vector<daisy::idx_t>> I;
+std::vector<std::vector<float>> D;
+search.searchIndex(query, n_query, config, I, D);
+```
+
+`demos/demo_<Algorithm>_Range.cpp` shows this for each algorithm and cross-checks the returned
+sets against brute force.
+
 
 
 ## Quickstart

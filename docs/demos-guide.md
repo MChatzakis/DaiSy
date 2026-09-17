@@ -9,6 +9,14 @@ Most demos follow the same batch pattern: `buildIndex(...)` once, then `searchIn
 `demo_LbBruteforce_Streaming`, `demo_Messi_Streaming`, and `demo_Coconut_Streaming` for
 live-index examples.
 
+Range search is exposed through `SearchConfig` and is implemented by **Bruteforce**,
+**LbBruteforce**, **MESSI**, **Coconut**, **ParIS**, **Fresh**, **DumpyOS**, **Hercules**,
+**Sofa**, **Sing**, and **Odyssey**. Each one has a `demo_<Algorithm>_Range` C++ demo: set
+`config.type = daisy::QueryType::RANGE` and `config.r`, then read the per-query hit lists from
+the `std::vector<std::vector<...>>` overload of `searchIndex(...)`. Unlike top-k, a range query
+returns a variable number of unordered hits per query, so the demos compare result *sets*
+against brute force rather than positions.
+
 ## Demo Program Structure
 
 All demos are located in the [`demos/`](../demos/) directory.
@@ -21,7 +29,7 @@ Each demo can be customized by modifying:
 
 - **Dataset Size**: `n_database`, `n_query`
 - **Dimensionality**: `dim` (time series length)
-- **Search Parameters**: `k` (number of neighbors)
+- **Search Parameters**: `k` (number of neighbors), `r` (range-query radius)
 - **Algorithm Parameters**: Thread count, distance metrics, etc.
 
 ### Data Sources
