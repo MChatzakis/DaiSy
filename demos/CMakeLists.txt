@@ -44,6 +44,13 @@ if(BUILD_DEMO)
         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
     )
 
+    add_executable(demo_Bruteforce_Range demo_Bruteforce_Range.cpp)
+    target_link_libraries(demo_Bruteforce_Range PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_Bruteforce_Range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
     # ////// COCONUT (static + streaming) //////
     if(BUILD_COCONUT)
         if(DEBUG_MSG)
@@ -58,6 +65,13 @@ if(BUILD_DEMO)
         add_executable(demo_Coconut_Streaming demo_Coconut_Streaming.cpp)
         target_link_libraries(demo_Coconut_Streaming PRIVATE dino_lib commons_lib)
         target_include_directories(demo_Coconut_Streaming PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
+
+        add_executable(demo_Coconut_Range demo_Coconut_Range.cpp)
+        target_link_libraries(demo_Coconut_Range PRIVATE dino_lib commons_lib)
+        target_include_directories(demo_Coconut_Range PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/../lib
             ${CMAKE_CURRENT_SOURCE_DIR}/../commons
         )
@@ -138,6 +152,13 @@ if(BUILD_DEMO)
         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
     )
 
+    add_executable(demo_LbBruteforce_Range demo_LbBruteforce_Range.cpp)
+    target_link_libraries(demo_LbBruteforce_Range PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_LbBruteforce_Range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
     # ////// LBBRUTEFORCE DTW //////
     if(DEBUG_MSG)
         message(STATUS "---")
@@ -203,6 +224,20 @@ if(BUILD_DEMO)
     if(DEBUG_MSG)
         message(STATUS "Include directories added for demo_Messi_L2Square.")
     endif()
+
+    add_executable(demo_Messi_Streaming demo_Messi_Streaming.cpp)
+    target_link_libraries(demo_Messi_Streaming PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_Messi_Streaming PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
+    add_executable(demo_Messi_Range demo_Messi_Range.cpp)
+    target_link_libraries(demo_Messi_Range PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_Messi_Range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
 
     # ////// MESSI DTW //////
     if(DEBUG_MSG)
@@ -307,6 +342,13 @@ if(BUILD_DEMO)
             ${CMAKE_CURRENT_SOURCE_DIR}/../lib
             ${CMAKE_CURRENT_SOURCE_DIR}/../commons
         )
+
+        add_executable(demo_Odyssey_Range demo_Odyssey_Range.cpp)
+        target_link_libraries(demo_Odyssey_Range PRIVATE dino_lib commons_lib MPI::MPI_CXX)
+        target_include_directories(demo_Odyssey_Range PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
     else()
         if(DEBUG_MSG)
             message(STATUS "BUILD_ODYSSEY_AVAILABLE is FALSE. demo_Odyssey_L2Square (MPI-dependent) will NOT be built.")
@@ -379,6 +421,13 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_ParIS_DTW.")
     endif()
 
+    add_executable(demo_ParIS_Range demo_ParIS_Range.cpp)
+    target_link_libraries(demo_ParIS_Range PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_ParIS_Range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
     # ////// SING L2Square //////
     if(DEBUG_MSG)
         message(STATUS "---")
@@ -393,6 +442,13 @@ if(BUILD_DEMO)
         add_executable(demo_Sing_L2Square demo_Sing_L2Square.cpp)
         target_link_libraries(demo_Sing_L2Square PRIVATE dino_lib commons_lib)
         target_include_directories(demo_Sing_L2Square PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
+
+        add_executable(demo_Sing_Range demo_Sing_Range.cpp)
+        target_link_libraries(demo_Sing_Range PRIVATE dino_lib commons_lib)
+        target_include_directories(demo_Sing_Range PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/../lib
             ${CMAKE_CURRENT_SOURCE_DIR}/../commons
         )
@@ -435,6 +491,13 @@ if(BUILD_DEMO)
         if(DEBUG_MSG)
             message(STATUS "Include directories added for demo_Sofa_L2Square.")
         endif()
+
+        add_executable(demo_Sofa_Range demo_Sofa_Range.cpp)
+        target_link_libraries(demo_Sofa_Range PRIVATE dino_lib commons_lib)
+        target_include_directories(demo_Sofa_Range PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
     else()
         if(DEBUG_MSG)
             message(STATUS "BUILD_SOFA_AVAILABLE is FALSE. demo_Sofa_L2Square (FFTW3-dependent) will NOT be built.")
@@ -470,6 +533,13 @@ if(BUILD_DEMO)
     if(DEBUG_MSG)
         message(STATUS "Include directories added for demo_Hercules_L2Square.")
     endif()
+
+    add_executable(demo_Hercules_Range demo_Hercules_Range.cpp)
+    target_link_libraries(demo_Hercules_Range PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_Hercules_Range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
 
     # ////// DUMPYOS L2Square //////
     if(DEBUG_MSG)
@@ -531,6 +601,13 @@ if(BUILD_DEMO)
         message(STATUS "Include directories added for demo_DumpyOS_DTW.")
     endif()
 
+    add_executable(demo_DumpyOS_Range demo_DumpyOS_Range.cpp)
+    target_link_libraries(demo_DumpyOS_Range PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_DumpyOS_Range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
+
     # ////// FRESH L2Square //////
     if(DEBUG_MSG)
         message(STATUS "---")
@@ -590,6 +667,13 @@ if(BUILD_DEMO)
     if(DEBUG_MSG)
         message(STATUS "Include directories added for demo_Fresh_DTW.")
     endif()
+
+    add_executable(demo_Fresh_Range demo_Fresh_Range.cpp)
+    target_link_libraries(demo_Fresh_Range PRIVATE dino_lib commons_lib)
+    target_include_directories(demo_Fresh_Range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+    )
 
 
 else()

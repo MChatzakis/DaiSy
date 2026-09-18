@@ -89,7 +89,8 @@ namespace daisy
                                                   int paa_segments,
                                                   float minval,
                                                   float maxval,
-                                                  bool mindist_sqrt)
+                                                  bool mindist_sqrt,
+                                                  const float *bp)
     {
         return minidist_paa_to_isax_rawa_SIMD(
             const_cast<float *>(q_paa),
@@ -100,7 +101,8 @@ namespace daisy
             paa_segments,
             minval,
             maxval,
-            mindist_sqrt);
+            mindist_sqrt,
+            bp);
     }
 
     void DistanceComputer::compute_paa_from_ts(const float *ts,
@@ -149,12 +151,14 @@ namespace daisy
                                                       int number_of_segments,
                                                       int min_val,
                                                       int max_val,
-                                                      float ratio_sqrt)
+                                                      float ratio_sqrt,
+                                                      const float *bp)
     {
         return minidist_paa_to_isax(paa, sax, sax_cardinalities,
                                     max_bit_cardinality, max_cardinality,
                                     number_of_segments, min_val, max_val,
-                                    ratio_sqrt);
+                                    ratio_sqrt,
+                                    bp);
     }
 
     float DistanceComputer::wrap_minidist_paa_to_isax_raw_SIMD(float *paa, sax_type *sax,
@@ -164,12 +168,14 @@ namespace daisy
                                                                int number_of_segments,
                                                                int min_val,
                                                                int max_val,
-                                                               float ratio_sqrt)
+                                                               float ratio_sqrt,
+                                                               const float *bp)
     {
         return minidist_paa_to_isax_raw_SIMD(paa, sax, sax_cardinalities,
                                              max_bit_cardinality, max_cardinality,
                                              number_of_segments, min_val, max_val,
-                                             ratio_sqrt);
+                                             ratio_sqrt,
+                                             bp);
     }
 
     float DistanceComputer::wrap_ts_euclidean_distance(ts_type *t, ts_type *s, int size, float bound)
@@ -189,12 +195,14 @@ namespace daisy
                                                                 int number_of_segments,
                                                                 int min_val,
                                                                 int max_val,
-                                                                float ratio_sqrt)
+                                                                float ratio_sqrt,
+                                                                const float *bp)
     {
         return minidist_paa_to_isax_rawa_SIMD(paa, sax, sax_cardinalities,
                                               max_bit_cardinality, max_cardinality,
                                               number_of_segments, min_val, max_val,
-                                              ratio_sqrt);
+                                              ratio_sqrt,
+                                              bp);
     }
 
     float DistanceComputer::wrap_minidist_paa_to_isax_raw_DTW_SIMD(float *paaU, float *paaL, sax_type *sax,
@@ -204,12 +212,14 @@ namespace daisy
                                                                    int number_of_segments,
                                                                    int min_val,
                                                                    int max_val,
-                                                                   float ratio_sqrt)
+                                                                   float ratio_sqrt,
+                                                                   const float *bp)
     {
         return minidist_paa_to_isax_raw_DTW_SIMD(paaU, paaL, sax, sax_cardinalities,
                                                  max_bit_cardinality, max_cardinality,
                                                  number_of_segments, min_val, max_val,
-                                                 ratio_sqrt);
+                                                 ratio_sqrt,
+                                                 bp);
     }
 
     float DistanceComputer::wrap_lb_keogh_data_bound(float *qo, float *tu, float *tl, float *cb, int len, float bsf)
@@ -229,12 +239,14 @@ namespace daisy
                                                           int number_of_segments,
                                                           int min_val,
                                                           int max_val,
-                                                          float ratio_sqrt)
+                                                          float ratio_sqrt,
+                                                          const float *bp)
     {
         return minidist_paa_to_isax_DTW(paaU, paaL, sax, sax_cardinalities,
                                         max_bit_cardinality, max_cardinality,
                                         number_of_segments, min_val, max_val,
-                                        ratio_sqrt);
+                                        ratio_sqrt,
+                                        bp);
     }
 
     // DTW distance methods implementation

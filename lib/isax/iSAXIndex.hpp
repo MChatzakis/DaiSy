@@ -407,6 +407,15 @@ namespace daisy
 
     isax_node *isax_leaf_node_init(int initial_buffer_size);
     isax_node *isax_root_node_init(root_mask_type mask, int initial_buffer_size);
+    // Return the root node for a SAX root mask, creating and registering it in
+    // the parallel first-buffer layer when it does not exist yet. This does not
+    // append a record to the FBL, so callers with stable record storage can
+    // insert directly into the tree without invalidating existing FBL pointers.
+    isax_node *get_or_create_pRecBuf_root(parallel_first_buffer_layer *fbl,
+                                          root_mask_type mask,
+                                          isax_index *index,
+                                          pthread_mutex_t *lock_firstnode,
+                                          int total_workernumber);
     isax_node *insert_to_pRecBuf(parallel_first_buffer_layer *fbl, sax_type *sax, file_position_type *pos, root_mask_type mask, isax_index *index, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber);
     
     // EKOSMAS-specific versions for Odyssey

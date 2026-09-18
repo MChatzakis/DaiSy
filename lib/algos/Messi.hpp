@@ -5,6 +5,7 @@
 
 #include <queue>
 #include <cfloat>
+#include <memory>
 #include <omp.h>
 #include <vector>
 #include <utility>
@@ -79,6 +80,21 @@ namespace daisy
         int index_workers = 2;
         int n_pqueue = 42;
         bool owns_database = false;  // track ownership of database buffer
+        idx_t database_capacity = 0;
+        idx_t sax_cache_capacity = 0;
+
+        // Tree leaf buffers keep raw pointers to SAX words and positions. Each
+        // incremental batch therefore owns stable backing arrays for as long as
+        // the MESSI instance is alive; growing the vector only moves unique_ptrs.
+        struct IncrementalRecordBlock
+        {
+            std::unique_ptr<sax_type[]> sax;
+            std::unique_ptr<file_position_type[]> positions;
+        };
+        std::vector<IncrementalRecordBlock> incremental_record_blocks;
+
+        void reserveDatabase(idx_t required_capacity);
+        void reserveSaxCache(idx_t required_capacity);
 
         pqueue_bsf MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
         pqueue_bsf MESSI_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
@@ -102,6 +118,11 @@ namespace daisy
         {
             throw std::runtime_error("Messi requires in-memory data. Use buildIndex(database, n_database, dim) instead.");
         }
+
+        // Callers must not overlap incremental updates with searches. The
+        // breakpoints established by buildIndex remain fixed for all inserts.
+        void insert(const float *series) override;
+        void insertBatch(const float *data, idx_t n) override;
 
         void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
 
@@ -140,7 +161,7 @@ namespace daisy
         void setReadBlockLength(int n) { read_block_length = n; }
         int getWarpingWindow() const { return warping_window; }
 
-        ~Messi();
+        ~Messi() override;
     };
 
 }

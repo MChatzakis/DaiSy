@@ -3,6 +3,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cfloat>
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <new>
 #include <unordered_set>
 #include <vector>
 
@@ -28,7 +33,8 @@ namespace daisy
                                               index->settings->sax_alphabet_cardinality,
                                               index->settings->paa_segments,
                                               MINVAL, MAXVAL,
-                                              index->settings->mindist_sqrt);
+                                              index->settings->mindist_sqrt,
+                                              index->settings->breakpoints);
 
         if (distance < bsf)
         {
@@ -75,7 +81,8 @@ namespace daisy
                                                   index->settings->sax_alphabet_cardinality,
                                                   index->settings->paa_segments,
                                                   MINVAL, MAXVAL,
-                                                  index->settings->mindist_sqrt);
+                                                  index->settings->mindist_sqrt,
+                                                  index->settings->breakpoints);
         if (distance <= bsf)
         {
             if (node->is_leaf)
@@ -160,7 +167,8 @@ namespace daisy
                                                                index->settings->sax_bit_cardinality,
                                                                index->settings->sax_alphabet_cardinality,
                                                                index->settings->paa_segments, MINVAL, MAXVAL,
-                                                               index->settings->mindist_sqrt);
+                                                               index->settings->mindist_sqrt,
+                                                               index->settings->breakpoints);
                 if (distmin <= pq_bsf->knn[pq_bsf->k - 1])
                 {
                     float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
@@ -205,7 +213,8 @@ namespace daisy
                                                         index->settings->sax_bit_cardinality,
                                                         index->settings->sax_alphabet_cardinality,
                                                         index->settings->paa_segments, MINVAL, MAXVAL,
-                                                        index->settings->mindist_sqrt);
+                                                        index->settings->mindist_sqrt,
+                                                        index->settings->breakpoints);
 
             if (distmin <= bsf)
             {
@@ -526,7 +535,8 @@ namespace daisy
                                                            index->settings->sax_bit_cardinality,
                                                            index->settings->sax_alphabet_cardinality,
                                                            index->settings->paa_segments, MINVAL, MAXVAL,
-                                                           index->settings->mindist_sqrt);
+                                                           index->settings->mindist_sqrt,
+                                                           index->settings->breakpoints);
             if (distmin <= r)
             {
                 float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
@@ -637,6 +647,75 @@ namespace daisy
         this->paa_segments = config.paa_segments;
     }
 
+    void Messi::reserveDatabase(idx_t required_capacity)
+    {
+        if (required_capacity <= this->database_capacity && this->owns_database)
+            return;
+
+        idx_t new_capacity = std::max<idx_t>(this->database_capacity, 1);
+        while (new_capacity < required_capacity)
+        {
+            if (new_capacity > std::numeric_limits<idx_t>::max() / 2)
+            {
+                new_capacity = required_capacity;
+                break;
+            }
+            new_capacity *= 2;
+        }
+
+        if (this->dim == 0 ||
+            new_capacity > std::numeric_limits<size_t>::max() / this->dim)
+            throw std::length_error("Messi database is too large");
+
+        std::unique_ptr<float[]> grown_database(
+            new float[static_cast<size_t>(new_capacity) *
+                      static_cast<size_t>(this->dim)]);
+        if (this->n_database > 0)
+        {
+            std::copy_n(this->database,
+                        static_cast<size_t>(this->n_database) *
+                            static_cast<size_t>(this->dim),
+                        grown_database.get());
+        }
+
+        if (this->owns_database)
+            delete[] this->database;
+        this->database = grown_database.release();
+        this->owns_database = true;
+        this->database_capacity = new_capacity;
+    }
+
+    void Messi::reserveSaxCache(idx_t required_capacity)
+    {
+        if (required_capacity <= this->sax_cache_capacity)
+            return;
+
+        idx_t new_capacity = std::max<idx_t>(this->sax_cache_capacity, 1);
+        while (new_capacity < required_capacity)
+        {
+            if (new_capacity > std::numeric_limits<idx_t>::max() / 2)
+            {
+                new_capacity = required_capacity;
+                break;
+            }
+            new_capacity *= 2;
+        }
+
+        const size_t segments = static_cast<size_t>(this->index->settings->paa_segments);
+        if (segments == 0 ||
+            new_capacity > std::numeric_limits<size_t>::max() / segments)
+            throw std::length_error("Messi SAX cache is too large");
+
+        void *grown = std::realloc(
+            this->index->sax_cache,
+            static_cast<size_t>(new_capacity) * segments * sizeof(sax_type));
+        if (grown == nullptr)
+            throw std::bad_alloc();
+
+        this->index->sax_cache = static_cast<sax_type *>(grown);
+        this->sax_cache_capacity = new_capacity;
+    }
+
     void *indexCreationWorker(void *transferdata)
     {
         sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * ((buffer_data_inmemory *)transferdata)->index->settings->paa_segments);
@@ -740,8 +819,18 @@ namespace daisy
 
     void Messi::buildIndex(DataSource *data_source)
     {
+        if (data_source == nullptr)
+            throw std::invalid_argument("Messi::buildIndex received a null data source");
+        if (this->index != nullptr)
+            throw std::runtime_error("Messi::buildIndex may only be called once per instance");
+
         this->dim = data_source->getDim();
         this->n_database = data_source->getTotalRecords();
+
+        if (this->dim == 0)
+            throw std::invalid_argument("Messi::buildIndex requires a positive dimension");
+        if (this->index_workers < 1)
+            throw std::invalid_argument("Messi::buildIndex requires at least one index worker");
 
         if (this->n_database == 0)
         {
@@ -780,6 +869,7 @@ namespace daisy
             delete[] record;
             this->owns_database = true;
         }
+        this->database_capacity = this->n_database;
 
         this->index_settings = isax_index_settings_init("",
                                                         this->dim,
@@ -811,7 +901,12 @@ namespace daisy
         int node_counter = 0;
         pthread_t threadid[this->index_workers];
         buffer_data_inmemory *input_data = (buffer_data_inmemory *)malloc(sizeof(buffer_data_inmemory) * (this->index_workers));
-        index->sax_cache = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments * this->n_database);
+        this->sax_cache_capacity = std::max<idx_t>(this->n_database, 1);
+        index->sax_cache = (sax_type *)malloc(
+            sizeof(sax_type) * index->settings->paa_segments *
+            static_cast<size_t>(this->sax_cache_capacity));
+        if (index->sax_cache == nullptr)
+            throw std::bad_alloc();
         pthread_barrier_t lock_barrier1, lock_barrier2;
         pthread_barrier_init(&lock_barrier1, NULL, this->index_workers + 1);
         pthread_barrier_init(&lock_barrier2, NULL, this->index_workers + 1);
@@ -868,6 +963,132 @@ namespace daisy
         free(input_data);
         free(nodeid);
         free(nodesize);
+    }
+
+    void Messi::insert(const float *series)
+    {
+        insertBatch(series, 1);
+    }
+
+    void Messi::insertBatch(const float *data, idx_t n)
+    {
+        if (n == 0)
+            return;
+        if (this->index == nullptr || this->index_settings == nullptr || this->dim == 0)
+            throw std::runtime_error("Messi::insertBatch requires an initial buildIndex first");
+        if (data == nullptr)
+            throw std::invalid_argument("Messi::insertBatch received null data");
+        if (n > std::numeric_limits<idx_t>::max() - this->n_database)
+            throw std::length_error("Messi database size overflow");
+
+        const idx_t required_capacity = this->n_database + n;
+        if (required_capacity > std::numeric_limits<file_position_type>::max() / this->dim)
+            throw std::length_error("Messi position offset overflow");
+        if (required_capacity > std::numeric_limits<unsigned long>::max())
+            throw std::length_error("Messi SAX cache size overflow");
+        if (n > std::numeric_limits<size_t>::max() / this->dim)
+            throw std::length_error("Messi insert batch is too large");
+
+        const size_t current_values =
+            static_cast<size_t>(this->n_database) * static_cast<size_t>(this->dim);
+        const size_t inserted_values =
+            static_cast<size_t>(n) * static_cast<size_t>(this->dim);
+        const uintptr_t database_begin = reinterpret_cast<uintptr_t>(this->database);
+        const uintptr_t database_end =
+            database_begin + current_values * sizeof(float);
+        const uintptr_t data_address = reinterpret_cast<uintptr_t>(data);
+        const bool aliases_database =
+            current_values > 0 && data_address >= database_begin && data_address < database_end;
+        size_t source_offset = 0;
+        if (aliases_database)
+        {
+            const uintptr_t byte_offset = data_address - database_begin;
+            if (byte_offset % sizeof(float) != 0)
+                throw std::invalid_argument("Messi::insertBatch received an unaligned database pointer");
+            source_offset = static_cast<size_t>(byte_offset / sizeof(float));
+            if (inserted_values > current_values - source_offset)
+                throw std::invalid_argument("Messi::insertBatch source exceeds the live database");
+        }
+
+        // MESSI may initially borrow a caller-owned contiguous buffer. The first
+        // update converts that view to owned, growable storage without rebuilding
+        // the tree; existing position offsets remain valid after the copy.
+        reserveDatabase(required_capacity);
+        reserveSaxCache(required_capacity);
+        const float *source_data = aliases_database ? this->database + source_offset : data;
+
+        const size_t segments = static_cast<size_t>(this->index->settings->paa_segments);
+        if (n > std::numeric_limits<size_t>::max() / segments)
+            throw std::length_error("Messi SAX insert batch is too large");
+
+        IncrementalRecordBlock block;
+        block.sax = std::make_unique<sax_type[]>(static_cast<size_t>(n) * segments);
+        block.positions = std::make_unique<file_position_type[]>(static_cast<size_t>(n));
+
+        activateBreakpoints();
+        for (idx_t i = 0; i < n; ++i)
+        {
+            sax_type *sax = block.sax.get() + static_cast<size_t>(i) * segments;
+            const float *series = source_data + static_cast<size_t>(i) * this->dim;
+            if (!this->distance_computer->compute_sax_from_ts(
+                    series,
+                    sax,
+                    this->index->settings->ts_values_per_paa_segment,
+                    this->index->settings->paa_segments,
+                    this->index->settings->sax_alphabet_cardinality,
+                    this->index->settings->sax_bit_cardinality))
+                throw std::runtime_error("Messi::insertBatch failed to compute SAX representation");
+
+            block.positions[static_cast<size_t>(i)] =
+                static_cast<file_position_type>(this->n_database + i) * this->dim;
+        }
+
+        // Resolve every destination root before inserting any record. New roots
+        // are registered in the FBL lookup used by MESSI's approximate search,
+        // but the records themselves stay in the stable block above.
+        std::vector<isax_node *> roots(static_cast<size_t>(n));
+        pthread_mutex_t lock_firstnode = PTHREAD_MUTEX_INITIALIZER;
+        auto *fbl = reinterpret_cast<parallel_first_buffer_layer *>(this->index->fbl);
+        for (idx_t i = 0; i < n; ++i)
+        {
+            sax_type *sax = block.sax.get() + static_cast<size_t>(i) * segments;
+            root_mask_type root_mask = 0;
+            CREATE_MASK(root_mask, this->index, sax);
+            roots[static_cast<size_t>(i)] = get_or_create_pRecBuf_root(
+                fbl, root_mask, this->index, &lock_firstnode, this->index_workers);
+            if (roots[static_cast<size_t>(i)] == nullptr)
+            {
+                pthread_mutex_destroy(&lock_firstnode);
+                throw std::bad_alloc();
+            }
+        }
+        pthread_mutex_destroy(&lock_firstnode);
+
+        this->incremental_record_blocks.reserve(
+            this->incremental_record_blocks.size() + 1);
+        this->incremental_record_blocks.push_back(std::move(block));
+        IncrementalRecordBlock &stored = this->incremental_record_blocks.back();
+
+        std::copy_n(source_data,
+                    inserted_values,
+                    this->database + static_cast<size_t>(this->n_database) * this->dim);
+        std::copy_n(stored.sax.get(),
+                    static_cast<size_t>(n) * segments,
+                    this->index->sax_cache + static_cast<size_t>(this->n_database) * segments);
+
+        for (idx_t i = 0; i < n; ++i)
+        {
+            isax_node_record record{};
+            record.sax = stored.sax.get() + static_cast<size_t>(i) * segments;
+            record.position = stored.positions.get() + static_cast<size_t>(i);
+            record.ts = nullptr;
+            record.insertion_mode = static_cast<insertion_mode>(NO_TMP | PARTIAL);
+            add_record_to_node(this->index, roots[static_cast<size_t>(i)], &record, 1);
+        }
+
+        this->n_database = required_capacity;
+        this->index->total_records += n;
+        this->index->sax_cache_size = static_cast<unsigned long>(required_capacity);
     }
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
@@ -1358,6 +1579,8 @@ namespace daisy
 
         if (index_settings != nullptr)
         {
+            if (daisy_active_breakpoints == index_settings->breakpoints)
+                set_active_breakpoints(nullptr, nullptr);
             if (index_settings->bit_masks != nullptr)
             {
                 free(index_settings->bit_masks);
@@ -1366,6 +1589,8 @@ namespace daisy
             {
                 free(index_settings->max_sax_cardinalities);
             }
+            free(index_settings->breakpoints_owned);
+            free(index_settings->breakpoints_max_owned);
             free(index_settings);
         }
     }

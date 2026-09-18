@@ -4,9 +4,18 @@ The demos module provides practical examples of how to use the DaiSy library's a
 Each demo illustrates a specific algorithm or specific distance metric. This module includes both C++ and Python implementations for various algorithms and use cases.
 
 Most demos follow the same batch pattern: `buildIndex(...)` once, then `searchIndex(...)`.
-**Bruteforce**, **LbBruteforce**, and **Coconut** additionally support streaming through
+**Bruteforce**, **LbBruteforce**, **MESSI**, and **Coconut** additionally support streaming through
 `insert(...)` and `insertBatch(...)`. See `demo_Bruteforce_Streaming`,
-`demo_LbBruteforce_Streaming`, and `demo_Coconut_Streaming` for live-index examples.
+`demo_LbBruteforce_Streaming`, `demo_Messi_Streaming`, and `demo_Coconut_Streaming` for
+live-index examples.
+
+Range search is exposed through `SearchConfig` and is implemented by **Bruteforce**,
+**LbBruteforce**, **MESSI**, **Coconut**, **ParIS**, **Fresh**, **DumpyOS**, **Hercules**,
+**Sofa**, **Sing**, and **Odyssey**. Each one has a `demo_<Algorithm>_Range` C++ demo: set
+`config.type = daisy::QueryType::RANGE` and `config.r`, then read the per-query hit lists from
+the `std::vector<std::vector<...>>` overload of `searchIndex(...)`. Unlike top-k, a range query
+returns a variable number of unordered hits per query, so the demos compare result *sets*
+against brute force rather than positions.
 
 ## Demo Program Structure
 
@@ -20,7 +29,7 @@ Each demo can be customized by modifying:
 
 - **Dataset Size**: `n_database`, `n_query`
 - **Dimensionality**: `dim` (time series length)
-- **Search Parameters**: `k` (number of neighbors)
+- **Search Parameters**: `k` (number of neighbors), `r` (range-query radius)
 - **Algorithm Parameters**: Thread count, distance metrics, etc.
 
 ### Data Sources

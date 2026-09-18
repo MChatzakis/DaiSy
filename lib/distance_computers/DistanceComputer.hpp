@@ -90,7 +90,8 @@ namespace daisy
                                     int paa_segments,
                                     float minval,
                                     float maxval,
-                                    bool mindist_sqrt);
+                                    bool mindist_sqrt,
+                                    const float *bp = nullptr);
 
         void compute_paa_from_ts(const float *ts,
                                  ts_type *paa,
@@ -117,7 +118,8 @@ namespace daisy
                                         int number_of_segments,
                                         int min_val,
                                         int max_val,
-                                        float ratio_sqrt);
+                                        float ratio_sqrt,
+                                        const float *bp = nullptr);
 
         float wrap_minidist_paa_to_isax_raw_SIMD(float *paa, sax_type *sax,
                                                  sax_type *sax_cardinalities,
@@ -126,7 +128,8 @@ namespace daisy
                                                  int number_of_segments,
                                                  int min_val,
                                                  int max_val,
-                                                 float ratio_sqrt);
+                                                 float ratio_sqrt,
+                                                 const float *bp = nullptr);
 
         float wrap_ts_euclidean_distance(ts_type *t, ts_type *s, int size, float bound);
 
@@ -139,7 +142,8 @@ namespace daisy
                                                   int number_of_segments,
                                                   int min_val,
                                                   int max_val,
-                                                  float ratio_sqrt);
+                                                  float ratio_sqrt,
+                                                  const float *bp = nullptr);
 
         float wrap_minidist_paa_to_isax_raw_DTW_SIMD(float *paaU, float *paaL, sax_type *sax,
                                                      sax_type *sax_cardinalities,
@@ -148,7 +152,8 @@ namespace daisy
                                                      int number_of_segments,
                                                      int min_val,
                                                      int max_val,
-                                                     float ratio_sqrt);
+                                                     float ratio_sqrt,
+                                                     const float *bp = nullptr);
 
         float wrap_lb_keogh_data_bound(float *qo, float *tu, float *tl, float *cb, int len, float bsf);
 
@@ -161,7 +166,8 @@ namespace daisy
                                             int number_of_segments,
                                             int min_val,
                                             int max_val,
-                                            float ratio_sqrt);
+                                            float ratio_sqrt,
+                                            const float *bp = nullptr);
     };
 
 } // namespace daisy

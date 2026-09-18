@@ -355,6 +355,10 @@ namespace daisy
         {
             fbl->soft_buffers[i].initialized = 0;
             fbl->soft_buffers[i].finished = 0;
+            fbl->soft_buffers[i].node = NULL;
+            fbl->soft_buffers[i].sax_records = NULL;
+            fbl->soft_buffers[i].pos_records = NULL;
+            fbl->soft_buffers[i].max_buffer_size = NULL;
             fbl->soft_buffers[i].buffer_size = NULL;
         }
         return fbl;
@@ -572,6 +576,68 @@ namespace daisy
         return node;
     }
 
+    isax_node *get_or_create_pRecBuf_root(parallel_first_buffer_layer *fbl,
+                                          root_mask_type mask,
+                                          isax_index *index,
+                                          pthread_mutex_t *lock_firstnode,
+                                          int total_workernumber)
+    {
+        parallel_fbl_soft_buffer *current_buffer = &fbl->soft_buffers[(int)mask];
+        if (current_buffer->initialized)
+            return current_buffer->node;
+
+        pthread_mutex_lock(lock_firstnode);
+        if (!current_buffer->initialized)
+        {
+            current_buffer->max_buffer_size =
+                (int *)calloc((size_t)total_workernumber, sizeof(int));
+            current_buffer->buffer_size =
+                (int *)calloc((size_t)total_workernumber, sizeof(int));
+            current_buffer->sax_records =
+                (sax_type **)calloc((size_t)total_workernumber, sizeof(sax_type *));
+            current_buffer->pos_records =
+                (file_position_type **)calloc((size_t)total_workernumber,
+                                              sizeof(file_position_type *));
+            current_buffer->node =
+                isax_root_node_init(mask, index->settings->initial_leaf_buffer_size);
+
+            if (current_buffer->max_buffer_size == NULL ||
+                current_buffer->buffer_size == NULL ||
+                current_buffer->sax_records == NULL ||
+                current_buffer->pos_records == NULL ||
+                current_buffer->node == NULL)
+            {
+                free(current_buffer->max_buffer_size);
+                free(current_buffer->buffer_size);
+                free(current_buffer->sax_records);
+                free(current_buffer->pos_records);
+                if (current_buffer->node != NULL)
+                {
+                    destroy_node_buffer(current_buffer->node->buffer);
+                    free(current_buffer->node);
+                }
+                current_buffer->max_buffer_size = NULL;
+                current_buffer->buffer_size = NULL;
+                current_buffer->sax_records = NULL;
+                current_buffer->pos_records = NULL;
+                current_buffer->node = NULL;
+                pthread_mutex_unlock(lock_firstnode);
+                return NULL;
+            }
+
+            current_buffer->node->is_leaf = 1;
+            current_buffer->node->previous = NULL;
+            current_buffer->node->next = index->first_node;
+            if (index->first_node != NULL)
+                index->first_node->previous = current_buffer->node;
+            index->first_node = current_buffer->node;
+            current_buffer->initialized = 1;
+            __sync_fetch_and_add(&(index->root_nodes), 1);
+        }
+        pthread_mutex_unlock(lock_firstnode);
+        return current_buffer->node;
+    }
+
     isax_node *insert_to_pRecBuf(parallel_first_buffer_layer *fbl, sax_type *sax,
                                  file_position_type *pos, root_mask_type mask,
                                  isax_index *index, pthread_mutex_t *lock_firstnode, int workernumber, int total_workernumber)
@@ -583,50 +649,10 @@ namespace daisy
 
         int current_buffer_number;
         // char *cd_s, *cd_p;
-        //  Check if this buffer is initialized
-
-        if (!current_buffer->initialized)
-        {
-            pthread_mutex_lock(lock_firstnode);
-            if (!current_buffer->initialized)
-            {
-
-                current_buffer->max_buffer_size = (int *)malloc(sizeof(int) * total_workernumber);
-                current_buffer->buffer_size = (int *)malloc(sizeof(int) * total_workernumber);
-                current_buffer->sax_records = (sax_type **)malloc(sizeof(sax_type *) * total_workernumber);
-                current_buffer->pos_records = (file_position_type **)malloc(sizeof(file_position_type *) * total_workernumber);
-                for (int i = 0; i < total_workernumber; i++)
-                {
-                    current_buffer->max_buffer_size[i] = 0;
-                    current_buffer->buffer_size[i] = 0;
-                    current_buffer->pos_records[i] = NULL;
-                    current_buffer->sax_records[i] = NULL;
-                }
-                current_buffer->node = isax_root_node_init(mask, index->settings->initial_leaf_buffer_size);
-                current_buffer->node->is_leaf = 1;
-                current_buffer->initialized = 1;
-                if (index->first_node == NULL)
-                {
-                    index->first_node = current_buffer->node;
-                    pthread_mutex_unlock(lock_firstnode);
-                    current_buffer->node->next = NULL;
-                    current_buffer->node->previous = NULL;
-                }
-                else
-                {
-                    isax_node *prev_first = index->first_node;
-                    index->first_node = current_buffer->node;
-                    index->first_node->next = prev_first;
-                    prev_first->previous = current_buffer->node;
-                    pthread_mutex_unlock(lock_firstnode);
-                }
-                __sync_fetch_and_add(&(index->root_nodes), 1);
-            }
-            else
-            {
-                pthread_mutex_unlock(lock_firstnode);
-            }
-        }
+        // Check if this buffer is initialized.
+        if (get_or_create_pRecBuf_root(fbl, mask, index, lock_firstnode,
+                                      total_workernumber) == NULL)
+            return NULL;
 
         // Check if this buffer is not full!
         if (current_buffer->buffer_size[workernumber] >= current_buffer->max_buffer_size[workernumber])

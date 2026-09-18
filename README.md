@@ -48,7 +48,7 @@ The following table summarizes the key features of each algorithm:
 |-----------|-------------|
 | **Bruteforce** | Naive parallel similarity search implementation with incremental streaming inserts |
 | **Lower Bound Bruteforce** | Optimized bruteforce with lower bounding and incremental streaming inserts |
-| **[MESSI](https://helios2.mi.parisdescartes.fr/~themisp/messi/)** | In-memory parallel similarity search |
+| **[MESSI](https://helios2.mi.parisdescartes.fr/~themisp/messi/)** | In-memory parallel similarity search with incremental iSAX-tree inserts |
 | **[PARIS](https://helios2.mi.parisdescartes.fr/~themisp/paris/)** | Disk-based parallel similarity search |
 | **[SING](https://helios2.mi.parisdescartes.fr/~themisp/sing/)** | GPU-accelerated in-memory parallel similarity search |
 | **[Odyssey](https://helios2.mi.parisdescartes.fr/~themisp/odyssey/)** | Distributed and parallel in-memory similarity search |
@@ -60,20 +60,43 @@ The following table summarizes the key features of each algorithm:
 
 ### Incremental streaming inserts
 
-`BruteForceSearch`, `LbBruteforce`, and `Coconut` implement the common streaming API. Build
+`BruteForceSearch`, `LbBruteforce`, `Messi`, and `Coconut` implement the common streaming API. Build
 the initial index once, then append one series or a contiguous batch without rebuilding:
 
 ```cpp
-daisy::BruteForceSearch search(daisy::DistanceType::L2_SQUARED);
+daisy::Messi search(daisy::DistanceType::L2_SQUARED);
 search.buildIndex(initial_data, initial_size, dim);
 search.insert(one_series);
 search.insertBatch(batch_data, batch_size);
 ```
 
 Inserted series receive consecutive IDs beginning at the size of the initial database and are
-immediately visible to top-k and range searches. `LbBruteforce` computes a SAX summary for each
-insert using the breakpoints established during the initial build. Inserts can reallocate the
-owned database, so callers should not retain a pointer returned by `getDatabase()` across them.
+immediately visible to supported top-k and range searches. `LbBruteforce` and `Messi` compute a
+SAX summary for each insert using the breakpoints established during the initial build. MESSI
+routes each new summary into the live iSAX tree and splits full leaves without rebuilding the
+index. Its first insert copies a borrowed initial in-memory database into owned growable storage.
+
+Streaming updates are not concurrent with queries. Inserts can reallocate the owned database,
+so callers should not retain a pointer returned by `getDatabase()` across them.
+
+### Range (distance-r) queries
+
+Every algorithm except Coconut's streaming-only paths answers range queries through
+`SearchConfig`. Instead of a fixed `k`, each query returns however many series fall within the
+radius, so the results come back as one vector per query:
+
+```cpp
+daisy::SearchConfig config;
+config.type = daisy::QueryType::RANGE;
+config.r = radius;                 // squared L2 distance
+
+std::vector<std::vector<daisy::idx_t>> I;
+std::vector<std::vector<float>> D;
+search.searchIndex(query, n_query, config, I, D);
+```
+
+`demos/demo_<Algorithm>_Range.cpp` shows this for each algorithm and cross-checks the returned
+sets against brute force.
 
 
 
@@ -195,6 +218,7 @@ cd build
 ./benchmark/bm_bruteforce_L2Square
 ./benchmark/bm_LbBruteforce_L2Square
 ./benchmark/bm_Messi_L2Square
+./benchmark/bm_Messi_Streaming
 
 # Advanced algorithms (if available)
 ./benchmark/bm_Odyssey_L2Square    # MPI required
@@ -214,8 +238,6 @@ It is provided with no warranty, and we encourage contributions from the communi
 DaiSy licensed under the [MIT License](LICENSE).
 
 For questions and suggestions through mail, you can contact us at [manos.chatzaki@gmail.com](mailto:manos.chatzaki@gmail.com).-->
-
-
 
 
 
