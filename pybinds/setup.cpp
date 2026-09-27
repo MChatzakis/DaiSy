@@ -32,6 +32,9 @@
     #include "../lib/algos/Sofa.hpp"
     #endif
 #endif
+#ifdef FAISS_ENABLED
+#include "../lib/algos/Faiss.hpp"
+#endif
 
 // Define a Python module named 'daisy._core'
 PYBIND11_MODULE(_core, m)
@@ -139,6 +142,83 @@ PYBIND11_MODULE(_core, m)
             std::vector<std::vector<float>> D;
             self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
             return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
+
+    ////// FAISS //////
+#ifdef FAISS_ENABLED
+    pybind11::class_<daisy::FaissFlat>(m, "FaissFlat",
+                                       "Exact similarity search backed by faiss::IndexFlatL2 "
+                                       "(static build + streaming insert). L2_SQUARED only.")
+        .def(pybind11::init<daisy::DistanceType>(),
+             "Create a new FaissFlat. Only DistanceType.L2_SQUARED is supported; DTW raises.")
+
+        .def("setNumThreads", &daisy::FaissFlat::setNumThreads, "Set the number of threads to use")
+        .def("getNumThreads", &daisy::FaissFlat::getNumThreads, "Get the number of threads")
+        .def("getNDatabase", &daisy::FaissFlat::getNDatabase, "Number of series currently indexed")
+        .def("getDim", &daisy::FaissFlat::getDim, "Dimension of the indexed series")
+
+        .def("buildIndex", [](daisy::FaissFlat &self, pybind11::array_t<float> db)
+             {
+            pybind11::buffer_info buf = db.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("Database array must be 2D");
+
+            daisy::idx_t n = buf.shape[0];
+            daisy::idx_t d = buf.shape[1];
+
+            daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
+            self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
+
+        // Streaming: FAISS flat appends with no retraining, so the index stays exact.
+        .def("insert", [](daisy::FaissFlat &self, pybind11::array_t<float> series)
+             {
+            pybind11::buffer_info buf = series.request();
+            if (buf.ndim != 1)
+                throw std::runtime_error("insert expects a 1D float32 array");
+            if (self.getDim() != 0 && static_cast<daisy::idx_t>(buf.shape[0]) != self.getDim())
+                throw std::runtime_error("insert series dimension does not match the index dimension");
+            self.insert(static_cast<float *>(buf.ptr)); }, "Incrementally insert one series into the live index")
+
+        .def("insertBatch", [](daisy::FaissFlat &self, pybind11::array_t<float> batch)
+             {
+            pybind11::buffer_info buf = batch.request();
+            if (buf.ndim != 2)
+                throw std::runtime_error("insertBatch expects a 2D float32 array");
+            if (self.getDim() != 0 && static_cast<daisy::idx_t>(buf.shape[1]) != self.getDim())
+                throw std::runtime_error("insertBatch series dimension does not match the index dimension");
+            self.insertBatch(static_cast<float *>(buf.ptr), buf.shape[0]); }, "Incrementally insert a batch of series into the live index")
+
+        .def("searchIndex", [](daisy::FaissFlat &self, pybind11::array_t<float> query, daisy::idx_t k)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            if (k <= 0)
+                throw std::runtime_error("k must be positive");
+
+            daisy::idx_t n_query = query_buf.shape[0];
+
+            std::vector<daisy::idx_t> indices(n_query * k);
+            std::vector<float> distances(n_query * k);
+
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, k,
+                             indices.data(), distances.data());
+
+            return pybind11::make_tuple(
+                pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
+                pybind11::array_t<float>({n_query, k}, distances.data())
+            ); }, "Search the index with queries and return (indices, distances)")
+
+        .def("searchIndex", [](daisy::FaissFlat &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+             {
+            pybind11::buffer_info query_buf = query.request();
+            if (query_buf.ndim != 2)
+                throw std::runtime_error("Query array must be 2D");
+            daisy::idx_t n_query = query_buf.shape[0];
+            std::vector<std::vector<daisy::idx_t>> I;
+            std::vector<std::vector<float>> D;
+            self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
+            return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
+#endif
 
     ////// LBBRUTEFORCE //////
     pybind11::class_<daisy::LbBruteforce>(m, "LbBruteforce", "Lower Bound brute-force similarity search")

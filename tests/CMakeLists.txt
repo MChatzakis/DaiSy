@@ -90,6 +90,18 @@ target_include_directories(test_Bruteforce_Streaming PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
 gtest_discover_tests(test_Bruteforce_Streaming WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
+# ////// FAISS Streaming (requires BUILD_FAISS) //////
+if(BUILD_FAISS AND BUILD_FAISS_AVAILABLE)
+    add_executable(test_Faiss_Streaming test_Faiss_Streaming.cpp)
+    target_link_libraries(test_Faiss_Streaming PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+    target_include_directories(test_Faiss_Streaming PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+    gtest_discover_tests(test_Faiss_Streaming WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+elseif(DEBUG_MSG)
+    message(STATUS "BUILD_FAISS is OFF or FAISS unavailable. Skipping test_Faiss_Streaming.")
+endif()
+
 # # ////// BRUTEFORCE DTW ////// 
 #  if(DEBUG_MSG)
 #      message(STATUS "---")

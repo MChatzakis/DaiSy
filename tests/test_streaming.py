@@ -6,13 +6,23 @@ import numpy as np
 
 from daisy import BruteForceSearch, DistanceType, LbBruteforce, Messi
 
+# FaissFlat is only bound when DaiSy was built with BUILD_FAISS=ON.
+try:
+    from daisy import FaissFlat
+except ImportError:
+    FaissFlat = None
+
+STREAMING_ALGORITHMS = [BruteForceSearch, LbBruteforce, Messi]
+if FaissFlat is not None:
+    STREAMING_ALGORITHMS.append(FaissFlat)
+
 
 class StreamingBindingsTest(unittest.TestCase):
     def test_streaming_algorithms(self):
         rng = np.random.default_rng(123)
         data = rng.normal(size=(8, 32)).astype(np.float32)
 
-        for algorithm in (BruteForceSearch, LbBruteforce, Messi):
+        for algorithm in STREAMING_ALGORITHMS:
             with self.subTest(algorithm=algorithm.__name__):
                 index = algorithm(DistanceType.L2_SQUARED)
                 if algorithm is Messi:
@@ -36,7 +46,7 @@ class StreamingBindingsTest(unittest.TestCase):
                 self.assertAlmostEqual(float(distances[0, 0]), 0.0, places=6)
 
     def test_dimension_validation(self):
-        for algorithm in (BruteForceSearch, LbBruteforce, Messi):
+        for algorithm in STREAMING_ALGORITHMS:
             with self.subTest(algorithm=algorithm.__name__):
                 index = algorithm(DistanceType.L2_SQUARED)
                 if algorithm is Messi:

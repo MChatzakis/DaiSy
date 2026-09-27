@@ -4,10 +4,11 @@ The demos module provides practical examples of how to use the DaiSy library's a
 Each demo illustrates a specific algorithm or specific distance metric. This module includes both C++ and Python implementations for various algorithms and use cases.
 
 Most demos follow the same batch pattern: `buildIndex(...)` once, then `searchIndex(...)`.
-**Bruteforce**, **LbBruteforce**, **MESSI**, and **Coconut** additionally support streaming through
-`insert(...)` and `insertBatch(...)`. See `demo_Bruteforce_Streaming`,
-`demo_LbBruteforce_Streaming`, `demo_Messi_Streaming`, and `demo_Coconut_Streaming` for
-live-index examples.
+**Bruteforce**, **LbBruteforce**, **MESSI**, **Coconut**, and **FaissFlat** additionally support
+streaming through `insert(...)` and `insertBatch(...)`. See `demo_Bruteforce_Streaming`,
+`demo_LbBruteforce_Streaming`, `demo_Messi_Streaming`, `demo_Coconut_Streaming`, and
+`demo_Faiss_Streaming` for live-index examples. `demo_Faiss_Streaming` is only built with
+`-DBUILD_FAISS=ON`, and its Python counterpart skips itself when the binding is absent.
 
 Range search is exposed through `SearchConfig` and is implemented by **Bruteforce**,
 **LbBruteforce**, **MESSI**, **Coconut**, **ParIS**, **Fresh**, **DumpyOS**, **Hercules**,
