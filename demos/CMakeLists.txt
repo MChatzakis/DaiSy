@@ -51,6 +51,18 @@ if(BUILD_DEMO)
         ${CMAKE_CURRENT_SOURCE_DIR}/../commons
     )
 
+    # ////// FAISS (streaming baseline, requires BUILD_FAISS) //////
+    if(BUILD_FAISS AND BUILD_FAISS_AVAILABLE)
+        add_executable(demo_Faiss_Streaming demo_Faiss_Streaming.cpp)
+        target_link_libraries(demo_Faiss_Streaming PRIVATE dino_lib commons_lib)
+        target_include_directories(demo_Faiss_Streaming PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+            ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+        )
+    elseif(DEBUG_MSG)
+        message(STATUS "BUILD_FAISS is OFF or FAISS unavailable. Skipping demo_Faiss_Streaming.")
+    endif()
+
     # ////// COCONUT (static + streaming) //////
     if(BUILD_COCONUT)
         if(DEBUG_MSG)

@@ -15,6 +15,12 @@ if(DEBUG_MSG)
     message(STATUS "FetchContent module included.")
 endif()
 
+# Google Benchmark's own test suite wants a googletest checkout nested inside its
+# source tree, which FetchContent does not provide. We only need the library, so
+# keep its self-tests off or configuration fails before FAISS is even reached.
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
   benchmark
   GIT_REPOSITORY https://github.com/google/benchmark.git
@@ -42,13 +48,12 @@ if(DEBUG_MSG)
     message(STATUS "GoogleTest fetched and available.")
 endif()
 
-# ====== FAISS (CPU-only) for benchmarks ======
-set(FAISS_ENABLE_GPU OFF CACHE BOOL "" FORCE)
-set(FAISS_ENABLE_PYTHON OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(FAISS_ENABLE_EXTRAS OFF CACHE BOOL "" FORCE)
-set(FAISS_ENABLE_C_API OFF CACHE BOOL "" FORCE)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/faiss ${CMAKE_CURRENT_BINARY_DIR}/faiss)
+# FAISS is configured once by the root CMakeLists (it is shared with the
+# daisy::FaissFlat algorithm) and exposes BUILD_FAISS_AVAILABLE. The FAISS
+# benchmarks below are skipped when it could not be configured.
+if(NOT BUILD_FAISS_AVAILABLE AND DEBUG_MSG)
+    message(STATUS "BUILD_FAISS_AVAILABLE is FALSE. Skipping FAISS benchmarks.")
+endif()
 
 # ////// BRUTEFORCE //////
 if(DEBUG_MSG)
@@ -221,7 +226,9 @@ target_include_directories(bm_Messi_Streaming
     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
 )
 
-# ////// FAISS FLAT //////
+# ////// FAISS FLAT + FAISS STREAMING //////
+if(BUILD_FAISS_AVAILABLE)
+
 if(DEBUG_MSG)
     message(STATUS "---")
     message(STATUS "## Benchmark: FAISS Flat L2Square")
@@ -248,6 +255,23 @@ target_include_directories(bm_FaissFlat_L2Square
     ${CMAKE_CURRENT_SOURCE_DIR}/../lib
     ${CMAKE_CURRENT_SOURCE_DIR}/../commons
 )
+
+# ////// FAISS STREAMING //////
+if(DEBUG_MSG)
+    message(STATUS "---")
+    message(STATUS "## Benchmark: FAISS Streaming")
+endif()
+
+add_executable(bm_Faiss_Streaming bm_Faiss_Streaming.cpp)
+
+target_link_libraries(bm_Faiss_Streaming
+    PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    faiss
+)
+
+endif() # BUILD_FAISS_AVAILABLE
 
 # ////// PARIS //////
 if(DEBUG_MSG)
