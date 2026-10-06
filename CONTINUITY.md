@@ -58,6 +58,7 @@ From the current source tree and public includes, the main algorithm set include
 - `Hercules`
 - `DumpyOS`
 - `Fresh`
+- `FaissFlat` (optional, `BUILD_FAISS`)
 
 These algorithms do not all share the same dependency profile or feature set.
 
@@ -65,13 +66,21 @@ These algorithms do not all share the same dependency profile or feature set.
 
 - Top-k search is the baseline capability.
 - Range search is modeled through `SearchConfig` and is not universally implemented.
-- Streaming insert is implemented by `BruteForceSearch`, `LbBruteforce`, `Messi`, and `Coconut`;
-  the base implementation still throws for algorithms that do not support it.
+- Streaming insert is implemented by `BruteForceSearch`, `LbBruteforce`, `Messi`, `Coconut`, and
+  `FaissFlat`; the base implementation still throws for algorithms that do not support it.
 - Bruteforce streaming grows the owned in-memory database incrementally. LbBruteforce also
   computes SAX summaries incrementally, using the breakpoint set fixed by the initial build.
 - MESSI uses those fixed breakpoints to route stable SAX/position records into its live iSAX
   tree, including new-root creation and leaf splitting. Callers must serialize inserts and
   queries; simultaneous update/search is not supported.
+- `FaissFlat` wraps `faiss::IndexFlatL2` and is the streaming baseline: `add()` appends with no
+  training and no rebuild, so it has no build-time state that can drift from the live data and
+  stays exact after every insert. It is `L2_SQUARED` only and rejects DTW in its constructor.
+  Its inherited `database` pointer is a non-owning view into FAISS storage, refreshed after every
+  build and insert; it must never be freed by DaiSy.
+- FAISS range search keeps only `dist < radius` while DaiSy's convention is `dist <= r`, so
+  `FaissFlat` widens the radius by one float and filters the result to restore the inclusive
+  boundary. FAISS also returns range hits unsorted; DaiSy sorts them by distance.
 - `setNormalized(bool)` is a declaration about the input data, not a preprocessing step.
 - Data can come from in-memory arrays or file-backed sources via `DataSource`.
 
@@ -91,6 +100,7 @@ Important options:
 - `BUILD_SING`
 - `BUILD_SOFA`
 - `BUILD_COCONUT`
+- `BUILD_FAISS`
 
 Current optional dependency model:
 
@@ -98,6 +108,10 @@ Current optional dependency model:
 - CUDA gates `Sing`
 - FFTW3 gates `Sofa`
 - Coconut can be fully toggled off
+- The `benchmark/faiss` submodule gates `FaissFlat` and the FAISS benchmarks. FAISS requires
+  CMake >= 3.24, above this project's floor of 3.16; the root `CMakeLists.txt` checks the version
+  and warns instead of letting the submodule abort configuration. FAISS is added exactly once,
+  at the root, and shared by `dino_lib` and the benchmarks via `BUILD_FAISS_AVAILABLE`.
 
 Backward-compatibility option aliases exist for some old names such as MPI and CUDA toggles.
 

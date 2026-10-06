@@ -41,6 +41,7 @@ option(ODYSSEY_DEBUG_RESULTS "Print Odyssey search results (query_result) for de
 option(BUILD_SING "Enable CUDA support" OFF)
 option(BUILD_SOFA "Build SOFA with FFTW3 support" OFF)
 option(BUILD_COCONUT "Build the COCONUT sortable-SAX algorithm (static + streaming)" ON)
+option(BUILD_FAISS "Build the FAISS-backed baseline algorithm (static + streaming)" OFF)
 
 # Backward compatibility: ENABLE_MPI and ODYSSEY_MPI map to BUILD_ODYSSEY
 if(DEFINED ENABLE_MPI)
@@ -76,6 +77,7 @@ message(STATUS "  BUILD_ODYSSEY: ${BUILD_ODYSSEY}")
 message(STATUS "  ODYSSEY_DEBUG_RESULTS: ${ODYSSEY_DEBUG_RESULTS}")
 message(STATUS "  BUILD_SING: ${BUILD_SING}")
 message(STATUS "  BUILD_COCONUT: ${BUILD_COCONUT}")
+message(STATUS "  BUILD_FAISS: ${BUILD_FAISS}")
 
 # Define PROJECT_ROOT_DIR for all targets (paramSetup.cpp is compiled by commons_lib and by benchmark executables)
 get_filename_component(PROJECT_ROOT_DIR "${CMAKE_SOURCE_DIR}" ABSOLUTE)
@@ -247,6 +249,49 @@ endif()
 if(BUILD_TESTS)
   include(CTest)
   enable_testing()
+endif()
+
+# ====== FAISS (CPU-only) ======
+# FAISS ships as a submodule under benchmark/faiss. Two things need it: the FAISS
+# benchmark competitors, and the daisy::FaissFlat algorithm when BUILD_FAISS is ON.
+# It is added here, once, so both consumers share a single 'faiss' target.
+#
+# FAISS requires CMake >= 3.24, above this project's floor of 3.16. That is checked
+# explicitly: otherwise configuring with BUILD_BENCHMARK=ON aborts inside the
+# submodule with an error that does not say which dependency asked for 3.24.
+set(BUILD_FAISS_AVAILABLE FALSE CACHE INTERNAL "Internal flag indicating if FAISS is available.")
+
+if(BUILD_FAISS OR BUILD_BENCHMARK)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/faiss/CMakeLists.txt")
+        message(WARNING
+            "FAISS sources not found at benchmark/faiss. FAISS targets will NOT be built. "
+            "Fetch them with: git submodule update --init benchmark/faiss")
+    elseif(CMAKE_VERSION VERSION_LESS 3.24)
+        message(WARNING
+            "FAISS requires CMake >= 3.24 but this is CMake ${CMAKE_VERSION}. "
+            "FAISS targets will NOT be built. Install a newer CMake to enable them.")
+    else()
+        set(FAISS_ENABLE_GPU OFF CACHE BOOL "" FORCE)
+        set(FAISS_ENABLE_PYTHON OFF CACHE BOOL "" FORCE)
+        set(FAISS_ENABLE_EXTRAS OFF CACHE BOOL "" FORCE)
+        set(FAISS_ENABLE_C_API OFF CACHE BOOL "" FORCE)
+
+        # FAISS gates its own test suite on BUILD_TESTING. Shadow it for the
+        # submodule only, then restore it so DaiSy's CTest registration is intact.
+        set(_daisy_saved_build_testing "${BUILD_TESTING}")
+        set(BUILD_TESTING OFF)
+        add_subdirectory(benchmark/faiss ${CMAKE_BINARY_DIR}/faiss)
+        set(BUILD_TESTING "${_daisy_saved_build_testing}")
+
+        set(BUILD_FAISS_AVAILABLE TRUE CACHE INTERNAL "Internal flag indicating if FAISS is available." FORCE)
+        if(DEBUG_MSG)
+            message(STATUS "FAISS found and configured (CPU-only). BUILD_FAISS_AVAILABLE=TRUE")
+        endif()
+    endif()
+endif()
+
+if(BUILD_FAISS AND NOT BUILD_FAISS_AVAILABLE)
+    message(WARNING "BUILD_FAISS is ON but FAISS is unavailable. daisy::FaissFlat will NOT be built.")
 endif()
 
 

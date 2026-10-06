@@ -3,6 +3,7 @@ daisy: High-performance similarity search library for time series data
 
 This library provides multiple algorithms for nearest neighbor search on time series data:
 - BruteForceSearch  - exact brute-force baseline
+- FaissFlat         - exact FAISS IndexFlatL2 baseline (requires BUILD_FAISS)
 - LbBruteforce      - brute-force with iSAX lower-bound pruning
 - Messi             - in-memory iSAX index (L2 / DTW)
 - Fresh             - FRESH in-memory iSAX index

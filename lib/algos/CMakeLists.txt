@@ -43,6 +43,25 @@ else()
     endif()
 endif()
 
+# ////// FAISS //////
+if(BUILD_FAISS AND BUILD_FAISS_AVAILABLE)
+    if(DEBUG_MSG)
+        message(STATUS "Adding Faiss.cpp to dino_lib sources.")
+    endif()
+    target_sources(dino_lib
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Faiss.cpp
+    )
+    # PRIVATE: Faiss.hpp forward-declares faiss::IndexFlatL2, so consumers of
+    # dino_lib do not need the FAISS headers, only the linked symbols.
+    target_link_libraries(dino_lib PRIVATE faiss)
+    target_compile_definitions(dino_lib PUBLIC FAISS_ENABLED)
+else()
+    if(DEBUG_MSG)
+        message(STATUS "BUILD_FAISS/BUILD_FAISS_AVAILABLE is OFF. Skipping FAISS sources.")
+    endif()
+endif()
+
 # ////// LBBRUTEFORCE //////
 if(DEBUG_MSG)
     message(STATUS "Adding LbBruteforce.cpp to dino_lib sources.")

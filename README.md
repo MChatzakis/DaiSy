@@ -57,11 +57,13 @@ The following table summarizes the key features of each algorithm:
 | **[DumpyOS](https://helios2.mi.parisdescartes.fr/~themisp/publications/vldbj24-dumpyos.pdf)** | In-memory scalable data series similarity search using an adaptive multi-ary iSAX index |
 | **[FreSH](http://publications.ics.forth.gr/tech-reports/2023/2023.TR489_FreSh_A_LockFree_Data_Series_Index.pdf)** | In-memory lock-free parallel similarity search using an iSAX index (SRDS 2023) |
 | **[COCONUT](http://www.vldb.org/pvldb/vol11/p677-kondylakis.pdf)** | Sortable-SAX index built bottom-up; supports both static datasets and **streaming** (incremental) inserts (PVLDB 2018) |
+| **[FAISS](https://github.com/facebookresearch/faiss) flat** | Exact flat baseline backed by `faiss::IndexFlatL2`; static build plus streaming inserts with no retraining. Optional: build with `-DBUILD_FAISS=ON` |
 
 ### Incremental streaming inserts
 
-`BruteForceSearch`, `LbBruteforce`, `Messi`, and `Coconut` implement the common streaming API. Build
-the initial index once, then append one series or a contiguous batch without rebuilding:
+`BruteForceSearch`, `LbBruteforce`, `Messi`, `Coconut`, and `FaissFlat` implement the common
+streaming API. Build the initial index once, then append one series or a contiguous batch without
+rebuilding:
 
 ```cpp
 daisy::Messi search(daisy::DistanceType::L2_SQUARED);
@@ -75,6 +77,10 @@ immediately visible to supported top-k and range searches. `LbBruteforce` and `M
 SAX summary for each insert using the breakpoints established during the initial build. MESSI
 routes each new summary into the live iSAX tree and splits full leaves without rebuilding the
 index. Its first insert copies a borrowed initial in-memory database into owned growable storage.
+
+`FaissFlat` is the streaming baseline: `faiss::IndexFlatL2::add()` appends into flat storage with
+no training step and no rebuild, so nothing is frozen at build time that could drift from the live
+data and the index stays exact after every insert. It supports `L2_SQUARED` only.
 
 Streaming updates are not concurrent with queries. Inserts can reallocate the owned database,
 so callers should not retain a pointer returned by `getDatabase()` across them.
@@ -133,6 +139,7 @@ Based on the available hardware, you can specify the below arguments to enable/d
 | `BUILD_ODYSSEY` | Enable MPI for distributed computing | `OFF` | OpenMPI/MPICH |
 | `BUILD_SING` | Enable CUDA for GPU acceleration | `OFF` | CUDA Toolkit |
 | `BUILD_COCONUT` | Enable the COCONUT sortable-SAX algorithm | `ON` | Core library |
+| `BUILD_FAISS` | Enable the `FaissFlat` baseline algorithm | `OFF` | FAISS submodule, CMake 3.24+, BLAS/LAPACK |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
 | `BUILD_SOFA` | Enable SOFA with SFA-Based indexing | `OFF` | FFTW3 | 
 
@@ -219,6 +226,10 @@ cd build
 ./benchmark/bm_LbBruteforce_L2Square
 ./benchmark/bm_Messi_L2Square
 ./benchmark/bm_Messi_Streaming
+
+# FAISS baselines (CMake 3.24+ required by the FAISS submodule)
+./benchmark/bm_FaissFlat_L2Square
+./benchmark/bm_Faiss_Streaming
 
 # Advanced algorithms (if available)
 ./benchmark/bm_Odyssey_L2Square    # MPI required
