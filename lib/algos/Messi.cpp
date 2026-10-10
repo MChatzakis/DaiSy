@@ -128,7 +128,7 @@ namespace daisy
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
 
-                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                if (dist < pq_bsf->knn[pq_bsf->k - 1])
                 {
                     file_position_type pos = 0;
                     if (node->buffer->full_position_buffer != nullptr &&
@@ -147,7 +147,7 @@ namespace daisy
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
 
-                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                if (dist < pq_bsf->knn[pq_bsf->k - 1])
                 {
                     file_position_type pos = 0;
                     if (node->buffer->tmp_full_position_buffer != nullptr &&
@@ -174,7 +174,7 @@ namespace daisy
                     float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                                                             index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
 
-                    if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                    if (dist < pq_bsf->knn[pq_bsf->k - 1])
                     {
                         pthread_rwlock_wrlock(lock_queue);
 
