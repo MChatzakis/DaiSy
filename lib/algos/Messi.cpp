@@ -137,7 +137,7 @@ namespace daisy
                         pos = *node->buffer->full_position_buffer[i] / index->settings->timeseries_size;
                     }
                     pthread_rwlock_wrlock(lock_queue);
-                    pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(pos), node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, static_cast<long int>(pos), node);
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
@@ -156,7 +156,7 @@ namespace daisy
                         pos = *node->buffer->tmp_full_position_buffer[i] / index->settings->timeseries_size;
                     }
                     pthread_rwlock_wrlock(lock_queue);
-                    pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(pos), node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, static_cast<long int>(pos), node);
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
@@ -178,7 +178,7 @@ namespace daisy
                     {
                         pthread_rwlock_wrlock(lock_queue);
 
-                        pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+                        pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
 
                         pthread_rwlock_unlock(lock_queue);
                     }
@@ -229,7 +229,7 @@ namespace daisy
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
                     pthread_rwlock_wrlock(lock_queue);
-                    pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
