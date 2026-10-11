@@ -809,6 +809,16 @@ if(BUILD_PYTHON)
         set_tests_properties(test_streaming_py PROPERTIES
             ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
         )
+        if(BUILD_COCONUT)
+            add_test(
+                NAME test_coconut_topk_py
+                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_coconut_topk.py
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            )
+            set_tests_properties(test_coconut_topk_py PROPERTIES
+                ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+            )
+        endif()
     endif()
 endif()
 

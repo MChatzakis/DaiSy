@@ -16,8 +16,11 @@ namespace daisy
     // COCONUT (Kondylakis et al., VLDB'18): a "sortable SAX" key (bit-interleaved SAX) orders
     // series so the index can be built bottom-up by sorting and extended by streaming inserts.
     // buildIndex sorts records onto on-disk leaves ([inv-SAX][raw TS] each); searchIndex does
-    // exact kNN or range search via SAX MINDIST + L2 refinement. Follow-ups: paged B-tree,
-    // out-of-core sort, LSM merge of the insert buffer, equi-depth breakpoints.
+    // exact kNN or range search via SAX MINDIST + L2 refinement, parallel across queries.
+    // Top-k starts with an ordered approximate search around the query's sortable-SAX key,
+    // followed by exact SAX-bound refinement. Each query caches a complete leaf privately.
+    // The sorted in-memory key directory provides ordered lookup without Berkeley DB.
+    // Follow-ups: out-of-core key directory/sort, LSM merges, equi-depth breakpoints.
     class Coconut : public SimilaritySearchAlgorithm
     {
     public:
@@ -78,8 +81,8 @@ namespace daisy
         std::vector<sax_type> max_cardinalities_;  // all = sax_cardinality
 
         std::string leafPath(int leaf_no) const;
-        void readSeriesFromLeaf(int leaf_no, int slot, float *out) const;
-        void readSeriesAt(FILE *lf, int slot, float *out) const;  // slot of an already-open leaf
+        bool readLeaf(size_t leaf_no, std::vector<unsigned char> &page) const;
+        void copySeriesFromLeaf(const std::vector<unsigned char> &page, size_t slot, float *out) const;
         void cleanupLeafFiles();
     };
 

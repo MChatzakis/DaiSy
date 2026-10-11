@@ -85,6 +85,15 @@ data and the index stays exact after every insert. It supports `L2_SQUARED` only
 Streaming updates are not concurrent with queries. Inserts can reallocate the owned database,
 so callers should not retain a pointer returned by `getDatabase()` across them.
 
+`Coconut` uses the upstream ordered approximate search before exact top-k refinement:
+it locates the query's sortable-SAX key in a resident sorted directory and seeds a
+heap with nearby distinct records. Exact search then checks the remaining SAX bounds.
+Top-k and range queries read candidate leaves as complete blocks into private worker
+buffers, avoiding per-vector file seeks. The ordered lookup uses the resident directory
+instead of importing Berkeley DB's disk B-tree engine; raw vectors remain in leaf files.
+Search supports squared L2 only. Inserts append to an unmerged in-memory buffer;
+Coconut-LSM flush/merge handling and an out-of-core key directory remain unimplemented.
+
 ### Range (distance-r) queries
 
 Every algorithm except Coconut's streaming-only paths answers range queries through
