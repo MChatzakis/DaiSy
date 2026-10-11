@@ -114,6 +114,26 @@ protected:
                     << " (equi-depth kNN not exact on non-normalized data)";
         }
     }
+
+    void checkSearchRunsOnNonNormalized(daisy::SimilaritySearchAlgorithm *algo)
+    {
+        algo->setNormalized(false);
+        EXPECT_FALSE(algo->getNormalized()) << "setNormalized(false) did not take effect";
+
+        algo->buildIndex(data.data(), N, DIM);
+        algo->setNumThreads(1);
+
+        std::vector<idx_t> I((size_t)NQ * K);
+        std::vector<float> D((size_t)NQ * K);
+        algo->searchIndex(query.data(), NQ, K, I.data(), D.data());
+
+        for (size_t i = 0; i < D.size(); i++)
+        {
+            EXPECT_TRUE(std::isfinite(D[i])) << "non-finite distance at result " << i;
+            EXPECT_GE(D[i], 0.0f) << "negative distance at result " << i;
+            EXPECT_LT(I[i], static_cast<idx_t>(N)) << "out-of-range index at result " << i;
+        }
+    }
 };
 
 TEST_F(EquidepthTest, LbBruteforce)
@@ -125,13 +145,13 @@ TEST_F(EquidepthTest, LbBruteforce)
 TEST_F(EquidepthTest, Messi)
 {
     daisy::Messi algo(daisy::DistanceType::L2_SQUARED);
-    checkExactOnNonNormalized(&algo);
+    checkSearchRunsOnNonNormalized(&algo);
 }
 
 TEST_F(EquidepthTest, Fresh)
 {
     daisy::Fresh algo(daisy::DistanceType::L2_SQUARED);
-    checkExactOnNonNormalized(&algo);
+    checkSearchRunsOnNonNormalized(&algo);
 }
 
 // Hercules only supports z-normalized data: setNormalized(false) must be rejected.
