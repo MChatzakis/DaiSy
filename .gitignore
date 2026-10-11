@@ -128,3 +128,4 @@ venv.bak/
 !.vscode/extensions.json
 
 daisy_exact_search.egg-info/
+/scripts/experiments/
