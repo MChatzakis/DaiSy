@@ -186,6 +186,21 @@ The repository still relies heavily on pattern matching against existing impleme
 - If you add a build flag, document it immediately.
 - If you notice a current inconsistency, record it in docs or fix it in the same change if safe.
 
+## Coconut Query And Storage Behavior
+
+Coconut top-k uses ordered query-key seeding followed by exact SAX-bound
+refinement, with independent queries distributed across the requested workers.
+Seeded records are excluded from the later scan to keep returned IDs distinct.
+Top-k and range load candidate leaves into private byte buffers, handle partial
+last leaves, and report missing/truncated reads after the parallel region.
+Contiguous inputs are borrowed only during the initial build; completed leaves
+own the raw vectors. Top-k and range support squared L2 only.
+`tests/test_coconut_topk.py` covers query workers, streaming, ties, seed-directory
+endpoints, oversized k, input lifetime, and failed reads; CMake registers it
+only with `BUILD_PYTHON` and `BUILD_COCONUT` enabled.
+The resident sorted directory replaces upstream Berkeley DB lookup, and the
+insert buffer is still unmerged: this is not a complete Coconut-LSM port.
+
 ## When This File Should Be Updated
 
 Update `CONTINUITY.md` when:
