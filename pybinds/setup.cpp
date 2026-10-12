@@ -12,7 +12,9 @@
 #include "../lib/distance_computers/DistanceComputer.hpp"
 #include "../lib/algos/Bruteforce.hpp"
 #include "../lib/algos/LbBruteforce.hpp"
+#ifdef COCONUT_ENABLED
 #include "../lib/algos/Coconut.hpp"
+#endif
 #include "../lib/algos/Messi.hpp"
 #if ODYSSEY_MPI
 #include "../lib/algos/hodyssey/Odyssey.hpp"
@@ -377,6 +379,7 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
     ////// COCONUT //////
+#ifdef COCONUT_ENABLED
     pybind11::class_<daisy::Coconut>(m, "Coconut", "COCONUT sortable-SAX index (static bottom-up build + streaming insert)")
         .def(pybind11::init<daisy::DistanceType>(), "Create a new Coconut with the given distance metric")
 
@@ -446,6 +449,8 @@ PYBIND11_MODULE(_core, m)
             std::vector<std::vector<float>> D;
             self.searchIndex(static_cast<float *>(query_buf.ptr), n_query, config, I, D);
             return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
+
+#endif
 
     ////// MESSI //////
     pybind11::class_<daisy::Messi>(m, "Messi", "MESSI (Multi-Queue Efficient SAX Similarity Index) algorithm for time series similarity search")
@@ -534,16 +539,22 @@ PYBIND11_MODULE(_core, m)
              "Incrementally insert a batch of series into the live MESSI index")
 
         // Search the index with query array and return top-k results
-        .def("searchIndex", [](daisy::Messi &self, pybind11::array_t<float> query, daisy::idx_t k)
+        .def("searchIndex", [](daisy::Messi &self,
+                               pybind11::array_t<float, pybind11::array::c_style |
+                                                       pybind11::array::forcecast> query,
+                               daisy::idx_t k)
              {
             pybind11::buffer_info query_buf = query.request();
             if (query_buf.ndim != 2)
                 throw std::runtime_error("Query array must be 2D");
+            if (self.getDim() == 0 || self.getNDatabase() == 0)
+                throw std::runtime_error("MESSI index must be built before searching");
+            if (static_cast<daisy::idx_t>(query_buf.shape[1]) != self.getDim())
+                throw std::runtime_error("Query dimension does not match the index dimension");
             if (k <= 0)
                 throw std::runtime_error("k must be positive");
 
             const daisy::idx_t n_query = query_buf.shape[0];
-            const daisy::idx_t dim = query_buf.shape[1];
 
             std::vector<daisy::idx_t> indices(n_query * k);
             std::vector<float> distances(n_query * k);
@@ -554,11 +565,20 @@ PYBIND11_MODULE(_core, m)
                 pybind11::array_t<daisy::idx_t>({n_query, k}, indices.data()),
                 pybind11::array_t<float>({n_query, k}, distances.data())
             ); }, "Search the MESSI index using queries and return (indices, distances)")
-        .def("searchIndex", [](daisy::Messi &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+        .def("searchIndex", [](daisy::Messi &self,
+                               pybind11::array_t<float, pybind11::array::c_style |
+                                                       pybind11::array::forcecast> query,
+                               daisy::SearchConfig config)
              {
             pybind11::buffer_info query_buf = query.request();
             if (query_buf.ndim != 2)
                 throw std::runtime_error("Query array must be 2D");
+            if (self.getDim() == 0 || self.getNDatabase() == 0)
+                throw std::runtime_error("MESSI index must be built before searching");
+            if (static_cast<daisy::idx_t>(query_buf.shape[1]) != self.getDim())
+                throw std::runtime_error("Query dimension does not match the index dimension");
+            if (config.type == daisy::QueryType::TOP_K && config.k == 0)
+                throw std::runtime_error("k must be positive");
             daisy::idx_t n_query = query_buf.shape[0];
             std::vector<std::vector<daisy::idx_t>> I;
             std::vector<std::vector<float>> D;

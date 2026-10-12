@@ -78,6 +78,12 @@ SAX summary for each insert using the breakpoints established during the initial
 routes each new summary into the live iSAX tree and splits full leaves without rebuilding the
 index. Its first insert copies a borrowed initial in-memory database into owned growable storage.
 
+SAX encoding uses the ordered breakpoints for both tail intervals, including shifted and repeated
+adaptive cuts. `setNormalized(false)` selects adaptive breakpoints without changing input values.
+Python MESSI queries accept strided NumPy arrays (including `.fvecs` views); the binding copies
+queries to contiguous float32 storage when needed and checks the index dimension before searching.
+MESSI range refinement evaluates the full distance when a partial sum equals the inclusive radius.
+
 `FaissFlat` is the streaming baseline: `faiss::IndexFlatL2::add()` appends into flat storage with
 no training step and no rebuild, so nothing is frozen at build time that could drift from the live
 data and the index stays exact after every insert. It supports `L2_SQUARED` only.

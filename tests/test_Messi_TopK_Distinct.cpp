@@ -228,3 +228,54 @@ TEST(MessiTopKDistinctTest, ExactTiesAllowAnyDistinctEquallyDistantNeighbors)
         }
     }
 }
+
+TEST_P(MessiExactnessTest, InclusiveRangeRejectsPartialSumAtRadius)
+{
+    constexpr daisy::idx_t dim = 128, rows = 32;
+    const auto [normalized, workers] = GetParam();
+    std::vector<float> database(rows * dim, 0.0f), query(dim, 0.0f);
+    // Exact boundary hit: first SIMD chunk contributes 8, all others zero.
+    std::fill_n(database.data() + dim, 8, 1.0f);
+    // False boundary hit if refinement abandons after the first chunk.
+    std::fill_n(database.data() + 2 * dim, 8, 1.0f);
+    std::fill_n(database.data() + 3 * dim - 8, 8, 1.0f);
+    // Radius zero must also inspect chunks following an all-zero prefix.
+    database[3 * dim + dim - 1] = 1.0f;
+    daisy::MessiConfig config;
+    config.index_workers = 1;
+    config.search_workers = workers;
+    daisy::Messi messi(daisy::DistanceType::L2_SQUARED, config);
+    messi.setNormalized(normalized);
+    messi.buildIndex(database.data(), 16, dim);
+    for (daisy::idx_t size : {16, 32}) {
+        if (size == rows)
+            messi.insertBatch(database.data() + 16 * dim, 16);
+        for (float radius : {0.0f, 8.0f, 16.0f}) {
+            daisy::SearchConfig search;
+            search.type = daisy::QueryType::RANGE;
+            search.r = radius;
+            std::vector<std::vector<daisy::idx_t>> ids;
+            std::vector<std::vector<float>> distances;
+            messi.searchIndex(query.data(), 1, search, ids, distances);
+            std::set<daisy::idx_t> expected;
+            for (daisy::idx_t id = 0; id < size; ++id) {
+                float exact = 0;
+                for (daisy::idx_t d = 0; d < dim; ++d)
+                    exact += database[id * dim + d] * database[id * dim + d];
+                if (exact <= radius) expected.insert(id);
+            }
+            ASSERT_EQ(ids.size(), 1u);
+            ASSERT_EQ(distances.size(), 1u);
+            EXPECT_EQ(std::set<daisy::idx_t>(ids[0].begin(), ids[0].end()), expected);
+            ASSERT_EQ(ids[0].size(), expected.size());
+            ASSERT_EQ(ids[0].size(), distances[0].size());
+            for (size_t j = 0; j < ids[0].size(); ++j) {
+                ASSERT_LT(ids[0][j], size);
+                float exact = 0;
+                for (daisy::idx_t d = 0; d < dim; ++d)
+                    exact += database[ids[0][j] * dim + d] * database[ids[0][j] * dim + d];
+                EXPECT_EQ(distances[0][j], exact);
+            }
+        }
+    }
+}

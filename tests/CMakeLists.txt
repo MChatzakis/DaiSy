@@ -1137,3 +1137,18 @@ gtest_discover_tests(
     test_equidepth
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+# SAX encoding must keep lower bounds valid for shifted/repeated adaptive cuts.
+add_executable(test_sax_breakpoints test_sax_breakpoints.cpp)
+target_link_libraries(test_sax_breakpoints PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+target_include_directories(test_sax_breakpoints PRIVATE ${CMAKE_SOURCE_DIR}/lib)
+gtest_discover_tests(test_sax_breakpoints WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+if(BUILD_PYTHON)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME MessiPythonLayouts
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_messi_query_layout.py)
+    set_tests_properties(MessiPythonLayouts PROPERTIES
+        ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
