@@ -370,6 +370,29 @@ gtest_discover_tests(test_LbBruteforce_Streaming WORKING_DIRECTORY ${CMAKE_SOURC
      message(STATUS "Tests discovered for test_Messi_L2Square.")
  endif()
 
+# ////// MESSI top-k distinct results //////
+add_executable(
+    test_Messi_TopK_Distinct
+    test_Messi_TopK_Distinct.cpp
+)
+target_link_libraries(
+    test_Messi_TopK_Distinct
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+target_include_directories(test_Messi_TopK_Distinct
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+gtest_discover_tests(
+    test_Messi_TopK_Distinct
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 # ////// MESSI streaming //////
 add_executable(
     test_Messi_Streaming
@@ -1124,3 +1147,18 @@ gtest_discover_tests(
     test_equidepth
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+# SAX encoding must keep lower bounds valid for shifted/repeated adaptive cuts.
+add_executable(test_sax_breakpoints test_sax_breakpoints.cpp)
+target_link_libraries(test_sax_breakpoints PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+target_include_directories(test_sax_breakpoints PRIVATE ${CMAKE_SOURCE_DIR}/lib)
+gtest_discover_tests(test_sax_breakpoints WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+if(BUILD_PYTHON)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME MessiPythonLayouts
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_messi_query_layout.py)
+    set_tests_properties(MessiPythonLayouts PROPERTIES
+        ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()

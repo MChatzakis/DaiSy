@@ -128,7 +128,7 @@ namespace daisy
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
 
-                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                if (dist < pq_bsf->knn[pq_bsf->k - 1])
                 {
                     file_position_type pos = 0;
                     if (node->buffer->full_position_buffer != nullptr &&
@@ -137,7 +137,7 @@ namespace daisy
                         pos = *node->buffer->full_position_buffer[i] / index->settings->timeseries_size;
                     }
                     pthread_rwlock_wrlock(lock_queue);
-                    pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(pos), node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, static_cast<long int>(pos), node);
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
@@ -147,7 +147,7 @@ namespace daisy
                 float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
                                                         index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
 
-                if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                if (dist < pq_bsf->knn[pq_bsf->k - 1])
                 {
                     file_position_type pos = 0;
                     if (node->buffer->tmp_full_position_buffer != nullptr &&
@@ -156,7 +156,7 @@ namespace daisy
                         pos = *node->buffer->tmp_full_position_buffer[i] / index->settings->timeseries_size;
                     }
                     pthread_rwlock_wrlock(lock_queue);
-                    pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(pos), node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, static_cast<long int>(pos), node);
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
@@ -174,11 +174,11 @@ namespace daisy
                     float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                                                             index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
 
-                    if (dist <= pq_bsf->knn[pq_bsf->k - 1])
+                    if (dist < pq_bsf->knn[pq_bsf->k - 1])
                     {
                         pthread_rwlock_wrlock(lock_queue);
 
-                        pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+                        pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
 
                         pthread_rwlock_unlock(lock_queue);
                     }
@@ -229,7 +229,7 @@ namespace daisy
                 if (dist <= pq_bsf->knn[pq_bsf->k - 1])
                 {
                     pthread_rwlock_wrlock(lock_queue);
-                    pqueue_bsf_insert(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
+                    pqueue_bsf_insert_no_dup_position(pq_bsf, dist, *node->buffer->partial_position_buffer[i] / index->settings->timeseries_size, node);
                     pthread_rwlock_unlock(lock_queue);
                 }
             }
@@ -496,10 +496,13 @@ namespace daisy
         if (node == NULL || node->buffer == NULL)
             return;
 
+        // The bounded SIMD kernel stops at >= bound. Inclusive ranges must
+        // continue past partial sums equal to r before accepting a full distance.
+        const float evaluation_bound = std::nextafter(r, std::numeric_limits<float>::infinity());
         for (int i = 0; i < node->buffer->full_buffer_size; i++)
         {
             float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
-                                                    index->settings->timeseries_size, r);
+                                                    index->settings->timeseries_size, evaluation_bound);
             if (dist <= r)
             {
                 file_position_type pos = 0;
@@ -515,7 +518,7 @@ namespace daisy
         for (int i = 0; i < node->buffer->tmp_full_buffer_size; i++)
         {
             float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
-                                                    index->settings->timeseries_size, r);
+                                                    index->settings->timeseries_size, evaluation_bound);
             if (dist <= r)
             {
                 file_position_type pos = 0;
@@ -540,7 +543,7 @@ namespace daisy
             if (distmin <= r)
             {
                 float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
-                                                        index->settings->timeseries_size, r);
+                                                        index->settings->timeseries_size, evaluation_bound);
                 if (dist <= r)
                 {
                     pthread_rwlock_wrlock(lock);
@@ -558,6 +561,8 @@ namespace daisy
         ts_type *paa = wd->paa;
         ts_type *ts = wd->ts;
         float r = wd->r;
+        // The shared top-k enqueue helper uses <; range pruning is inclusive.
+        const float pruning_bound = std::nextafter(r, std::numeric_limits<float>::infinity());
         int n_pqueue = wd->n_pqueue;
         float *rawfile = wd->rawfile;
         int tnumber = rand() % n_pqueue;
@@ -570,7 +575,7 @@ namespace daisy
             int current_root_node_number = __sync_fetch_and_add(wd->node_counter, 1);
             if (current_root_node_number >= wd->amountnode)
                 break;
-            insert_tree_node_m_hybridpqueue(paa, wd->nodelist[current_root_node_number], index, r,
+            insert_tree_node_m_hybridpqueue(paa, wd->nodelist[current_root_node_number], index, pruning_bound,
                                             wd->allpq, wd->alllock, &tnumber, n_pqueue);
         }
 

@@ -1,5 +1,6 @@
 #include <math.h>
 #include <float.h>
+#include <algorithm>
 
 #include "SAX.hpp"
 #include "../utils/SIMD.hpp"
@@ -86,22 +87,13 @@ namespace daisy
         //       TO   (c - 1) * (c - 2) / 2 + c - 1
         int offset = ((cardinality - 1) * (cardinality - 2)) / 2;
 
-        int si;
-        for (si = 0; si < segments; si++)
-        {
-            sax_out[si] = 0;
-
-            // First object = daisy_active_breakpoints[offset]
-            // Last object = daisy_active_breakpoints[offset + cardinality - 2]
-            // Size of sub-array = cardinality - 1
-
-            float *res = (float *)bsearch(&paa[si], &daisy_active_breakpoints[offset], cardinality - 1,
-                                          sizeof(ts_type), compare);
-            if (res != NULL)
-                sax_out[si] = (int)(res - &daisy_active_breakpoints[offset]);
-            else if (paa[si] > 0)
-                sax_out[si] = cardinality - 1;
-        }
+        // Each interval is (previous_cut, cut], with unbounded tail bins.
+        // Searching the cuts directly also handles shifted/repeated adaptive
+        // cuts; neither the preceding cardinality nor the sign is an endpoint.
+        const float *cuts = daisy_active_breakpoints + offset;
+        for (int si = 0; si < segments; si++)
+            sax_out[si] = static_cast<sax_type>(
+                std::lower_bound(cuts, cuts + cardinality - 1, paa[si]) - cuts);
 
         free(paa);
         return SUCCESS;
@@ -126,22 +118,10 @@ namespace daisy
     {
         int offset = ((cardinality - 1) * (cardinality - 2)) / 2;
 
-        int si;
-        for (si = 0; si < segments; si++)
-        {
-            sax[si] = 0;
-
-            // First object = daisy_active_breakpoints[offset]
-            // Last object = daisy_active_breakpoints[offset + cardinality - 2]
-            // Size of sub-array = cardinality - 1
-
-            float *res = (float *)bsearch(&paa[si], &daisy_active_breakpoints[offset], cardinality - 1,
-                                          sizeof(ts_type), compare);
-            if (res != NULL)
-                sax[si] = (int)(res - &daisy_active_breakpoints[offset]);
-            else if (paa[si] > 0)
-                sax[si] = cardinality - 1;
-        }
+        const float *cuts = daisy_active_breakpoints + offset;
+        for (int si = 0; si < segments; si++)
+            sax[si] = static_cast<sax_type>(
+                std::lower_bound(cuts, cuts + cardinality - 1, paa[si]) - cuts);
 
         return SUCCESS;
     }

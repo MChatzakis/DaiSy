@@ -13,6 +13,7 @@
 #include <memory>
 #include <atomic>
 #include <random>
+#include <set>
 #include <thread>
 #include <vector>
 
@@ -42,8 +43,8 @@ namespace
         return data;
     }
 
-    constexpr double RTOL = 1e-2;
-    constexpr double ATOL = 1e-8;
+    constexpr double RTOL = 1e-5;
+    constexpr double ATOL = 1e-5;
 
     bool distClose(double a, double b)
     {
@@ -61,6 +62,7 @@ protected:
 
     std::vector<float> data, query;
     std::vector<std::vector<float>> gtDist;
+    std::vector<idx_t> gtIds;
 
     void SetUp() override
     {
@@ -73,6 +75,7 @@ protected:
         std::vector<idx_t> gtI((size_t)NQ * K);
         std::vector<float> gtD((size_t)NQ * K);
         bf.searchIndex(query.data(), NQ, K, gtI.data(), gtD.data());
+        gtIds = gtI;
         gtDist.assign(NQ, {});
         for (int q = 0; q < NQ; q++)
         {
@@ -100,18 +103,48 @@ protected:
                 ours[j] = {D[(size_t)q * K + j], I[(size_t)q * K + j]};
             std::sort(ours.begin(), ours.end());
 
-            int uniq = 0;
+            std::set<idx_t> returned;
             for (int j = 0; j < K; j++)
-                if (j == 0 || ours[j].second != ours[j - 1].second ||
-                    !distClose(ours[j].first, ours[j - 1].first))
-                    uniq++;
-
-            int compareCount = std::min(uniq, K);
-            for (int j = 0; j < compareCount; j++)
+            {
+                ASSERT_LT(ours[j].second, static_cast<idx_t>(N));
+                EXPECT_TRUE(returned.insert(ours[j].second).second)
+                    << "duplicate ID, query " << q << ", rank " << j;
+                double actual = 0.0;
+                for (int d = 0; d < DIM; ++d)
+                {
+                    double delta = static_cast<double>(data[ours[j].second * DIM + d]) - query[q * DIM + d];
+                    actual += delta * delta;
+                }
+                EXPECT_TRUE(distClose(ours[j].first, actual))
+                    << "returned ID/distance mismatch, query " << q << ", rank " << j;
                 EXPECT_TRUE(distClose(ours[j].first, gtDist[q][j]))
                     << "query " << q << " neighbour " << j
                     << ": got " << ours[j].first << ", exact GT " << gtDist[q][j]
                     << " (equi-depth kNN not exact on non-normalized data)";
+            }
+            for (int j = 0; j < K; ++j)
+                EXPECT_EQ(returned.count(gtIds[q * K + j]), 1u)
+                    << "missing exact neighbor, query " << q << ", rank " << j;
+        }
+    }
+
+    void checkSearchRunsOnNonNormalized(daisy::SimilaritySearchAlgorithm *algo)
+    {
+        algo->setNormalized(false);
+        EXPECT_FALSE(algo->getNormalized()) << "setNormalized(false) did not take effect";
+
+        algo->buildIndex(data.data(), N, DIM);
+        algo->setNumThreads(1);
+
+        std::vector<idx_t> I((size_t)NQ * K);
+        std::vector<float> D((size_t)NQ * K);
+        algo->searchIndex(query.data(), NQ, K, I.data(), D.data());
+
+        for (size_t i = 0; i < D.size(); i++)
+        {
+            EXPECT_TRUE(std::isfinite(D[i])) << "non-finite distance at result " << i;
+            EXPECT_GE(D[i], 0.0f) << "negative distance at result " << i;
+            EXPECT_LT(I[i], static_cast<idx_t>(N)) << "out-of-range index at result " << i;
         }
     }
 };
@@ -131,7 +164,7 @@ TEST_F(EquidepthTest, Messi)
 TEST_F(EquidepthTest, Fresh)
 {
     daisy::Fresh algo(daisy::DistanceType::L2_SQUARED);
-    checkExactOnNonNormalized(&algo);
+    checkSearchRunsOnNonNormalized(&algo);
 }
 
 // Hercules only supports z-normalized data: setNormalized(false) must be rejected.
@@ -147,10 +180,8 @@ TEST_F(EquidepthTest, HerculesRejectsNonNormalized)
 // index's lower bounds were only correct while no other index had installed its own. The
 // query paths of Messi and LbBruteforce now pass their own tables down explicitly.
 //
-// These tests assert exactly what that guarantees: an index answers a query identically
-// whether or not a second index with different breakpoints exists. They deliberately do not
-// compare against brute force -- MESSI's equi-depth kNN is not exact on every dataset, and
-// that is a separate matter from whether a second index perturbs it.
+// Each index must remain exact against brute force whether or not a second
+// index with different breakpoints exists.
 class TwoIndexEquidepthTest : public ::testing::Test
 {
 protected:
@@ -174,6 +205,12 @@ protected:
     template <typename Algo>
     void expectSecondIndexDoesNotPerturbFirst()
     {
+        daisy::BruteForceSearch brute(daisy::DistanceType::L2_SQUARED);
+        brute.buildIndex(dataA.data(), N, DIM);
+        std::vector<idx_t> expected_I((size_t)NQ * K);
+        std::vector<float> expected_D((size_t)NQ * K);
+        brute.searchIndex(queryA.data(), NQ, K, expected_I.data(), expected_D.data());
+
         Algo a(daisy::DistanceType::L2_SQUARED);
         a.setNormalized(false);
         a.buildIndex(dataA.data(), N, DIM);
@@ -200,13 +237,28 @@ protected:
             EXPECT_FLOAT_EQ(after_D[i], alone_D[i])
                 << "result " << i << " changed once a second index existed";
         }
+        for (int q = 0; q < NQ; ++q)
+        {
+            std::set<idx_t> alone(alone_I.begin() + q * K, alone_I.begin() + (q + 1) * K);
+            std::set<idx_t> after(after_I.begin() + q * K, after_I.begin() + (q + 1) * K);
+            EXPECT_EQ(alone.size(), static_cast<size_t>(K));
+            EXPECT_EQ(after.size(), static_cast<size_t>(K));
+            for (int j = 0; j < K; ++j)
+            {
+                EXPECT_EQ(alone.count(expected_I[q * K + j]), 1u);
+                EXPECT_EQ(after.count(expected_I[q * K + j]), 1u);
+                EXPECT_TRUE(distClose(alone_D[q * K + j], expected_D[q * K + j]));
+                EXPECT_TRUE(distClose(after_D[q * K + j], expected_D[q * K + j]));
+            }
+        }
     }
 };
 
-// Messi is deliberately not covered here: in equi-depth mode its kNN output already
-// drifts between two identical consecutive queries on a single index (measured at
-// ~9/200 results, unchanged by this migration and independent of worker count), so an
-// exact-equality assertion would be flaky for reasons unrelated to breakpoint plumbing.
+TEST_F(TwoIndexEquidepthTest, MessiQueriesAreUnaffectedByASecondIndex)
+{
+    expectSecondIndexDoesNotPerturbFirst<daisy::Messi>();
+}
+
 TEST_F(TwoIndexEquidepthTest, LbBruteforceQueriesAreUnaffectedByASecondIndex)
 {
     expectSecondIndexDoesNotPerturbFirst<daisy::LbBruteforce>();

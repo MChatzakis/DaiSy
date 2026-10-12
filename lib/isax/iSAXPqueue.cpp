@@ -498,11 +498,26 @@ namespace daisy
     {
         int i, j;
 
-        // Fast duplicate check: if position already present, skip
+        // If the position is already queued, keep only its best distance. An
+        // earlier entry may carry an early-abandoned (over-estimated) value, so
+        // a better distance replaces it instead of being dropped.
         for (i = 0; i < q->k; i++)
         {
             if (q->position[i] == position)
-                return;
+            {
+                if (data >= q->knn[i])
+                    return;
+                for (j = i; j < q->k - 1; j++)
+                {
+                    q->knn[j] = q->knn[j + 1];
+                    q->position[j] = q->position[j + 1];
+                    q->node[j] = q->node[j + 1];
+                }
+                q->knn[q->k - 1] = FLT_MAX;
+                q->position[q->k - 1] = -1;
+                q->node[q->k - 1] = nullptr;
+                break;
+            }
         }
 
         for (i = 0; i < q->k; i++)
