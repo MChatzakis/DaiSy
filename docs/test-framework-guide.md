@@ -28,3 +28,17 @@ Follow the parameterized test pattern used throughout the test suite for BruteFo
 - Tests should be parameterized to run with different configurations (k-values, thread counts, datasets)
 - Include proper ground truth validation
 - Follow the existing naming conventions and code structure
+
+## MESSI exact top-k regressions
+
+`test_Messi_TopK_Distinct` compares every returned neighbor against exhaustive
+brute-force ground truth, checks distinct IDs, and recomputes the squared-L2
+distance of each returned vector. Missing neighbors are failures; a recall
+threshold below 100% is not sufficient for exact search. Integer-distance tie
+fixtures allow any distinct IDs with the exact expected distances.
+
+The parameterized cases cover Gaussian and adaptive breakpoints, one and four
+query workers, k=1/10/100/1000, repeated queries, and streaming updates. The
+adaptive MESSI case in `test_equidepth` checks all k results with a small
+floating-point tolerance rather than only checking finite output. Simple CI
+runs these regressions through its complete CTest suite.
