@@ -380,7 +380,7 @@ PYBIND11_MODULE(_core, m)
 
     ////// COCONUT //////
 #ifdef COCONUT_ENABLED
-    pybind11::class_<daisy::Coconut>(m, "Coconut", "COCONUT sortable-SAX index (static bottom-up build + streaming insert)")
+    pybind11::class_<daisy::Coconut>(m, "Coconut", "Paper-based Coconut-LSM-Full with resident summaries and within-query parallel SIMS")
         .def(pybind11::init<daisy::DistanceType>(), "Create a new Coconut with the given distance metric")
 
         .def("getPaaSegments", &daisy::Coconut::getPaaSegments, "Get the number of PAA segments")
@@ -390,9 +390,55 @@ PYBIND11_MODULE(_core, m)
         .def("setPaaSegments", &daisy::Coconut::setPaaSegments, "Set the number of PAA segments (must divide the series length)")
         .def("setSaxCardinality", &daisy::Coconut::setSaxCardinality, "Set the SAX bit cardinality")
         .def("setLeafSize", &daisy::Coconut::setLeafSize, "Set the records-per-leaf-file capacity")
+        .def("setBufferCapacity", &daisy::Coconut::setBufferCapacity, "Set the maximum RAM memtable records before building; full buffers persist and schedule compaction")
+        .def("getBufferCapacity", &daisy::Coconut::getBufferCapacity)
+        .def("setIndexDirectory", &daisy::Coconut::setIndexDirectory, "Place the temporary disk index in a unique child of this parent directory")
+        .def("getIndexDirectory", &daisy::Coconut::getIndexDirectory)
+        .def("getBufferedRecords", &daisy::Coconut::getBufferedRecords)
+        .def("getDiskRecords", &daisy::Coconut::getDiskRecords)
+        .def("getDiskBytes", &daisy::Coconut::getDiskBytes)
+        .def("getRunCount", &daisy::Coconut::getRunCount)
+        .def("getFlushCount", &daisy::Coconut::getFlushCount)
+        .def("getMergeCount", &daisy::Coconut::getMergeCount)
+        .def("getPeakBufferedRecords", &daisy::Coconut::getPeakBufferedRecords)
+        .def("setAsyncMerges", &daisy::Coconut::setAsyncMerges, "Enable background compaction before building (default true)")
+        .def("getAsyncMerges", &daisy::Coconut::getAsyncMerges)
+        .def("setQueryBatchSize", &daisy::Coconut::setQueryBatchSize, "Share bounded ordered candidate reads across 1-64 independent queries (default 32)")
+        .def("getQueryBatchSize", &daisy::Coconut::getQueryBatchSize)
+        .def("waitForMerges", &daisy::Coconut::waitForMerges, pybind11::call_guard<pybind11::gil_scoped_release>(),
+             "Wait for pending compactions; include this barrier in durable insertion timing")
+        .def("getResidentSummaryBytes", &daisy::Coconut::getResidentSummaryBytes)
+        .def("getLastSearchStats", [](const daisy::Coconut &self) {
+            auto s = self.getLastSearchStats(); pybind11::dict d;
+            d["summaries_examined"] = s.summaries_examined; d["leaf_reads"] = s.leaf_reads;
+            d["raw_bytes_read"] = s.raw_bytes_read; d["runs_searched"] = s.runs_searched;
+            d["runs_skipped"] = s.runs_skipped; d["approximate_seconds"] = s.approximate_seconds;
+            d["candidate_records"] = s.candidate_records; d["unique_candidate_records"] = s.unique_candidate_records;
+            d["distance_evaluations"] = s.distance_evaluations; d["seed_evaluations"] = s.seed_evaluations;
+            d["seed_raw_records_read"] = s.seed_raw_records_read;
+            d["raw_records_read"] = s.raw_records_read; d["peak_scratch_bytes"] = s.peak_scratch_bytes;
+            d["bounds_seconds"] = s.bounds_seconds; d["refinement_seconds"] = s.refinement_seconds;
+            return d;
+        }, "Phase times and logical read counters for the last top-k call, including all queries")
+        .def("searchIndexRecent", [](daisy::Coconut &self,
+                pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> query,
+                daisy::idx_t k, daisy::idx_t window) {
+            auto buf = query.request();
+            if (buf.ndim != 2 || buf.shape[1] != static_cast<pybind11::ssize_t>(self.getDim()))
+                throw std::runtime_error("Coconut query dimension mismatch");
+            if (!k) throw std::runtime_error("Coconut top-k search requires k > 0");
+            pybind11::array_t<daisy::idx_t> ids({static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)});
+            pybind11::array_t<float> distances({static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)});
+            self.searchIndexRecent(static_cast<float *>(buf.ptr), buf.shape[0], k, window, ids.mutable_data(), distances.mutable_data());
+            return pybind11::make_tuple(ids, distances);
+        }, pybind11::arg("queries"), pybind11::arg("k"), pybind11::arg("window_size"),
+           "Exact top-k over the most recent window_size insertions; returns original stream IDs")
+        .def("getNDatabase", &daisy::Coconut::getNDatabase)
+        .def("getDim", &daisy::Coconut::getDim)
+        .def("flush", &daisy::Coconut::flush, "Persist the partially full memtable; inserts already flush automatically at capacity")
 
         // Static bottom-up build from a 2D float32 numpy array.
-        .def("buildIndex", [](daisy::Coconut &self, pybind11::array_t<float> db)
+        .def("buildIndex", [](daisy::Coconut &self, pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> db)
              {
             pybind11::buffer_info buf = db.request();
             if (buf.ndim != 2)
@@ -401,28 +447,37 @@ PYBIND11_MODULE(_core, m)
             daisy::idx_t d = buf.shape[1];
             daisy::InMemoryDataSource data_source(static_cast<float *>(buf.ptr), n, d);
             self.buildIndex(&data_source); }, "Build the index from a 2D float32 numpy array")
+        .def("buildIndex", [](daisy::Coconut &self, const std::string &filename, daisy::idx_t dim, daisy::idx_t n)
+             { self.buildIndex(filename, dim, n); }, pybind11::arg("filename"), pybind11::arg("dim"),
+             pybind11::arg("n_database") = 0, "Build from a raw float32 vector file using bounded memory")
 
         // Streaming: insert one series (1D) or a batch (2D) into a live index.
-        .def("insert", [](daisy::Coconut &self, pybind11::array_t<float> series)
+        .def("insert", [](daisy::Coconut &self, pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> series)
              {
             pybind11::buffer_info buf = series.request();
             if (buf.ndim != 1)
                 throw std::runtime_error("insert expects a 1D float32 array");
+            if (buf.shape[0] != static_cast<pybind11::ssize_t>(self.getDim()))
+                throw std::runtime_error("Coconut insert dimension mismatch");
             self.insert(static_cast<float *>(buf.ptr)); }, "Insert a single series (1D float32 array) into the live index")
 
-        .def("insertBatch", [](daisy::Coconut &self, pybind11::array_t<float> batch)
+        .def("insertBatch", [](daisy::Coconut &self, pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> batch)
              {
             pybind11::buffer_info buf = batch.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("insertBatch expects a 2D float32 array");
+            if (buf.shape[1] != static_cast<pybind11::ssize_t>(self.getDim()))
+                throw std::runtime_error("Coconut insertBatch dimension mismatch");
             self.insertBatch(static_cast<float *>(buf.ptr), buf.shape[0]); }, "Insert a batch of series (2D float32 array) into the live index")
 
         // kNN search returning (indices, distances).
-        .def("searchIndex", [](daisy::Coconut &self, pybind11::array_t<float> query, daisy::idx_t k)
+        .def("searchIndex", [](daisy::Coconut &self, pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> query, daisy::idx_t k)
              {
             pybind11::buffer_info buf = query.request();
             if (buf.ndim != 2)
                 throw std::runtime_error("Query array must be 2D");
+            if (buf.shape[1] != static_cast<pybind11::ssize_t>(self.getDim()))
+                throw std::runtime_error("Coconut query dimension mismatch");
 
             std::vector<daisy::idx_t> indices(buf.shape[0] * k);
             std::vector<float> distances(buf.shape[0] * k);
@@ -439,11 +494,13 @@ PYBIND11_MODULE(_core, m)
                     pybind11::format_descriptor<float>::format(), 2,
                     std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(buf.shape[0]), static_cast<pybind11::ssize_t>(k)},
                     std::vector<pybind11::ssize_t>{static_cast<pybind11::ssize_t>(sizeof(float) * k), static_cast<pybind11::ssize_t>(sizeof(float))}))); }, "kNN search: returns (indices, distances)")
-        .def("searchIndex", [](daisy::Coconut &self, pybind11::array_t<float> query, daisy::SearchConfig config)
+        .def("searchIndex", [](daisy::Coconut &self, pybind11::array_t<float, pybind11::array::c_style | pybind11::array::forcecast> query, daisy::SearchConfig config)
              {
             pybind11::buffer_info query_buf = query.request();
             if (query_buf.ndim != 2)
                 throw std::runtime_error("Query array must be 2D");
+            if (query_buf.shape[1] != static_cast<pybind11::ssize_t>(self.getDim()))
+                throw std::runtime_error("Coconut query dimension mismatch");
             daisy::idx_t n_query = query_buf.shape[0];
             std::vector<std::vector<daisy::idx_t>> I;
             std::vector<std::vector<float>> D;
@@ -451,7 +508,6 @@ PYBIND11_MODULE(_core, m)
             return pybind11::make_tuple(I, D); }, "Search using SearchConfig (top-k or range) and return (indices, distances)");
 
 #endif
-
     ////// MESSI //////
     pybind11::class_<daisy::Messi>(m, "Messi", "MESSI (Multi-Queue Efficient SAX Similarity Index) algorithm for time series similarity search")
         // Constructor

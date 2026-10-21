@@ -147,6 +147,8 @@ endif()
 
 # ////// COCONUT //////
 if(BUILD_COCONUT)
+    add_executable(bm_Coconut_Streaming bm_Coconut_Streaming.cpp)
+    target_link_libraries(bm_Coconut_Streaming PRIVATE benchmark::benchmark dino_lib commons_lib)
     add_executable(bm_Coconut_L2Square
         bm_Coconut_L2Square.cpp
         bm_utils.cpp

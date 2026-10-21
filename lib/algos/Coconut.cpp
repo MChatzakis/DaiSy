@@ -1,460 +1,731 @@
 #include "Coconut.hpp"
-
+#include "CoconutBounds.hpp"
 #include "../isax/SAX.hpp"
-#include "../isax/iSAXTypes.hpp"
-
+#include <cstdint>
+#include <cstdlib>
 #include <algorithm>
-#include <atomic>
+#include <cerrno>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
-#include <memory>
+#include <exception>
+#include <filesystem>
+#include <limits>
+#include <numeric>
 #include <queue>
-#include <string>
+#include <utility>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 namespace daisy
 {
-
-    Coconut::Coconut(DistanceType distance_type)
-        : SimilaritySearchAlgorithm(distance_type)
+namespace
+{
+    size_t checkedSize(idx_t n, size_t width)
     {
+        if (width && n > std::numeric_limits<size_t>::max() / width)
+            throw std::runtime_error("Coconut index size overflow");
+        return (size_t)n * width;
     }
-
-    Coconut::~Coconut()
+    void checkFinite(const float *data, idx_t n, idx_t dim)
     {
-        cleanupLeafFiles();
+        if (n && !data) throw std::runtime_error("Coconut vector data is null");
+        for (size_t i = 0, count = checkedSize(n, (size_t)dim); i < count; ++i)
+            if (!std::isfinite(data[i])) throw std::runtime_error("Coconut requires finite vectors");
     }
-
-    std::string Coconut::leafPath(int leaf_no) const
+    float squaredL2(const float *a, const float *b, idx_t dim, float bound)
     {
-        return index_dir_ + "/leaf." + std::to_string(leaf_no);
+        // The shared SIMD kernel consumes full groups of eight. Handle a tail
+        // locally rather than reading into the next vector for other dimensions.
+        const int full = (int)dim / 8 * 8;
+        float distance = full ? ts_euclidean_distance_SIMD(const_cast<float *>(a), const_cast<float *>(b), full, bound) : 0;
+        for (idx_t d = full; d < dim && distance <= bound; ++d)
+        { float delta = a[d] - b[d]; distance += delta * delta; }
+        return distance;
     }
-
-    // Compare two sortable-SAX keys lexicographically over their bytes (COCONUT's order).
-    static bool key_less(const std::vector<sax_type> &a, const std::vector<sax_type> &b)
+    struct File
     {
-        for (size_t i = 0; i < a.size(); i++)
+        FILE *p = nullptr;
+        std::vector<char> buffer;
+        File(const std::string &path, const char *mode) : buffer(1024 * 1024)
         {
-            if (a[i] != b[i])
-                return a[i] < b[i];
+            p = fopen(path.c_str(), mode);
+            if (!p) throw std::runtime_error("Coconut failed to open index leaf/run: " + path);
+            setvbuf(p, buffer.data(), _IOFBF, buffer.size());
         }
-        return false;
-    }
-
-    void Coconut::buildIndex(DataSource *data_source)
-    {
-        this->dim = data_source->getDim();
-        this->n_database = data_source->getTotalRecords();
-        if (this->n_database == 0)
+        ~File() { if (p) fclose(p); }
+        File(const File &) = delete;
+        void write(const void *data, size_t bytes)
         {
-            data_source->reset();
-            idx_t count = 0;
-            float *dummy = new float[this->dim];
-            while (data_source->nextRecord(dummy))
-                count++;
-            delete[] dummy;
-            this->n_database = count;
-            data_source->reset();
+            if (fwrite(data, 1, bytes, p) != bytes) throw std::runtime_error("Coconut failed to write index leaf/run");
         }
-
-        const int seg = this->paa_segments;
-        const int bits = this->sax_cardinality;
-        if (seg <= 0 || this->dim == 0 || this->dim % (idx_t)seg != 0 ||
-            bits <= 0 || bits > 8 || this->leaf_capacity <= 0)
-            throw std::runtime_error("Coconut requires positive leaf/PAA sizes, 1-8 SAX bits, and a dimension divisible by the PAA size");
-        this->ts_values_per_segment_ = (int)this->dim / seg;
-        this->sax_alphabet_cardinality_ = (int)std::pow(2, bits);
-        this->mindist_sqrt_ = (float)this->dim / (float)seg;
-        this->max_cardinalities_.assign(seg, (sax_type)bits);
-
-        // Borrow a contiguous input only during the build. Copy stream-only sources;
-        // raw series are owned by the leaf files once this method returns.
-        data_source->reset();
-        const float *raw = data_source->rawPointer();
-        std::vector<float> buffer;
-        if (!raw)
+        void read(void *data, size_t bytes)
         {
-            buffer.resize((size_t)this->n_database * this->dim);
-            std::vector<float> rec(this->dim);
-            idx_t idx = 0;
-            while (idx < this->n_database && data_source->nextRecord(rec.data()))
+            if (fread(data, 1, bytes, p) != bytes) throw std::runtime_error("Coconut failed to read index leaf/run");
+        }
+        void finish()
+        {
+            if (fflush(p) || fsync(fileno(p))) throw std::runtime_error("Coconut failed to persist index leaf/run");
+            FILE *closed = p; p = nullptr;
+            if (fclose(closed)) throw std::runtime_error("Coconut failed to close index leaf/run");
+        }
+    };
+    // Fixed-size directory records: [sortable key][SAX word][stable ID].
+    // The directory is mmap-backed and reclaimable, not a vector of O(N)
+    // heap allocations. Raw vectors are in a separate corresponding run file.
+    using Clock = std::chrono::steady_clock;
+    double elapsed(Clock::time_point start) { return std::chrono::duration<double>(Clock::now() - start).count(); }
+    struct Run
+    {
+        idx_t n = 0, first_id = 0, end_id = 0, leaf_count = 0, leaf_base = 0, large_leaves = 0;
+        int segments = 0;
+        static constexpr idx_t fanout = 128;
+        std::vector<sax_type> summaries;
+        // Bottom-up packed B+tree: each level stores one maximum key per child.
+        std::vector<std::vector<unsigned char>> tree;
+        size_t stride = 0, raw_stride = 0;
+        unsigned level = 0;
+        std::string meta_path, raw_path;
+        int meta_fd = -1, raw_fd = -1;
+        const unsigned char *map = nullptr;
+        ~Run()
+        {
+            if (map) munmap(const_cast<unsigned char *>(map), (size_t)n * stride);
+            if (meta_fd >= 0) close(meta_fd);
+            if (raw_fd >= 0) close(raw_fd);
+            if (!meta_path.empty()) unlink(meta_path.c_str());
+            if (!raw_path.empty()) unlink(raw_path.c_str());
+        }
+        const unsigned char *record(idx_t pos) const { return map + (size_t)pos * stride; }
+        idx_t id(idx_t pos, int seg) const
+        {
+            idx_t result; memcpy(&result, record(pos) + 2 * seg, sizeof(result)); return result;
+        }
+        void validate() const
+        {
+            struct stat metadata, raw;
+            if (fstat(meta_fd, &metadata) || fstat(raw_fd, &raw) ||
+                (uint64_t)metadata.st_size != checkedSize(n, stride) ||
+                (uint64_t)raw.st_size != checkedSize(n, raw_stride))
+                throw std::runtime_error("Coconut truncated or unreadable index leaf/run");
+        }
+        idx_t leafBegin(idx_t leaf) const { return leaf * leaf_base + std::min(leaf, large_leaves); }
+        idx_t leafOf(idx_t pos) const
+        {
+            idx_t wide = (leaf_base + 1) * large_leaves;
+            return pos < wide ? pos / (leaf_base + 1) : large_leaves + (pos - wide) / leaf_base;
+        }
+        idx_t locate(const sax_type *key) const
+        {
+            idx_t selected = 0;
+            for (size_t l = tree.size(); l; --l)
             {
-                std::copy(rec.begin(), rec.end(), buffer.data() + (size_t)idx * this->dim);
-                idx++;
+                const auto &keys = tree[l - 1];
+                idx_t begin = selected * fanout, end = std::min<idx_t>(begin + fanout, keys.size() / segments);
+                idx_t lo = begin, hi = end;
+                while (lo < hi)
+                {
+                    idx_t mid = lo + (hi - lo) / 2;
+                    if (memcmp(keys.data() + (size_t)mid * segments, key, segments) < 0) lo = mid + 1;
+                    else hi = mid;
+                }
+                selected = std::min(lo, end - 1);
             }
-            if (idx != this->n_database)
+            idx_t lo = leafBegin(selected), hi = leafBegin(selected + 1);
+            while (lo < hi)
+            {
+                idx_t mid = lo + (hi - lo) / 2;
+                if (memcmp(record(mid), key, segments) < 0) lo = mid + 1; else hi = mid;
+            }
+            return lo;
+        }
+        void open(int seg, int leaf_size)
+        {
+            meta_fd = ::open(meta_path.c_str(), O_RDONLY); raw_fd = ::open(raw_path.c_str(), O_RDONLY);
+            if (meta_fd < 0 || raw_fd < 0) throw std::runtime_error("Coconut failed to open index leaf/run");
+            validate();
+            void *p = mmap(nullptr, checkedSize(n, stride), PROT_READ, MAP_SHARED, meta_fd, 0);
+            if (p == MAP_FAILED) throw std::runtime_error("Coconut cannot map its on-disk key directory");
+            map = static_cast<const unsigned char *>(p);
+            segments = seg;
+            // Algorithm 7 scans a packed, resident SAX snapshot, not mapped keys/IDs.
+            summaries.resize(checkedSize(n, (size_t)seg));
+            for (idx_t i = 0; i < n; ++i)
+                memcpy(summaries.data() + (size_t)i * seg, record(i) + seg, seg);
+            leaf_count = 1 + (n - 1) / (idx_t)leaf_size;
+            leaf_base = n / leaf_count; large_leaves = n % leaf_count;
+            tree.emplace_back(checkedSize(leaf_count, (size_t)seg));
+            for (idx_t i = 0; i < leaf_count; ++i)
+                memcpy(tree[0].data() + (size_t)i * seg, record(leafBegin(i + 1) - 1), seg);
+            while (tree.back().size() / seg > fanout)
+            {
+                const auto &lower = tree.back(); idx_t children = lower.size() / seg;
+                std::vector<unsigned char> upper(checkedSize(1 + (children - 1) / fanout, (size_t)seg));
+                for (idx_t i = 0; i < upper.size() / seg; ++i)
+                    memcpy(upper.data() + (size_t)i * seg, lower.data() + (size_t)(std::min(children, (i + 1) * fanout) - 1) * seg, seg);
+                tree.push_back(std::move(upper));
+            }
+        }
+        void leaf(idx_t begin, idx_t count, std::vector<float> &page) const
+        {
+            size_t bytes = checkedSize(count, raw_stride), got = 0;
+            page.resize(bytes / sizeof(float));
+            while (got < bytes)
+            {
+                ssize_t result = pread(raw_fd, reinterpret_cast<char *>(page.data()) + got,
+                    bytes - got, (off_t)checkedSize(begin, raw_stride) + got);
+                if (result < 0 && errno == EINTR) continue;
+                if (result <= 0) throw std::runtime_error("Coconut failed to read index leaf/run");
+                got += (size_t)result;
+            }
+        }
+    };
+}
+    struct Coconut::DiskState
+    {
+        idx_t dim, capacity, count = 0, buffer_first = 0;
+        int seg, bits, values, alphabet, leaf_size;
+        size_t stride;
+        std::string directory;
+        std::atomic<unsigned> serial{0};
+        idx_t flushes = 0, peak_buffered = 0;
+        std::atomic<idx_t> merges{0};
+        bool bulk_loading = true, async_merges = true, stopping = false, merging = false;
+        mutable std::mutex mutex;
+        std::condition_variable changed;
+        std::thread merger;
+        std::exception_ptr merge_error;
+        std::vector<float> data;
+        std::vector<sax_type> sax, keys, cardinalities;
+        std::vector<std::shared_ptr<Run>> runs;
+        DiskState(idx_t d, int s, int b, int leaf, idx_t cap, const std::string &parent, bool async)
+            : dim(d), capacity(cap), seg(s), bits(b), values((int)d / s), alphabet(1 << b),
+              leaf_size(leaf), stride(2 * (size_t)s + sizeof(idx_t)), cardinalities(s, (sax_type)b)
+        {
+            std::string root = parent.empty() ? std::filesystem::temp_directory_path().string() : parent;
+            std::filesystem::create_directories(root);
+            std::string pattern = root + "/daisy_coconut_" + std::to_string((unsigned long)getpid()) + "_XXXXXX";
+            std::vector<char> name(pattern.begin(), pattern.end()); name.push_back(0);
+            if (!mkdtemp(name.data())) throw std::runtime_error("Coconut cannot create its disk directory");
+            directory = name.data(); async_merges = async;
+        }
+        ~DiskState()
+        {
+            { std::lock_guard<std::mutex> lock(mutex); stopping = true; }
+            changed.notify_all(); if (merger.joinable()) merger.join();
+            runs.clear();
+            std::error_code ignored; std::filesystem::remove_all(directory, ignored);
+        }
+        idx_t buffered() const { return data.size() / (size_t)dim; }
+        std::shared_ptr<Run> newRun(idx_t n, unsigned level)
+        {
+            auto run = std::make_shared<Run>(); run->n = n; run->level = level;
+            run->stride = stride; run->raw_stride = checkedSize(dim, sizeof(float));
+            std::string prefix = directory + "/run." + std::to_string(serial++);
+            run->meta_path = prefix + ".meta"; run->raw_path = prefix + ".raw"; return run;
+        }
+        std::shared_ptr<Run> merge(const std::vector<std::shared_ptr<Run>> &inputs, unsigned level)
+        {
+            idx_t total = 0;
+            for (const auto &run : inputs) { run->validate(); total += run->n; }
+            auto result = newRun(total, level);
+            result->first_id = inputs.front()->first_id; result->end_id = inputs.front()->end_id;
+            for (const auto &run : inputs)
+            { result->first_id = std::min(result->first_id, run->first_id); result->end_id = std::max(result->end_id, run->end_id); }
+            File meta(result->meta_path, "wb"), raw(result->raw_path, "wb");
+            std::vector<std::unique_ptr<File>> readers;
+            for (const auto &run : inputs) readers.emplace_back(new File(run->raw_path, "rb"));
+            std::vector<idx_t> positions(inputs.size(), 0);
+            auto later = [&](size_t a, size_t b) {
+                int cmp = memcmp(inputs[a]->record(positions[a]), inputs[b]->record(positions[b]), seg);
+                return cmp ? cmp > 0 : inputs[a]->id(positions[a], seg) > inputs[b]->id(positions[b], seg);
+            };
+            std::priority_queue<size_t, std::vector<size_t>, decltype(later)> heap(later);
+            for (size_t i = 0; i < inputs.size(); ++i) heap.push(i);
+            std::vector<float> ts(dim);
+            while (!heap.empty())
+            {
+                size_t i = heap.top(); heap.pop();
+                meta.write(inputs[i]->record(positions[i]), stride);
+                readers[i]->read(ts.data(), checkedSize(dim, sizeof(float)));
+                raw.write(ts.data(), checkedSize(dim, sizeof(float)));
+                if (++positions[i] < inputs[i]->n) heap.push(i);
+            }
+            meta.finish(); raw.finish(); result->open(seg, leaf_size); ++merges; return result;
+        }
+        std::pair<size_t, size_t> mergePair() const
+        {
+            // Only adjacent temporal intervals merge; this preserves BTP recency.
+            for (size_t i = 0; i + 1 < runs.size(); ++i)
+                if (runs[i]->level == runs[i + 1]->level)
+                    return {i, i + 1};
+            return {runs.size(), runs.size()};
+        }
+        void compactLoop()
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            while (true)
+            {
+                changed.wait(lock, [&] { return stopping || mergePair().first < runs.size(); });
+                if (stopping) return;
+                auto pair = mergePair();
+                auto a = runs[pair.first], b = runs[pair.second]; merging = true;
+                lock.unlock();
+                std::shared_ptr<Run> replacement;
+                try { replacement = merge({a, b}, a->level + 1); }
+                catch (...)
+                {
+                    lock.lock(); merge_error = std::current_exception(); merging = false;
+                    changed.notify_all(); return;
+                }
+                lock.lock();
+                // Atomically publish a complete replacement, retaining old files
+                // while any query snapshot still refers to the two input runs.
+                auto it = std::find(runs.begin(), runs.end(), a);
+                auto pos = it - runs.begin();
+                runs.erase(it, it + 2); runs.insert(runs.begin() + pos, std::move(replacement));
+                a.reset(); b.reset(); merging = false; changed.notify_all();
+            }
+        }
+        void waitForMerges()
+        {
+            if (bulk_loading) return;
+            std::unique_lock<std::mutex> lock(mutex);
+            changed.wait(lock, [&] { return merge_error || (!merging && mergePair().first == runs.size()); });
+            if (merge_error) std::rethrow_exception(merge_error);
+        }
+        std::vector<std::shared_ptr<Run>> snapshot() const
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (merge_error) std::rethrow_exception(merge_error);
+            return runs;
+        }
+        void publish(std::shared_ptr<Run> run)
+        {
+            { std::lock_guard<std::mutex> lock(mutex); runs.push_back(std::move(run)); }
+            if (bulk_loading) return;
+            changed.notify_all();
+            if (!async_merges) { waitForMerges(); return; }
+            // Bound pending runs even when the writer outruns disk compaction.
+            unsigned levels = 1; idx_t chunks = count / capacity;
+            while (chunks > 1) { chunks /= 2; ++levels; }
+            std::unique_lock<std::mutex> lock(mutex);
+            changed.wait(lock, [&] { return merge_error || runs.size() <= 2 * (size_t)(levels + 1); });
+            if (merge_error) std::rethrow_exception(merge_error);
+        }
+        void flush()
+        {
+            idx_t n = buffered(); if (!n) return;
+            std::vector<idx_t> order(n); std::iota(order.begin(), order.end(), 0);
+            std::sort(order.begin(), order.end(), [&](idx_t a, idx_t b) {
+                int cmp = memcmp(keys.data() + (size_t)a * seg, keys.data() + (size_t)b * seg, seg);
+                return cmp ? cmp < 0 : a < b;
+            });
+            auto run = newRun(n, 0); run->first_id = buffer_first; run->end_id = buffer_first + n;
+            File meta(run->meta_path, "wb"), raw(run->raw_path, "wb");
+            for (idx_t slot : order)
+            {
+                idx_t id = buffer_first + slot;
+                meta.write(keys.data() + (size_t)slot * seg, seg);
+                meta.write(sax.data() + (size_t)slot * seg, seg); meta.write(&id, sizeof(id));
+                raw.write(data.data() + checkedSize(slot, (size_t)dim), checkedSize(dim, sizeof(float)));
+            }
+            meta.finish(); raw.finish(); run->open(seg, leaf_size);
+            publish(std::move(run));
+            data.clear(); sax.clear(); keys.clear(); buffer_first = count; ++flushes;
+        }
+        void append(const float *input, idx_t n, int threads)
+        {
+            if (n > std::numeric_limits<idx_t>::max() - count) throw std::runtime_error("Coconut record count overflow");
+            snapshot(); // Surface any failed background merge before accepting more records.
+            while (n)
+            {
+                if (buffered() == capacity) flush();
+                idx_t first = buffered(), take = std::min(n, capacity - first);
+                if (!first) buffer_first = count;
+                size_t raw_size = checkedSize(first + take, (size_t)dim);
+                size_t key_size = checkedSize(first + take, (size_t)seg);
+                // Explicit reserve avoids vector's geometric growth exceeding
+                // the declared memtable capacity after many small inserts.
+                if (data.capacity() < raw_size) data.reserve(raw_size);
+                if (sax.capacity() < key_size) sax.reserve(key_size);
+                if (keys.capacity() < key_size) keys.reserve(key_size);
+                data.resize(raw_size); sax.resize(key_size); keys.resize(key_size);
+                memcpy(data.data() + checkedSize(first, (size_t)dim), input, checkedSize(take, checkedSize(dim, sizeof(float))));
+#pragma omp parallel num_threads(std::max(1, threads))
+                {
+                    std::vector<float> paa(seg);
+#pragma omp for schedule(static)
+                    for (idx_t i = first; i < first + take; ++i)
+                    {
+                        paa_from_ts(data.data() + checkedSize(i, (size_t)dim), paa.data(), seg, values);
+                        sax_from_paa(paa.data(), sax.data() + (size_t)i * seg, seg, alphabet, bits);
+                        sortable_sax_from_sax(sax.data() + (size_t)i * seg, keys.data() + (size_t)i * seg, seg, bits);
+                    }
+                }
+                count += take; n -= take; input += checkedSize(take, (size_t)dim);
+                peak_buffered = std::max(peak_buffered, buffered());
+                if (buffered() == capacity) flush();
+            }
+        }
+        void consolidateBuild()
+        {
+            // Algorithm 6: sort initial chunks once, then merge them; do not run
+            // incremental binary compactions repeatedly during initial loading.
+            unsigned level = 0; idx_t size = capacity;
+            while (size < count && size <= std::numeric_limits<idx_t>::max() / 2) { size *= 2; ++level; }
+            constexpr size_t max_fanin = 64;
+            while (runs.size() > 1)
+            {
+                std::vector<std::shared_ptr<Run>> next;
+                for (size_t i = 0; i < runs.size(); i += max_fanin)
+                {
+                    size_t end = std::min(runs.size(), i + max_fanin);
+                    std::vector<std::shared_ptr<Run>> group(runs.begin() + i, runs.begin() + end);
+                    next.push_back(group.size() > 1 ? merge(group, level) : group[0]);
+                }
+                runs = std::move(next);
+            }
+            if (!runs.empty()) runs[0]->level = level;
+            bulk_loading = false;
+            merger = std::thread([this] { compactLoop(); });
+        }
+        float bound(const float *paa, const sax_type *word) const
+        {
+            return minidist_paa_to_isax(const_cast<float *>(paa), const_cast<sax_type *>(word),
+                const_cast<sax_type *>(cardinalities.data()), (sax_type)bits, alphabet,
+                seg, MINVAL, MAXVAL, (float)values);
+        }
+        void validateRuns() const { for (const auto &run : snapshot()) run->validate(); }
+    };
+
+    Coconut::Coconut(DistanceType type) : SimilaritySearchAlgorithm(type) {}
+    Coconut::~Coconut() = default;
+    void Coconut::requireMutableConfig() const
+    { if (state_) throw std::runtime_error("Coconut layout settings cannot change after buildIndex"); }
+    void Coconut::requireBuilt() const
+    { if (!state_) throw std::runtime_error("Coconut requires an initial buildIndex first"); }
+    void Coconut::setPaaSegments(int n) { requireMutableConfig(); paa_segments = n; }
+    void Coconut::setSaxCardinality(int n) { requireMutableConfig(); sax_cardinality = n; }
+    void Coconut::setLeafSize(int n) { requireMutableConfig(); leaf_capacity_ = n; }
+    void Coconut::setBufferCapacity(idx_t n) { requireMutableConfig(); buffer_capacity_ = n; }
+    void Coconut::setQueryBatchSize(idx_t queries)
+    {
+        if (!queries || queries > 64) throw std::runtime_error("Coconut query batch size must be between 1 and 64");
+        query_batch_size_ = queries;
+    }
+    void Coconut::setAsyncMerges(bool enabled) { requireMutableConfig(); async_merges_ = enabled; }
+    void Coconut::waitForMerges() { requireBuilt(); state_->waitForMerges(); }
+    idx_t Coconut::getResidentSummaryBytes() const
+    {
+        idx_t bytes = 0; if (state_) for (const auto &run : state_->snapshot()) bytes += run->summaries.size();
+        return bytes;
+    }
+    void Coconut::setIndexDirectory(const std::string &p) { requireMutableConfig(); storage_parent_ = p; }
+    void Coconut::setNormalized(bool normalized)
+    {
+        if (!normalized) throw std::runtime_error("Coconut supports Gaussian breakpoints only; input is never normalized");
+        SimilaritySearchAlgorithm::setNormalized(true);
+    }
+    std::string Coconut::getIndexDirectory() const { return state_ ? state_->directory : std::string(); }
+    idx_t Coconut::getBufferedRecords() const { return state_ ? state_->buffered() : 0; }
+    idx_t Coconut::getDiskRecords() const { return n_database - getBufferedRecords(); }
+    idx_t Coconut::getDiskBytes() const
+    { return state_ ? getDiskRecords() * (state_->stride + state_->dim * sizeof(float)) : 0; }
+    idx_t Coconut::getRunCount() const { return state_ ? state_->snapshot().size() : 0; }
+    idx_t Coconut::getFlushCount() const { return state_ ? state_->flushes : 0; }
+    idx_t Coconut::getMergeCount() const { return state_ ? state_->merges.load() : 0; }
+    idx_t Coconut::getPeakBufferedRecords() const { return state_ ? state_->peak_buffered : 0; }
+
+    void Coconut::buildIndex(DataSource *source)
+    {
+        if (!source) throw std::runtime_error("Coconut datasource is null");
+        idx_t d = source->getDim();
+        if (!d || d > (idx_t)std::numeric_limits<int>::max() || paa_segments <= 0 || d % paa_segments ||
+            sax_cardinality < 1 || sax_cardinality > 8 || leaf_capacity_ <= 0 || !buffer_capacity_)
+            throw std::runtime_error("Coconut requires positive leaf/PAA sizes, buffer capacity, 1-8 SAX bits, and a dimension divisible by PAA size");
+        checkedSize(buffer_capacity_, checkedSize(d, sizeof(float)));
+        auto fresh = std::make_unique<DiskState>(d, paa_segments, sax_cardinality, leaf_capacity_, buffer_capacity_, storage_parent_, async_merges_);
+        set_active_breakpoints(nullptr, nullptr); source->reset();
+        idx_t expected = source->getTotalRecords(); const float *raw = source->rawPointer();
+        if (raw)
+            for (idx_t start = 0; start < expected; start += buffer_capacity_)
+            {
+                idx_t take = std::min(buffer_capacity_, expected - start);
+                checkFinite(raw + checkedSize(start, (size_t)d), take, d);
+                fresh->append(raw + checkedSize(start, (size_t)d), take, num_threads);
+            }
+        else
+        {
+            std::vector<float> chunk(checkedSize(buffer_capacity_, (size_t)d));
+            while (!expected || fresh->count < expected)
+            {
+                idx_t got = 0, limit = expected ? std::min(buffer_capacity_, expected - fresh->count) : buffer_capacity_;
+                while (got < limit && source->nextRecord(chunk.data() + checkedSize(got, (size_t)d))) ++got;
+                if (!got) break;
+                checkFinite(chunk.data(), got, d); fresh->append(chunk.data(), got, num_threads);
+                if (got < limit) break;
+            }
+            if (expected && fresh->count != expected)
                 throw std::runtime_error("Coconut datasource ended before all records were read");
-            raw = buffer.data();
         }
-
-        // 1. Compute SAX + sortable SAX for every series.
-        records_.resize(this->n_database);
-        for (idx_t i = 0; i < this->n_database; i++)
-        {
-            Record &r = records_[i];
-            r.series_id = i;
-            r.sax.resize(seg);
-            r.key.resize(seg);
-            sax_from_ts(const_cast<float *>(raw + (size_t)i * this->dim), r.sax.data(),
-                        this->ts_values_per_segment_, seg,
-                        this->sax_alphabet_cardinality_, bits);
-            sortable_sax_from_sax(r.sax.data(), r.key.data(), seg, bits);
-        }
-
-        // 2. Sort records by sortable-SAX key (bottom-up ordering).
-        std::sort(records_.begin(), records_.end(),
-                  [](const Record &a, const Record &b) { return key_less(a.key, b.key); });
-
-        // 3. Write on-disk leaf files: consecutive sorted records, each = [inv-SAX][raw TS].
-        static std::atomic<unsigned long> uid{0};
-        this->index_dir_ = "/tmp/daisy_coconut_" + std::to_string((unsigned long)getpid()) +
-                           "_" + std::to_string(uid.fetch_add(1));
-        mkdir(this->index_dir_.c_str(), 0777);
-
-        FILE *lf = nullptr;
-        int cur_leaf = -1;
-        for (size_t p = 0; p < records_.size(); p++)
-        {
-            int leaf_no = (int)(p / (size_t)this->leaf_capacity);
-            if (leaf_no != cur_leaf)
-            {
-                if (lf) fclose(lf);
-                lf = fopen(leafPath(leaf_no).c_str(), "wb");
-                cur_leaf = leaf_no;
-            }
-            if (lf)
-            {
-                fwrite(records_[p].key.data(), sizeof(sax_type), seg, lf);
-                fwrite(raw + (size_t)records_[p].series_id * this->dim,
-                       sizeof(float), this->dim, lf);
-            }
-        }
-        if (lf) fclose(lf);
-        // buffer freed here: raw series now live on disk in the leaf files.
-
-        this->next_id_ = this->n_database;  // streaming inserts get ids after the built set
+        fresh->flush(); fresh->consolidateBuild();
+        dim = d; n_database = fresh->count; state_ = std::move(fresh);
     }
-
-    void Coconut::insert(const float *series)
-    {
-        if (this->paa_segments <= 0 || this->ts_values_per_segment_ <= 0)
-            throw std::runtime_error("Coconut::insert requires an initial buildIndex first");
-
-        const int seg = this->paa_segments;
-        Record r;
-        r.series_id = this->next_id_++;
-        r.sax.resize(seg);
-        r.key.resize(seg);
-        sax_from_ts(const_cast<float *>(series), r.sax.data(),
-                    this->ts_values_per_segment_, seg,
-                    this->sax_alphabet_cardinality_, this->sax_cardinality);
-        sortable_sax_from_sax(r.sax.data(), r.key.data(), seg, this->sax_cardinality);
-
-        buffer_records_.push_back(std::move(r));
-        buffer_data_.insert(buffer_data_.end(), series, series + this->dim);
-        this->n_database++;
-    }
-
+    void Coconut::insert(const float *data) { insertBatch(data, 1); }
     void Coconut::insertBatch(const float *data, idx_t n)
     {
-        buffer_data_.reserve(buffer_data_.size() + (size_t)n * this->dim);
-        for (idx_t i = 0; i < n; i++)
-            insert(data + (size_t)i * this->dim);
+        requireBuilt(); checkFinite(data, n, dim); set_active_breakpoints(nullptr, nullptr);
+        try { state_->append(data, n, num_threads); }
+        catch (...) { n_database = state_->count; throw; }
+        n_database = state_->count;
+    }
+    void Coconut::flush() { requireBuilt(); state_->flush(); }
+
+    void Coconut::searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
+    { searchTopK(query, n_query, k, 0, I, D); }
+
+    void Coconut::searchIndexRecent(const float *query, idx_t n_query, idx_t k, idx_t window, idx_t *I, float *D)
+    {
+        requireBuilt();
+        if (!window) throw std::runtime_error("Coconut recent window must be positive");
+        searchTopK(query, n_query, k, window < n_database ? n_database - window : 0, I, D);
     }
 
-    bool Coconut::readLeaf(size_t leaf_no, std::vector<unsigned char> &page) const
+    void Coconut::searchTopK(const float *query, idx_t n_query, idx_t k, idx_t first_id, idx_t *I, float *D)
     {
-        const size_t begin = leaf_no * (size_t)this->leaf_capacity;
-        if (begin >= records_.size())
-            return false;
-        const size_t count = std::min((size_t)this->leaf_capacity, records_.size() - begin);
-        const size_t record_bytes = (size_t)this->paa_segments * sizeof(sax_type) +
-                                    (size_t)this->dim * sizeof(float);
-        page.resize(count * record_bytes);
-        std::unique_ptr<FILE, decltype(&fclose)> file(fopen(leafPath((int)leaf_no).c_str(), "rb"), &fclose);
-        return file && fread(page.data(), 1, page.size(), file.get()) == page.size();
-    }
-
-    void Coconut::copySeriesFromLeaf(const std::vector<unsigned char> &page, size_t slot, float *out) const
-    {
-        const size_t key_bytes = (size_t)this->paa_segments * sizeof(sax_type);
-        const size_t series_bytes = (size_t)this->dim * sizeof(float);
-        // Copy instead of casting: a key length need not leave the raw floats aligned.
-        memcpy(out, page.data() + slot * (key_bytes + series_bytes) + key_bytes, series_bytes);
-    }
-
-    void Coconut::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
-    {
-        const int seg = this->paa_segments;
-        if (this->distance_type != DistanceType::L2_SQUARED)
-            throw std::runtime_error("Coconut top-k search only supports L2_SQUARED");
-        if (this->ts_values_per_segment_ <= 0)
-            throw std::runtime_error("Coconut top-k search requires an initial buildIndex first");
-        if (k == 0)
-            throw std::runtime_error("Coconut top-k search requires k > 0");
-        const size_t cap = (size_t)this->leaf_capacity;
-        const size_t n_leaves = (records_.size() + cap - 1) / cap;
-        std::atomic<bool> io_failed{false};
-        const int workers = (int)std::max<idx_t>(1, std::min<idx_t>(std::max(1, num_threads), n_query));
-
-#pragma omp parallel for num_threads(workers) schedule(dynamic, 1)
-        for (idx_t q = 0; q < n_query; q++)
+        requireBuilt();
+        if (distance_type != DistanceType::L2_SQUARED) throw std::runtime_error("Coconut top-k search only supports L2_SQUARED");
+        if (!k) throw std::runtime_error("Coconut top-k search requires k > 0");
+        checkFinite(query, n_query, dim); set_active_breakpoints(nullptr, nullptr);
+        const auto &s = *state_; auto runs = s.snapshot();
+        for (const auto &run : runs) run->validate();
+        last_stats_ = {};
+        // Batch SIMS keeps Coconut's seed -> SAX bounds -> exact refinement.
+        // Queries share bounded ordered reads, never their heaps or pruning bound.
+        struct alignas(64) Work
         {
-            std::vector<float> paa(seg);
-            std::vector<float> ts(this->dim);
-            std::vector<unsigned char> page;
-            const float *qts = query + (size_t)q * this->dim;
-            paa_from_ts(qts, paa.data(), seg, this->ts_values_per_segment_);
-
-            // k-BSF as a max-heap on distance (top = current worst of the best k).
-            std::priority_queue<std::pair<float, idx_t>> bsf;
-
-            // Upstream Coconut first seeks the query key and visits nearby records.
-            // Our sorted, resident key directory replaces DB_SET_RANGE/DB_PREV/DB_NEXT.
-            // For top-k the seed must contain k distinct records whenever they exist.
-            std::vector<sax_type> query_sax(seg), query_key(seg);
-            sax_from_paa(paa.data(), query_sax.data(), seg,
-                        this->sax_alphabet_cardinality_, this->sax_cardinality);
-            sortable_sax_from_sax(query_sax.data(), query_key.data(), seg, this->sax_cardinality);
-            auto match = std::lower_bound(records_.begin(), records_.end(), query_key,
-                [](const Record &record, const std::vector<sax_type> &key) {
-                    return key_less(record.key, key);
-                });
-            const size_t center = (size_t)(match - records_.begin());
-            const size_t window = std::min(records_.size(), std::max(cap, (size_t)k));
-            const size_t seed_begin = std::min(center > window / 2 ? center - window / 2 : 0,
-                                               records_.size() - window);
-            const size_t seed_end = seed_begin + window;
-            size_t cached_leaf = n_leaves;
-
-            auto refine = [&](size_t p) {
-                const size_t leaf_no = p / cap;
-                if (cached_leaf != leaf_no)
-                {
-                    if (!readLeaf(leaf_no, page))
-                    {
-                        io_failed.store(true);
-                        return false;
-                    }
-                    cached_leaf = leaf_no;
-                }
-                copySeriesFromLeaf(page, p % cap, ts.data());
-                float kth = bsf.size() >= (size_t)k ? bsf.top().first : FLT_MAX;
-                float dist = ts_euclidean_distance_SIMD(const_cast<float *>(qts), ts.data(),
-                                                       (int)this->dim, kth);
-                if (bsf.size() < (size_t)k)
-                    bsf.push({dist, records_[p].series_id});
-                else if (dist < bsf.top().first)
-                {
-                    bsf.pop();
-                    bsf.push({dist, records_[p].series_id});
-                }
-                return true;
+            const float *query = nullptr;
+            std::vector<float> paa;
+            coconut_detail::QueryBounds lookup;
+            std::vector<sax_type> key;
+            std::vector<std::pair<idx_t, idx_t>> windows;
+            std::priority_queue<std::pair<float, idx_t>> best;
+            idx_t candidates = 0, evaluations = 0, seeds = 0;
+        };
+        const idx_t max_raw_bytes = 8 * 1024 * 1024;
+        const size_t raw_stride = checkedSize(dim, sizeof(float));
+        const idx_t block_capacity = std::min<idx_t>(32768, std::max<idx_t>(1, max_raw_bytes / raw_stride));
+        for (idx_t base = 0; base < n_query; base += query_batch_size_)
+        {
+            idx_t count = std::min(query_batch_size_, n_query - base);
+            const int workers = std::max(1, num_threads);
+            std::vector<Work> work(count);
+            std::vector<float> page;
+            page.reserve(checkedSize(block_capacity, (size_t)dim));
+            auto refine = [&](Work &w, const float *ts, idx_t id, bool seed) {
+                if (id < first_id) return;
+                ++w.evaluations; if (seed) ++w.seeds;
+                float kth = w.best.size() >= k ? w.best.top().first : FLT_MAX;
+                float distance = squaredL2(w.query, ts, dim, std::nextafter(kth, FLT_MAX));
+                std::pair<float, idx_t> candidate(distance, id);
+                if (w.best.size() < k) w.best.push(candidate);
+                else if (candidate < w.best.top()) { w.best.pop(); w.best.push(candidate); }
             };
-            for (size_t p = seed_begin; p < seed_end; p++)
-                if (!refine(p))
-                    break;
-            if (io_failed.load())
-                continue;
-
-            // Exact refinement still considers every unseeded SAX summary. A surviving
-            // candidate loads its whole leaf once, avoiding per-record seeks and reads.
-            for (size_t leaf_no = 0; leaf_no < n_leaves; leaf_no++)
+            auto read = [&](const std::shared_ptr<Run> &run, idx_t begin, idx_t records, bool seed = false) {
+                run->leaf(begin, records, page);
+                ++last_stats_.leaf_reads; last_stats_.raw_bytes_read += records * raw_stride;
+                last_stats_.raw_records_read += records;
+                if (seed) last_stats_.seed_raw_records_read += records;
+            };
+            auto started = Clock::now();
+            for (idx_t q = 0; q < count; ++q)
             {
-                const size_t begin = leaf_no * cap;
-                const size_t end = std::min(begin + cap, records_.size());
-                for (size_t p = begin; p < end; p++)
+                auto &w = work[q]; w.query = query + checkedSize(base + q, (size_t)dim);
+                w.paa.resize(s.seg); w.key.resize(s.seg); w.windows.resize(runs.size());
+                std::vector<sax_type> word(s.seg);
+                paa_from_ts(const_cast<float *>(w.query), w.paa.data(), s.seg, s.values);
+                w.lookup.reset(w.paa.data(), s.seg, s.bits, (float)s.values);
+                sax_from_paa(w.paa.data(), word.data(), s.seg, s.alphabet, s.bits);
+                sortable_sax_from_sax(word.data(), w.key.data(), s.seg, s.bits);
+                for (size_t r = 0; r < runs.size(); ++r)
                 {
-                    if (p >= seed_begin && p < seed_end)
-                        continue;  // each seeded ID has already been considered exactly once
-                    float kth = (bsf.size() >= (size_t)k) ? bsf.top().first : FLT_MAX;
-
-                    float mindist = minidist_paa_to_isax(
-                        paa.data(),
-                        const_cast<sax_type *>(records_[p].sax.data()),
-                        const_cast<sax_type *>(this->max_cardinalities_.data()),
-                        (sax_type)this->sax_cardinality,
-                        this->sax_alphabet_cardinality_,
-                        seg, MINVAL, MAXVAL, this->mindist_sqrt_);
-
-                    if (mindist >= kth)
-                        continue;  // lower bound already worse than the k-th best -> prune
-
-                    if (!refine(p))
-                        break;
+                    const auto &run = runs[r];
+                    if (run->end_id <= first_id) { ++last_stats_.runs_skipped; continue; }
+                    ++last_stats_.runs_searched;
+                    idx_t target = run->locate(w.key.data());
+                    idx_t window = std::min(run->n, std::max<idx_t>(s.leaf_size, k));
+                    idx_t begin = std::min(target > window / 2 ? target - window / 2 : 0, run->n - window);
+                    w.windows[r] = {begin, begin + window};
+                    for (idx_t first = begin; first < begin + window;)
+                    {
+                        idx_t end = std::min(begin + window, std::min(first + block_capacity, run->leafBegin(run->leafOf(first) + 1)));
+                        read(run, first, end - first, true);
+                        for (idx_t pos = first; pos < end; ++pos)
+                            refine(w, page.data() + checkedSize(pos - first, (size_t)dim), run->id(pos, s.seg), true);
+                        first = end;
+                    }
                 }
-                if (io_failed.load())
-                    break;
+                for (idx_t b = 0; b < s.buffered(); ++b)
+                    refine(w, s.data.data() + checkedSize(b, (size_t)dim), s.buffer_first + b, true);
             }
-            if (io_failed.load())
-                continue;
-
-            // Scan the in-memory streaming buffer (raw TS already in memory).
-            for (size_t b = 0; b < buffer_records_.size(); b++)
+            last_stats_.approximate_seconds += elapsed(started);
+            // Scratch is independent of N: one raw block plus query-count x block
+            // bounds/masks. SAX summaries remain the only resident O(N) search data.
+            std::vector<float> bounds(checkedSize(count, (size_t)block_capacity));
+            std::vector<unsigned char> candidate(bounds.size()), active(block_capacity);
+            page.reserve(checkedSize(block_capacity, (size_t)dim));
+            size_t lookup_bytes = 0; for (const auto &w : work) lookup_bytes += w.lookup.bytes();
+            last_stats_.peak_scratch_bytes = std::max<idx_t>(last_stats_.peak_scratch_bytes,
+                bounds.size() * sizeof(float) + candidate.size() + active.size() + page.capacity() * sizeof(float) + lookup_bytes);
+            for (size_t r = 0; r < runs.size(); ++r)
             {
-                float kth = (bsf.size() >= (size_t)k) ? bsf.top().first : FLT_MAX;
-                float mindist = minidist_paa_to_isax(
-                    paa.data(),
-                    const_cast<sax_type *>(buffer_records_[b].sax.data()),
-                    const_cast<sax_type *>(this->max_cardinalities_.data()),
-                    (sax_type)this->sax_cardinality,
-                    this->sax_alphabet_cardinality_,
-                    seg, MINVAL, MAXVAL, this->mindist_sqrt_);
-                if (mindist >= kth)
-                    continue;
-                float *bts = buffer_data_.data() + b * (size_t)this->dim;
-                float dist = ts_euclidean_distance_SIMD(const_cast<float *>(qts), bts,
-                                                        (int)this->dim, kth);
-                if (bsf.size() < (size_t)k)
-                    bsf.push({dist, buffer_records_[b].series_id});
-                else if (dist < bsf.top().first)
+                const auto &run = runs[r]; if (run->end_id <= first_id) continue;
+                last_stats_.summaries_examined += count * run->n;
+                const bool boundary_run = run->first_id < first_id;
+                for (idx_t begin = 0; begin < run->n; begin += block_capacity)
                 {
-                    bsf.pop();
-                    bsf.push({dist, buffer_records_[b].series_id});
+                    idx_t records = std::min(block_capacity, run->n - begin);
+                    started = Clock::now();
+                    std::vector<float> threshold(count);
+                    for (idx_t q = 0; q < count; ++q)
+                        threshold[q] = work[q].best.size() >= k ? work[q].best.top().first : FLT_MAX;
+#pragma omp parallel for collapse(2) num_threads(workers) schedule(static)
+                    for (idx_t q = 0; q < count; ++q)
+                        for (idx_t i = 0; i < records; ++i)
+                        {
+                            const auto &w = work[q]; size_t row = (size_t)q * block_capacity;
+                            idx_t pos = begin + i;
+                            float bound = w.lookup(run->summaries.data() + (size_t)pos * s.seg, threshold[q]);
+                            bounds[row + i] = bound;
+                            bool survives = bound <= threshold[q] && !(pos >= w.windows[r].first && pos < w.windows[r].second);
+                            if (survives && boundary_run) survives = run->id(pos, s.seg) >= first_id;
+                            candidate[row + i] = survives;
+                        }
+                    for (idx_t q = 0; q < count; ++q)
+                        for (idx_t i = 0; i < records; ++i)
+                            work[q].candidates += candidate[(size_t)q * block_capacity + i];
+                    last_stats_.bounds_seconds += elapsed(started);
+                    started = Clock::now();
+                    std::fill_n(active.data(), records, 0);
+                    for (idx_t q = 0; q < count; ++q)
+                    {
+                        const auto *mask = candidate.data() + (size_t)q * block_capacity;
+                        for (idx_t i = 0; i < records; ++i) active[i] |= mask[i];
+                    }
+                    idx_t active_count = 0;
+                    for (idx_t i = 0; i < records; ++i) active_count += active[i] != 0;
+                    last_stats_.unique_candidate_records += active_count;
+                    // Dense blocks trade at most 2x unique-candidate bytes for
+                    // a single sequential read; sparse blocks retain short gaps.
+                    size_t max_gap = active_count * 2 >= records ? records * raw_stride : 4096;
+                    // Sparse positions are coalesced only across <=4 KiB gaps.
+                    // Dense candidate blocks become one bounded read reused by
+                    // every query in this tile. No unconditional raw full scan.
+                    idx_t cursor = 0;
+                    while (cursor < records)
+                    {
+                        while (cursor < records && !active[cursor]) ++cursor;
+                        if (cursor == records) break;
+                        idx_t first = cursor, last = cursor++;
+                        while (cursor < records)
+                        {
+                            if (active[cursor]) last = cursor;
+                            else if ((cursor - last) * raw_stride > max_gap) break;
+                            ++cursor;
+                        }
+                        idx_t end = last + 1;
+                        read(run, begin + first, end - first);
+                        std::exception_ptr error;
+#pragma omp parallel for num_threads(workers) if(count > 1) schedule(static)
+                        for (idx_t q = 0; q < count; ++q)
+                        {
+                            try
+                            {
+                                auto &w = work[q]; size_t row = (size_t)q * block_capacity;
+                                for (idx_t i = first; i < end; ++i)
+                                {
+                                    if (!candidate[row + i]) continue;
+                                    float kth = w.best.size() >= k ? w.best.top().first : FLT_MAX;
+                                    if (bounds[row + i] > kth) continue;
+                                    refine(w, page.data() + checkedSize(i - first, (size_t)dim), run->id(begin + i, s.seg), false);
+                                }
+                            }
+                            catch (...)
+                            {
+#pragma omp critical(coconut_batch_query_error)
+                                { if (!error) error = std::current_exception(); }
+                            }
+                        }
+                        if (error) std::rethrow_exception(error);
+                    }
+                    last_stats_.refinement_seconds += elapsed(started);
                 }
             }
-
-            // Emit in ascending distance order.
-            idx_t got = (idx_t)bsf.size();
-            for (idx_t j = got; j > 0; j--)
+            for (idx_t q = 0; q < count; ++q)
             {
-                D[q * k + (j - 1)] = bsf.top().first;
-                I[q * k + (j - 1)] = bsf.top().second;
-                bsf.pop();
-            }
-            for (idx_t j = got; j < k; j++)  // pad if fewer than k available
-            {
-                D[q * k + j] = FLT_MAX;
-                I[q * k + j] = 0;
+                auto &w = work[q]; last_stats_.candidate_records += w.candidates;
+                last_stats_.distance_evaluations += w.evaluations; last_stats_.seed_evaluations += w.seeds;
+                idx_t got = w.best.size(), offset = (base + q) * k;
+                for (idx_t j = got; j; --j)
+                { D[offset + j - 1] = w.best.top().first; I[offset + j - 1] = w.best.top().second; w.best.pop(); }
+                for (idx_t j = got; j < k; ++j) { I[offset + j] = 0; D[offset + j] = FLT_MAX; }
             }
         }
-        if (io_failed.load())
-            throw std::runtime_error("Coconut failed to open or read an index leaf");
     }
-
     void Coconut::searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
-                              std::vector<std::vector<idx_t>> &I,
-                              std::vector<std::vector<float>> &D)
+                              std::vector<std::vector<idx_t>> &I, std::vector<std::vector<float>> &D)
     {
         if (config.type == QueryType::TOP_K)
+        { SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D); return; }
+        requireBuilt();
+        if (distance_type != DistanceType::L2_SQUARED) throw std::runtime_error("Coconut range search only supports L2_SQUARED");
+        if (std::isnan(config.r) || config.r < 0) throw std::runtime_error("Coconut radius must be nonnegative");
+        checkFinite(query, n_query, dim); state_->validateRuns(); set_active_breakpoints(nullptr, nullptr);
+        I.assign(n_query, {}); D.assign(n_query, {});
+        const auto &s = *state_; auto runs = s.snapshot(); std::exception_ptr error;
+        int workers = (int)std::max<idx_t>(1, std::min<idx_t>(std::max(1, num_threads), n_query));
+#pragma omp parallel for num_threads(workers) schedule(dynamic, 1)
+        for (idx_t q = 0; q < n_query; ++q)
         {
-            SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
-            return;
-        }
-        if (this->distance_type != DistanceType::L2_SQUARED)
-            throw std::runtime_error("Coconut range search only supports L2_SQUARED.");
-
-        const int seg = this->paa_segments;
-        const float r = config.r;
-        // Early-abandon just past r: a partial sum can then never tie with r and be mistaken
-        // for a hit, while every series actually within the radius is still summed in full.
-        const float abandon_bound = std::nextafter(r, FLT_MAX);
-
-        I.assign(n_query, {});
-        D.assign(n_query, {});
-        std::atomic<bool> io_failed{false};
-
-#pragma omp parallel for num_threads(num_threads)
-        for (idx_t q = 0; q < n_query; q++)
-        {
-            const float *qts = query + (size_t)q * this->dim;
-            std::vector<float> paa(seg);
-            std::vector<float> ts(this->dim);
-            std::vector<std::pair<float, idx_t>> hits;
-            std::vector<unsigned char> page;
-
-            paa_from_ts(qts, paa.data(), seg, this->ts_values_per_segment_);
-
-            // Read a candidate leaf as one block, then refine candidates in memory.
-            const size_t cap = (size_t)this->leaf_capacity;
-            const size_t n_leaves = (records_.size() + cap - 1) / cap;
-            std::vector<size_t> candidates;
-
-            for (size_t leaf_no = 0; leaf_no < n_leaves; leaf_no++)
+            try
             {
-                const size_t begin = leaf_no * cap;
-                const size_t end = std::min(begin + cap, records_.size());
-
-                candidates.clear();
-                for (size_t p = begin; p < end; p++)
-                {
-                    float mindist = minidist_paa_to_isax(
-                        paa.data(),
-                        const_cast<sax_type *>(records_[p].sax.data()),
-                        const_cast<sax_type *>(this->max_cardinalities_.data()),
-                        (sax_type)this->sax_cardinality,
-                        this->sax_alphabet_cardinality_,
-                        seg, MINVAL, MAXVAL, this->mindist_sqrt_);
-
-                    if (mindist <= r)  // lower bound outside the radius -> prune
-                        candidates.push_back(p);
-                }
-
-                if (candidates.empty())
-                    continue;
-
-                if (!readLeaf(leaf_no, page))
-                {
-                    io_failed.store(true);
-                    break;
-                }
-                for (size_t p : candidates)
-                {
-                    copySeriesFromLeaf(page, p - begin, ts.data());
-                    float dist = ts_euclidean_distance_SIMD(const_cast<float *>(qts), ts.data(),
-                                                            (int)this->dim, abandon_bound);
-                    if (dist <= r)
-                        hits.emplace_back(dist, records_[p].series_id);
-                }
-                if (io_failed.load())
-                    break;
+                const float *qts = query + checkedSize(q, (size_t)dim);
+                std::vector<float> paa(s.seg), page; paa_from_ts(const_cast<float *>(qts), paa.data(), s.seg, s.values);
+                std::vector<std::pair<float, idx_t>> hits;
+                auto refine = [&](const float *ts, idx_t id) {
+                    float distance = squaredL2(qts, ts, dim, std::nextafter(config.r, FLT_MAX));
+                    if (distance <= config.r) hits.emplace_back(distance, id);
+                };
+                for (const auto &run : runs)
+                    for (idx_t leaf = 0; leaf < run->leaf_count; ++leaf)
+                    {
+                        idx_t begin = run->leafBegin(leaf), end = run->leafBegin(leaf + 1); std::vector<idx_t> candidates;
+                        for (idx_t p = begin; p < end; ++p)
+                            if (s.bound(paa.data(), run->summaries.data() + (size_t)p * s.seg) <= config.r) candidates.push_back(p);
+                        if (candidates.empty()) continue;
+                        run->leaf(begin, end - begin, page);
+                        for (idx_t p : candidates)
+                            refine(page.data() + checkedSize(p - begin, (size_t)dim), run->id(p, s.seg));
+                    }
+                for (idx_t b = 0; b < s.buffered(); ++b)
+                    if (s.bound(paa.data(), s.sax.data() + (size_t)b * s.seg) <= config.r)
+                        refine(s.data.data() + checkedSize(b, (size_t)dim), s.buffer_first + b);
+                std::sort(hits.begin(), hits.end());
+                for (const auto &hit : hits) { D[q].push_back(hit.first); I[q].push_back(hit.second); }
             }
-
-            // Scan the in-memory streaming buffer (raw TS already in memory).
-            for (size_t b = 0; b < buffer_records_.size(); b++)
+            catch (...)
             {
-                float mindist = minidist_paa_to_isax(
-                    paa.data(),
-                    const_cast<sax_type *>(buffer_records_[b].sax.data()),
-                    const_cast<sax_type *>(this->max_cardinalities_.data()),
-                    (sax_type)this->sax_cardinality,
-                    this->sax_alphabet_cardinality_,
-                    seg, MINVAL, MAXVAL, this->mindist_sqrt_);
-
-                if (mindist > r)
-                    continue;
-
-                float *bts = buffer_data_.data() + b * (size_t)this->dim;
-                float dist = ts_euclidean_distance_SIMD(const_cast<float *>(qts), bts,
-                                                        (int)this->dim, abandon_bound);
-                if (dist <= r)
-                    hits.emplace_back(dist, buffer_records_[b].series_id);
-            }
-
-            std::sort(hits.begin(), hits.end());
-            I[q].resize(hits.size());
-            D[q].resize(hits.size());
-            for (size_t j = 0; j < hits.size(); j++)
-            {
-                D[q][j] = hits[j].first;
-                I[q][j] = hits[j].second;
+#pragma omp critical(coconut_query_error)
+                { if (!error) error = std::current_exception(); }
             }
         }
-        if (io_failed.load())
-            throw std::runtime_error("Coconut failed to open or read an index leaf");
+        if (error) std::rethrow_exception(error);
     }
-
-    void Coconut::cleanupLeafFiles()
-    {
-        if (index_dir_.empty())
-            return;
-        int nleaves = (int)((records_.size() + leaf_capacity - 1) / (size_t)std::max(1, leaf_capacity));
-        for (int l = 0; l < nleaves; l++)
-            remove(leafPath(l).c_str());
-        rmdir(index_dir_.c_str());
-        index_dir_.clear();
-    }
-
 }

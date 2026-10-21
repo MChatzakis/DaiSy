@@ -27,6 +27,16 @@ package lib {
             class ParIS as PARIS
             class Sing as SING
             class Odyssey as ODYSSEY
+            class Coconut as COCONUT
+            COCONUT : + setBufferCapacity(records)
+            COCONUT : + insertBatch(data, n)
+            COCONUT : + getDiskRecords()
+            COCONUT : + waitForMerges()
+            COCONUT : + searchIndexRecent(window)
+            COCONUT : resident SAX / bounded batch SIMS
+            COCONUT : + setQueryBatchSize(queries)
+            class "Sorted disk runs" as CoconutRuns
+            COCONUT *-- CoconutRuns : bounded flush / background binary merge
 
             class DataSource as DS <<abstract>>
             DS : + nextRecord() bool
@@ -42,6 +52,7 @@ package lib {
             SSA <|-- PARIS : extends
             SSA <|-- SING : extends
             SSA <|-- ODYSSEY : extends
+            SSA <|-- COCONUT : extends
             DS <|-- IMDS : extends
             DS <|-- FDS : extends
             SSA --> DS : buildIndex()

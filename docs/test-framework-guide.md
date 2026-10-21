@@ -68,3 +68,18 @@ ID/distance pairs, rejects duplicates and validates the full-dataset reference
 against the published SIFT ground truth. Distances of raw integer descriptors
 are compared exactly; equally distant alternative IDs are allowed. The dataset
 and FAISS are not required for the regular C++ tests.
+
+
+## Coconut disk streaming
+
+With `BUILD_COCONUT=ON`, C++ tests cover static and streaming top-k, inclusive
+ranges, exact physical neighbor IDs after disk compaction, recent-window queries
+and SAX-bound lookup parity at adjacent-float thresholds. Non-finite Astronomy
+range fixtures are explicitly skipped; finite-input rejection is tested separately.
+
+With `BUILD_PYTHON=ON`, `test_coconut_topk_py` (NumPy and FAISS required) and
+`test_coconut_disk_py` (NumPy required) additionally exercise file-backed builds,
+bounded memtables, sync/async compaction, stable IDs, scalar versus batched read
+sharing, odd dimensions, strided arrays, corrupted files and invalid inputs.
+Run them with `ctest --test-dir build -R '[Cc]oconut' --output-on-failure`.
+`BUILD_COCONUT=OFF` excludes the implementation, bindings, tests and benchmark.

@@ -211,3 +211,20 @@ Update `CONTINUITY.md` when:
 - Python binding structure changes materially
 - Tests, demos, or benchmarks gain a new required pattern
 - A major known rough edge is fixed or a new one appears
+
+
+## Coconut materialized disk streaming
+
+Coconut uses a bounded raw memtable (default 1M records), external-sort bulk build,
+immutable sorted disk runs and background binary compaction. Resident SAX remains
+O(N); raw vectors persist to disk. Include waitForMerges() when timing completed
+insertion. Temporary indexes have no reopen/WAL/recovery or concurrent caller
+write/search support. Gaussian SAX only; inputs are never normalized internally.
+
+Top-k uses per-run sortable-key seeds, safe SAX pruning and independent exact
+heaps, sharing bounded candidate reads across configurable groups of up to 64
+queries (default 32). Recent-window top-k filters stable insertion IDs. Python
+bindings expose layout/storage/merge/query counters; BUILD_COCONUT remains optional.
+Tests cover strict physical neighbors through flushes/merges, batch/scalar parity,
+lookup-bound parity, ranges, corruption and API validation. See
+`docs/coconut-disk-streaming.md` and `docs/coconut-paper-implementation.md`.

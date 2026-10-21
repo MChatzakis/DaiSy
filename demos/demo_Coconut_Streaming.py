@@ -23,7 +23,9 @@ def main():
     query = np.random.randn(n_query, dim).astype(np.float32)
 
     index = Coconut(DistanceType.L2_SQUARED)
-    index.setNumThreads(1)
+    index.setNumThreads(2)
+    index.setQueryBatchSize(32)  # shared bounded candidate reads; independent exact heaps
+    index.setBufferCapacity(10_000)  # bounded RAM table; full buffers persist and schedule merges
     index.buildIndex(stream[:initial])         # build on the initial batch
 
     def show(when):
@@ -35,9 +37,14 @@ def main():
     seen = initial
     for s in range(steps):
         index.insertBatch(stream[seen:seen + batch])   # stream the next batch
+        index.waitForMerges()  # include this barrier when timing completed insertions
         seen += batch
-        print(f"streamed a batch; index now holds {seen} series")
+        print(f"streamed {seen} series; disk={index.getDiskRecords()}, "
+              f"RAM buffer={index.getBufferedRecords()}, merges={index.getMergeCount()}")
         show("after insert")
+        recent_ids, _ = index.searchIndexRecent(query, 1, batch)
+        print("top-1 in the most recent batch:", recent_ids[:, 0])
+        print("SIMS phases and reads:", index.getLastSearchStats())
 
 if __name__ == "__main__":
     main()

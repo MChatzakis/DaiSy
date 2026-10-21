@@ -122,7 +122,7 @@ class CoconutTopKTest(unittest.TestCase):
         index.setNumThreads(4)
         directories = set(Path('/tmp').glob(f'daisy_coconut_{os.getpid()}_*')) - before
         self.assertEqual(len(directories), 1)
-        leaf = next(iter(directories)) / 'leaf.0'
+        leaf = next(next(iter(directories)).glob('run.*.raw'))
         # A truncated file must never produce distances from an uninitialized buffer.
         leaf.write_bytes(b'')
         with self.assertRaisesRegex(RuntimeError, 'index leaf'):
