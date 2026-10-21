@@ -18,6 +18,14 @@ Here is a (non-exhaustive) mockup of our future and ongoing goals:
 
 ## Prerequisites
 
+For disk-streaming algorithms, correctness alone is insufficient: exercise buffer
+flushes and compaction in tests, verify actual disk-record counts and bounded RAM
+buffers, and include background-compaction barriers in completed-insertion
+measurements. Resident summaries are a separate O(N) memory cost. Validate query
+read-sharing against independent scalar-query answers; record candidate counts
+and logical/physical reads separately. See
+[Coconut disk streaming](coconut-disk-streaming.md) for the current adapter contract.
+
 Before starting, ensure you have:
 - A working development environment with CMake, C++17 or later, and Python 3.7+
 - Familiarize yourself with the existing algorithms in `lib/algos/` (e.g., `Bruteforce.hpp/cpp`, `Messi.hpp/cpp`)

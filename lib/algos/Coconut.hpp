@@ -1,91 +1,82 @@
 #ifndef COCONUT_HPP
 #define COCONUT_HPP
-
 #include "SimilaritySearchAlgorithm.hpp"
-
-#include "../isax/iSAXTypes.hpp"
-
-#include <cstdio>
+#include <memory>
 #include <string>
-#include <vector>
-#include <cfloat>
 
 namespace daisy
 {
+    struct CoconutSearchStats
+    {
+        idx_t summaries_examined = 0, leaf_reads = 0, raw_bytes_read = 0;
+        idx_t runs_searched = 0, runs_skipped = 0;
+        idx_t candidate_records = 0, unique_candidate_records = 0;
+        idx_t distance_evaluations = 0, seed_evaluations = 0, raw_records_read = 0, seed_raw_records_read = 0;
+        idx_t peak_scratch_bytes = 0;
+        double approximate_seconds = 0, bounds_seconds = 0, refinement_seconds = 0;
+    };
 
-    // COCONUT (Kondylakis et al., VLDB'18): a "sortable SAX" key (bit-interleaved SAX) orders
-    // series so the index can be built bottom-up by sorting and extended by streaming inserts.
-    // buildIndex sorts records onto on-disk leaves ([inv-SAX][raw TS] each); searchIndex does
-    // exact kNN or range search via SAX MINDIST + L2 refinement, parallel across queries.
-    // Top-k starts with an ordered approximate search around the query's sortable-SAX key,
-    // followed by exact SAX-bound refinement. Each query caches a complete leaf privately.
-    // The sorted in-memory key directory provides ordered lookup without Berkeley DB.
-    // Follow-ups: out-of-core key directory/sort, LSM merges, equi-depth breakpoints.
+    // Paper-based Coconut-LSM-Full: bounded RAM memtable, resident summaries,
+    // sorted disk runs, binary compaction and file-backed key directories.
+    // Writes and queries are not concurrent; the index is temporary, not a
+    // recoverable database. Gaussian SAX never normalizes the input vectors.
     class Coconut : public SimilaritySearchAlgorithm
     {
     public:
-        Coconut(DistanceType distance_type);
-
-        void setNumThreads(int num_threads) override { this->num_threads = num_threads; }
+        explicit Coconut(DistanceType type);
+        ~Coconut() override;
+        Coconut(const Coconut &) = delete;
+        Coconut &operator=(const Coconut &) = delete;
+        void setNumThreads(int n) override { num_threads = n; }
         int getNumThreads() const { return num_threads; }
-
         int getPaaSegments() const { return paa_segments; }
-        void setPaaSegments(int v) { paa_segments = v; }
+        void setPaaSegments(int n);
         int getSaxCardinality() const { return sax_cardinality; }
-        void setSaxCardinality(int v) { sax_cardinality = v; }
-        int getLeafSize() const { return leaf_capacity; }
-        void setLeafSize(int v) { leaf_capacity = v; }
-
+        void setSaxCardinality(int n);
+        int getLeafSize() const { return leaf_capacity_; }
+        void setLeafSize(int n);
+        idx_t getBufferCapacity() const { return buffer_capacity_; }
+        void setBufferCapacity(idx_t records);
+        void setIndexDirectory(const std::string &parent);
+        std::string getIndexDirectory() const;
+        idx_t getBufferedRecords() const;
+        idx_t getDiskRecords() const;
+        idx_t getDiskBytes() const;
+        idx_t getRunCount() const;
+        idx_t getFlushCount() const;
+        idx_t getMergeCount() const;
+        idx_t getPeakBufferedRecords() const;
+        void setQueryBatchSize(idx_t queries);
+        idx_t getQueryBatchSize() const { return query_batch_size_; }
+        void setAsyncMerges(bool enabled);
+        bool getAsyncMerges() const { return async_merges_; }
+        void waitForMerges();
+        idx_t getResidentSummaryBytes() const;
+        CoconutSearchStats getLastSearchStats() const { return last_stats_; }
+        // BTP recency is expressed as a count of most recently inserted vectors.
+        void searchIndexRecent(const float *query, idx_t n_query, idx_t k, idx_t window,
+                               idx_t *I, float *D);
+        void setNormalized(bool normalized) override;
         using SimilaritySearchAlgorithm::buildIndex;
-        void buildIndex(DataSource *data_source) override;
-        void buildIndex(const std::string &filename, idx_t dim, idx_t n_database = 0) override
-        {
-            throw std::runtime_error("Coconut requires in-memory data. Use buildIndex(database, n_database, dim).");
-        }
-
-        void searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D) override;
-
-        // Range search: every series within radius r of the query, in ascending distance order.
+        void buildIndex(DataSource *source) override;
+        void searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D) override;
         void searchIndex(const float *query, idx_t n_query, const SearchConfig &config,
-                         std::vector<std::vector<idx_t>> &I,
-                         std::vector<std::vector<float>> &D) override;
-
-        // Streaming: add series to a live index (needs buildIndex first). New series go into
-        // an in-memory buffer that queries scan alongside the on-disk index.
+                         std::vector<std::vector<idx_t>> &I, std::vector<std::vector<float>> &D) override;
         void insert(const float *series) override;
         void insertBatch(const float *data, idx_t n) override;
-
-        ~Coconut() override;
-
+        void flush();
     private:
-        // After sorting, record p lives in leaf p/leaf_capacity at slot p%leaf_capacity.
-        struct Record
-        {
-            std::vector<sax_type> sax;      // SAX word (for MINDIST)
-            std::vector<sax_type> key;      // sortable SAX (defines the order)
-            idx_t series_id;                // original index in the input
-        };
-
-        std::vector<Record> records_;       // main index, sorted by sortable-SAX key (TS on disk)
-        std::string index_dir_;             // unique per-instance dir for leaf files
-        int leaf_capacity = 1000;           // records per leaf file
-
-        // Streaming buffer: inserted series kept in memory (summaries + raw TS), scanned by queries.
-        std::vector<Record> buffer_records_;
-        std::vector<float> buffer_data_;    // buffer_records_.size() * dim
-        idx_t next_id_ = 0;
-
-        int ts_values_per_segment_ = 0;     // dim / paa_segments
-        int sax_alphabet_cardinality_ = 0;  // 2^sax_cardinality
-        float mindist_sqrt_ = 0.0f;         // (dim / paa_segments), the MINDIST scale factor
-        std::vector<sax_type> max_cardinalities_;  // all = sax_cardinality
-
-        std::string leafPath(int leaf_no) const;
-        bool readLeaf(size_t leaf_no, std::vector<unsigned char> &page) const;
-        void copySeriesFromLeaf(const std::vector<unsigned char> &page, size_t slot, float *out) const;
-        void cleanupLeafFiles();
+        struct DiskState;
+        std::unique_ptr<DiskState> state_;
+        int leaf_capacity_ = 1000;
+        idx_t buffer_capacity_ = 1000000;
+        std::string storage_parent_;
+        bool async_merges_ = true;
+        idx_t query_batch_size_ = 32;
+        CoconutSearchStats last_stats_;
+        void searchTopK(const float *query, idx_t n_query, idx_t k, idx_t first_id, idx_t *I, float *D);
+        void requireMutableConfig() const;
+        void requireBuilt() const;
     };
-
 }
-
 #endif

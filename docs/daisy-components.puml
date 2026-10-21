@@ -22,6 +22,9 @@ lib -right-> pybinds : BUILD_PYTHON\n→ modulo Python
 note bottom of lib
   Algoritmi: Bruteforce, LbBruteforce,
   MESSI, ParIS, SING (CUDA), Odyssey (MPI)
+  Coconut: bounded memtable -> sorted disk runs
+  Background LSM merges, resident SAX / shared-read batch SIMS
+  Bottom-up run trees, BTP recent-window top-k (POSIX)
 end note
 
 @enduml

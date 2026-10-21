@@ -29,12 +29,15 @@ endif()
 
 # ////// COCONUT //////
 if(BUILD_COCONUT)
+    find_package(Threads REQUIRED)
+    target_link_libraries(dino_lib PRIVATE Threads::Threads)
     if(DEBUG_MSG)
         message(STATUS "Adding Coconut.cpp to dino_lib sources.")
     endif()
     target_sources(dino_lib
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Coconut.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/CoconutBounds.hpp
     )
     target_compile_definitions(dino_lib PUBLIC COCONUT_ENABLED)
 else()

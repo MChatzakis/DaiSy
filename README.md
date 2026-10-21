@@ -56,7 +56,7 @@ The following table summarizes the key features of each algorithm:
 | **[Hercules](https://helios2.mi.parisdescartes.fr/~themisp/publications/pvldb22-hercules.pdf)** | In-memory hierarchical similarity search using EAPCA and SAX-based pruning |
 | **[DumpyOS](https://helios2.mi.parisdescartes.fr/~themisp/publications/vldbj24-dumpyos.pdf)** | In-memory scalable data series similarity search using an adaptive multi-ary iSAX index |
 | **[FreSH](http://publications.ics.forth.gr/tech-reports/2023/2023.TR489_FreSh_A_LockFree_Data_Series_Index.pdf)** | In-memory lock-free parallel similarity search using an iSAX index (SRDS 2023) |
-| **[COCONUT](http://www.vldb.org/pvldb/vol11/p677-kondylakis.pdf)** | Sortable-SAX index built bottom-up; supports both static datasets and **streaming** (incremental) inserts (PVLDB 2018) |
+| **[COCONUT](https://arxiv.org/abs/2006.11474)** | Paper-based materialized Coconut-LSM-Full: bottom-up disk index, streaming inserts, resident-summary SIMS and recent-window top-k |
 | **[FAISS](https://github.com/facebookresearch/faiss) flat** | Exact flat baseline backed by `faiss::IndexFlatL2`; static build plus streaming inserts with no retraining. Optional: build with `-DBUILD_FAISS=ON` |
 
 ### Incremental streaming inserts
@@ -91,18 +91,45 @@ data and the index stays exact after every insert. It supports `L2_SQUARED` only
 Streaming updates are not concurrent with queries. Inserts can reallocate the owned database,
 so callers should not retain a pointer returned by `getDatabase()` across them.
 
-`Coconut` uses the upstream ordered approximate search before exact top-k refinement:
-it locates the query's sortable-SAX key in a resident sorted directory and seeds a
-heap with nearby distinct records. Exact search then checks the remaining SAX bounds.
-Top-k and range queries read candidate leaves as complete blocks into private worker
-buffers, avoiding per-vector file seeks. The ordered lookup uses the resident directory
-instead of importing Berkeley DB's disk B-tree engine; raw vectors remain in leaf files.
-Search supports squared L2 only. Inserts append to an unmerged in-memory buffer;
-Coconut-LSM flush/merge handling and an out-of-core key directory remain unimplemented.
+`Coconut` now uses bounded disk streaming: a RAM memtable of at most
+`getBufferCapacity()` records (default 1,000,000) flushes to sorted disk runs.
+Binary LSM compaction merges adjacent temporal runs in the background, including
+the raw vectors. Include `waitForMerges()` after `insertBatch()` when measuring
+completed insertion time (sorting, writes, `fsync` and compaction). Initial build
+uses external sorting; SIMS keeps packed SAX summaries resident and parallelizes
+bounds over resident summaries before ordered raw refinement. Up to 32 independent
+queries share bounded candidate reads; each retains its own exact heap and bound.
+Sparse reads coalesce short gaps, while dense reads share blocks of at most 8 MiB.
+Ordered approximate seeding precedes exact SAX-bound refinement across every run
+and any partially full memtable. Candidate raw vectors are read in leaf blocks.
+Top-k and inclusive range search support squared L2 with Gaussian SAX breakpoints;
+vectors are never normalized internally. Configure layout before building:
+
+```python
+index = daisy.Coconut(daisy.DistanceType.L2_SQUARED)
+index.setBufferCapacity(1_000_000)  # records, not the external insertion batch size
+index.setIndexDirectory("/path/to/storage")  # unique temporary child directory
+index.buildIndex(initial_vectors)
+index.insertBatch(new_vectors)  # full tables persist and schedule compaction
+index.waitForMerges()           # include this barrier in completed-insert timing
+index.setQueryBatchSize(32)     # share candidate reads across independent queries
+ids, distances = index.searchIndexRecent(queries, 1, 50_000_000)  # latest records
+print(index.getDiskRecords(), index.getBufferedRecords(), index.getMergeCount())
+```
+
+This implements the paper's materialized Coconut-LSM-Full algorithms, with explicit
+[implementation choices and tests](docs/coconut-paper-implementation.md); it is
+not the authors' binary or an upstream performance reproduction. POSIX disk storage is required. The OS may
+cache disk pages, so measure cgroup memory as well as the bounded explicit buffers.
+Indexes are temporary and removed on destruction; crash recovery, reopening,
+deletion and concurrent caller writes/reads are unsupported. Recent-window queries
+use insertion counts, not arbitrary user timestamps. Resident SAX uses O(N) RAM; bound/read scratch is bounded independently of N; the raw vectors and bounded insertion buffer have separate budgets.
+See [the implementation notes](docs/coconut-disk-streaming.md). Earlier results
+from the unmerged RAM insertion buffer do not evaluate disk-based streaming.
 
 ### Range (distance-r) queries
 
-Every algorithm except Coconut's streaming-only paths answers range queries through
+Algorithms that implement range search answer range queries through
 `SearchConfig`. Instead of a fixed `k`, each query returns however many series fall within the
 radius, so the results come back as one vector per query:
 

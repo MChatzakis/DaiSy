@@ -3,7 +3,9 @@
 
 #include "algos/Bruteforce.hpp"
 #include "algos/LbBruteforce.hpp"
+#ifdef COCONUT_ENABLED
 #include "algos/Coconut.hpp"
+#endif
 #include "algos/Messi.hpp"
 #include "algos/ParIS.hpp"
 #include "algos/Sing.hpp"
