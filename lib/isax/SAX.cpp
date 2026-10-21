@@ -539,7 +539,9 @@ namespace daisy
         float distancef[8];
 
         __m256 v_t, v_s, v_d, distancev;
-        while (size > 0 && distance < bound)
+        // Callers accept distance <= bound. Equality of a partial sum
+        // cannot terminate refinement: later coordinates may exceed the bound.
+        while (size > 0 && distance <= bound)
         {
             v_t = _mm256_loadu_ps(&t[i]);
             v_s = _mm256_loadu_ps(&s[i]);

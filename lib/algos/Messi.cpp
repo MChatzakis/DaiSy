@@ -113,6 +113,8 @@ namespace daisy
         }
     }
 
+    // The approximate seed and exact traversal can refine the same record.
+    // Keep one entry per position while holding the existing queue write lock.
     void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
     {
 

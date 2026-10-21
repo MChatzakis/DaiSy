@@ -51,3 +51,13 @@ The benchmarking framework measures:
 3. **Memory Usage**: Peak memory consumption during operations
 4. **Throughput**: Queries processed per second
 5. **Scalability**: Performance across different thread counts
+
+## Seismic/DEEP range, breakpoint, and streaming comparisons
+
+FAISS comparison executables use the external library directly. Enabling
+`BUILD_BENCHMARK` configures its `benchmark/faiss` submodule when available with
+CMake 3.24 or newer; otherwise those executables are skipped. The core library,
+Python API, and demos do not provide a FAISS wrapper.
+
+See [the experiment runner](../scripts/experiments/README.md) for the serial
+FAISS/MESSI/Coconut suite, dataset configuration, validation, and `nohup` usage.

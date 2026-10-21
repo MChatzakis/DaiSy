@@ -18,6 +18,10 @@ Here is a (non-exhaustive) mockup of our future and ongoing goals:
 
 ## Prerequisites
 
+Keep external comparison baselines in `benchmark/`. FAISS is used directly by
+comparison executables and ground-truth checks; it is not a DaiSy algorithm or
+a dependency of the core library and its Python bindings.
+
 For disk-streaming algorithms, correctness alone is insufficient: exercise buffer
 flushes and compaction in tests, verify actual disk-record counts and bounded RAM
 buffers, and include background-compaction barriers in completed-insertion

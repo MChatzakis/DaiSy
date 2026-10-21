@@ -264,10 +264,8 @@ namespace daisy
         {
             free(n);
         }
-        for (int i = 0; i < pq_bsf->k - 1; ++i)
-        {
-            pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
-        }
+        // Preserve the exact distances associated with seeded positions.
+        // Their kth distance already supplies the refinement bound.
         // Free the priority queue.
         pqueue_free(pq);
     }
@@ -411,10 +409,8 @@ namespace daisy
         else
         {
         }
-        for (int i = 0; i < pq_bsf->k - 1; ++i)
-        {
-            pq_bsf->knn[i] = pq_bsf->knn[pq_bsf->k - 1];
-        }
+        // Preserve the exact distances associated with seeded positions.
+        // Their kth distance already supplies the refinement bound.
         free(sax);
     }
 } // namespace diNoLib

@@ -6,15 +6,7 @@ import numpy as np
 
 from daisy import BruteForceSearch, DistanceType, LbBruteforce, Messi
 
-# FaissFlat is only bound when DaiSy was built with BUILD_FAISS=ON.
-try:
-    from daisy import FaissFlat
-except ImportError:
-    FaissFlat = None
-
 STREAMING_ALGORITHMS = [BruteForceSearch, LbBruteforce, Messi]
-if FaissFlat is not None:
-    STREAMING_ALGORITHMS.append(FaissFlat)
 
 
 class StreamingBindingsTest(unittest.TestCase):

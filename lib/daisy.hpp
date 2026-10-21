@@ -15,9 +15,4 @@
 #include "algos/DumpyOS.hpp"
 #include "algos/Fresh.hpp"
 
-// Optional: built only with BUILD_FAISS=ON and the benchmark/faiss submodule present.
-#ifdef FAISS_ENABLED
-#include "algos/Faiss.hpp"
-#endif
-
 #endif

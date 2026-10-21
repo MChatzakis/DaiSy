@@ -57,11 +57,10 @@ The following table summarizes the key features of each algorithm:
 | **[DumpyOS](https://helios2.mi.parisdescartes.fr/~themisp/publications/vldbj24-dumpyos.pdf)** | In-memory scalable data series similarity search using an adaptive multi-ary iSAX index |
 | **[FreSH](http://publications.ics.forth.gr/tech-reports/2023/2023.TR489_FreSh_A_LockFree_Data_Series_Index.pdf)** | In-memory lock-free parallel similarity search using an iSAX index (SRDS 2023) |
 | **[COCONUT](https://arxiv.org/abs/2006.11474)** | Paper-based materialized Coconut-LSM-Full: bottom-up disk index, streaming inserts, resident-summary SIMS and recent-window top-k |
-| **[FAISS](https://github.com/facebookresearch/faiss) flat** | Exact flat baseline backed by `faiss::IndexFlatL2`; static build plus streaming inserts with no retraining. Optional: build with `-DBUILD_FAISS=ON` |
 
 ### Incremental streaming inserts
 
-`BruteForceSearch`, `LbBruteforce`, `Messi`, `Coconut`, and `FaissFlat` implement the common
+`BruteForceSearch`, `LbBruteforce`, `Messi`, and `Coconut` implement the common
 streaming API. Build the initial index once, then append one series or a contiguous batch without
 rebuilding:
 
@@ -83,10 +82,6 @@ adaptive cuts. `setNormalized(false)` selects adaptive breakpoints without chang
 Python MESSI queries accept strided NumPy arrays (including `.fvecs` views); the binding copies
 queries to contiguous float32 storage when needed and checks the index dimension before searching.
 MESSI range refinement evaluates the full distance when a partial sum equals the inclusive radius.
-
-`FaissFlat` is the streaming baseline: `faiss::IndexFlatL2::add()` appends into flat storage with
-no training step and no rebuild, so nothing is frozen at build time that could drift from the live
-data and the index stays exact after every insert. It supports `L2_SQUARED` only.
 
 Streaming updates are not concurrent with queries. Inserts can reallocate the owned database,
 so callers should not retain a pointer returned by `getDatabase()` across them.
@@ -181,7 +176,6 @@ Based on the available hardware, you can specify the below arguments to enable/d
 | `BUILD_ODYSSEY` | Enable MPI for distributed computing | `OFF` | OpenMPI/MPICH |
 | `BUILD_SING` | Enable CUDA for GPU acceleration | `OFF` | CUDA Toolkit |
 | `BUILD_COCONUT` | Enable the COCONUT sortable-SAX algorithm | `ON` | Core library |
-| `BUILD_FAISS` | Enable the `FaissFlat` baseline algorithm | `OFF` | FAISS submodule, CMake 3.24+, BLAS/LAPACK |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
 | `BUILD_SOFA` | Enable SOFA with SFA-Based indexing | `OFF` | FFTW3 | 
 
@@ -269,7 +263,7 @@ cd build
 ./benchmark/bm_Messi_L2Square
 ./benchmark/bm_Messi_Streaming
 
-# FAISS baselines (CMake 3.24+ required by the FAISS submodule)
+# External FAISS comparison benchmarks (CMake 3.24+ and FAISS submodule required)
 ./benchmark/bm_FaissFlat_L2Square
 ./benchmark/bm_Faiss_Streaming
 

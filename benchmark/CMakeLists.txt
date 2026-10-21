@@ -48,11 +48,28 @@ if(DEBUG_MSG)
     message(STATUS "GoogleTest fetched and available.")
 endif()
 
-# FAISS is configured once by the root CMakeLists (it is shared with the
-# daisy::FaissFlat algorithm) and exposes BUILD_FAISS_AVAILABLE. The FAISS
-# benchmarks below are skipped when it could not be configured.
-if(NOT BUILD_FAISS_AVAILABLE AND DEBUG_MSG)
-    message(STATUS "BUILD_FAISS_AVAILABLE is FALSE. Skipping FAISS benchmarks.")
+# External CPU comparison baseline, configured only in the benchmark directory.
+# The core library and Python bindings do not link to this target.
+set(FAISS_BENCHMARK_AVAILABLE FALSE)
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/faiss/CMakeLists.txt")
+    message(WARNING
+        "FAISS comparison benchmarks disabled: benchmark/faiss sources are missing. "
+        "Fetch them with: git submodule update --init benchmark/faiss")
+elseif(CMAKE_VERSION VERSION_LESS 3.24)
+    message(WARNING
+        "FAISS comparison benchmarks require CMake >= 3.24; found ${CMAKE_VERSION}. "
+        "Other benchmarks remain available.")
+else()
+    set(FAISS_ENABLE_GPU OFF CACHE BOOL "" FORCE)
+    set(FAISS_ENABLE_PYTHON OFF CACHE BOOL "" FORCE)
+    set(FAISS_ENABLE_EXTRAS OFF CACHE BOOL "" FORCE)
+    set(FAISS_ENABLE_C_API OFF CACHE BOOL "" FORCE)
+    # Suppress the dependency's tests without changing DaiSy's CTest setting.
+    set(_daisy_saved_build_testing "${BUILD_TESTING}")
+    set(BUILD_TESTING OFF)
+    add_subdirectory(faiss ${CMAKE_CURRENT_BINARY_DIR}/faiss)
+    set(BUILD_TESTING "${_daisy_saved_build_testing}")
+    set(FAISS_BENCHMARK_AVAILABLE TRUE)
 endif()
 
 # ////// BRUTEFORCE //////
@@ -229,7 +246,7 @@ target_include_directories(bm_Messi_Streaming
 )
 
 # ////// FAISS FLAT + FAISS STREAMING //////
-if(BUILD_FAISS_AVAILABLE)
+if(FAISS_BENCHMARK_AVAILABLE)
 
 if(DEBUG_MSG)
     message(STATUS "---")
@@ -273,7 +290,7 @@ target_link_libraries(bm_Faiss_Streaming
     faiss
 )
 
-endif() # BUILD_FAISS_AVAILABLE
+endif() # FAISS_BENCHMARK_AVAILABLE
 
 # ////// PARIS //////
 if(DEBUG_MSG)

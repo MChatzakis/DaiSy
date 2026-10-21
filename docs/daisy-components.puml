@@ -13,6 +13,9 @@ rectangle "DaiSy (root)" {
     component [pybinds\npybind11 → daisy.so] as pybinds
 }
 
+component [FAISS\nexternal comparison baseline] as faiss
+faiss -up-> benchmark : BUILD_BENCHMARK (optional)
+
 commons -down-> lib : link
 lib -down-> demos : BUILD_DEMO
 lib -down-> benchmark : BUILD_BENCHMARK

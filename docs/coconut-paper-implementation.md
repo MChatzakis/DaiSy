@@ -116,6 +116,42 @@ background merge is surfaced and the index must be rebuilt. Optional build guard
 remain unchanged. Neither this implementation nor its exactness tests guarantees
 that Coconut will outperform FAISS/MESSI on the chosen workload.
 
-Performance evaluations must freeze binary/source and configuration, include the
-compaction barrier in insertion timing, validate each prefix against independent
-ground truth, and retain phase/read/memory diagnostics.
+Historical 1B measurements and plots precede this implementation and must not be
+reused as its performance results. A new run must freeze the new binary/source,
+record within-query SIMS and the compaction timing barrier, validate references,
+and retain phase/read/memory diagnostics. No historical measurement is overwritten.
+
+## DEEP calibration and parameter choice
+
+The optimization compares frozen binaries on genuine DEEP prefixes and query rows
+100:200, disjoint from benchmark query rows 0:100. All variants use the same exact
+references, thread count and memory cap within a comparison. All three warm
+repetitions are retained; no outlier removal. Results under
+`build/coconut-optimized-20261020/tuning-1m-final` describe calibration, not the
+100M-to-1B experiment. At 1M, the prior sequential-query 16-segment implementation
+averaged 11.558 s per 100 queries. Shared reads with the same 16 segments averaged
+1.336 s; 96 segments with shared reads averaged 0.821 s. Each returned the exact
+reference answers. A slower one-query-at-a-time variant is retained in the raw
+results too. These subset ratios are not a promised billion-scale speedup.
+
+For 96D DEEP, 96 SAX segments retain one quantized coordinate per segment, with
+Gaussian breakpoints and 8 bits per segment. It changes summaries, not raw vector
+values. At 1B this needs 96 GB of resident summaries rather than 16 GB; live
+materialized disk files total 584 GB rather than 424 GB (raw vectors still occupy
+384 GB in either case). Background merges temporarily retain extra summaries and
+files. The library default remains 16 segments; the DEEP experiment records the
+96-segment tuning explicitly in its config. Cap/RSS and exactness checks remain
+required, including a test where the raw vectors exceed the worker memory cap.
+
+The controlled 3M comparison uses a 1 GiB worker cgroup and eight calibration
+queries. Raw vectors alone occupy 1.152 GB. Mean warm times were 14.553 s for the
+previous 16-segment scalar-query implementation, 2.105 s for shared reads with
+16 segments, and 0.158 s with 96 segments. All answers passed the independent
+reference. Raw input files may be shared/cache-charged outside a worker during
+build, so lifetime peak RSS can exceed the cgroup charge limit; it is not an index
+heap measurement. The runner logs `initial_input_released`, per-event RSS, cgroup
+usage and process storage-read counters separately. In the independent 3M-to-4M
+streaming preflight, all 22 query batches passed, raw vectors occupied 1.536 GB,
+and maximum query RSS after releasing the initial input was 727,523,328 bytes.
+The native queries used the materialized index files and a bounded memtable;
+this is correctness/resource evidence, not a billion-scale timing result.

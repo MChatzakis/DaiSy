@@ -129,3 +129,4 @@ venv.bak/
 
 daisy_exact_search.egg-info/
 /scripts/experiments/
+docs/figures/*

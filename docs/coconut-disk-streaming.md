@@ -1,6 +1,16 @@
 # Coconut disk streaming
 
-`Coconut` follows the materialized sorted-run design of
+The implementation was aligned further with the extended paper on 2026-10-19:
+resident SAX, within-query parallel SIMS, bottom-up indexed runs, background merges
+and recent-window queries. See the [algorithm-by-algorithm mapping](coconut-paper-implementation.md).
+The earlier 1B run predates these changes and measures the previous adaptation.
+
+The previous adapter built static leaves on disk but retained **all subsequent
+raw insertions in RAM**. Its streaming timings omitted flush/merge costs and its
+memory-limit outcomes must not be reported as Coconut disk-streaming limits.
+The prior source and experiment snapshots remain available for provenance.
+
+The corrected `Coconut` follows the materialized sorted-run design of
 [Coconut-LSM](https://arxiv.org/abs/2006.11474), adapted to DaiSy's exact top-k and
 inclusive range APIs. It is a new implementation of that storage/update policy,
 not an import of the 2018 Berkeley DB executable or a claim of performance parity.
@@ -34,27 +44,16 @@ Changing SAX/leaf/buffer/storage layout after building is rejected. Gaussian SAX
 is supported; selecting adaptive breakpoints is explicitly rejected in C++.
 No additional dependency is introduced; `BUILD_COCONUT=OFF` still excludes it.
 
-## Memory and measurements
-
-Raw vectors persist in run files; the memtable is bounded by record count.
-Resident SAX summaries cost one byte per segment per persisted record, so they
-still require O(N) RAM. Mapped directories, OS file cache and summaries retained
-by in-flight merges also count toward memory usage. Record cgroup/RSS alongside
-explicit buffer counters; this is not a constant-memory index.
-
-Freeze PAA segments, leaf size, query batch size and memtable capacity across
-streaming stages. Include `waitForMerges()` after `insertBatch()` inside the timed
-operation, then audit live disk/buffer counters. Do not charge outstanding merge
-work to the subsequent query. Build and batch loading are separate measurements.
-Query phase/read counters describe logical requests, not physical device I/O.
-
-See [the paper mapping and optimization details](coconut-paper-implementation.md).
-
-## Validation
+For the corrected DEEP experiment retain the original 100M build, 50M external
+insertion batches, original 100 top-1 queries, 48 threads and 340GiB/no-swap cap.
+Use the same 1M-record memtable at all stages. Validate top-k against the independent
+prefix reference and log disk/buffer counters after build and every insertion.
+Do not mix the old prototype's timing curves with the corrected storage policy.
+Only Coconut needs a replacement performance run; FAISS/MESSI results remain valid.
 
 Validation includes strict float64 physical-neighbor checks after repeated flushes
 and merges, stable IDs, inclusive ranges, partial buffers, file-backed builds,
 strided Python inputs, corruption detection and optional-build exclusion. The
-legacy Astronomy range fixture has non-finite rows 10321 and 40380; those nine
+legacy Astronomy range fixture has non-finite rows10321and40380; those nine
 parameterized cases explicitly skip the invalid fixture rather than filtering it
 or claiming exact range accuracy on NaNs. Finite-input rejection has its own test.
