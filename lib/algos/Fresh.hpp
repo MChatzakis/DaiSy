@@ -115,6 +115,8 @@ namespace daisy
         float r;
         std::vector<std::pair<float, idx_t>> *range_results;
         pthread_rwlock_t *lock_range_results;
+
+        SearchStats stats; // top-k L2 workers write their counters here before exiting
     } FRESH_workerdata;
 
     // Worker entry points spawned by the search. rfdata points to FRESH_workerdata.
@@ -134,7 +136,7 @@ namespace daisy
         bool warping_window_set = false;
 
         // Per-query drivers. Spawn workers, wait for them and return the results.
-        pqueue_bsf FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
+        pqueue_bsf FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k, SearchStats *stats = nullptr);
         pqueue_bsf FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
         std::vector<std::pair<float, idx_t>> FRESH_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r);
 

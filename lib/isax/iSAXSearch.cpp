@@ -7,7 +7,7 @@
 
 namespace daisy
 {
-    void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile)
+    void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile, SearchStats *stats)
     {
         // Bail out if node or buffer is missing
         if (node == NULL || node->buffer == NULL)
@@ -17,6 +17,8 @@ namespace daisy
         //  If node has buffered data
         if (node->buffer != NULL)
         {
+            // Every series of this leaf gets a real distance (no per-series bound here).
+            uint64_t distances = (uint64_t)node->buffer->full_buffer_size + (uint64_t)node->buffer->tmp_full_buffer_size;
             int i;
             for (i = 0; i < node->buffer->full_buffer_size; i++)
             {
@@ -50,6 +52,7 @@ namespace daisy
             if (node->buffer->partial_position_buffer[i] == NULL)
                 continue;
 
+            distances++;
             float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                                                     index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
 
@@ -59,11 +62,16 @@ namespace daisy
                 pqueue_bsf_insert_no_dup_position(pq_bsf, dist, pos, node);
             }
         }
+            if (stats)
+            {
+                stats->leaves_visited++;
+                stats->distance_calcs += distances;
+            }
         }
         //////////////////////////////////////
     }
 
-    void approximate_topk_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float *rawfile)
+    void approximate_topk_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float *rawfile, SearchStats *stats)
     {
 
         sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * index->settings->paa_segments);
@@ -101,7 +109,7 @@ namespace daisy
                 // Adaptive splitting
             }
             if (node != NULL)
-                calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile);
+                calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile, stats);
         }
         else
         {
@@ -109,8 +117,9 @@ namespace daisy
         free(sax);
     }
 
-    void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile)
+    void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, SearchStats *stats)
     {
+        uint64_t node_lbs = 0; // added to stats on return
         int tight_bound = index->settings->tight_bound;
         int aggressive_check = index->settings->aggressive_check;
 
@@ -131,6 +140,7 @@ namespace daisy
             
             query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
 
+            node_lbs++;
             mindist_result->distance = minidist_paa_to_isax(paa, current_root_node->isax_values,
                                                             current_root_node->isax_cardinalities,
                                                             index->settings->sax_bit_cardinality,
@@ -197,7 +207,7 @@ namespace daisy
                     }
                     // *** REAL DISTANCE ***
                     checks++;
-                    calculate_node_topk_inmemory(index, n->node, ts, pq_bsf, rawfile);
+                    calculate_node_topk_inmemory(index, n->node, ts, pq_bsf, rawfile, stats);
 
                     if (pq_bsf->knn[pq_bsf->k - 1] < FLT_MAX)
                     {
@@ -215,10 +225,11 @@ namespace daisy
                     {
                         if (n->node->left_child->is_leaf && !n->node->left_child->has_partial_data_file && aggressive_check)
                         {
-                            calculate_node_topk_inmemory(index, n->node->left_child, ts, pq_bsf, rawfile);
+                            calculate_node_topk_inmemory(index, n->node->left_child, ts, pq_bsf, rawfile, stats);
                         }
                         else
                         {
+                            node_lbs++;
                             query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
                             mindist_result->distance = minidist_paa_to_isax(paa, n->node->left_child->isax_values,
                                                                             n->node->left_child->isax_cardinalities,
@@ -237,10 +248,11 @@ namespace daisy
                     {
                         if (n->node->right_child->is_leaf && !n->node->right_child->has_partial_data_file && aggressive_check)
                         {
-                            calculate_node_topk_inmemory(index, n->node->right_child, ts, pq_bsf, rawfile);
+                            calculate_node_topk_inmemory(index, n->node->right_child, ts, pq_bsf, rawfile, stats);
                         }
                         else
                         {
+                            node_lbs++;
                             query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
                             mindist_result->distance = minidist_paa_to_isax(paa, n->node->right_child->isax_values,
                                                                             n->node->right_child->isax_cardinalities,
@@ -268,6 +280,8 @@ namespace daisy
         // Their kth distance already supplies the refinement bound.
         // Free the priority queue.
         pqueue_free(pq);
+        if (stats)
+            stats->node_lb_calcs += node_lbs;
     }
 
     // new

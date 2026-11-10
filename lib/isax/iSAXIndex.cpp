@@ -911,6 +911,41 @@ namespace daisy
         free(node_buffer);
     }
 
+    void isax_tree_destroy(isax_node *node)
+    {
+        if (node == NULL)
+            return;
+        isax_tree_destroy(node->left_child);
+        isax_tree_destroy(node->right_child);
+        if (node->buffer != NULL)
+            destroy_node_buffer(node->buffer);
+        if (node->split_data != NULL)
+        {
+            free(node->split_data->split_mask);
+            free(node->split_data);
+        }
+        free(node->isax_values);
+        free(node->isax_cardinalities);
+        free(node->filename);
+        free(node->wedges);
+        free(node);
+    }
+
+    void isax_index_settings_destroy(isax_index_settings *settings)
+    {
+        if (settings == NULL)
+            return;
+        if (daisy_active_breakpoints == settings->breakpoints ||
+            daisy_active_breakpoints_max == settings->breakpoints_max)
+            set_active_breakpoints(nullptr, nullptr);
+        free(settings->bit_masks);
+        free(settings->max_sax_cardinalities);
+        free(settings->breakpoints_owned);
+        free(settings->breakpoints_max_owned);
+        free(settings->raw_filename);
+        free(settings);
+    }
+
     float sax2paa_word(sax_type sax_word, int cardinality)
     {
         // sax_word is unsigned char, explicitly converted as int

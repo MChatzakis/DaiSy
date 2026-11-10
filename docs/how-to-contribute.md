@@ -47,6 +47,12 @@ Create your new algorithm under the `lib/algos/` directory, following the existi
 - Implement all pure virtual methods from the `SimilaritySearchAlgorithm` interface
 - Follow the naming and style conventions used by existing algorithms
 - Include proper error handling and input validation
+- Optional: fill `last_search_stats` (one `SearchStats` per query, see
+  `lib/utils/SearchStats.hpp`) from `searchIndex` if you want the work counters reported
+  through `getLastSearchStats()`. Clear it on every path you do not count (other distances,
+  range search). Count into per-thread locals and add them up after the workers join; a
+  shared atomic counter would slow down the search being measured. MESSI, FreSh, SOFA and
+  Odyssey show the pattern
 
 **File structure example:**
 ```

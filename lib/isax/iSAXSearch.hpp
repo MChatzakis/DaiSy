@@ -8,14 +8,16 @@
 #include "iSAXTypes.hpp"
 #include "iSAXIndex.hpp"
 #include "iSAXPqueue.hpp"
+#include "../utils/SearchStats.hpp"
 
 namespace daisy
 {
-    void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile);
+    // stats (optional) receives one leaf visit and its distance computations.
+    void calculate_node_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, pqueue_bsf *pq_bsf, float *rawfile, SearchStats *stats = nullptr);
 
-    void approximate_topk_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float *rawfile);
+    void approximate_topk_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float *rawfile, SearchStats *stats = nullptr);
 
-    void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile);
+    void refine_topk_answer_inmemory(ts_type *ts, ts_type *paa, isax_index *index, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, SearchStats *stats = nullptr);
 
     float dtw(float *A, float *B, float *cb, int m, int r, float bsf);
 

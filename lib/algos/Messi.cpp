@@ -19,7 +19,7 @@
 
 namespace daisy
 {
-    void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue)
+    void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue, SearchStats *stats)
     {
 
         if (node == NULL || node->isax_values == NULL || node->isax_cardinalities == NULL)
@@ -27,6 +27,8 @@ namespace daisy
             return;
         }
 
+        if (stats)
+            stats->node_lb_calcs++;
         float distance = minidist_paa_to_isax(paa, node->isax_values,
                                               node->isax_cardinalities,
                                               index->settings->sax_bit_cardinality,
@@ -40,6 +42,8 @@ namespace daisy
         {
             if (node->is_leaf)
             {
+                if (stats)
+                    stats->leaves_enqueued++;
                 query_result *mindist_result = (query_result *)malloc(sizeof(query_result));
                 mindist_result->node = node;
                 mindist_result->distance = distance;
@@ -55,13 +59,13 @@ namespace daisy
                     node->left_child->isax_values != NULL &&
                     node->left_child->isax_cardinalities != NULL)
                 {
-                    insert_tree_node_m_hybridpqueue(paa, node->left_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
+                    insert_tree_node_m_hybridpqueue(paa, node->left_child, index, bsf, pq, lock_queue, tnumber, n_pqueue, stats);
                 }
                 if (node->right_child != NULL &&
                     node->right_child->isax_values != NULL &&
                     node->right_child->isax_cardinalities != NULL)
                 {
-                    insert_tree_node_m_hybridpqueue(paa, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
+                    insert_tree_node_m_hybridpqueue(paa, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue, stats);
                 }
             }
         }
@@ -115,7 +119,7 @@ namespace daisy
 
     // The approximate seed and exact traversal can refine the same record.
     // Keep one entry per position while holding the existing queue write lock.
-    void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile)
+    void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile, SearchStats *stats)
     {
 
         if (node == NULL || node->buffer == NULL)
@@ -124,6 +128,9 @@ namespace daisy
         }
 
         {
+            // Raw-series buffers get a real distance each; partial buffers get a
+            // per-series lower bound first and a real distance only if it passes.
+            uint64_t distances = (uint64_t)node->buffer->full_buffer_size + (uint64_t)node->buffer->tmp_full_buffer_size;
             int i;
             for (i = 0; i < node->buffer->full_buffer_size; i++)
             {
@@ -173,6 +180,7 @@ namespace daisy
                                                                index->settings->breakpoints);
                 if (distmin <= pq_bsf->knn[pq_bsf->k - 1])
                 {
+                    distances++;
                     float dist = ts_euclidean_distance_SIMD(query, &(rawfile[*node->buffer->partial_position_buffer[i]]),
                                                             index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
 
@@ -185,6 +193,12 @@ namespace daisy
                         pthread_rwlock_unlock(lock_queue);
                     }
                 }
+            }
+            if (stats)
+            {
+                stats->leaves_visited++;
+                stats->series_lb_calcs += (uint64_t)node->buffer->partial_buffer_size;
+                stats->distance_calcs += distances;
             }
         }
     }
@@ -267,6 +281,7 @@ namespace daisy
         int tnumber = rand() % n_pqueue;
         int startqueuenumber = ((MESSI_workerdata *)rfdata)->startqueuenumber;
         float *rawfile = ((MESSI_workerdata *)rfdata)->rawfile;
+        SearchStats stats{}; // thread-local counters, copied out once at the end
 
         while (1)
         {
@@ -276,7 +291,7 @@ namespace daisy
                 break;
             current_root_node = ((MESSI_workerdata *)rfdata)->nodelist[current_root_node_number];
 
-            insert_tree_node_m_hybridpqueue(paa, current_root_node, index, bsfdisntance, ((MESSI_workerdata *)rfdata)->allpq, ((MESSI_workerdata *)rfdata)->alllock, &tnumber, n_pqueue);
+            insert_tree_node_m_hybridpqueue(paa, current_root_node, index, bsfdisntance, ((MESSI_workerdata *)rfdata)->allpq, ((MESSI_workerdata *)rfdata)->alllock, &tnumber, n_pqueue, &stats);
         }
 
         pthread_barrier_wait(((MESSI_workerdata *)rfdata)->lock_barrier);
@@ -292,6 +307,7 @@ namespace daisy
 
             if (n->distance > bsfdisntance || n->distance > minimum_distance)
             {
+                free(n); // popped but not processed
                 break;
             }
             else
@@ -300,7 +316,7 @@ namespace daisy
                 {
 
                     checks++;
-                    calculate_node2_topk_inmemory(index, n->node, ts, paa, pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf, rawfile);
+                    calculate_node2_topk_inmemory(index, n->node, ts, paa, pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf, rawfile, &stats);
                 }
             }
             free(n);
@@ -335,6 +351,7 @@ namespace daisy
                             break;
                         if (n->distance > bsfdisntance || n->distance > minimum_distance)
                         {
+                            free(n); // popped but not processed
                             break;
                         }
                         else
@@ -344,7 +361,7 @@ namespace daisy
                             {
                                 checks++;
 
-                                calculate_node2_topk_inmemory(index, n->node, ts, paa, pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf, rawfile);
+                                calculate_node2_topk_inmemory(index, n->node, ts, paa, pq_bsf, ((MESSI_workerdata *)rfdata)->lock_bsf, rawfile, &stats);
                             }
                         }
 
@@ -360,6 +377,7 @@ namespace daisy
             }
         }
 
+        ((MESSI_workerdata *)rfdata)->stats = stats;
         return nullptr;
     }
 
@@ -418,6 +436,7 @@ namespace daisy
 
             if (n->distance > bsfdisntance || n->distance > minimum_distance)
             {
+                free(n); // popped but not processed
                 break;
             }
             else
@@ -464,6 +483,7 @@ namespace daisy
                         bsfdisntance = pq_bsf->knn[pq_bsf->k - 1];
                         if (n->distance > bsfdisntance || n->distance > minimum_distance)
                         {
+                            free(n); // popped but not processed
                             break;
                         }
                         else
@@ -591,7 +611,10 @@ namespace daisy
             if (n == NULL)
                 break;
             if (n->distance > r)
+            {
+                free(n); // popped but not processed
                 break;
+            }
             if (n->node->is_leaf)
                 calculate_node_range_inmemory(index, n->node, ts, paa, r,
                                              wd->range_results, wd->lock_range_results, rawfile);
@@ -623,7 +646,10 @@ namespace daisy
                         if (n == NULL)
                             break;
                         if (n->distance > r)
+                        {
+                            free(n); // popped but not processed
                             break;
+                        }
                         if (n->node->is_leaf)
                             calculate_node_range_inmemory(index, n->node, ts, paa, r,
                                                          wd->range_results, wd->lock_range_results, rawfile);
@@ -1100,6 +1126,7 @@ namespace daisy
 
     void Messi::searchIndexL2Squared(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        last_search_stats.assign(n_query, SearchStats{});
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
 
         node_list nodelist;
@@ -1127,7 +1154,7 @@ namespace daisy
 
             paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
-            pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k);
+            pqueue_bsf result = MESSI_search_topk_L2Squared((float *)ts, paa, &nodelist, k, &last_search_stats[q_loaded]);
 
             std::vector<std::pair<float, long>> pairs;
             pairs.reserve(static_cast<size_t>(k));
@@ -1168,8 +1195,6 @@ namespace daisy
 
         free(nodelist.nlist);
         free(paa);
-        fprintf(stderr, ">>> Finished querying.\n");
-        fflush(stdout);
     }
 
     void Messi::searchIndexDTW(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
@@ -1239,7 +1264,6 @@ namespace daisy
         }
 
         free(nodelist.nlist);
-        fprintf(stderr, ">>> Finished querying.\n");
     }
 
     std::vector<std::pair<float, idx_t>> Messi::MESSI_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r)
@@ -1312,6 +1336,7 @@ namespace daisy
             SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
             return;
         }
+        last_search_stats.clear(); // range search collects no statistics
 
         ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
         node_list nodelist;
@@ -1350,6 +1375,7 @@ namespace daisy
 
     void Messi::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        last_search_stats.clear(); // refilled by the L2 path only
         if (this->distance_type == DistanceType::L2_SQUARED)
         {
             searchIndexL2Squared(query, n_query, k, I, D);
@@ -1365,11 +1391,11 @@ namespace daisy
         }
     }
 
-    pqueue_bsf Messi::MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
+    pqueue_bsf Messi::MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k, SearchStats *stats)
     {
         pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
 
-        approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database);
+        approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database, stats);
         this->minimum_distance = pq_bsf->knn[k - 1];
 
         int tight_bound = index->settings->tight_bound;
@@ -1378,9 +1404,11 @@ namespace daisy
 
         if (this->minimum_distance == FLT_MAX || min_checked_leaves > 1)
         {
-            refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database);
+            refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database, stats);
             this->minimum_distance = pq_bsf->knn[k - 1];
         }
+        if (stats)
+            stats->seed_kth_dist = pq_bsf->knn[k - 1];
         pqueue_t **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * this->n_pqueue);
 
         pthread_mutex_t ququelock[this->n_pqueue];
@@ -1424,6 +1452,7 @@ namespace daisy
 
             workerdata[i].n_pqueue = this->n_pqueue;
             workerdata[i].rawfile = this->database;
+            workerdata[i].stats = SearchStats{};
         }
 
         query_result *n;
@@ -1436,6 +1465,9 @@ namespace daisy
         {
             pthread_join(threadid[i], NULL);
         }
+        if (stats)
+            for (int i = 0; i < this->search_workers; i++)
+                stats->addCounters(workerdata[i].stats);
         this->minimum_distance = pq_bsf->knn[k - 1];
 
         pthread_barrier_destroy(&lock_barrier);
@@ -1574,8 +1606,12 @@ namespace daisy
             }
             if (index->fbl != nullptr)
             {
-
-                destroy_parallel_fbl((parallel_first_buffer_layer *)index->fbl);
+                // Every root node hangs off the first buffer layer (index->first_node
+                // links the same roots), so free each subtree once from here.
+                parallel_first_buffer_layer *fbl = (parallel_first_buffer_layer *)index->fbl;
+                for (int i = 0; i < fbl->number_of_buffers; i++)
+                    isax_tree_destroy(fbl->soft_buffers[i].node);
+                destroy_parallel_fbl(fbl);
             }
             if (index->sax_file != nullptr)
             {
@@ -1584,21 +1620,6 @@ namespace daisy
             free(index);
         }
 
-        if (index_settings != nullptr)
-        {
-            if (daisy_active_breakpoints == index_settings->breakpoints)
-                set_active_breakpoints(nullptr, nullptr);
-            if (index_settings->bit_masks != nullptr)
-            {
-                free(index_settings->bit_masks);
-            }
-            if (index_settings->max_sax_cardinalities != nullptr)
-            {
-                free(index_settings->max_sax_cardinalities);
-            }
-            free(index_settings->breakpoints_owned);
-            free(index_settings->breakpoints_max_owned);
-            free(index_settings);
-        }
+        isax_index_settings_destroy(index_settings);
     }
 }

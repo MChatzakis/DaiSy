@@ -449,6 +449,17 @@ namespace daisy
     void destroy_fbl2(first_buffer_layer2 *fbl);
     void destroy_parallel_fbl(parallel_first_buffer_layer *fbl);
     void destroy_node_buffer(isax_node_buffer *node_buffer);
+
+    // Frees a node and its whole subtree: every node, its leaf buffer, SAX words,
+    // split data and file name. The records the leaf buffers point to are owned by
+    // the first buffer layer (or the SAX cache) and are not touched.
+    void isax_tree_destroy(isax_node *node);
+
+    // Frees index settings and everything they own (bit masks, cardinalities,
+    // equi-depth breakpoint tables, raw file name). If the settings' breakpoint
+    // tables are the globally active ones, the default Gaussian tables are made
+    // active first, so no later index reads freed memory.
+    void isax_index_settings_destroy(isax_index_settings *settings);
     void split_node(isax_index *index, isax_node *node);
     void split_node(isax_index *index, isax_node *node);
 

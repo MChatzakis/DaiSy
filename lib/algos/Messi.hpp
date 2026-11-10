@@ -56,6 +56,8 @@ namespace daisy
         float r;
         std::vector<std::pair<float, idx_t>> *range_results;
         pthread_rwlock_t *lock_range_results;
+
+        SearchStats stats; // top-k L2 workers write their counters here before exiting
     } MESSI_workerdata;
 
     void *MESSI_topk_search_worker_L2Squared(void *rfdata);
@@ -66,10 +68,10 @@ namespace daisy
                                        float r, std::vector<std::pair<float, idx_t>> *results,
                                        pthread_rwlock_t *lock, float *rawfile);
 
-    void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue);
+    void insert_tree_node_m_hybridpqueue(float *paa, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue, SearchStats *stats = nullptr);
     void insert_tree_node_m_hybridpqueue_DTW(float *paaU, float *paaL, isax_node *node, isax_index *index, float bsf, pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue);
 
-    void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
+    void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile, SearchStats *stats = nullptr);
     void calculate_node_DTW2knn_inmemory(isax_index *index, isax_node *node, ts_type *query, float *uo, float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL, float bsf, int warpWind, pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
 
     class Messi : public SimilaritySearchAlgorithm
@@ -96,7 +98,7 @@ namespace daisy
         void reserveDatabase(idx_t required_capacity);
         void reserveSaxCache(idx_t required_capacity);
 
-        pqueue_bsf MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k);
+        pqueue_bsf MESSI_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k, SearchStats *stats = nullptr);
         pqueue_bsf MESSI_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t k);
         std::vector<std::pair<float, idx_t>> MESSI_search_range_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, float r);
 

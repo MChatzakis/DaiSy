@@ -9,6 +9,7 @@
 
 #include "../distance_computers/DistanceComputer.hpp"
 #include "../isax/iSAXSearch.hpp"
+#include "../utils/SearchStats.hpp"
 #include "DataSource.hpp"
 
 namespace daisy
@@ -57,6 +58,9 @@ namespace daisy
         isax_index_settings *index_settings = nullptr;
         isax_index *index = nullptr;
         sax_type **db_sax_representations = nullptr;
+
+        // Filled by algorithms that collect search statistics; see getLastSearchStats().
+        std::vector<SearchStats> last_search_stats;
 
     public:
         SimilaritySearchAlgorithm(DistanceType distance_type)
@@ -166,6 +170,12 @@ namespace daisy
                 D[q].assign(flat_D.begin() + q * config.k, flat_D.begin() + (q + 1) * config.k);
             }
         }
+
+        // Work counters of the most recent top-k searchIndex call: one entry per
+        // query, in query order. Empty when the algorithm (or its distance or mode)
+        // does not collect them, and after a range search. Collected by MESSI, FreSh,
+        // SOFA and single-node Odyssey with L2 squared; see utils/SearchStats.hpp.
+        const std::vector<SearchStats> &getLastSearchStats() const { return last_search_stats; }
 
         virtual void setNumThreads(int num_threads) {}
 

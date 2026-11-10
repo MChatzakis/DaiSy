@@ -97,6 +97,7 @@ Current important CMake options at the repo root:
 - `BUILD_SING`
 - `BUILD_SOFA`
 - `BUILD_COCONUT`
+- `BUILD_OPTIMIZER` (knob-optimizer tools in `lib/optimizer/`)
 - `DEBUG_MSG`
 
 Dependency-sensitive features:

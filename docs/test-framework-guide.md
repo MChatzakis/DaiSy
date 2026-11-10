@@ -29,6 +29,14 @@ Follow the parameterized test pattern used throughout the test suite for BruteFo
 - Include proper ground truth validation
 - Follow the existing naming conventions and code structure
 
+## Large local datasets (`large_local` label)
+
+`validate_large_datasets_local` checks the in-memory methods (MESSI, FreSh, SOFA, Odyssey single
+node) for exact top-k on the lab machine's large datasets. It is not a gtest: it exits 0 (pass),
+1 (fail) or 77 (skipped, when no dataset is present). A full run takes hours, so
+`ctest -LE large_local` runs the regular suite and `ctest -L large_local` runs only this test.
+See [validate-large-datasets-local.md](validate-large-datasets-local.md).
+
 ## MESSI exact top-k regressions
 
 `test_Messi_TopK_Distinct` compares every returned neighbor against exhaustive

@@ -212,11 +212,13 @@ static float sofa_minidist(
 void insert_tree_node_sofa(
     float **bins, bool is_norm,
     float *fft, isax_node *node, isax_index *index, float bsf,
-    pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue)
+    pqueue_t **pq, pthread_mutex_t *lock_queue, int *tnumber, int n_pqueue,
+    SearchStats *stats)
 {
     if (node == NULL || node->isax_values == NULL || node->isax_cardinalities == NULL)
         return;
 
+    if (stats) stats->node_lb_calcs++;
     float distance = sofa_minidist(bins, fft,
         node->isax_values, node->isax_cardinalities,
         index->settings->sax_bit_cardinality,
@@ -225,6 +227,7 @@ void insert_tree_node_sofa(
 
     if (distance < bsf) {
         if (node->is_leaf) {
+            if (stats) stats->leaves_enqueued++;
             query_result *r = (query_result *)malloc(sizeof(query_result));
             r->node = node;
             r->distance = distance;
@@ -234,9 +237,9 @@ void insert_tree_node_sofa(
             *tnumber = (*tnumber + 1) % n_pqueue;
         } else {
             if (node->left_child  && node->left_child->isax_values  && node->left_child->isax_cardinalities)
-                insert_tree_node_sofa(bins, is_norm, fft, node->left_child,  index, bsf, pq, lock_queue, tnumber, n_pqueue);
+                insert_tree_node_sofa(bins, is_norm, fft, node->left_child,  index, bsf, pq, lock_queue, tnumber, n_pqueue, stats);
             if (node->right_child && node->right_child->isax_values && node->right_child->isax_cardinalities)
-                insert_tree_node_sofa(bins, is_norm, fft, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue);
+                insert_tree_node_sofa(bins, is_norm, fft, node->right_child, index, bsf, pq, lock_queue, tnumber, n_pqueue, stats);
         }
     }
 }
@@ -244,36 +247,47 @@ void insert_tree_node_sofa(
 void calculate_node_topk_sofa(
     isax_index *index, isax_node *node, ts_type *query, float *fft,
     float **bins, bool is_norm, pqueue_bsf *pq_bsf,
-    pthread_rwlock_t *lock_bsf, float *rawfile)
+    pthread_rwlock_t *lock_bsf, float *rawfile, SearchStats *stats)
 {
     if (node == NULL || node->buffer == NULL) return;
 
+    // Raw-series buffers get a real distance each; partial buffers get a
+    // per-series SFA lower bound first and a real distance only if it passes.
+    uint64_t series_lbs = 0;
+    uint64_t distances = (uint64_t)node->buffer->full_buffer_size + (uint64_t)node->buffer->tmp_full_buffer_size;
+
+    // The approximate search already scanned one leaf into pq_bsf and the exact
+    // phase scans that leaf again, so inserts must not duplicate a position
+    // (duplicates shrink the k-th bound and push true neighbors out). The SIMD
+    // kernel abandons at >= bound and returns a partial sum, so only a strictly
+    // smaller result is a complete distance (same rule as MESSI).
     for (int i = 0; i < node->buffer->full_buffer_size; i++) {
         float dist = ts_euclidean_distance_SIMD(query, node->buffer->full_ts_buffer[i],
             index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-        if (dist <= pq_bsf->knn[pq_bsf->k - 1]) {
+        if (dist < pq_bsf->knn[pq_bsf->k - 1]) {
             file_position_type pos = 0;
             if (node->buffer->full_position_buffer && node->buffer->full_position_buffer[i])
                 pos = *node->buffer->full_position_buffer[i] / index->settings->timeseries_size;
             pthread_rwlock_wrlock(lock_bsf);
-            pqueue_bsf_insert(pq_bsf, dist, static_cast<long>(pos), node);
+            pqueue_bsf_insert_no_dup_position(pq_bsf, dist, static_cast<long>(pos), node);
             pthread_rwlock_unlock(lock_bsf);
         }
     }
     for (int i = 0; i < node->buffer->tmp_full_buffer_size; i++) {
         float dist = ts_euclidean_distance_SIMD(query, node->buffer->tmp_full_ts_buffer[i],
             index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-        if (dist <= pq_bsf->knn[pq_bsf->k - 1]) {
+        if (dist < pq_bsf->knn[pq_bsf->k - 1]) {
             file_position_type pos = 0;
             if (node->buffer->tmp_full_position_buffer && node->buffer->tmp_full_position_buffer[i])
                 pos = *node->buffer->tmp_full_position_buffer[i] / index->settings->timeseries_size;
             pthread_rwlock_wrlock(lock_bsf);
-            pqueue_bsf_insert(pq_bsf, dist, static_cast<long>(pos), node);
+            pqueue_bsf_insert_no_dup_position(pq_bsf, dist, static_cast<long>(pos), node);
             pthread_rwlock_unlock(lock_bsf);
         }
     }
     for (int i = 0; i < node->buffer->partial_buffer_size; i++) {
         if (node->buffer->partial_position_buffer[i] == nullptr) continue;
+        series_lbs++;
         float distmin = sofa_minidist(bins, fft,
             node->buffer->partial_sax_buffer[i],
             index->settings->max_sax_cardinalities,
@@ -281,17 +295,23 @@ void calculate_node_topk_sofa(
             index->settings->sax_alphabet_cardinality,
             index->settings->paa_segments, is_norm);
         if (distmin <= pq_bsf->knn[pq_bsf->k - 1]) {
+            distances++;
             float dist = ts_euclidean_distance_SIMD(query,
                 &rawfile[*node->buffer->partial_position_buffer[i]],
                 index->settings->timeseries_size, pq_bsf->knn[pq_bsf->k - 1]);
-            if (dist <= pq_bsf->knn[pq_bsf->k - 1]) {
+            if (dist < pq_bsf->knn[pq_bsf->k - 1]) {
                 pthread_rwlock_wrlock(lock_bsf);
-                pqueue_bsf_insert(pq_bsf, dist,
+                pqueue_bsf_insert_no_dup_position(pq_bsf, dist,
                     *node->buffer->partial_position_buffer[i] /
                         index->settings->timeseries_size, node);
                 pthread_rwlock_unlock(lock_bsf);
             }
         }
+    }
+    if (stats) {
+        stats->leaves_visited++;
+        stats->series_lb_calcs += series_lbs;
+        stats->distance_calcs += distances;
     }
 }
 
@@ -313,13 +333,14 @@ void *SOFA_topk_search_worker(void *rfdata)
     float bsfdist = pq_bsf->knn[pq_bsf->k - 1];
     int tnumber = rand() % n_pqueue;
     int startq = d->startqueuenumber;
+    SearchStats stats{}; // thread-local counters, copied out once at the end
 
     while (1) {
         int cur = __sync_fetch_and_add(d->node_counter, 1);
         if (cur >= d->amountnode) break;
         insert_tree_node_sofa(bins, is_norm, fft,
             d->nodelist[cur], index, bsfdist,
-            d->allpq, d->alllock, &tnumber, n_pqueue);
+            d->allpq, d->alllock, &tnumber, n_pqueue, &stats);
     }
 
     pthread_barrier_wait(d->lock_barrier);
@@ -335,7 +356,7 @@ void *SOFA_topk_search_worker(void *rfdata)
         if (n->distance > bsfdist || n->distance > minimum_distance) { free(n); break; }
         if (n->node->is_leaf)
             calculate_node_topk_sofa(index, n->node, ts, fft, bins, is_norm,
-                                     pq_bsf, d->lock_bsf, rawfile);
+                                     pq_bsf, d->lock_bsf, rawfile, &stats);
         free(n);
     }
 
@@ -360,13 +381,14 @@ void *SOFA_topk_search_worker(void *rfdata)
                 if (n->distance > bsfdist || n->distance > minimum_distance) { free(n); break; }
                 if (n->node->is_leaf)
                     calculate_node_topk_sofa(index, n->node, ts, fft, bins, is_norm,
-                                             pq_bsf, d->lock_bsf, rawfile);
+                                             pq_bsf, d->lock_bsf, rawfile, &stats);
                 free(n);
             }
             d->allqueuelabel[i] = 0;
         }
         if (finished) break;
     }
+    d->stats = stats;
     return nullptr;
 }
 
@@ -499,7 +521,8 @@ void *SOFA_range_search_worker(void *rfdata)
 
 static void sofa_approximate_topk(
     ts_type *ts, float *fft, isax_index *index, pqueue_bsf *pq_bsf,
-    float *rawfile, float **bins, int paa_segments, int cardinality, bool is_norm)
+    float *rawfile, float **bins, int paa_segments, int cardinality, bool is_norm,
+    SearchStats *stats)
 {
     sax_type *sax = (sax_type *)malloc(sizeof(sax_type) * paa_segments);
     sofa_sfa_from_fft(fft, sax, bins, paa_segments, cardinality);
@@ -519,7 +542,7 @@ static void sofa_approximate_topk(
                  ? node->right_child : node->left_child;
         }
         if (node != NULL)
-            calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile);
+            calculate_node_topk_inmemory(index, node, ts, pq_bsf, rawfile, stats);
     }
     free(sax);
 }
@@ -527,13 +550,15 @@ static void sofa_approximate_topk(
 static void sofa_refine_topk(
     ts_type *ts, float *fft, isax_index *index, pqueue_bsf *pq_bsf,
     float minimum_distance, int limit, float *rawfile,
-    float **bins, bool is_norm)
+    float **bins, bool is_norm, SearchStats *stats)
 {
     pqueue_t *pq = pqueue_init(index->settings->root_nodes_size,
                                cmp_pri, get_pri, set_pri, get_pos, set_pos);
+    uint64_t node_lbs = 0; // added to stats on return
 
     for (isax_node *cur = index->first_node; cur != NULL; cur = cur->next) {
         if (cur->isax_values == NULL || cur->isax_cardinalities == NULL) continue;
+        node_lbs++;
         query_result *r = (query_result *)malloc(sizeof(query_result));
         r->distance = sofa_minidist(bins, fft,
             cur->isax_values, cur->isax_cardinalities,
@@ -551,7 +576,7 @@ static void sofa_refine_topk(
             break;
         }
         if (n->node->is_leaf) {
-            calculate_node_topk_inmemory(index, n->node, ts, pq_bsf, rawfile);
+            calculate_node_topk_inmemory(index, n->node, ts, pq_bsf, rawfile, stats);
             if (pq_bsf->knn[pq_bsf->k - 1] < FLT_MAX) {
                 pqueue_insert(pq, n);
                 break;
@@ -560,6 +585,7 @@ static void sofa_refine_topk(
             auto push_child = [&](isax_node *child) {
                 if (child == NULL || child->isax_values == NULL ||
                     child->isax_cardinalities == NULL) return;
+                node_lbs++;
                 query_result *cr = (query_result *)malloc(sizeof(query_result));
                 cr->distance = sofa_minidist(bins, fft,
                     child->isax_values, child->isax_cardinalities,
@@ -576,6 +602,7 @@ static void sofa_refine_topk(
     }
     while ((n = (query_result *)pqueue_pop(pq))) free(n);
     pqueue_free(pq);
+    if (stats) stats->node_lb_calcs += node_lbs;
 }
 
 Sofa::Sofa(DistanceType distance_type)
@@ -599,19 +626,20 @@ Sofa::Sofa(DistanceType distance_type, const SofaConfig &config)
 
 // One L2 top-k query. Sets up shared queues, spawns workers, joins them
 // and returns the final pq_bsf with the k best matches.
-pqueue_bsf Sofa::sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodelist, idx_t k)
+pqueue_bsf Sofa::sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodelist, idx_t k, SearchStats *stats)
 {
     pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
 
     sofa_approximate_topk(ts, fft, index, pq_bsf, this->database,
-                          bins, paa_segments, sax_cardinality, is_norm);
+                          bins, paa_segments, sax_cardinality, is_norm, stats);
     this->minimum_distance = pq_bsf->knn[k - 1];
 
     if (this->minimum_distance == FLT_MAX || min_checked_leaves > 1) {
         sofa_refine_topk(ts, fft, index, pq_bsf, this->minimum_distance,
-                        this->min_checked_leaves, this->database, bins, is_norm);
+                        this->min_checked_leaves, this->database, bins, is_norm, stats);
         this->minimum_distance = pq_bsf->knn[k - 1];
     }
+    if (stats) stats->seed_kth_dist = pq_bsf->knn[k - 1];
 
     int node_counter = 0;
     pqueue_t                    **allpq = (pqueue_t **)malloc(sizeof(pqueue_t *) * n_pqueue);
@@ -654,12 +682,16 @@ pqueue_bsf Sofa::sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodel
         workerdata[i].rawfile = this->database;
         workerdata[i].bins = this->bins;
         workerdata[i].is_norm = this->is_norm;
+        workerdata[i].stats = SearchStats{};
     }
 
     for (int i = 0; i < search_workers; i++)
         pthread_create(&tids[i], nullptr, SOFA_topk_search_worker, &workerdata[i]);
     for (int i = 0; i < search_workers; i++)
         pthread_join(tids[i], nullptr);
+    if (stats)
+        for (int i = 0; i < search_workers; i++)
+            stats->addCounters(workerdata[i].stats);
 
     this->minimum_distance = pq_bsf->knn[k - 1];
     pthread_barrier_destroy(&lock_barrier);
@@ -678,6 +710,7 @@ pqueue_bsf Sofa::sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodel
 // Batch L2 top-k. Runs one sofaSearchTopkL2Squared per query and writes I, D.
 void Sofa::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
+    last_search_stats.assign(n_query, SearchStats{});
     node_list nodelist;
     nodelist.nlist = (isax_node **)malloc(
         sizeof(isax_node *) * (size_t)pow(2, index->settings->paa_segments));
@@ -701,7 +734,7 @@ void Sofa::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_
         sofa_fft_from_ts(ts_length, norm_factor, is_norm,
                          ts_out, fft_buf, plan, paa_segments);
 
-        pqueue_bsf result = sofaSearchTopkL2Squared((float *)ts, fft_buf, &nodelist, k);
+        pqueue_bsf result = sofaSearchTopkL2Squared((float *)ts, fft_buf, &nodelist, k, &last_search_stats[q]);
 
         std::vector<std::pair<float, long>> pairs;
         pairs.reserve(k);
@@ -740,7 +773,6 @@ void Sofa::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_
     fftwf_free(ts_out);
     fftwf_free(fft_buf);
     free(nodelist.nlist);
-    fprintf(stderr, ">>> SOFA: Finished querying.\n");
 }
 
 // One L2 range query. Spawns range workers and returns every (distance, position) with distance <= r.
@@ -867,6 +899,7 @@ void Sofa::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, 
 
 void Sofa::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
 {
+    last_search_stats.clear(); // refilled by the L2 path only
     if (this->distance_type == DistanceType::L2_SQUARED)
         searchIndexL2Squared(query, n_query, k, I, D);
     else if (this->distance_type == DistanceType::DTW)
@@ -883,6 +916,7 @@ void Sofa::searchIndex(const float *query, idx_t n_query, const SearchConfig &co
         SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
         return;
     }
+    last_search_stats.clear(); // range search collects no statistics
     if (this->distance_type != DistanceType::L2_SQUARED)
         throw std::runtime_error("SOFA range search only supports L2_SQUARED.");
     searchIndexRangeL2Squared(query, n_query, config.r, I, D);
@@ -898,16 +932,17 @@ Sofa::~Sofa()
     if (index != nullptr) {
         if (index->sax_cache) free(index->sax_cache);
         if (index->answer)    free(index->answer);
-        if (index->fbl)       destroy_parallel_fbl((parallel_first_buffer_layer *)index->fbl);
+        if (index->fbl) {
+            parallel_first_buffer_layer *fbl = (parallel_first_buffer_layer *)index->fbl;
+            for (int i = 0; i < fbl->number_of_buffers; i++)
+                isax_tree_destroy(fbl->soft_buffers[i].node); // root and its subtree
+            destroy_parallel_fbl(fbl);
+        }
         if (index->sax_file)  fclose(index->sax_file);
         free(index);
     }
 
-    if (index_settings != nullptr) {
-        if (index_settings->bit_masks)              free(index_settings->bit_masks);
-        if (index_settings->max_sax_cardinalities)  free(index_settings->max_sax_cardinalities);
-        free(index_settings);
-    }
+    isax_index_settings_destroy(index_settings);
 }
 
 void Sofa::sfaBinsInit()

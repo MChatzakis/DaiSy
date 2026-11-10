@@ -383,6 +383,19 @@ gtest_discover_tests(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
+# ////// Search statistics (MESSI, FreSh, SOFA and single-node Odyssey) //////
+# SOFA and Odyssey cases compile only when their dependencies are available.
+# Each case runs as a plain process (never under mpirun): Odyssey must be single-node.
+add_executable(test_SearchStats test_SearchStats.cpp)
+target_link_libraries(test_SearchStats PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+if(BUILD_ODYSSEY_AVAILABLE)
+    target_link_libraries(test_SearchStats PRIVATE MPI::MPI_CXX)
+endif()
+target_include_directories(test_SearchStats PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+gtest_discover_tests(test_SearchStats WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
 # ////// MESSI streaming //////
 add_executable(
     test_Messi_Streaming
@@ -1175,3 +1188,35 @@ if(BUILD_PYTHON)
         ENVIRONMENT "PYTHONPATH=${CMAKE_SOURCE_DIR}"
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()
+
+# ////// Large local datasets: exactness validation //////
+# Standalone executable (no GTest). Checks the in-memory methods MESSI, FreSh, SOFA
+# and Odyssey (single node, MPI singleton) for exact top-k on the lab datasets against
+# L2 ground truth or brute force. SOFA and Odyssey run only when their optional
+# dependencies were found. See docs/validate-large-datasets-local.md.
+# Exits 77 (CTest: skipped) when none of the datasets is present on this machine.
+# A full run takes many hours: `ctest -L large_local` runs only this test and
+# `ctest -LE large_local` runs the rest of the suite.
+set(DAISY_LARGE_DATASETS_ARGS "" CACHE STRING
+    "Extra arguments for validate_large_datasets_local under CTest, e.g. \"--datasets SIFT1M --queries 100\"")
+set(DAISY_LARGE_DATASETS_TIMEOUT 0 CACHE STRING
+    "CTest timeout in seconds for validate_large_datasets_local (0 = no limit)")
+
+find_package(Threads REQUIRED)
+add_executable(validate_large_datasets_local validate_large_datasets_local.cpp)
+target_link_libraries(validate_large_datasets_local PRIVATE dino_lib commons_lib Threads::Threads)
+if(BUILD_ODYSSEY_AVAILABLE)
+    target_link_libraries(validate_large_datasets_local PRIVATE MPI::MPI_CXX)
+endif()
+
+separate_arguments(DAISY_LARGE_DATASETS_ARG_LIST UNIX_COMMAND "${DAISY_LARGE_DATASETS_ARGS}")
+# Launched directly (never under mpirun): Odyssey runs in a forked child.
+add_test(NAME validate_large_datasets_local
+    COMMAND validate_large_datasets_local
+            --work-dir ${CMAKE_BINARY_DIR}/validate_large_datasets_work
+            ${DAISY_LARGE_DATASETS_ARG_LIST})
+set_tests_properties(validate_large_datasets_local PROPERTIES
+    LABELS "large_local"
+    SKIP_RETURN_CODE 77
+    RUN_SERIAL TRUE
+    TIMEOUT ${DAISY_LARGE_DATASETS_TIMEOUT})

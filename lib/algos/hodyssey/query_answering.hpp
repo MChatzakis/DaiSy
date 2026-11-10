@@ -17,6 +17,7 @@
 #include "../../isax/iSAXIndex.hpp"
 #include "../../isax/iSAXPqueue.hpp"
 #include "../../utils/TimerManager.hpp"
+#include "../../utils/SearchStats.hpp"
 #include "workstealing.hpp"
 #include "replication.hpp"
 #include "bsf_sharing.hpp"
@@ -101,6 +102,9 @@ namespace daisy
         int warp_window;
         ts_type *paaU;
         ts_type *paaL;
+
+        // Optional: receives this query's search counters (single-node L2 only).
+        SearchStats *stats = nullptr;
     };
 
     struct WsSearchFunctionParams
@@ -199,6 +203,8 @@ namespace daisy
         int warp_window;
         ts_type *paaU;
         ts_type *paaL;
+
+        SearchStats stats{}; // the worker writes its counters here before exiting
     };
 
     struct CoordinatorData
@@ -249,12 +255,12 @@ namespace daisy
     void refine_topk_answer_inmemory_dtw(ts_type *ts, ts_type *paa, ts_type *paaU, ts_type *paaL, isax_index *index, int warp_window, pqueue_bsf *pq_bsf, float minimum_distance, int limit, float *rawfile, int merge_offset);
     void odyssey_compute_query_envelopes_dtw(OdysseyQuery *query, isax_index *index, int warping_window);
 
-    int process_pq_of_batch_chatzakis(int current_pq_index, QaWorkerData *input_data);
+    int process_pq_of_batch_chatzakis(int current_pq_index, QaWorkerData *input_data, SearchStats *stats = nullptr);
     void gather_sort_pqueues(QaWorkerData *in_data);
     int estimate_th(double x, double (*estimation_func)(double));
 
-    void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa, int warp_window = 0, ts_type *paaU = nullptr, ts_type *paaL = nullptr);
-    void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index, int warp_window = 0, ts_type *paaU = nullptr, ts_type *paaL = nullptr);
+    void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa, int warp_window = 0, ts_type *paaU = nullptr, ts_type *paaL = nullptr, SearchStats *stats = nullptr);
+    void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index, int warp_window = 0, ts_type *paaU = nullptr, ts_type *paaL = nullptr, SearchStats *stats = nullptr);
 
     void *workstealing_manager(void *rfdata);
     void *dynamic_query_scheduler(void *rfdata);

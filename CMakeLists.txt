@@ -41,6 +41,7 @@ option(ODYSSEY_DEBUG_RESULTS "Print Odyssey search results (query_result) for de
 option(BUILD_SING "Enable CUDA support" OFF)
 option(BUILD_SOFA "Build SOFA with FFTW3 support" OFF)
 option(BUILD_COCONUT "Build the COCONUT sortable-SAX algorithm (static + streaming)" ON)
+option(BUILD_OPTIMIZER "Build the knob-optimizer tools in lib/optimizer (optimizer_collector)" OFF)
 
 # Backward compatibility: ENABLE_MPI and ODYSSEY_MPI map to BUILD_ODYSSEY
 if(DEFINED ENABLE_MPI)
@@ -76,6 +77,7 @@ message(STATUS "  BUILD_ODYSSEY: ${BUILD_ODYSSEY}")
 message(STATUS "  ODYSSEY_DEBUG_RESULTS: ${ODYSSEY_DEBUG_RESULTS}")
 message(STATUS "  BUILD_SING: ${BUILD_SING}")
 message(STATUS "  BUILD_COCONUT: ${BUILD_COCONUT}")
+message(STATUS "  BUILD_OPTIMIZER: ${BUILD_OPTIMIZER}")
 
 # Define PROJECT_ROOT_DIR for all targets (paramSetup.cpp is compiled by commons_lib and by benchmark executables)
 get_filename_component(PROJECT_ROOT_DIR "${CMAKE_SOURCE_DIR}" ABSOLUTE)
@@ -263,6 +265,10 @@ endif()
 add_subdirectory(lib)
 if(DEBUG_MSG)
     message(STATUS "Subdirectory 'lib' added.")
+endif()
+
+if(BUILD_OPTIMIZER)
+    add_subdirectory(lib/optimizer)
 endif()
 
 if(BUILD_DEMO)

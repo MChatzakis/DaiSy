@@ -130,3 +130,8 @@ venv.bak/
 daisy_exact_search.egg-info/
 /scripts/experiments/
 docs/figures/*
+
+# Work directory of tests/validate_large_datasets_local (caches, logs, scratch)
+validate_large_datasets_work/
+# Work directory of lib/optimizer/optimizer_collector (raw base copies, logs)
+optimizer_work/

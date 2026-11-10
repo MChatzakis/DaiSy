@@ -141,6 +141,23 @@ search.searchIndex(query, n_query, config, I, D);
 `demos/demo_<Algorithm>_Range.cpp` shows this for each algorithm and cross-checks the returned
 sets against brute force.
 
+### Search statistics
+
+After a top-k `searchIndex` call, `getLastSearchStats()` returns one `daisy::SearchStats` per
+query, with the work that query did: node lower bounds, leaves queued and scanned,
+per-series lower bounds, real distance computations, and the k-th distance of the
+approximate answer the exact phase started from (`lib/utils/SearchStats.hpp`). MESSI, FreSh,
+SOFA and single-node Odyssey fill it for L2 squared; it is empty for other algorithms, for DTW,
+for multi-node Odyssey and after a range search. With several search threads the counts of
+one query vary between runs. The counters are C++ only (not exposed to Python).
+
+```cpp
+search.searchIndex(query, n_query, k, I, D);
+for (const daisy::SearchStats &s : search.getLastSearchStats())
+    printf("%llu distances over %llu leaves\n",
+           (unsigned long long)s.distance_calcs, (unsigned long long)s.leaves_visited);
+```
+
 
 
 ## Quickstart
@@ -178,6 +195,7 @@ Based on the available hardware, you can specify the below arguments to enable/d
 | `BUILD_COCONUT` | Enable the COCONUT sortable-SAX algorithm | `ON` | Core library |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
 | `BUILD_SOFA` | Enable SOFA with SFA-Based indexing | `OFF` | FFTW3 | 
+| `BUILD_OPTIMIZER` | Build the knob-optimizer sample collector (`lib/optimizer/optimizer_collector`, see [docs/optimizer-notes/collector.md](docs/optimizer-notes/collector.md)) | `OFF` | Core library (SOFA/Odyssey need their own flags) |
 
 
 To compile:
@@ -219,6 +237,7 @@ pip install -r requirements_DaiSy.txt
 We provide several usage examples in both C++ and Python under [`demos/`](demos/), demonstrating how to utilize the library for various similarity search tasks.
 We provide several troubleshooting guides and extra resources in the [`docs/`](docs/) directory. 
 In this directory, we also provide useful information about how to contribute to the project, and how to implement new algorithms.
+To check that the in-memory methods (MESSI, FreSh, SOFA, Odyssey single node) return exact answers on large local datasets, build with `-DBUILD_TESTS=ON` and run `ctest -L large_local` ([guide](docs/validate-large-datasets-local.md)); `ctest -LE large_local` runs the rest of the suite without it.
 
 
 

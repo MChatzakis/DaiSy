@@ -54,7 +54,8 @@ static volatile int g_fresh_query_id = 0;
 
 // defined in Messi.cpp, same namespace
 void calculate_node2_topk_inmemory(isax_index *index, isax_node *node, ts_type *query, ts_type *paa,
-                                    pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile);
+                                    pqueue_bsf *pq_bsf, pthread_rwlock_t *lock_queue, float *rawfile,
+                                    SearchStats *stats);
 void calculate_node_DTW2knn_inmemory(isax_index *index, isax_node *node, ts_type *query,
                                       float *uo, float *lo, ts_type *paa, ts_type *paaU, ts_type *paaL,
                                       float bsf, int warpWind, pqueue_bsf *pq_bsf,
@@ -88,13 +89,15 @@ static isax_node *insert_to_pRecBuf_lock_free(parallel_first_buffer_layer_lf *fb
         sax_type **tmp_sax_records = (sax_type **)calloc(total_workernumber, sizeof(sax_type *));
         file_position_type **tmp_pos_records = (file_position_type **)calloc(total_workernumber, sizeof(file_position_type *));
 
-        if (!current_buffer->max_buffer_size && !FRESH_CASPTR(&current_buffer->max_buffer_size, NULL, tmp_max_buffer_size))
+        // Only the thread whose CAS installs an array keeps it; every other thread
+        // (including one that finds the pointer already set) frees its copy.
+        if (!FRESH_CASPTR(&current_buffer->max_buffer_size, NULL, tmp_max_buffer_size))
             free(tmp_max_buffer_size);
-        if (!current_buffer->buffer_size && !FRESH_CASPTR(&current_buffer->buffer_size, NULL, tmp_buffer_size))
+        if (!FRESH_CASPTR(&current_buffer->buffer_size, NULL, tmp_buffer_size))
             free(tmp_buffer_size);
-        if (!current_buffer->sax_records && !FRESH_CASPTR(&current_buffer->sax_records, NULL, tmp_sax_records))
+        if (!FRESH_CASPTR(&current_buffer->sax_records, NULL, tmp_sax_records))
             free(tmp_sax_records);
-        if (!current_buffer->pos_records && !FRESH_CASPTR(&current_buffer->pos_records, NULL, tmp_pos_records))
+        if (!FRESH_CASPTR(&current_buffer->pos_records, NULL, tmp_pos_records))
             free(tmp_pos_records);
 
         current_buffer->mask = mask;
@@ -463,11 +466,13 @@ static fresh_array_element_t *get_element_at_fresh(unsigned long position, fresh
 static void add_to_array_data_lf(float *paa, isax_node *node, isax_index *index, float bsf,
                                   fresh_array_list_t *array_lists, int *tnumber,
                                   volatile unsigned long *next_queue_data_pos, int n_queues,
-                                  const int query_id)
+                                  const int query_id, SearchStats *stats = nullptr)
 {
     if (node->isax_values == NULL)
         return;
 
+    if (stats)
+        stats->node_lb_calcs++;
     float distance = minidist_paa_to_isax(paa, node->isax_values,
                                            node->isax_cardinalities,
                                            index->settings->sax_bit_cardinality,
@@ -480,6 +485,8 @@ static void add_to_array_data_lf(float *paa, isax_node *node, isax_index *index,
     {
         if (node->is_leaf)
         {
+            if (stats)
+                stats->leaves_enqueued++;
             unsigned long queue_data_pos = __sync_fetch_and_add(&next_queue_data_pos[*tnumber], 1);
             fresh_array_element_t *array_elem = get_element_at_fresh(queue_data_pos, &array_lists[*tnumber]);
             array_elem->distance = distance;
@@ -489,9 +496,9 @@ static void add_to_array_data_lf(float *paa, isax_node *node, isax_index *index,
         else
         {
             if (node->left_child->isax_cardinalities != NULL)
-                add_to_array_data_lf(paa, node->left_child, index, bsf, array_lists, tnumber, next_queue_data_pos, n_queues, query_id);
+                add_to_array_data_lf(paa, node->left_child, index, bsf, array_lists, tnumber, next_queue_data_pos, n_queues, query_id, stats);
             if (node->right_child->isax_cardinalities != NULL)
-                add_to_array_data_lf(paa, node->right_child, index, bsf, array_lists, tnumber, next_queue_data_pos, n_queues, query_id);
+                add_to_array_data_lf(paa, node->right_child, index, bsf, array_lists, tnumber, next_queue_data_pos, n_queues, query_id, stats);
         }
     }
 }
@@ -558,14 +565,16 @@ static void create_sorted_array_from_data_queue(int pq_id, fresh_array_list_t *a
 }
 
 
-static int process_sorted_array_element_L2(fresh_array_element_t *n, FRESH_workerdata *wd)
+static int process_sorted_array_element_L2(fresh_array_element_t *n, FRESH_workerdata *wd, SearchStats *stats)
 {
     float bsfdistance = wd->pq_bsf->knn[wd->pq_bsf->k - 1];
     if (n->distance > bsfdistance || n->distance > wd->minimum_distance)
         return 0;
     if (n->node->is_leaf && n->distance >= 0)
     {
-        calculate_node2_topk_inmemory(wd->index, n->node, wd->ts, wd->paa, wd->pq_bsf, wd->lock_bsf, wd->rawfile);
+        // Helpers can reach the same element before it is marked done (distance = -1),
+        // so a leaf may be scanned twice; stats counts both scans.
+        calculate_node2_topk_inmemory(wd->index, n->node, wd->ts, wd->paa, wd->pq_bsf, wd->lock_bsf, wd->rawfile, stats);
         n->distance = -1;
     }
     return 1;
@@ -587,7 +596,7 @@ static int process_sorted_array_element_DTW(fresh_array_element_t *n, FRESH_work
     return 1;
 }
 
-static void help_sorted_array_L2(FRESH_workerdata *wd, fresh_sorted_array_t *sa, int pq_id)
+static void help_sorted_array_L2(FRESH_workerdata *wd, fresh_sorted_array_t *sa, int pq_id, SearchStats *stats)
 {
     size_t pq_size = sa->num_elements;
     if (pq_size != 0)
@@ -596,13 +605,13 @@ static void help_sorted_array_L2(FRESH_workerdata *wd, fresh_sorted_array_t *sa,
         while ((element_id = (int)__sync_fetch_and_add(&wd->sorted_array_FAI_counter[pq_id], 1)) < (int)pq_size)
         {
             fresh_array_element_t *n = &sa->data[element_id];
-            if (!process_sorted_array_element_L2(n, wd))
+            if (!process_sorted_array_element_L2(n, wd, stats))
                 break;
         }
         for (int i = 0; i < (int)pq_size && !wd->queue_finished[pq_id]; i++)
         {
             fresh_array_element_t *n = &sa->data[i];
-            if (n->distance >= 0 && !process_sorted_array_element_L2(n, wd))
+            if (n->distance >= 0 && !process_sorted_array_element_L2(n, wd, stats))
                 break;
         }
     }
@@ -645,6 +654,7 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
     float bsfdistance = wd->pq_bsf->knn[wd->pq_bsf->k - 1];
     const int query_id = wd->query_id;
     int tnumber = rand() % wd->n_queues;
+    SearchStats stats{}; // thread-local counters, copied out once at the end
 
     while (1)
     {
@@ -652,7 +662,7 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
         if (current_root_node_number >= wd->amountnode)
             break;
         add_to_array_data_lf(paa, wd->nodelist[current_root_node_number], index, bsfdistance,
-                             wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id);
+                             wd->array_lists, &tnumber, wd->next_queue_data_pos, wd->n_queues, query_id, &stats);
     }
 
     pthread_barrier_wait(wd->wait_tree_pruning_phase_to_finish);
@@ -663,7 +673,7 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
 
     fresh_sorted_array_t *my_array = wd->sorted_arrays[my_pq];
     if (my_array && !wd->queue_finished[my_pq])
-        help_sorted_array_L2(wd, my_array, my_pq);
+        help_sorted_array_L2(wd, my_array, my_pq, &stats);
 
     for (int i = 0; i < wd->n_queues; i++)
     {
@@ -677,9 +687,10 @@ void *FRESH_topk_search_worker_L2Squared(void *rfdata)
             continue;
         if (!wd->helper_queue_exist[i])
             wd->helper_queue_exist[i] = 1;
-        help_sorted_array_L2(wd, wd->sorted_arrays[i], i);
+        help_sorted_array_L2(wd, wd->sorted_arrays[i], i, &stats);
     }
 
+    wd->stats = stats;
     return nullptr;
 }
 
@@ -1029,18 +1040,20 @@ void Fresh::buildIndex(DataSource *data_source)
 
 // One L2 top-k query. Sets up shared queues, spawns workers, joins them
 // and returns the final pq_bsf with the k best matches.
-pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k)
+pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_list *nodelist, idx_t k, SearchStats *stats)
 {
     pqueue_bsf *pq_bsf = pqueue_bsf_init(k);
 
-    approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database);
+    approximate_topk_inmemory(ts, paa, index, pq_bsf, this->database, stats);
     this->minimum_distance = pq_bsf->knn[k - 1];
 
     if (this->minimum_distance == FLT_MAX || min_checked_leaves > 1)
     {
-        refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database);
+        refine_topk_answer_inmemory(ts, paa, index, pq_bsf, this->minimum_distance, this->min_checked_leaves, this->database, stats);
         this->minimum_distance = pq_bsf->knn[k - 1];
     }
+    if (stats)
+        stats->seed_kth_dist = pq_bsf->knn[k - 1];
 
     int n_queues = (this->search_workers == 1) ? 1 : this->search_workers / 2;
     int query_id = __sync_add_and_fetch(&g_fresh_query_id, 1);
@@ -1089,12 +1102,16 @@ pqueue_bsf Fresh::FRESH_search_topk_L2Squared(ts_type *ts, ts_type *paa, node_li
         workerdata[i].n_queues = n_queues;
         workerdata[i].query_id = query_id;
         workerdata[i].rawfile = this->database;
+        workerdata[i].stats = SearchStats{};
     }
 
     for (int i = 0; i < this->search_workers; i++)
         pthread_create(&threadid[i], NULL, FRESH_topk_search_worker_L2Squared, (void *)&workerdata[i]);
     for (int i = 0; i < this->search_workers; i++)
         pthread_join(threadid[i], NULL);
+    if (stats)
+        for (int i = 0; i < this->search_workers; i++)
+            stats->addCounters(workerdata[i].stats);
 
     pthread_barrier_destroy(&wait_tree_pruning_phase_to_finish);
 
@@ -1255,6 +1272,7 @@ pqueue_bsf Fresh::FRESH_search_topk_DTW(ts_type *ts, node_list *nodelist, idx_t 
 // by series position and writes the k results into I and D.
 void Fresh::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
+    last_search_stats.assign(n_query, SearchStats{});
     ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
 
     node_list nodelist;
@@ -1273,7 +1291,7 @@ void Fresh::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx
         const float *ts = query + q_loaded * this->dim;
         paa_from_ts(ts, paa, index->settings->paa_segments, index->settings->ts_values_per_paa_segment);
 
-        pqueue_bsf result = FRESH_search_topk_L2Squared((float *)ts, paa, &nodelist, k);
+        pqueue_bsf result = FRESH_search_topk_L2Squared((float *)ts, paa, &nodelist, k, &last_search_stats[q_loaded]);
 
         std::vector<std::pair<float, long>> pairs;
         pairs.reserve(static_cast<size_t>(k));
@@ -1314,8 +1332,6 @@ void Fresh::searchIndexL2Squared(const float *query, idx_t n_query, idx_t k, idx
 
     free(nodelist.nlist);
     free(paa);
-    fprintf(stderr, ">>> Finished querying.\n");
-    fflush(stdout);
 }
 
 // Batch DTW top-k. Same shape as the L2 batch loop, uses the DTW driver.
@@ -1377,7 +1393,6 @@ void Fresh::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I,
     }
 
     free(nodelist.nlist);
-    fprintf(stderr, ">>> Finished querying.\n");
 }
 
 // One L2 range query. Returns every (distance, position) pair with distance <= r.
@@ -1480,6 +1495,7 @@ void Fresh::searchIndex(const float *query, idx_t n_query, const SearchConfig &c
         SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
         return;
     }
+    last_search_stats.clear(); // range search collects no statistics
 
     ts_type *paa = (ts_type *)malloc(sizeof(ts_type) * index->settings->paa_segments);
     node_list nodelist;
@@ -1518,6 +1534,7 @@ void Fresh::searchIndex(const float *query, idx_t n_query, const SearchConfig &c
 
 void Fresh::searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I, float *D)
 {
+    last_search_stats.clear(); // refilled by the L2 path only
     if (this->distance_type == DistanceType::L2_SQUARED)
         searchIndexL2Squared(query, n_query, k, I, D);
     else if (this->distance_type == DistanceType::DTW)
@@ -1546,6 +1563,7 @@ Fresh::~Fresh()
             for (int i = 0; i < fbl->number_of_buffers; i++)
             {
                 parallel_fbl_soft_buffer_lf *sb = &fbl->soft_buffers[i];
+                isax_tree_destroy(sb->node); // the root and its subtree
                 if (!sb->initialized) continue;
                 for (int w = 0; w < this->index_workers; w++)
                 {
@@ -1565,14 +1583,8 @@ Fresh::~Fresh()
         free(index);
     }
 
-    if (index_settings != nullptr)
-    {
-        if (index_settings->bit_masks != nullptr)
-            free(index_settings->bit_masks);
-        if (index_settings->max_sax_cardinalities != nullptr)
-            free(index_settings->max_sax_cardinalities);
-        free(index_settings);
-    }
+    // Also frees the equi-depth breakpoint tables and deactivates them if active.
+    isax_index_settings_destroy(index_settings);
 }
 
 } // namespace daisy

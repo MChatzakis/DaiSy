@@ -63,6 +63,8 @@ typedef struct SOFA_workerdata
     float r;
     std::vector<std::pair<float, idx_t>> *range_results;
     pthread_rwlock_t *lock_range_results;
+
+    SearchStats stats; // top-k workers write their counters here before exiting
 } SOFA_workerdata;
 
 // Per-thread state used by the parallel index build.
@@ -138,14 +140,15 @@ void calculate_node_range_sofa(isax_index *index, isax_node *node,
 void insert_tree_node_sofa(float **bins, bool is_norm, float *fft,
                            isax_node *node, isax_index *index, float bsf,
                            pqueue_t **pq, pthread_mutex_t *lock_queue,
-                           int *tnumber, int n_pqueue);
+                           int *tnumber, int n_pqueue, SearchStats *stats = nullptr);
 
 // Evaluate a leaf against a top-k query and update pq_bsf if any series improves it.
 void calculate_node_topk_sofa(isax_index *index, isax_node *node,
                               ts_type *query, float *fft,
                               float **bins, bool is_norm,
                               pqueue_bsf *pq_bsf,
-                              pthread_rwlock_t *lock_bsf, float *rawfile);
+                              pthread_rwlock_t *lock_bsf, float *rawfile,
+                              SearchStats *stats = nullptr);
 
 // FFT a series and keep only the first coeff_number complex coefficients.
 void sofa_fft_from_ts(int ts_length, float norm_factor, bool is_norm,
@@ -187,7 +190,7 @@ private:
     void sfaFreeBins();
 
     // Per-query drivers. Spawn workers, wait for them and return the results.
-    pqueue_bsf sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodelist, idx_t k);
+    pqueue_bsf sofaSearchTopkL2Squared(float *ts, float *fft, node_list *nodelist, idx_t k, SearchStats *stats = nullptr);
     std::vector<std::pair<float, idx_t>> sofaSearchRangeL2Squared(float *ts, float *fft, node_list *nodelist, float r);
 
     // Batch loops that call the per-query drivers and write into I and D.

@@ -18,6 +18,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <limits>
 #include <random>
 #include <unordered_set>
 #include <thread>
@@ -223,10 +224,11 @@ namespace daisy
         return static_cast<double>(bsf);
     }
 
-    static void rerank_pq_exact_l2(pqueue_bsf *pq, ts_type *query, float *rawfile, int dim)
+    // Returns the number of exact distances it computed.
+    static int rerank_pq_exact_l2(pqueue_bsf *pq, ts_type *query, float *rawfile, int dim)
     {
         if (!pq || !rawfile || !query)
-            return;
+            return 0;
 
         const int k = pq->k;
         std::vector<std::pair<float, file_position_type>> cand;
@@ -234,9 +236,12 @@ namespace daisy
 
         for (int i = 0; i < k; i++)
         {
-            file_position_type pos = static_cast<file_position_type>(pq->position[i]);
-            if (pos < 0)
+            // Empty slots hold position -1. Test the signed value: file_position_type
+            // is unsigned, so the cast would turn -1 into an out-of-bounds offset.
+            const long pos_signed = pq->position[i];
+            if (pos_signed < 0 || !(pq->knn[i] < FLT_MAX))
                 continue;
+            const file_position_type pos = static_cast<file_position_type>(pos_signed);
 
             const ts_type *base = rawfile + static_cast<size_t>(pos) * static_cast<size_t>(dim);
             float dist = 0.0f;
@@ -249,7 +254,7 @@ namespace daisy
         }
 
         if (cand.empty())
-            return;
+            return 0;
 
         std::sort(cand.begin(), cand.end(), [](const auto &a, const auto &b) {
             if (a.first != b.first)
@@ -281,17 +286,10 @@ namespace daisy
             pq->knn[i] = uniq[static_cast<size_t>(i)].first;
             pq->position[i] = static_cast<long>(uniq[static_cast<size_t>(i)].second);
         }
-
-        if (copy_count > 0 && copy_count < k)
-        {
-            float pad_dist = pq->knn[copy_count - 1];
-            long pad_pos = pq->position[copy_count - 1];
-            for (int i = copy_count; i < k; i++)
-            {
-                pq->knn[i] = pad_dist;
-                pq->position[i] = pad_pos;
-            }
-        }
+        // Slots beyond copy_count stay empty (FLT_MAX, -1). Padding them with
+        // copies of the last candidate would set a k-th bound that no k distinct
+        // series achieve, so the exact phase would prune true neighbors.
+        return static_cast<int>(cand.size());
     }
 
     int cmp_query(const void *a, const void *b)
@@ -482,13 +480,15 @@ namespace daisy
 
             if (odyssey->distance_type == DistanceType::L2_SQUARED)
             {
+                // Queries are not sorted yet, so queries[i].id == i; stats are indexed by id.
+                SearchStats *stats = odyssey->last_search_stats.empty() ? nullptr : &odyssey->last_search_stats[static_cast<size_t>(queries[i].id)];
                 queries[i].initial_pq_bsfs = pqueue_bsf_init(topk);
-                approximate_topk_inmemory(queries[i].query, queries[i].paa, index, queries[i].initial_pq_bsfs, rawfile);
+                approximate_topk_inmemory(queries[i].query, queries[i].paa, index, queries[i].initial_pq_bsfs, rawfile, stats);
 
                 if (queries[i].initial_pq_bsfs->knn[topk - 1] == FLT_MAX)
                 {
                     int min_checked_leaves = -1;
-                    refine_topk_answer_inmemory(queries[i].query, queries[i].paa, index, queries[i].initial_pq_bsfs, FLT_MAX, min_checked_leaves, rawfile);
+                    refine_topk_answer_inmemory(queries[i].query, queries[i].paa, index, queries[i].initial_pq_bsfs, FLT_MAX, min_checked_leaves, rawfile, stats);
                 }
             }
             else
@@ -1024,7 +1024,14 @@ namespace daisy
             printf("estimate_th: PQ TH estimation function is NULL\n");
             std::exit(EXIT_FAILURE);
         }
-        return static_cast<int>(estimation_func(x));
+        // x is the current k-th bound and may still be FLT_MAX when the seed queue
+        // is not full; converting an out-of-range double to int is undefined.
+        const double est = estimation_func(x);
+        if (!(est > 0.0))
+            return 0;
+        if (est >= static_cast<double>(std::numeric_limits<int>::max()))
+            return std::numeric_limits<int>::max();
+        return static_cast<int>(est);
     }
 
     static int pq_comparator(const void *a, const void *b)
@@ -1044,10 +1051,13 @@ namespace daisy
         return 0;
     }
 
-    void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index, int warp_window, ts_type *paaU, ts_type *paaL)
+    void generate_pqs_of_rs_batch(isax_node *subtree_node, SubtreeBatch *batch, float bsf_distance, ts_type *paa, isax_index *index, int warp_window, ts_type *paaU, ts_type *paaL, SearchStats *stats)
     {
         if (subtree_node == nullptr || subtree_node->isax_values == nullptr || subtree_node->isax_cardinalities == nullptr)
             return;
+
+        if (stats)
+            stats->node_lb_calcs++;
 
         float distance;
         if (warp_window > 0 && paaU != nullptr && paaL != nullptr)
@@ -1064,6 +1074,8 @@ namespace daisy
 
         if (subtree_node->is_leaf)
         {
+            if (stats)
+                stats->leaves_enqueued++;
             query_result *mindist_result = static_cast<query_result *>(std::malloc(sizeof(query_result)));
             if (mindist_result == nullptr)
             {
@@ -1118,12 +1130,12 @@ namespace daisy
         }
         else
         {
-            generate_pqs_of_rs_batch(subtree_node->right_child, batch, bsf_distance, paa, index, warp_window, paaU, paaL);
-            generate_pqs_of_rs_batch(subtree_node->left_child, batch, bsf_distance, paa, index, warp_window, paaU, paaL);
+            generate_pqs_of_rs_batch(subtree_node->right_child, batch, bsf_distance, paa, index, warp_window, paaU, paaL, stats);
+            generate_pqs_of_rs_batch(subtree_node->left_child, batch, bsf_distance, paa, index, warp_window, paaU, paaL, stats);
         }
     }
 
-    void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa, int warp_window, ts_type *paaU, ts_type *paaL)
+    void process_rs_batch(int batch_index, SubtreeBatch *batches, float bsf_distance, isax_index *index, ts_type *paa, int warp_window, ts_type *paaU, ts_type *paaL, SearchStats *stats)
     {
         while (1)
         {
@@ -1133,7 +1145,7 @@ namespace daisy
                 break;
 
             isax_node *subtree_node = (batches[batch_index].nodelist->nlist)[static_cast<size_t>(subtree_index + batches[batch_index].from)];
-            generate_pqs_of_rs_batch(subtree_node, &batches[batch_index], bsf_distance, paa, index, warp_window, paaU, paaL);
+            generate_pqs_of_rs_batch(subtree_node, &batches[batch_index], bsf_distance, paa, index, warp_window, paaU, paaL, stats);
         }
     }
 
@@ -1146,13 +1158,18 @@ namespace daisy
             int pqs = in_data->batches[i].pq_amount + 1;
             for (int j = 0; j < pqs; j++)
             {
-                if (in_data->batches[i].pq[j] != nullptr && pqueue_size(in_data->batches[i].pq[j]) > 1)
+                // pqueue_size() is the number of queued leaves (slot 0 is unused
+                // and already excluded), so any non-empty queue must be kept. A
+                // "> 1" test dropped queues holding a single candidate leaf, whose
+                // series were then never scanned.
+                if (in_data->batches[i].pq[j] != nullptr && pqueue_size(in_data->batches[i].pq[j]) > 0)
                     total_pqs++;
             }
         }
 
         *(in_data->final_pq_list_size) = total_pqs;
-        *(in_data->final_pq_list) = static_cast<pqueue_t **>(std::malloc(sizeof(pqueue_t *) * static_cast<size_t>(total_pqs)));
+        *(in_data->final_pq_list) = static_cast<pqueue_t **>(
+            std::malloc(sizeof(pqueue_t *) * static_cast<size_t>(std::max(total_pqs, 1))));
         if (*(in_data->final_pq_list) == nullptr)
         {
             printf("MEMORY ERROR: final_pq_list allocation failed. Exiting...\n");
@@ -1167,7 +1184,7 @@ namespace daisy
             {
                 if (in_data->batches[i].pq[j] != nullptr)
                 {
-                    if (pqueue_size(in_data->batches[i].pq[j]) > 1)
+                    if (pqueue_size(in_data->batches[i].pq[j]) > 0)
                     {
                         in_data->batches[i].pq[j]->batch_id = i;
                         (*(in_data->final_pq_list))[curr_pq++] = in_data->batches[i].pq[j];
@@ -1197,7 +1214,7 @@ namespace daisy
         *(in_data->priority_queues_filled) = 1;
     }
 
-    int process_pq_of_batch_chatzakis(int current_pq_index, QaWorkerData *input_data)
+    int process_pq_of_batch_chatzakis(int current_pq_index, QaWorkerData *input_data, SearchStats *stats)
     {
         pqueue_t **final_pq_list = *(input_data->final_pq_list);
         int final_pq_list_size = *(input_data->final_pq_list_size);
@@ -1237,11 +1254,13 @@ namespace daisy
 
             if (node->buffer != nullptr)
             {
+                uint64_t series_lbs = 0, distances = 0; // added to stats after the scan
                 for (int i = 0; i < node->buffer->partial_buffer_size; i++)
                 {
                     if (node->buffer->partial_position_buffer[i] == nullptr)
                         continue;
 
+                    series_lbs++;
                     float distmin;
                     if (warp_window > 0 && paaU != nullptr && paaL != nullptr)
                         distmin = minidist_paa_to_isax_raw_DTW_SIMD(
@@ -1262,6 +1281,7 @@ namespace daisy
 
                     if (distmin <= bsf)
                     {
+                        distances++;
                         file_position_type pos = *node->buffer->partial_position_buffer[i];
                         float dist;
                         if (warp_window > 0)
@@ -1286,13 +1306,22 @@ namespace daisy
                             pthread_mutex_lock(input_data->bsf_lock);
                             file_position_type local_ts_index = pos / static_cast<file_position_type>(ts_size);
                             
-                            pqueue_bsf_insert(pq_bsf, dist, static_cast<long int>(local_ts_index), node);
+                            // pq_bsf is seeded with the approximate answer and that
+                            // leaf is scanned again here, so skip positions already
+                            // queued (otherwise each seed occupies two of the k slots).
+                            pqueue_bsf_insert_no_dup_position(pq_bsf, dist, static_cast<long int>(local_ts_index), node);
                             pthread_mutex_unlock(input_data->bsf_lock);
 
                             bsf_sharing_recv_bsf(*input_data->bsf_sharing_data, pq_bsf, input_data->workernumber, *input_data->shared_bsf_results, input_data->bsf_lock, my_rank, input_data->comm_sz, input_data->query_counter);
                             bsf_sharing_bcast_bsf(*input_data->bsf_sharing_data, pq_bsf, input_data->workernumber, my_rank, input_data->query_counter, input_data->replication_data, nullptr);
                         }
                     }
+                }
+                if (stats)
+                {
+                    stats->leaves_visited++;
+                    stats->series_lb_calcs += series_lbs;
+                    stats->distance_calcs += distances;
                 }
             }
         }
@@ -1582,6 +1611,7 @@ namespace daisy
         BsfSharingData *bsf_sharing_data = in_data->bsf_sharing_data;
 
         int k = in_data->bsf_result->pq_bsf->k;
+        SearchStats stats{}; // thread-local counters, copied out once at the end
 
         for (;;)
         {
@@ -1595,7 +1625,7 @@ namespace daisy
             }
 
             float bsf = in_data->bsf_result->pq_bsf->knn[k - 1];
-            process_rs_batch(current_batch_index, in_data->batches, bsf, in_data->index, in_data->paa, in_data->warp_window, in_data->paaU, in_data->paaL);
+            process_rs_batch(current_batch_index, in_data->batches, bsf, in_data->index, in_data->paa, in_data->warp_window, in_data->paaU, in_data->paaL, &stats);
             in_data->batches[current_batch_index].processed_phase_1 = 1;
             bsf_sharing_recv_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, *in_data->shared_bsf_results, in_data->bsf_lock, my_rank, comm_sz, query_counter);
         }
@@ -1606,7 +1636,7 @@ namespace daisy
             {
                 in_data->batches[i].is_getting_help_phase1 = 1;
                 int k_help = in_data->bsf_result->pq_bsf->k;
-                process_rs_batch(i, in_data->batches, in_data->bsf_result->pq_bsf->knn[k_help - 1], in_data->index, in_data->paa, in_data->warp_window, in_data->paaU, in_data->paaL);
+                process_rs_batch(i, in_data->batches, in_data->bsf_result->pq_bsf->knn[k_help - 1], in_data->index, in_data->paa, in_data->warp_window, in_data->paaU, in_data->paaL, &stats);
                 bsf_sharing_recv_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, *in_data->shared_bsf_results, in_data->bsf_lock, my_rank, comm_sz, query_counter);
             }
         }
@@ -1630,7 +1660,7 @@ namespace daisy
             if (pq != nullptr && pq->is_stolen)
                 continue;
 
-            while (process_pq_of_batch_chatzakis(current_pq_index, in_data))
+            while (process_pq_of_batch_chatzakis(current_pq_index, in_data, &stats))
             {
                 bsf_sharing_recv_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, *in_data->shared_bsf_results, in_data->bsf_lock, my_rank, comm_sz, query_counter);
                 bsf_sharing_bcast_bsf(*bsf_sharing_data, in_data->bsf_result->pq_bsf, in_data->workernumber, my_rank, query_counter, in_data->replication_data, nullptr);
@@ -1645,6 +1675,7 @@ namespace daisy
                 pq->is_processed = 1;
         }
 
+        in_data->stats = stats;
         pthread_barrier_wait(in_data->sync_barrier);
         pthread_exit(nullptr);
     }
@@ -1698,11 +1729,11 @@ namespace daisy
             }
             else
             {
-                approximate_topk_inmemory(ts, paa, index, bsf_result.pq_bsf, rawfile);
+                approximate_topk_inmemory(ts, paa, index, bsf_result.pq_bsf, rawfile, args.stats);
                 int min_checked_leaves = -1;
 
                 refine_topk_answer_inmemory(ts, paa, index, bsf_result.pq_bsf,
-                                            minimum_distance, min_checked_leaves, rawfile);
+                                            minimum_distance, min_checked_leaves, rawfile, args.stats);
             }
         }
         else
@@ -1712,8 +1743,12 @@ namespace daisy
 
         if (rawfile != nullptr && args.warp_window == 0)
         {
-            rerank_pq_exact_l2(bsf_result.pq_bsf, ts, rawfile, index->settings->timeseries_size);
-        }   
+            int reranked = rerank_pq_exact_l2(bsf_result.pq_bsf, ts, rawfile, index->settings->timeseries_size);
+            if (args.stats)
+                args.stats->distance_calcs += static_cast<uint64_t>(reranked);
+        }
+        if (args.stats)
+            args.stats->seed_kth_dist = bsf_result.pq_bsf->knn[k - 1];
 
         if (bsf_result.pq_bsf->knn[k - 1] == 0.0f)
         {
@@ -1860,6 +1895,9 @@ namespace daisy
                 std::exit(EXIT_FAILURE);
             }
         }
+        if (args.stats)
+            for (int i = 0; i < query_threads; i++)
+                args.stats->addCounters(workerdata[static_cast<size_t>(i)].stats);
 
         query_workers_finished = 1;
 
@@ -2251,8 +2289,13 @@ namespace daisy
 
     void Odyssey::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
     {
+        // Counters are collected for single-node L2 only; multi-node runs would
+        // see just this rank's share of the work.
+        last_search_stats.clear();
         if (!validateSearchParams(k, n_query))
             return;
+        if (this->distance_type == DistanceType::L2_SQUARED && this->comm_sz == 1)
+            last_search_stats.assign(static_cast<size_t>(n_query), SearchStats{});
 
         this->top_k = static_cast<int>(k);
 
@@ -2304,6 +2347,9 @@ namespace daisy
         else
             searchIndexL2Squared(queries, q_num, topk, results, &shared_bsf_results, nodelist, I, D, basis_func);
 
+        // Each query's result queue was copied into I/D above.
+        for (int i = 0; i < q_num; i++)
+            pqueue_bsf_destroy(results[i].pq_bsf);
         free(results);
         
     }
@@ -2356,6 +2402,7 @@ namespace daisy
                 args.warp_window = 0;
                 args.paaU = nullptr;
                 args.paaL = nullptr;
+                args.stats = last_search_stats.empty() ? nullptr : &last_search_stats[static_cast<size_t>(queries[q_loaded].id)];
 
                 query_result result = qa_exact_search_odyssey_knn(args);
                 results[queries[q_loaded].id] = result;
@@ -3243,6 +3290,7 @@ namespace daisy
             SimilaritySearchAlgorithm::searchIndex(query, n_query, config, I, D);
             return;
         }
+        last_search_stats.clear(); // range search collects no statistics
 
         float r = config.r;
         isax_index *idx = this->index;
@@ -3335,6 +3383,44 @@ namespace daisy
     Odyssey::~Odyssey()
     {
         delete[] database;
+
+        if (index != nullptr)
+        {
+            // Roots hang off the first buffer layer; each worker kept its own
+            // record arrays per root buffer (allocated with index_threads slots).
+            auto *fbl = reinterpret_cast<parallel_first_buffer_layer_ekosmas *>(index->fbl);
+            if (fbl != nullptr)
+            {
+                for (int i = 0; i < fbl->number_of_buffers; i++)
+                {
+                    parallel_fbl_soft_buffer_ekosmas *sb = &fbl->soft_buffers[i];
+                    isax_tree_destroy(sb->node);
+                    if (!sb->initialized)
+                        continue;
+                    for (int w = 0; w < this->index_threads; w++)
+                    {
+                        std::free(sb->sax_records[w]);
+                        std::free(sb->pos_records[w]);
+                    }
+                    std::free(sb->sax_records);
+                    std::free(sb->pos_records);
+                    std::free(sb->max_buffer_size);
+                    std::free(sb->buffer_size);
+                }
+                std::free(fbl->soft_buffers);
+                std::free(fbl);
+            }
+            std::free(index->sax_cache);
+            std::free(index->answer);
+            std::free(index);
+            index = nullptr;
+        }
+        isax_index_settings_destroy(index_settings);
+        index_settings = nullptr;
+
+        // buildIndexSequence() mallocs this private copy of the base.
+        std::free(rawfile);
+        rawfile = nullptr;
     }
 
     void odyssey_optimize_params(Odyssey *odyssey)

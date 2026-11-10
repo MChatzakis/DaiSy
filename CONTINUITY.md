@@ -91,6 +91,7 @@ Important options:
 - `BUILD_SING`
 - `BUILD_SOFA`
 - `BUILD_COCONUT`
+- `BUILD_OPTIMIZER` (knob-optimizer tools in `lib/optimizer/`, default OFF)
 
 Current optional dependency model:
 
@@ -1179,3 +1180,129 @@ confirms FaissFlat absent and core algorithms present. This supersedes earlier
 notes about the production core hash staying660e4838; historical frozen binaries
 and run records were not modified. validation.json/runtime-update.json record
 hashes, checks and logs. No commit, push or new PR yet.
+
+## Large-dataset exactness validation and SOFA/Odyssey fixes (2026-11-06)
+
+`tests/validate_large_datasets_local.cpp` (CTest `validate_large_datasets_local`,
+label `large_local`, built with `BUILD_TESTS`) checks the in-memory methods MESSI,
+FreSh, SOFA and Odyssey (single node, MPI singleton) for exact top-k on SIFT1M, GIST1M, T2I10M,
+HOTPOTQA5M, UCASELAW7M, MSMARCOMXBAI8M, DEEP100M, Seismic and Astro, against L2
+ground-truth files (brute-force spot-checked) or a cached exact brute force. Each
+algorithm runs in a forked child, so crashes, `exit()` calls and hangs are reported,
+not fatal. It exits 77 (CTest skip) when no dataset is present, is RUN_SERIAL, has no
+CTest timeout by default, and takes extra arguments from `DAISY_LARGE_DATASETS_ARGS`.
+Never launch it under mpirun. Usage and checks: `docs/validate-large-datasets-local.md`.
+
+It found SOFA and Odyssey returning duplicate ids (and missing neighbors) for k > 1:
+the exact phase rescans the approximate leaf and the plain `pqueue_bsf_insert`
+queued those series twice. Both now use `pqueue_bsf_insert_no_dup_position` in the
+leaf scan (SOFA also accepts only `dist < bsf`, like MESSI, so an early-abandoned
+partial sum is never queued). Odyssey's `rerank_pq_exact_l2` no longer pads the seed
+queue with copies of its last entry (that set a k-th bound no k distinct series
+achieve), skips empty slots via the signed position, and `estimate_th` no longer
+converts an out-of-range double to int. Separately, Odyssey's `gather_sort_pqueues`
+dropped (and freed) every batch leaf queue holding exactly one leaf, because it
+tested `pqueue_size(pq) > 1` and `pqueue_size` already excludes the unused slot 0;
+those leaves were never scanned. Misses grew with `query_threads` (more one-root
+batches; deterministic on SIFT1M with 48 threads, none with 1-2). It now keeps any
+non-empty queue. Odyssey's multi-rank merge paths
+(`bsf_sharing.cpp`, BSF-sharing/work-stealing merges in `Odyssey.cpp`) still use the
+plain insert because positions there are partition-local; multi-rank exactness was
+not validated. ParIS and SING also still use the plain insert and were not validated.
+`lib/optimizer/optimizer_collector.cpp` is an empty placeholder and is not built.
+Hercules, ParIS and SING were briefly part of the test and then removed to keep it
+fast (in-memory methods only). Before removal, Hercules and ParIS passed SIFT1M and
+GIST1M (100 queries, k=1/10/100); SING could not be built on the lab machine (no CUDA
+toolkit, no NVIDIA GPU). ParIS hardcodes its index files to `/tmp/paris_<pid>_<n>_*`
+and never deletes them; on the lab machine `/tmp` held ~820K leftover `paris_*`
+entries from earlier runs.
+
+## Knob-optimizer sample collector (2026-11-07)
+
+`lib/optimizer/optimizer_collector.cpp` (target `optimizer_collector`, flag
+`BUILD_OPTIMIZER`, default OFF) runs MESSI, FreSh, SOFA and Odyssey (single node)
+over a knob grid defined at the top of the file and appends one CSV row per answered
+query: algorithm, dataset_name, dataset_size, dataset_dimensionality, k, query_id,
+one column per knob (NaN when the algorithm lacks it), latency_ms, build_time_ms
+(the configuration's buildIndex wall time, repeated on all its rows; Odyssey's
+includes reading its raw file). An existing output file is appended to only if its
+header matches the current schema, otherwise the collector exits with code 2. Each grid
+configuration builds the index once (with all cores); configurations run one after
+the other in the same process (the user wants it simple, no child processes). Queries are
+answered one at a time (`searchIndex` with n_query = 1). Known knob constraints are
+built into the grid: initial_lbl_size is set to leaf_size, Odyssey leaf_size <= 2000,
+paa_segments stays 16 for the iSAX methods. Odyssey is skipped when two copies of the
+base do not fit in RAM. The default grid is 98 configurations per dataset.
+
+## Collector ready for a full run (2026-11-10)
+
+`optimizer_collector` now also writes 12 machine columns first (host, CPU model,
+sockets, cores, threads, max MHz, L2/L3 KB, NUMA nodes, RAM, SIMD, compiler; read
+from /proc and /sys) and 6 tree-shape columns after build_time_ms (n_roots, n_leaves,
+leaf_fill_mean, leaf_fill_max, largest_leaf_share, tree_depth, from a walk of the
+built tree: first_node chain for MESSI/FreSh/SOFA, `initialize_node_list` for
+Odyssey). For long runs it resumes (configurations with rows from the same host are
+skipped; a configuration's rows are appended in one fsync'd write only after it
+finishes), runs one untimed warm-up query per (configuration, k), caps each
+(configuration, k) at `--budget-s` seconds (default 600), skips datasets or
+Odyssey's copy that do not fit in 90% of MemAvailable, cuts a partial last line,
+and has `--dry-run 1`. The grid grew to 171 configurations per dataset: search_threads
+is derived from the machine (cores/2, cores, hardware threads = 12, 24, 48 on erato)
+and MESSI/FreSh got leaf_size 500. MESSI, FreSh and SOFA no longer print
+`>>> Finished querying.` from searchIndex (it was inside the timed call).
+Refinement's adaptive splitting changes the tree during k = 100 queries (+11% to
++50% leaves over 100 SIFT queries), so the tree columns describe the tree right after
+the build. Estimated full run on erato: 3.5 to 5 days for 8 datasets (Astro does not
+fit). Details and the run procedure: `docs/optimizer-notes/collector.md`.
+
+## Search statistics (2026-11-08)
+
+The collector's knobs, outputs and caveats are documented in
+`docs/optimizer-notes/collector.md`; keep it in sync when the grid or CSV schema changes.
+
+`SimilaritySearchAlgorithm::getLastSearchStats()` returns one `SearchStats`
+(`lib/utils/SearchStats.hpp`) per query of the last top-k call: node_lb_calcs,
+leaves_enqueued, leaves_visited, series_lb_calcs, distance_calcs (started, so
+early-abandoned ones count) and seed_kth_dist (k-th distance when the exact phase
+starts). Filled by MESSI, FreSh, SOFA and single-node Odyssey for L2 squared only;
+empty for every other algorithm, for DTW, for multi-node Odyssey (a rank sees only
+its share) and after a range search. Workers count into stack locals that are copied
+into their worker struct once at exit and summed after join; the shared iSAX helpers
+(`approximate_topk_inmemory`, `refine_topk_answer_inmemory`,
+`calculate_node_topk_inmemory`) and MESSI's `calculate_node2_topk_inmemory` take an
+optional `SearchStats *` (default null, so ParIS/SING and DTW paths are unchanged).
+Odyssey indexes stats by `queries[i].id` because it sorts queries, and counts the k
+exact distances of `rerank_pq_exact_l2`. Not counted: the refinement's tight-bound
+pass (tight_bound = 1, off by default). Overhead was not measurable: an A/B run of the
+collector binary before and after the change on SIFT1M (100k vectors) differed by less than run-to-run
+noise (SOFA, 3 alternations x 32 configs: 0.987x). `tests/test_SearchStats.cpp` checks the
+counters' relations (they vary with thread timing, so no exact values).
+The collector writes them after build_time_ms, plus final_kth_dist (D[k-1]).
+
+What the counters showed on SIFT1M (100k vectors): with Gaussian breakpoints
+(equidepth_breakpoints = 0) SIFT, which is not z-normalized, puts 92,880 of 100,000 series
+in one MESSI leaf (49 roots, 97 leaves), so every series is lower-bounded and the
+seed leaf alone costs ~93k distances. FreSh's helpers then rescan that leaf about once
+per thread (series_lb_calcs ~3.2M per query at 24 threads). With equi-depth breakpoints
+the tree has 10,872 roots that are almost all leaves (~9 series each), so node pruning
+removes almost nothing and series lower bounds prune only ~15% of distances.
+
+## Index memory is freed on destruction (2026-11-07)
+
+Before this, MESSI, FreSh, SOFA and Odyssey never freed their iSAX trees (nodes, leaf
+buffers, SAX words, split data): one build/destroy cycle on SIFT1M leaked 26 MB
+(MESSI/FreSh, 820 MB with equi-depth breakpoints), 8.6 GB (SOFA, whose leaf buffers
+are pre-sized for 20000 records) and 1.6 GB (Odyssey, including its private base copy).
+`isax_tree_destroy()` and `isax_index_settings_destroy()` in `lib/isax/iSAXIndex.cpp`
+now free a subtree and an index's settings. The settings helper also reinstates the
+default Gaussian breakpoints if the freed tables were active (FreSh used to leave the
+global pointing at its tables). The four destructors call them on every root of their
+first buffer layer. Odyssey's destructor also frees its index, first-buffer-layer
+records and `rawfile`, and `Odyssey::searchIndex` frees each query's result queue.
+MESSI's search/range workers freed a popped queue entry on every path except the
+early `break`, and FreSh's lock-free root-buffer setup leaked the arrays of threads
+that lost the CAS race; both are fixed. Verified with LeakSanitizer (no leaks with 4
+threads; LSan's own thread registry crashes at 8+ threads) and by RSS staying flat over
+repeated builds at 48 threads. ParIS, SING and DumpyOS destructors were not changed
+and likely leak their trees the same way.
+
