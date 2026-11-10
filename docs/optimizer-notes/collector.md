@@ -48,13 +48,14 @@ Every option takes a value. Bad arguments and a header mismatch exit with code 2
    ```
    On the lab machine (erato) it lists 9 datasets × 171 configurations = 1,539
    configurations (up to 461,700 rows).
-2. Start it in the background. On erato, reuse the raw base copies that the
-   exactness test already wrote (about 150 GB, same file names), so Odyssey does not
-   need to write them again:
+2. Start it in the background:
    ```bash
-   nohup ./lib/optimizer/optimizer_collector --out samples_erato.csv \
-       --work-dir validate_large_datasets_work/bin_cache > collector_erato.log 2>&1 &
+   nohup ./lib/optimizer/optimizer_collector --out samples_erato.csv > collector_erato.log 2>&1 &
    ```
+   Before Odyssey's first configuration on each fvecs dataset, the collector writes a
+   raw float32 copy of the base into `--work-dir` (default `optimizer_work`; about 150 GB
+   for all seven vector datasets). Later configurations reuse it. The series datasets
+   are already raw files and need no copy.
 3. Follow it with `tail -f collector_erato.log`. Every configuration prints one line;
    `grep -c ": ok " collector_erato.log` counts finished ones.
 4. There is no resume: a rerun starts from the first configuration again. If a run
