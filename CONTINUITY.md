@@ -1241,19 +1241,23 @@ sockets, cores, threads, max MHz, L2/L3 KB, NUMA nodes, RAM, SIMD, compiler; rea
 from /proc and /sys) and 6 tree-shape columns after build_time_ms (n_roots, n_leaves,
 leaf_fill_mean, leaf_fill_max, largest_leaf_share, tree_depth, from a walk of the
 built tree: first_node chain for MESSI/FreSh/SOFA, `initialize_node_list` for
-Odyssey). For long runs it resumes (configurations with rows from the same host are
-skipped; a configuration's rows are appended in one fsync'd write only after it
-finishes), runs one untimed warm-up query per (configuration, k), caps each
-(configuration, k) at `--budget-s` seconds (default 600), skips datasets or
-Odyssey's copy that do not fit in 90% of MemAvailable, cuts a partial last line,
-and has `--dry-run 1`. The grid grew to 171 configurations per dataset: search_threads
+Odyssey). For long runs it appends a configuration's rows in one fsync'd write
+only after it finishes, caps each (configuration, k) at `--budget-s` seconds
+(default 600), skips datasets or Odyssey's copy that do not fit in 90% of
+MemAvailable, and has `--dry-run 1`. Resume (skipping configurations already in
+the CSV) and a per-k warm-up query were added and then removed on 2026-11-10 at the
+user's request, to keep the code simple: the run is meant to go in one go, and a
+rerun into the same file duplicates rows. The grid grew to 171 configurations per dataset: search_threads
 is derived from the machine (cores/2, cores, hardware threads = 12, 24, 48 on erato)
 and MESSI/FreSh got leaf_size 500. MESSI, FreSh and SOFA no longer print
 `>>> Finished querying.` from searchIndex (it was inside the timed call).
 Refinement's adaptive splitting changes the tree during k = 100 queries (+11% to
 +50% leaves over 100 SIFT queries), so the tree columns describe the tree right after
-the build. Estimated full run on erato: 3.5 to 5 days for 8 datasets (Astro does not
-fit). Details and the run procedure: `docs/optimizer-notes/collector.md`.
+the build. Estimated full run on erato: 5 to 6 days for 9 datasets. Details and the run procedure: `docs/optimizer-notes/collector.md`.
+The collector names the two series datasets SEISMIC100M (the whole file, nominally
+100M, actually 110.0M records) and ASTRO100M (the first 100M of the astronomy file's
+277.4M records, which all together do not fit in RAM; `DatasetSpec::max_n`). The
+exactness test `validate_large_datasets_local` still calls them Seismic and Astro.
 
 ## Search statistics (2026-11-08)
 

@@ -29,15 +29,13 @@
 // and are NaN for an algorithm that does not collect them.
 //
 // Running a long collection:
-//   - Resume: configurations this host already wrote to --out are skipped, so
-//     rerunning the same command continues an interrupted run. A configuration's rows are appended in
-//     one write after it finishes, so the file never holds half a configuration.
+//   - A configuration's rows are appended in one write after it finishes, so a
+//     failed configuration leaves no rows behind.
 //   - Budget: once the queries of one (configuration, k) have used --budget-s
 //     seconds, the remaining queries of that k are skipped (logged as "stopped").
-//   - Before each k, one untimed warm-up query runs (query 0).
 //   - A dataset, or Odyssey's second copy of it, is skipped when it does not fit
 //     in the memory currently available.
-//   - --dry-run 1 prints the plan (sizes, memory, configurations left) and exits.
+//   - --dry-run 1 prints the plan (sizes, memory, configurations) and exits.
 //
 // Algorithms: MESSI, FreSh, SOFA (needs BUILD_SOFA), Odyssey single node (needs
 // BUILD_ODYSSEY). Do not launch it under mpirun: Odyssey runs as a single-node
@@ -69,7 +67,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <set>
@@ -350,6 +347,7 @@ struct DatasetSpec
     std::string base_file;
     std::string query_file;
     size_t raw_dim; // only for raw float32 files
+    size_t max_n = 0; // series datasets: index only the file's first max_n records (0 = all)
 };
 
 const std::vector<DatasetSpec> DATASETS = {
@@ -360,8 +358,9 @@ const std::vector<DatasetSpec> DATASETS = {
     {"UCASELAW7M", false, "UCASELAW7M", "base.7M.fvecs", "query.1K.fvecs", 0},
     {"MSMARCOMXBAI8M", false, "MSMARCOMXBAI8M", "base.8841823.fvecs", "query.6980.fvecs", 0},
     {"DEEP100M", false, "DEEP100M", "base.100M.fvecs", "query.10K.fvecs", 0},
-    {"Seismic", true, "", "data_size100M_seismic_len256_znorm.bin", "", 256},
-    {"Astro", true, "", "data_size270M_astronomy_len256_znorm.bin", "", 256},
+    {"SEISMIC100M", true, "", "data_size100M_seismic_len256_znorm.bin", "", 256},
+    // The astronomy file has 277M records, which do not fit in RAM: use its first 100M.
+    {"ASTRO100M", true, "", "data_size270M_astronomy_len256_znorm.bin", "", 256, 100000000},
 };
 
 struct Paths
@@ -410,6 +409,8 @@ Shape dataset_shape(const DatasetSpec &spec, const Paths &paths, size_t n_querie
             throw std::runtime_error(s.base_path + " has too few records");
         s.nq = n_queries;
         s.n = s.total - s.nq; // the last nq records are held out as queries
+        if (spec.max_n > 0)
+            s.n = std::min(s.n, spec.max_n);
     }
     if (max_base > 0)
         s.n = std::min(s.n, max_base);
@@ -697,11 +698,6 @@ std::string csv_header()
     return h;
 }
 
-// Column positions used to recognize finished configurations when resuming.
-constexpr size_t COL_HOST = 0;
-const size_t COL_ALGORITHM = MACHINE_COLUMNS.size(), COL_DATASET = COL_ALGORITHM + 1, COL_SIZE = COL_ALGORITHM + 2,
-             COL_FIRST_KNOB = COL_ALGORITHM + 6;
-
 std::string fmt_dist(float d)
 {
     if (!(d < FLT_MAX))
@@ -758,13 +754,6 @@ std::string describe(const Config &c)
     return out;
 }
 
-// Identifies a configuration in the CSV: host, algorithm, dataset, size and knob values.
-std::string config_key(const std::string &host, const std::string &algo, const std::string &dataset, size_t n,
-                       const std::string &knobs)
-{
-    return host + "," + algo + "," + dataset + "," + std::to_string(n) + knobs;
-}
-
 std::vector<std::string> split(const std::string &s)
 {
     std::vector<std::string> out;
@@ -774,31 +763,6 @@ std::vector<std::string> split(const std::string &s)
         if (!item.empty())
             out.push_back(item);
     return out;
-}
-
-// Keys of the configurations that already have rows in the CSV.
-std::set<std::string> finished_configs(const std::string &csv)
-{
-    std::set<std::string> done;
-    std::ifstream in(csv);
-    std::string line;
-    std::getline(in, line); // header
-    while (std::getline(in, line))
-    {
-        std::vector<std::string> cols;
-        std::stringstream ss(line);
-        std::string cell;
-        while (std::getline(ss, cell, ','))
-            cols.push_back(cell);
-        if (cols.size() < COL_FIRST_KNOB + KNOB_COLUMNS.size())
-            continue;
-        std::string knobs;
-        for (size_t i = 0; i < KNOB_COLUMNS.size(); i++)
-            knobs += "," + cols[COL_FIRST_KNOB + i];
-        done.insert(cols[COL_HOST] + "," + cols[COL_ALGORITHM] + "," + cols[COL_DATASET] + "," + cols[COL_SIZE] +
-                    knobs);
-    }
-    return done;
 }
 
 // Appends a block of rows in one write and syncs it to disk.
@@ -813,20 +777,6 @@ void append_rows(const std::string &csv, const std::string &rows)
         throw std::runtime_error("cannot write " + csv);
 }
 
-// A run killed during a write can leave a partial last line: cut it off.
-void drop_partial_last_line(const std::string &csv)
-{
-    if (fs::file_size(csv) == 0)
-        return;
-    std::ifstream in(csv, std::ios::binary);
-    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    if (content.back() == '\n')
-        return;
-    const size_t keep = content.find_last_of('\n') + 1; // 0 when there is no newline at all
-    fs::resize_file(csv, keep);
-    std::printf("warning: removed a partial last line from %s\n", csv.c_str());
-}
-
 // ============================================================================
 // One configuration: build once, then time every (k, query) pair
 // ============================================================================
@@ -839,7 +789,7 @@ struct ConfigResult
 };
 
 // Builds the index, records its tree shape, answers every query one at a time for
-// every k (after one untimed warm-up query per k) and appends all rows at the end.
+// every k and appends all rows at the end.
 ConfigResult run_configuration(const std::string &machine_cols, const std::string &algo, const Config &c,
                                const Dataset &ds, const std::vector<int> &ks, double budget_ms,
                                const std::string &out_csv)
@@ -864,7 +814,6 @@ ConfigResult run_configuration(const std::string &machine_cols, const std::strin
     {
         std::vector<idx_t> I(k);
         std::vector<float> D(k);
-        index->searchIndex(ds.queries.get(), 1, k, I.data(), D.data()); // warm-up, not recorded
 
         double spent_ms = 0;
         size_t answered = 0;
@@ -978,7 +927,6 @@ int prepare_csv(const std::string &out)
                      out.c_str());
         return 2;
     }
-    drop_partial_last_line(out);
     return 0;
 }
 
@@ -1005,19 +953,16 @@ int main(int argc, char **argv)
         thread_list += (thread_list.empty() ? "" : ",") + std::to_string((int)t);
     std::printf("search_threads grid: %s\n", thread_list.c_str());
 
-    std::set<std::string> done;
-    if (!opt.dry_run)
+    if (opt.dry_run)
+        std::printf("dry run: nothing is built or written\n");
+    else
     {
         if (int rc = prepare_csv(opt.out))
             return rc;
         fs::create_directories(opt.work_dir);
     }
-    if (fs::exists(opt.out))
-        done = finished_configs(opt.out);
-    std::printf("%s: %zu configurations already present (all hosts)%s\n", opt.out.c_str(), done.size(),
-                opt.dry_run ? " (dry run: nothing is built or written)" : "");
 
-    size_t total_configs_left = 0, total_rows_left = 0;
+    size_t total_configs = 0, total_rows = 0;
     for (const DatasetSpec &spec : DATASETS)
     {
         if (opt.datasets != "all" && ("," + opt.datasets + ",").find("," + spec.name + ",") == std::string::npos)
@@ -1040,7 +985,7 @@ int main(int argc, char **argv)
         std::printf("   n=%zu dim=%zu queries=%zu, base %.1f GB, available memory %.1f GB\n", shape.n, shape.dim,
                     shape.nq, gb(data_bytes), gb(mem_available_bytes()));
 
-        // Configurations still missing from the CSV, per algorithm.
+        // The grid configurations of every available algorithm.
         std::vector<std::pair<std::string, std::vector<Config>>> todo;
         for (const std::string &algo : split(opt.algos))
         {
@@ -1049,15 +994,8 @@ int main(int argc, char **argv)
                 std::printf("   %s: not available in this build (or unknown), skipped\n", algo.c_str());
                 continue;
             }
-            std::vector<Config> left;
-            const std::vector<Config> all = expand(grid_for(algo, threads));
-            for (const Config &c : all)
-                if (!done.count(config_key(machine.host, algo, spec.name, shape.n, fmt_knobs(c))))
-                    left.push_back(c);
-            std::printf("   %s: %zu configurations, %zu already present, %zu to run\n", algo.c_str(), all.size(),
-                        all.size() - left.size(), left.size());
-            if (!left.empty())
-                todo.emplace_back(algo, left);
+            todo.emplace_back(algo, expand(grid_for(algo, threads)));
+            std::printf("   %s: %zu configurations\n", algo.c_str(), todo.back().second.size());
         }
         if (todo.empty())
             continue;
@@ -1071,8 +1009,8 @@ int main(int argc, char **argv)
         {
             for (const auto &t : todo)
             {
-                total_configs_left += t.second.size();
-                total_rows_left += t.second.size() * ks.size() * shape.nq;
+                total_configs += t.second.size();
+                total_rows += t.second.size() * ks.size() * shape.nq;
             }
             continue;
         }
@@ -1137,8 +1075,8 @@ int main(int argc, char **argv)
         }
     }
     if (opt.dry_run)
-        std::printf("dry run: %zu configurations (%zu rows at most) left to run\n", total_configs_left,
-                    total_rows_left);
+        std::printf("dry run: %zu configurations (%zu rows at most) to run\n", total_configs,
+                    total_rows);
     else
         std::printf("samples written to %s\n", opt.out.c_str());
 #if defined(ODYSSEY_MPI) && ODYSSEY_MPI

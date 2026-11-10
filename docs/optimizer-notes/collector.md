@@ -31,7 +31,7 @@ Run the binary directly, never under `mpirun`: Odyssey runs as a single-node MPI
 | `--queries` | `100` | Queries per dataset (see the dataset table for where they come from) |
 | `--max-base` | `0` (all) | Index only the first N base vectors |
 | `--budget-s` | `600` | Time cap per (configuration, k): once its queries have used this many seconds, the remaining queries of that k are skipped. `0` = no cap |
-| `--out` | `optimizer_samples.csv` | Output CSV; appended to, and used to resume |
+| `--out` | `optimizer_samples.csv` | Output CSV; created, or appended to if it has the same header |
 | `--work-dir` | `optimizer_work` | Raw float32 copies of fvecs bases, which Odyssey builds from |
 | `--vector-root` | `/mnt/hddhelp/mchatzakis/datasets/processed` | Root of the fvecs datasets |
 | `--series-root` | `/mnt/hddhelp/mchatzakis/datasets/similarity-search-datasets` | Root of the raw data-series files |
@@ -46,9 +46,8 @@ Every option takes a value. Bad arguments and a header mismatch exit with code 2
    cd build
    ./lib/optimizer/optimizer_collector --dry-run 1 --out samples_erato.csv
    ```
-   On the lab machine (erato) it lists 8 datasets × 171 configurations = 1,368
-   configurations (up to 410,400 rows). Astro is skipped: it needs about 302 GB and
-   294 GB was available.
+   On the lab machine (erato) it lists 9 datasets × 171 configurations = 1,539
+   configurations (up to 461,700 rows).
 2. Start it in the background. On erato, reuse the raw base copies that the
    exactness test already wrote (about 150 GB, same file names), so Odyssey does not
    need to write them again:
@@ -58,8 +57,9 @@ Every option takes a value. Bad arguments and a header mismatch exit with code 2
    ```
 3. Follow it with `tail -f collector_erato.log`. Every configuration prints one line;
    `grep -c ": ok " collector_erato.log` counts finished ones.
-4. If it stops (crash, reboot, `kill`), run the same command again. Configurations
-   already in the CSV are skipped; a dataset with nothing left to run is not even loaded.
+4. There is no resume: a rerun starts from the first configuration again. If a run
+   stops, the CSV keeps every configuration that finished; restart with a new `--out`, or
+   with `--datasets` / `--algos` limited to what is missing.
 
 Expected duration on erato, extrapolated from the exactness test's timings
 (48 threads, Gaussian breakpoints and library-default knobs, 100 queries, averaged over
@@ -74,10 +74,11 @@ the four algorithms and k):
 | UCASELAW7M | ~0.57 s | ~3 min | ~9 h |
 | MSMARCOMXBAI8M | ~0.70 s | ~4 min | ~10.5 h |
 | DEEP100M | ~0.95 s | ~5 min | ~15 h |
-| Seismic | ~2.1 s (MESSI only) | ~11 min | ~31 h |
+| SEISMIC100M | ~2.1 s (MESSI only) | ~11 min | ~31 h |
+| ASTRO100M | not measured; assume about SEISMIC100M's | ~11 min | ~31 h |
 
-That is about 3.5 days if 12 and 24 threads are as fast as 48. On 100,000 SIFT vectors
-they were, but on the full datasets fewer threads will be slower, so plan for 4 to 5 days.
+That is about 4.5 days if 12 and 24 threads are as fast as 48. On 100,000 SIFT vectors
+they were, but on the full datasets fewer threads will be slower, so plan for 5 to 6 days.
 Gaussian-breakpoint configurations on the vector datasets are the slow end (they prune
 almost nothing); `--budget-s` caps any configuration at 3 × 600 s of queries.
 To shorten the run, lower `--queries`, or run subsets with `--datasets` / `--algos`
@@ -92,22 +93,19 @@ into the same `--out`.
   to the server (half its physical cores, all of them, all hardware threads).
 - Use one `--out` per server (for example `samples_<host>.csv`) and concatenate the
   files afterwards: every file has the same header, and the `host` column tells the
-  rows apart. Writing several servers into one shared file also works, because resume
-  only skips configurations written by the same host.
+  rows apart.
 
 ## What a run does
 
-For each dataset, then each algorithm, then each grid configuration not yet in the CSV:
+For each dataset, then each algorithm, then each grid configuration:
 
 1. Build the index once, with all cores, and time the `buildIndex` call.
 2. Walk the built tree once and record its shape (not timed).
-3. For each k: run one untimed warm-up query (query 0), then answer every query alone
-   (`searchIndex` with one query) and time each call, until the queries run out or the
-   `--budget-s` cap for this k is reached.
+3. For each k: answer every query alone (`searchIndex` with one query) and time each
+   call, until the queries run out or the `--budget-s` cap for this k is reached.
 4. Append all rows of the configuration to the CSV in one write and sync it to disk.
 
-A configuration that throws writes nothing; the log shows the error, and the next run
-retries it. Rows per configuration = number of k values × number of queries (300 with
+A configuration that throws writes nothing; the log shows the error. Rows per configuration = number of k values × number of queries (300 with
 the defaults), fewer when the budget stopped a k early.
 
 Before loading a dataset, the collector checks that the base (plus a rough index
@@ -126,8 +124,8 @@ with a log line that suggests `--max-base`.
 | UCASELAW7M | fvecs | `UCASELAW7M/base.7M.fvecs` | first N of `query.1K.fvecs` |
 | MSMARCOMXBAI8M | fvecs | `MSMARCOMXBAI8M/base.8841823.fvecs` | first N of `query.6980.fvecs` |
 | DEEP100M | fvecs | `DEEP100M/base.100M.fvecs` | first N of `query.10K.fvecs` |
-| Seismic | raw float32, length 256, z-normalized | `data_size100M_seismic_len256_znorm.bin` | last N records of the file, held out of the base |
-| Astro | raw float32, length 256, z-normalized | `data_size270M_astronomy_len256_znorm.bin` | last N records of the file, held out of the base |
+| SEISMIC100M | raw float32, length 256, z-normalized (110.0M records) | `data_size100M_seismic_len256_znorm.bin` | last N records of the file, held out of the base |
+| ASTRO100M | raw float32, length 256, z-normalized; the base is the file's first 100M of its 277.4M records (all of them need about 302 GB, which does not fit) | `data_size270M_astronomy_len256_znorm.bin` | last N records of the file, held out of the base |
 
 N is `--queries`, capped by the size of the query file. The fvecs vector datasets are not
 z-normalized, which matters for the Gaussian-breakpoint settings below.
@@ -274,10 +272,9 @@ Row order: dataset → algorithm → configuration → k → query.
 ```
 machine: erato,Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz,2,24,48,2900,256,61440,2,377.8,avx2,gcc 11.4.0
 search_threads grid: 12,24,48
-samples_erato.csv: 0 configurations already present (all hosts)
 == SIFT1M
    n=1000000 dim=128 queries=100, base 0.5 GB, available memory 294.3 GB
-   messi: 48 configurations, 0 already present, 48 to run
+   messi: 48 configurations
    ...
    loading
    messi 1/48 [ search_threads=12 leaf_size=500 sax_cardinality=4 equidepth_breakpoints=0 ]: ok (build 2.1 s, total 50.3 s, 300 rows)
@@ -289,16 +286,13 @@ A configuration stopped by the budget adds `k=100 stopped after 37/100 queries (
 A failed one prints `error (nothing written): <message>`. Odyssey adds its own lines
 (`[Node 0] Worker ... inserted ... records`).
 
-### Header check and resume
+### Header check
 
-The header is written only when `--out` is new or empty. An existing file is used only if
-its first line matches the current header exactly; otherwise the collector exits with
-code 2 without writing anything (files from before 2026-11-10 have an older header).
-A partial last line, left by a run killed during a write, is removed with a warning.
-
-A configuration counts as done when the CSV has any row with the same host, algorithm,
-dataset, dataset size and knob values. Done configurations are skipped whatever `--k` and
-`--queries` are now, so to collect other k values or more queries, use a new `--out`.
+The header is written only when `--out` is new or empty. An existing file is appended to
+only if its first line matches the current header exactly; otherwise the collector exits
+with code 2 without writing anything (files from before 2026-11-10 have an older header).
+Appending runs every configuration again, so running the same command twice into one
+file gives every row twice; nothing de-duplicates them.
 
 ## Caveats
 
@@ -313,6 +307,9 @@ dataset, dataset size and knob values. Done configurations are skipped whatever 
   breakpoints) to +50% (Gaussian) at k = 100. Since each configuration runs k = 1, 10,
   100 in that order, the k = 1 and k = 10 rows see the built tree, and the k = 100 rows a
   progressively finer one. SOFA's refinement does not split.
+- **Cold first query.** There is no warm-up query, so `query_id` 0 of each
+  (configuration, k), and especially of k = 1 right after the build, is usually slower.
+  Drop it in the analysis if it matters.
 - **Budget-truncated configurations have fewer queries**, and only the first ones of the
   workload. The log lists them; in the CSV, count rows per (configuration, k).
 - **FreSh rescans leaves.** Its helper threads can scan the same leaf again before it is
