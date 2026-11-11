@@ -383,6 +383,33 @@ gtest_discover_tests(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
+# ////// TOP-K: k > n is rejected by every algorithm //////
+add_executable(
+    test_TopK_KGreaterThanN
+    test_TopK_KGreaterThanN.cpp
+    test_utils.cpp
+)
+target_link_libraries(
+    test_TopK_KGreaterThanN
+    PRIVATE
+    GTest::gtest_main
+    dino_lib
+    commons_lib
+    stdc++fs
+)
+target_include_directories(test_TopK_KGreaterThanN
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons
+)
+if(BUILD_COCONUT)
+    target_compile_definitions(test_TopK_KGreaterThanN PRIVATE DAISY_TEST_COCONUT=1)
+endif()
+gtest_discover_tests(
+    test_TopK_KGreaterThanN
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
 # ////// MESSI streaming //////
 add_executable(
     test_Messi_Streaming

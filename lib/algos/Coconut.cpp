@@ -503,6 +503,7 @@ namespace
         requireBuilt();
         if (distance_type != DistanceType::L2_SQUARED) throw std::runtime_error("Coconut top-k search only supports L2_SQUARED");
         if (!k) throw std::runtime_error("Coconut top-k search requires k > 0");
+        checkTopKNotGreaterThanDatabase(k);
         checkFinite(query, n_query, dim); set_active_breakpoints(nullptr, nullptr);
         const auto &s = *state_; auto runs = s.snapshot();
         for (const auto &run : runs) run->validate();

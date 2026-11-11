@@ -122,6 +122,11 @@ use insertion counts, not arbitrary user timestamps. Resident SAX uses O(N) RAM;
 See [the implementation notes](docs/coconut-disk-streaming.md). Earlier results
 from the unmerged RAM insertion buffer do not evaluate disk-based streaming.
 
+### Top-k with k larger than the dataset
+
+Every algorithm rejects a top-k query whose `k` is greater than the number of indexed series:
+C++ throws `std::invalid_argument` and Python raises `ValueError`. Results are never padded.
+
 ### Range (distance-r) queries
 
 Algorithms that implement range search answer range queries through

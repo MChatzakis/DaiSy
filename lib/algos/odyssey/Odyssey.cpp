@@ -2231,11 +2231,7 @@ namespace daisy
             std::cerr << "[Error] k must be greater than 0\n";
             return false;
         }
-        if (k > n_database)
-        {
-            std::cerr << "[Error] k (" << k << ") cannot be greater than database size (" << n_database << ")\n";
-            return false;
-        }
+        checkTopKNotGreaterThanDatabase(k);
         if (n_query == 0)
         {
             std::cerr << "[Error] n_query must be greater than 0\n";

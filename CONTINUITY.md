@@ -64,6 +64,11 @@ These algorithms do not all share the same dependency profile or feature set.
 ## Important Behavioral Conventions
 
 - Top-k search is the baseline capability.
+- Every top-k entry point rejects `k` greater than the number of indexed series with
+  `std::invalid_argument` (`ValueError` in Python), via
+  `SimilaritySearchAlgorithm::checkTopKNotGreaterThanDatabase`. Results are never padded by
+  repeating the last neighbor or with placeholder ids. New algorithms must call it too;
+  `tests/test_TopK_KGreaterThanN.cpp` and `tests/test_topk_k_greater_than_n.py` cover it.
 - Range search is modeled through `SearchConfig` and is not universally implemented.
 - Streaming insert is implemented by `BruteForceSearch`, `LbBruteforce`, `Messi`, and `Coconut`;
   the base implementation still throws for algorithms that do not support it.

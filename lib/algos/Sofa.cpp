@@ -867,6 +867,7 @@ void Sofa::searchIndexDTW(const float *query, idx_t n_query, idx_t k, idx_t *I, 
 
 void Sofa::searchIndex(const float *query, const idx_t n_query, const idx_t k, idx_t *I, float *D)
 {
+    checkTopKNotGreaterThanDatabase(k);
     if (this->distance_type == DistanceType::L2_SQUARED)
         searchIndexL2Squared(query, n_query, k, I, D);
     else if (this->distance_type == DistanceType::DTW)
