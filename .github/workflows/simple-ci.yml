@@ -6,7 +6,9 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned: on ubuntu-latest (26.04) HerculesRange RandomWalk and
+    # CoconutTest.QueryBoundLookup fail; they pass on 24.04. Tracked separately.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
