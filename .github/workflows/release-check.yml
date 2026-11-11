@@ -17,7 +17,9 @@ on:
 
 jobs:
   dry-run:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, whose toolchain auditwheel cannot
+    # turn into a manylinux wheel ("too-recent versioned symbols").
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
 

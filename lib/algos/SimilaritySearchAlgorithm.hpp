@@ -6,6 +6,7 @@
 #include <cfloat>
 #include <vector>
 #include <stdexcept>
+#include <string>
 
 #include "../distance_computers/DistanceComputer.hpp"
 #include "../isax/iSAXSearch.hpp"
@@ -119,6 +120,17 @@ namespace daisy
         }
 
     protected:
+        // Top-k cannot return more neighbors than indexed series. Every top-k
+        // entry point calls this so the caller gets an error (std::invalid_argument,
+        // ValueError in Python) instead of padded or placeholder results.
+        void checkTopKNotGreaterThanDatabase(const idx_t k) const
+        {
+            if (k > n_database)
+                throw std::invalid_argument("k (" + std::to_string(k) +
+                                            ") cannot be greater than the number of indexed series (" +
+                                            std::to_string(n_database) + ")");
+        }
+
         bool validateSearchParams(const idx_t k, const idx_t n_query) const
         {
             if (k == 0)
@@ -126,11 +138,7 @@ namespace daisy
                 std::cerr << "[Error] k must be greater than 0\n";
                 return false;
             }
-            if (k > n_database)
-            {
-                std::cerr << "[Error] k (" << k << ") cannot be greater than database size (" << n_database << ")\n";
-                return false;
-            }
+            checkTopKNotGreaterThanDatabase(k);
             if (n_query == 0)
             {
                 std::cerr << "[Error] n_query must be greater than 0\n";

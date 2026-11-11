@@ -725,6 +725,7 @@ void Hercules::searchIndex(const float *query, idx_t n_query, idx_t k, idx_t *I,
         throw std::runtime_error("Hercules::searchIndex: index not built");
     if (config_.index_dir.empty())
         throw std::runtime_error("Hercules::searchIndex: index_dir not set");
+    checkTopKNotGreaterThanDatabase(k);
 
     for (idx_t q = 0; q < n_query; q++)
         hercules_knn_search(root_, query + q * this->dim, (int)this->dim, k,
