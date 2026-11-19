@@ -10,7 +10,7 @@
 // one CSV row:
 //
 //   host, cpu_model, cpu_sockets, cpu_cores, cpu_threads, cpu_max_mhz, l2_cache_kb,
-//   l3_cache_kb, numa_nodes, memory_gb, simd, compiler,
+//   l3_cache_kb, numa_nodes, memory_gb, simd, gpu_count, gpu_model, compiler,
 //   algorithm, dataset_name, dataset_size, dataset_dimensionality, k, query_id,
 //   <one column per knob (NaN when the algorithm does not have it)>,
 //   latency_ms, build_time_ms,
@@ -20,8 +20,9 @@
 //
 // The machine columns describe the server the run is on (read from /proc and /sys
 // at start-up) and are the same on every row of a run; they let samples from
-// several servers be pooled. The search_threads grid is derived from the machine
-// too: half the physical cores, all physical cores, all hardware threads.
+// several servers be pooled. The `threads` knob (used both to build the index and
+// to answer queries) is derived from the machine too: P, 3P/4, P/2 and P/4, where
+// P is the largest power of two not above the hardware threads.
 // latency_ms is the wall-clock time of one single-query searchIndex call.
 // build_time_ms is the wall-clock time of the configuration's buildIndex call;
 // it and the tree-shape columns repeat on every row of the configuration.
@@ -38,11 +39,11 @@
 //   - --dry-run 1 prints the plan (sizes, memory, configurations) and exits.
 //
 // Algorithms: MESSI, FreSh, SOFA (needs BUILD_SOFA), Odyssey single node (needs
-// BUILD_ODYSSEY). Do not launch it under mpirun: Odyssey runs as a single-node
-// MPI singleton.
+// BUILD_ODYSSEY), SING (needs BUILD_SING and a GPU). Do not launch it under mpirun:
+// Odyssey runs as a single-node MPI singleton.
 //
 // Usage:
-//   optimizer_collector [--datasets SIFT1M,GIST1M|all] [--algos messi,fresh,sofa,odyssey]
+//   optimizer_collector [--datasets SIFT1M,GIST1M|all] [--algos messi,fresh,sofa,odyssey,sing]
 //                       [--k 1,10,100] [--queries 100] [--max-base N] [--budget-s 600]
 //                       [--out optimizer_samples.csv] [--work-dir optimizer_work]
 //                       [--vector-root DIR] [--series-root DIR] [--dry-run 1]
@@ -50,6 +51,7 @@
 #include "algos/Messi.hpp"
 #include "algos/Fresh.hpp"
 #include "algos/Sofa.hpp" // empty unless SOFA_FFTW_ENABLED
+#include "algos/Sing.hpp" // usable only when SING_CUDA_ENABLED (BUILD_SING, CUDA)
 #if defined(ODYSSEY_MPI) && ODYSSEY_MPI
 #include "algos/hodyssey/Odyssey.hpp"
 #include <mpi.h>
@@ -90,6 +92,8 @@ struct Machine
     std::string host = "unknown", cpu_model = "unknown", simd = "unknown", compiler = "unknown";
     int sockets = 0, cores = 0, threads = 0, numa_nodes = 0;
     double max_mhz = NAN, l2_kb = NAN, l3_kb = NAN, memory_gb = NAN;
+    int gpus = 0;                  // NVIDIA GPUs
+    std::string gpu_model = "none"; // model of the first one
 };
 
 // CSV-safe text: no commas or line breaks, single spaces, "unknown" when empty.
@@ -219,6 +223,30 @@ Machine detect_machine()
             break;
         }
 
+    // GPUs: the CUDA runtime when SING is built, otherwise the NVIDIA driver's
+    // /proc entries (one directory per GPU).
+#if SING_CUDA_ENABLED
+    int n_gpus = 0;
+    if (cudaGetDeviceCount(&n_gpus) == cudaSuccess && n_gpus > 0)
+    {
+        m.gpus = n_gpus;
+        cudaDeviceProp prop;
+        if (cudaGetDeviceProperties(&prop, 0) == cudaSuccess)
+            m.gpu_model = csv_text(prop.name);
+    }
+#endif
+    if (m.gpus == 0)
+        for (const auto &gpu : fs::directory_iterator("/proc/driver/nvidia/gpus", ec))
+        {
+            if (m.gpus++ > 0)
+                continue;
+            std::ifstream info(gpu.path() / "information");
+            std::string info_line;
+            while (std::getline(info, info_line))
+                if (info_line.compare(0, 6, "Model:") == 0)
+                    m.gpu_model = csv_text(info_line.substr(6));
+        }
+
 #if defined(__clang__)
     m.compiler = csv_text(std::string("clang ") + __clang_version__);
 #elif defined(__GNUC__)
@@ -228,8 +256,20 @@ Machine detect_machine()
 }
 
 const std::vector<std::string> MACHINE_COLUMNS = {
-    "host", "cpu_model", "cpu_sockets", "cpu_cores", "cpu_threads", "cpu_max_mhz",
-    "l2_cache_kb", "l3_cache_kb", "numa_nodes", "memory_gb", "simd", "compiler",
+    "host",
+    "cpu_model",
+    "cpu_sockets",
+    "cpu_cores",
+    "cpu_threads",
+    "cpu_max_mhz",
+    "l2_cache_kb",
+    "l3_cache_kb",
+    "numa_nodes",
+    "memory_gb",
+    "simd",
+    "gpu_count",
+    "gpu_model",
+    "compiler",
 };
 
 std::string fmt_number(double v, int decimals)
@@ -247,15 +287,19 @@ std::string fmt_machine(const Machine &m)
     return m.host + "," + m.cpu_model + "," + std::to_string(m.sockets) + "," + std::to_string(m.cores) + "," +
            std::to_string(m.threads) + "," + fmt_number(m.max_mhz, 0) + "," + fmt_number(m.l2_kb, 0) + "," +
            fmt_number(m.l3_kb, 0) + "," + std::to_string(m.numa_nodes) + "," + fmt_number(m.memory_gb, 1) + "," +
-           m.simd + "," + m.compiler + ",";
+           m.simd + "," + std::to_string(m.gpus) + "," + m.gpu_model + "," + m.compiler + ",";
 }
 
-// Search-thread values to try: half the physical cores, all physical cores, all
-// hardware threads (duplicates dropped, e.g. on machines without SMT).
+// Thread values to try: P, 3P/4, P/2 and P/4, where P is the largest power of two
+// that does not exceed the hardware threads (erato: 48 -> P = 32 -> 32, 24, 16, 8).
+// Values below 1 and duplicates (tiny machines) are dropped.
 std::vector<double> thread_values(const Machine &m)
 {
+    int p = 1;
+    while (p * 2 <= m.threads)
+        p *= 2;
     std::vector<double> v;
-    for (int t : {m.cores / 2, m.cores, m.threads})
+    for (int t : {p, 3 * p / 4, p / 2, p / 4})
         if (t >= 1 && std::find(v.begin(), v.end(), (double)t) == v.end())
             v.push_back(t);
     return v;
@@ -266,12 +310,11 @@ std::vector<double> thread_values(const Machine &m)
 // ============================================================================
 //
 // One column per knob, in this order. A row gets NaN for knobs its algorithm
-// does not have. Knobs that only change build time (index threads, read block
-// length) are not columns: the index is always built with all cores.
+// does not have. `threads` is used both to build the index and to answer queries.
 // paa_segments is not a knob for MESSI/FreSh/Odyssey: their SIMD lower bound
 // assumes exactly 16 segments.
 const std::vector<std::string> KNOB_COLUMNS = {
-    "search_threads",        // all: query worker threads
+    "threads",               // all: index-build and query threads
     "leaf_size",             // all: max series per leaf
     "sax_cardinality",       // MESSI, FreSh: bits per iSAX segment (1..8)
     "equidepth_breakpoints", // MESSI, FreSh: 1 = data-adaptive breakpoints (setNormalized(false))
@@ -284,22 +327,22 @@ const std::vector<std::string> KNOB_COLUMNS = {
 };
 
 using Grid = std::vector<std::pair<std::string, std::vector<double>>>; // knob -> values to try
-using Config = std::map<std::string, double>;                         // knob -> chosen value
+using Config = std::map<std::string, double>;                          // knob -> chosen value
 
-// `threads` comes from thread_values(): on the lab machine (2 sockets x 12 cores
-// x 2 hardware threads) it is {12, 24, 48}.
+// `threads` comes from thread_values(): on the lab machine (48 hardware threads)
+// it is {32, 24, 16, 8}.
 Grid grid_for(const std::string &algo, const std::vector<double> &threads)
 {
     if (algo == "messi" || algo == "fresh")
         return {
-            {"search_threads", threads},
+            {"threads", threads},
             {"leaf_size", {500, 1000, 2000, 5000}},
             {"sax_cardinality", {4, 8}},
             {"equidepth_breakpoints", {0, 1}},
         };
     if (algo == "sofa")
         return {
-            {"search_threads", threads},
+            {"threads", threads},
             {"leaf_size", {5000, 20000}},
             {"word_length", {8, 16}},
             {"alphabet_size", {8, 64}},
@@ -309,9 +352,13 @@ Grid grid_for(const std::string &algo, const std::vector<double> &threads)
         };
     if (algo == "odyssey")
         return {
-            {"search_threads", threads},
+            {"threads", threads},
             {"leaf_size", {500, 1000, 2000}}, // at most 2000: Odyssey has no initial_lbl_size setter
             {"pq_th_div_factor", {4, 16, 64}},
+        };
+    if (algo == "sing")
+        return {
+            {"threads", threads}, // SING exposes no other knob
         };
     return {};
 }
@@ -342,25 +389,34 @@ std::vector<Config> expand(const Grid &grid)
 struct DatasetSpec
 {
     std::string name;
-    bool series;    // true: raw float32 file under --series-root, queries are its last records
+    bool series;     // true: raw float32 file under --series-root
     std::string dir; // directory under --vector-root (fvecs datasets)
     std::string base_file;
-    std::string query_file;
-    size_t raw_dim; // only for raw float32 files
+    std::string query_file; // series datasets: own query file, or "" to hold out the base file's last records
+    size_t raw_dim;   // only for raw float32 files
     size_t max_n = 0; // series datasets: index only the file's first max_n records (0 = all)
 };
 
+// Run order: vector datasets by base size (smallest first), then the data series.
 const std::vector<DatasetSpec> DATASETS = {
     {"SIFT1M", false, "SIFT1M", "base.1M.fvecs", "query.10K.fvecs", 0},
+    {"GLOVE1M", false, "GLOVE1M", "base.1183514.fvecs", "query.10K.fvecs", 0},
     {"GIST1M", false, "GIST1M", "base.1M.fvecs", "query.1K.fvecs", 0},
-    {"T2I10M", false, "T2I10M", "base.10M.fvecs", "query.10K.fvecs", 0},
     {"HOTPOTQA5M", false, "HOTPOTQA5M", "base.5233329.fvecs", "query.7405.fvecs", 0},
-    {"UCASELAW7M", false, "UCASELAW7M", "base.7M.fvecs", "query.1K.fvecs", 0},
-    {"MSMARCOMXBAI8M", false, "MSMARCOMXBAI8M", "base.8841823.fvecs", "query.6980.fvecs", 0},
+    {"FEVER5M", false, "FEVER5M", "base.5416568.fvecs", "query.6666.fvecs", 0},
+    {"MIRACLJA6M", false, "MIRACLJA6M", "base.6953614.fvecs", "query.860.fvecs", 0},
+    {"MSMARCO8M", false, "MSMARCO8M", "base.8841823.fvecs", "query.6980.fvecs", 0},
     {"DEEP100M", false, "DEEP100M", "base.100M.fvecs", "query.10K.fvecs", 0},
+    {"MIRACLRU9M", false, "MIRACLRU9M", "base.9543918.fvecs", "query.1252.fvecs", 0},
+    {"UCASELAW7M", false, "UCASELAW7M", "base.7M.fvecs", "query.1K.fvecs", 0},
+    {"T2I100M", false, "T2I100M", "base.100M.fvecs", "query.10K.fvecs", 0},
     {"SEISMIC100M", true, "", "data_size100M_seismic_len256_znorm.bin", "", 256},
     // The astronomy file has 277M records, which do not fit in RAM: use its first 100M.
     {"ASTRO100M", true, "", "data_size270M_astronomy_len256_znorm.bin", "", 256, 100000000},
+    // Built by scripts/datasets/make_sald.py (237M windows of 492 subjects); use the first 100M
+    // (51.2 GB), so it fits on smaller servers too. Its queries come from a subject not in the base.
+    {"SALD100M", true, "", "data_size200M_sald_len128_znorm.bin", "queries_size10K_sald_len128_znorm.bin", 128,
+     100000000},
 };
 
 struct Paths
@@ -372,8 +428,8 @@ struct Paths
 struct Shape
 {
     size_t n = 0, dim = 0, nq = 0;
-    std::string base_path, query_path; // query_path is empty for series datasets
-    size_t total = 0;                  // records in a series file (base + held-out queries)
+    std::string base_path, query_path; // query_path is empty for series datasets that hold out their last records
+    size_t total = 0;                  // records in a series base file
 };
 
 Shape dataset_shape(const DatasetSpec &spec, const Paths &paths, size_t n_queries, size_t max_base)
@@ -405,10 +461,21 @@ Shape dataset_shape(const DatasetSpec &spec, const Paths &paths, size_t n_querie
             throw std::runtime_error("cannot read " + s.base_path);
         s.dim = spec.raw_dim;
         s.total = fs::file_size(s.base_path) / (4 * s.dim);
-        if (s.total <= n_queries)
-            throw std::runtime_error(s.base_path + " has too few records");
-        s.nq = n_queries;
-        s.n = s.total - s.nq; // the last nq records are held out as queries
+        if (!spec.query_file.empty())
+        {
+            s.query_path = paths.series_root + "/" + spec.query_file;
+            if (!fs::exists(s.query_path))
+                throw std::runtime_error("cannot read " + s.query_path);
+            s.nq = std::min(n_queries, (size_t)(fs::file_size(s.query_path) / (4 * s.dim)));
+            s.n = s.total;
+        }
+        else
+        {
+            if (s.total <= n_queries)
+                throw std::runtime_error(s.base_path + " has too few records");
+            s.nq = n_queries;
+            s.n = s.total - s.nq; // the last nq records are held out as queries
+        }
         if (spec.max_n > 0)
             s.n = std::min(s.n, spec.max_n);
     }
@@ -474,7 +541,10 @@ Dataset load_dataset(const DatasetSpec &spec, const Shape &s)
     }
     else
     {
-        read_raw(s.base_path, s.total - ds.nq, ds.nq, ds.dim, ds.queries.get());
+        if (!s.query_path.empty())
+            read_raw(s.query_path, 0, ds.nq, ds.dim, ds.queries.get());
+        else
+            read_raw(s.base_path, s.total - ds.nq, ds.nq, ds.dim, ds.queries.get());
         read_raw(s.base_path, 0, ds.n, ds.dim, ds.base.get());
         ds.raw_path = s.base_path; // its first n records are exactly the base
     }
@@ -521,34 +591,60 @@ double gb(double bytes) { return bytes / 1e9; }
 // Algorithms
 // ============================================================================
 
-const int BUILD_THREADS = (int)std::max(1u, std::thread::hardware_concurrency());
-
-// SOFA and Odyssey exist only when their optional dependencies were found.
-bool available(const std::string &algo)
+// Why an algorithm cannot run here, or "" if it can. SOFA, Odyssey and SING exist
+// only when their optional dependencies were found; SING also needs a GPU.
+std::string unavailable_reason(const std::string &algo, const Machine &m)
 {
     if (algo == "messi" || algo == "fresh")
-        return true;
-#ifdef SOFA_FFTW_ENABLED
+        return "";
     if (algo == "sofa")
-        return true;
+#ifdef SOFA_FFTW_ENABLED
+        return "";
+#else
+        return "not built (needs BUILD_SOFA and FFTW3)";
 #endif
-#if defined(ODYSSEY_MPI) && ODYSSEY_MPI
     if (algo == "odyssey")
-        return true;
+#if defined(ODYSSEY_MPI) && ODYSSEY_MPI
+        return "";
+#else
+        return "not built (needs BUILD_ODYSSEY and MPI)";
 #endif
-    return false;
+    if (algo == "sing")
+#if SING_CUDA_ENABLED
+        return m.gpus > 0 ? "" : "no GPU found";
+#else
+        return "not built (needs BUILD_SING and CUDA)";
+#endif
+    (void)m;
+    return "unknown algorithm";
 }
+
+// Free GPU memory in bytes (0 without a CUDA build or a GPU).
+double gpu_free_bytes()
+{
+#if SING_CUDA_ENABLED
+    size_t free_b = 0, total_b = 0;
+    if (cudaMemGetInfo(&free_b, &total_b) == cudaSuccess)
+        return (double)free_b;
+#endif
+    return 0;
+}
+
+// SING keeps each series' SAX word (16 bytes) and a 4-byte bitmap entry on the GPU.
+constexpr double SING_GPU_BYTES_PER_SERIES = 20;
 
 std::unique_ptr<daisy::SimilaritySearchAlgorithm> make_algorithm(const std::string &algo, const Config &c)
 {
-    auto knob = [&](const char *name) { return (int)c.at(name); };
+    auto knob = [&](const char *name)
+    { return (int)c.at(name); };
 
     if (algo == "messi" || algo == "fresh")
     {
         std::unique_ptr<daisy::SimilaritySearchAlgorithm> a;
-        auto configure = [&](auto *x) {
-            x->setSearchWorkers(knob("search_threads"));
-            x->setIndexWorkers(BUILD_THREADS);
+        auto configure = [&](auto *x)
+        {
+            x->setSearchWorkers(knob("threads"));
+            x->setIndexWorkers(knob("threads"));
             x->setLeafSize(knob("leaf_size"));
             x->setInitialLblSize(knob("leaf_size")); // leaf buffers must hold a full leaf
             x->setSaxCardinality(knob("sax_cardinality"));
@@ -573,8 +669,8 @@ std::unique_ptr<daisy::SimilaritySearchAlgorithm> make_algorithm(const std::stri
     if (algo == "sofa")
     {
         auto s = std::make_unique<daisy::Sofa>(daisy::DistanceType::L2_SQUARED);
-        s->setSearchWorkers(knob("search_threads"));
-        s->setIndexWorkers(BUILD_THREADS);
+        s->setSearchWorkers(knob("threads"));
+        s->setIndexWorkers(knob("threads"));
         s->setLeafSize(knob("leaf_size"));
         s->setInitialLblSize(knob("leaf_size"));
         s->setWordLength(knob("word_length"));
@@ -589,12 +685,21 @@ std::unique_ptr<daisy::SimilaritySearchAlgorithm> make_algorithm(const std::stri
     if (algo == "odyssey")
     {
         daisy::OdysseyConfig cfg;
-        cfg.query_threads = knob("search_threads");
-        cfg.search_workers = knob("search_threads");
-        cfg.index_threads = BUILD_THREADS;
+        cfg.query_threads = knob("threads");
+        cfg.search_workers = knob("threads");
+        cfg.index_threads = knob("threads");
         cfg.leaf_size = knob("leaf_size");
         cfg.pq_th_div_factor = knob("pq_th_div_factor");
         return std::make_unique<daisy::Odyssey>(cfg, daisy::DistanceType::L2_SQUARED, 0, nullptr);
+    }
+#endif
+#if SING_CUDA_ENABLED
+    if (algo == "sing")
+    {
+        auto g = std::make_unique<daisy::Sing>(daisy::DistanceType::L2_SQUARED);
+        g->setNumThreads(knob("threads")); // search threads
+        g->setIndexWorkers(knob("threads"));
+        return g;
     }
 #endif
     throw std::runtime_error(algo + " is not available in this build");
@@ -674,12 +779,22 @@ std::string fmt_tree(const TreeShape &t)
 // ============================================================================
 
 const std::vector<std::string> TREE_COLUMNS = {
-    "n_roots", "n_leaves", "leaf_fill_mean", "leaf_fill_max", "largest_leaf_share", "tree_depth",
+    "n_roots",
+    "n_leaves",
+    "leaf_fill_mean",
+    "leaf_fill_max",
+    "largest_leaf_share",
+    "tree_depth",
 };
 
 const std::vector<std::string> MEASURE_COLUMNS = {
-    "node_lb_calcs", "leaves_enqueued", "leaves_visited", "series_lb_calcs", "distance_calcs",
-    "seed_kth_dist", "final_kth_dist",
+    "node_lb_calcs",
+    "leaves_enqueued",
+    "leaves_visited",
+    "series_lb_calcs",
+    "distance_calcs",
+    "seed_kth_dist",
+    "final_kth_dist",
 };
 
 std::string csv_header()
@@ -744,7 +859,7 @@ std::string fmt_knobs(const Config &c)
     return knobs;
 }
 
-// "search_threads=12 leaf_size=500 ..." for the progress log (only the knobs the configuration has).
+// "threads=32 leaf_size=500 ..." for the progress log (only the knobs the configuration has).
 std::string describe(const Config &c)
 {
     std::string out;
@@ -847,7 +962,7 @@ ConfigResult run_configuration(const std::string &machine_cols, const std::strin
 
 struct Options
 {
-    std::string datasets = "all", algos = "messi,fresh,sofa,odyssey", ks = "1,10,100";
+    std::string datasets = "all", algos = "messi,fresh,sofa,odyssey,sing", ks = "1,10,100";
     std::string out = "optimizer_samples.csv", work_dir = "optimizer_work";
     Paths paths{"/mnt/hddhelp/mchatzakis/datasets/processed",
                 "/mnt/hddhelp/mchatzakis/datasets/similarity-search-datasets"};
@@ -868,17 +983,28 @@ int parse_options(int argc, char **argv, Options &o)
         for (int i = 1; i + 1 < argc; i += 2)
         {
             std::string key = argv[i], val = argv[i + 1];
-            if (key == "--datasets") o.datasets = val;
-            else if (key == "--algos") o.algos = val;
-            else if (key == "--k") o.ks = val;
-            else if (key == "--queries") o.queries = std::stoul(val);
-            else if (key == "--max-base") o.max_base = std::stoul(val);
-            else if (key == "--budget-s") o.budget_s = std::stod(val);
-            else if (key == "--out") o.out = val;
-            else if (key == "--work-dir") o.work_dir = val;
-            else if (key == "--vector-root") o.paths.vector_root = val;
-            else if (key == "--series-root") o.paths.series_root = val;
-            else if (key == "--dry-run") o.dry_run = val != "0";
+            if (key == "--datasets")
+                o.datasets = val;
+            else if (key == "--algos")
+                o.algos = val;
+            else if (key == "--k")
+                o.ks = val;
+            else if (key == "--queries")
+                o.queries = std::stoul(val);
+            else if (key == "--max-base")
+                o.max_base = std::stoul(val);
+            else if (key == "--budget-s")
+                o.budget_s = std::stod(val);
+            else if (key == "--out")
+                o.out = val;
+            else if (key == "--work-dir")
+                o.work_dir = val;
+            else if (key == "--vector-root")
+                o.paths.vector_root = val;
+            else if (key == "--series-root")
+                o.paths.series_root = val;
+            else if (key == "--dry-run")
+                o.dry_run = val != "0";
             else
             {
                 std::fprintf(stderr, "unknown option %s (see docs/optimizer-notes/collector.md)\n", key.c_str());
@@ -951,7 +1077,7 @@ int main(int argc, char **argv)
     std::string thread_list;
     for (double t : threads)
         thread_list += (thread_list.empty() ? "" : ",") + std::to_string((int)t);
-    std::printf("search_threads grid: %s\n", thread_list.c_str());
+    std::printf("threads grid: %s\n", thread_list.c_str());
 
     if (opt.dry_run)
         std::printf("dry run: nothing is built or written\n");
@@ -989,9 +1115,10 @@ int main(int argc, char **argv)
         std::vector<std::pair<std::string, std::vector<Config>>> todo;
         for (const std::string &algo : split(opt.algos))
         {
-            if (!available(algo))
+            const std::string reason = unavailable_reason(algo, machine);
+            if (!reason.empty())
             {
-                std::printf("   %s: not available in this build (or unknown), skipped\n", algo.c_str());
+                std::printf("   %s: %s, skipped\n", algo.c_str(), reason.c_str());
                 continue;
             }
             todo.emplace_back(algo, expand(grid_for(algo, threads)));
@@ -1050,6 +1177,17 @@ int main(int argc, char **argv)
                 catch (const std::exception &e)
                 {
                     std::printf("   odyssey: skipped: %s\n", e.what());
+                    continue;
+                }
+            }
+            if (algo == "sing")
+            {
+                // SING does not check its GPU allocations, so make sure they fit.
+                const double gpu_bytes = SING_GPU_BYTES_PER_SERIES * ds.n;
+                if (gpu_bytes > MEMORY_HEADROOM * gpu_free_bytes())
+                {
+                    std::printf("   sing: skipped, needs about %.1f GB of GPU memory, %.1f GB free (use --max-base)\n",
+                                gb(gpu_bytes), gb(gpu_free_bytes()));
                     continue;
                 }
             }

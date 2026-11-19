@@ -8,12 +8,14 @@ index that configuration built, and how much search work the query did.
 Source: [`lib/optimizer/optimizer_collector.cpp`](../../lib/optimizer/optimizer_collector.cpp).
 The grid, the dataset list and the defaults below all live at the top of that file.
 
-Status (2026-11-10): MESSI, FreSh, SOFA and single-node Odyssey, L2 squared only.
+Status (2026-11-19): MESSI, FreSh, SOFA, single-node Odyssey and, on servers with a GPU,
+SING; L2 squared only.
 
 ## Build
 
 ```bash
 cmake .. -DBUILD_OPTIMIZER=ON -DBUILD_SOFA=ON -DBUILD_ODYSSEY=ON   # SOFA needs FFTW3, Odyssey needs MPI
+# on a server with an NVIDIA GPU and the CUDA toolkit, also add -DBUILD_SING=ON
 make optimizer_collector                                          # -> build/lib/optimizer/optimizer_collector
 ```
 
@@ -26,7 +28,7 @@ Run the binary directly, never under `mpirun`: Odyssey runs as a single-node MPI
 | Option | Default | Meaning |
 |---|---|---|
 | `--datasets` | `all` | Comma-separated names from the dataset table, or `all` |
-| `--algos` | `messi,fresh,sofa,odyssey` | Algorithms to run |
+| `--algos` | `messi,fresh,sofa,odyssey,sing` | Algorithms to run (unavailable ones are skipped with a log line) |
 | `--k` | `1,10,100` | k values; every query is answered once per k |
 | `--queries` | `100` | Queries per dataset (see the dataset table for where they come from) |
 | `--max-base` | `0` (all) | Index only the first N base vectors |
@@ -46,15 +48,16 @@ Every option takes a value. Bad arguments and a header mismatch exit with code 2
    cd build
    ./lib/optimizer/optimizer_collector --dry-run 1 --out samples_erato.csv
    ```
-   On the lab machine (erato) it lists 9 datasets × 171 configurations = 1,539
-   configurations (up to 461,700 rows).
+   On the lab machine (erato) it lists 14 datasets × 228 configurations = 3,192
+   configurations (up to 957,600 rows). SING is skipped there: erato has no GPU and the
+   build has no CUDA.
 2. Start it in the background:
    ```bash
    nohup ./lib/optimizer/optimizer_collector --out samples_erato.csv > collector_erato.log 2>&1 &
    ```
    Before Odyssey's first configuration on each fvecs dataset, the collector writes a
-   raw float32 copy of the base into `--work-dir` (default `optimizer_work`; about 150 GB
-   for all seven vector datasets). Later configurations reuse it. The series datasets
+   raw float32 copy of the base into `--work-dir` (default `optimizer_work`; about 316 GB
+   for all eleven vector datasets). Later configurations reuse it. The series datasets
    are already raw files and need no copy.
 3. Follow it with `tail -f collector_erato.log`. Every configuration prints one line;
    `grep -c ": ok " collector_erato.log` counts finished ones.
@@ -62,24 +65,34 @@ Every option takes a value. Bad arguments and a header mismatch exit with code 2
    stops, the CSV keeps every configuration that finished; restart with a new `--out`, or
    with `--datasets` / `--algos` limited to what is missing.
 
-Expected duration on erato, extrapolated from the exactness test's timings
-(48 threads, Gaussian breakpoints and library-default knobs, 100 queries, averaged over
-the four algorithms and k):
+Expected duration on erato, in run order. "Measured" query times come from the exactness
+test's timings (48 threads, Gaussian breakpoints and library-default knobs, 100 queries,
+averaged over the four algorithms and k); "scaled" ones are guesses from a dataset of the
+same dimension, scaled by size:
 
-| Dataset | Query time | Per configuration | 171 configurations |
+| Dataset | Query time | Per configuration | 171 configurations (previous grid) |
 |---|---|---|---|
-| SIFT1M | ~0.16 s | ~1 min | ~2.5 h |
-| GIST1M | ~0.08 s | ~0.5 min | ~1.5 h |
-| T2I10M | ~0.24 s | ~1.5 min | ~4 h |
-| HOTPOTQA5M | ~0.36 s | ~2 min | ~5.5 h |
-| UCASELAW7M | ~0.57 s | ~3 min | ~9 h |
-| MSMARCOMXBAI8M | ~0.70 s | ~4 min | ~10.5 h |
-| DEEP100M | ~0.95 s | ~5 min | ~15 h |
-| SEISMIC100M | ~2.1 s (MESSI only) | ~11 min | ~31 h |
-| ASTRO100M | not measured; assume about SEISMIC100M's | ~11 min | ~31 h |
+| SIFT1M | ~0.16 s (measured) | ~1 min | ~2.5 h |
+| GLOVE1M | ~0.15 s (scaled from SIFT1M) | ~1 min | ~2.5 h |
+| GIST1M | ~0.08 s (measured) | ~0.5 min | ~1.5 h |
+| HOTPOTQA5M | ~0.36 s (measured) | ~2 min | ~5.5 h |
+| FEVER5M | ~0.37 s (scaled from HOTPOTQA5M) | ~2 min | ~5.5 h |
+| MIRACLJA6M | ~0.48 s (scaled from HOTPOTQA5M) | ~2.5 min | ~7 h |
+| MSMARCO8M | ~0.70 s (measured) | ~4 min | ~10.5 h |
+| DEEP100M | ~0.95 s (measured) | ~5 min | ~15 h |
+| MIRACLRU9M | ~0.75 s (scaled from MSMARCO8M) | ~4 min | ~11.5 h |
+| UCASELAW7M | ~0.57 s (measured) | ~3 min | ~9 h |
+| T2I100M | ~2.4 s (scaled from T2I10M's 0.24 s) | ~14 min | ~39 h |
+| SEISMIC100M | ~2.1 s (measured, MESSI only) | ~11 min | ~31 h |
+| ASTRO100M | assumed equal to SEISMIC100M | ~11 min | ~31 h |
+| SALD100M | assumed half of SEISMIC100M's (half as many floats) | ~6 min | ~15 h |
 
-That is about 4.5 days if 12 and 24 threads are as fast as 48. On 100,000 SIFT vectors
-they were, but on the full datasets fewer threads will be slower, so plan for 5 to 6 days.
+The table was computed for the previous grid (171 configurations per dataset, threads
+12, 24 and 48): about 7 days if fewer threads cost nothing. The current grid has 228
+configurations per dataset (threads 32, 24, 16, 8 on erato), which scales that to about
+9.5 days, and SALD100M adds about 0.8 more. Fewer threads are slower on the full
+datasets, and 8 threads is the slowest setting in the grid, so plan for roughly 12 to 14
+days. These are rough extrapolations.
 Gaussian-breakpoint configurations on the vector datasets are the slow end (they prune
 almost nothing); `--budget-s` caps any configuration at 3 × 600 s of queries.
 To shorten the run, lower `--queries`, or run subsets with `--datasets` / `--algos`
@@ -90,8 +103,11 @@ into the same `--out`.
 - Build there (the binary is tuned to the CPU it is built on).
 - Point `--vector-root` / `--series-root` at that server's copies of the datasets.
   Datasets whose files are missing are skipped.
-- The machine columns are filled in automatically, and the `search_threads` grid adapts
-  to the server (half its physical cores, all of them, all hardware threads).
+- The machine columns are filled in automatically, and the `threads` grid adapts to the
+  server (P, 3P/4, P/2, P/4, where P is the largest power of two not above its hardware
+  threads).
+- SING runs only if the collector was built with `-DBUILD_SING=ON` (CUDA) and the server
+  has an NVIDIA GPU; otherwise the log says why it was skipped.
 - Use one `--out` per server (for example `samples_<host>.csv`) and concatenate the
   files afterwards: every file has the same header, and the `host` column tells the
   rows apart.
@@ -118,18 +134,59 @@ with a log line that suggests `--max-base`.
 
 | Name | Format | Base | Queries |
 |---|---|---|---|
-| SIFT1M | fvecs | `SIFT1M/base.1M.fvecs` | first N of `query.10K.fvecs` |
-| GIST1M | fvecs | `GIST1M/base.1M.fvecs` | first N of `query.1K.fvecs` |
-| T2I10M | fvecs | `T2I10M/base.10M.fvecs` | first N of `query.10K.fvecs` |
-| HOTPOTQA5M | fvecs | `HOTPOTQA5M/base.5233329.fvecs` | first N of `query.7405.fvecs` |
-| UCASELAW7M | fvecs | `UCASELAW7M/base.7M.fvecs` | first N of `query.1K.fvecs` |
-| MSMARCOMXBAI8M | fvecs | `MSMARCOMXBAI8M/base.8841823.fvecs` | first N of `query.6980.fvecs` |
-| DEEP100M | fvecs | `DEEP100M/base.100M.fvecs` | first N of `query.10K.fvecs` |
+| SIFT1M | fvecs, dim 128 | `SIFT1M/base.1M.fvecs` | first N of `query.10K.fvecs` |
+| GLOVE1M | fvecs, dim 100 | `GLOVE1M/base.1183514.fvecs` | first N of `query.10K.fvecs` |
+| GIST1M | fvecs, dim 960 | `GIST1M/base.1M.fvecs` | first N of `query.1K.fvecs` |
+| HOTPOTQA5M | fvecs, dim 1024 | `HOTPOTQA5M/base.5233329.fvecs` | first N of `query.7405.fvecs` |
+| FEVER5M | fvecs, dim 1024 | `FEVER5M/base.5416568.fvecs` | first N of `query.6666.fvecs` |
+| MIRACLJA6M | fvecs, dim 1024 (MIRACL Japanese) | `MIRACLJA6M/base.6953614.fvecs` | first N of `query.860.fvecs` |
+| MSMARCO8M | fvecs, dim 1024 | `MSMARCO8M/base.8841823.fvecs` | first N of `query.6980.fvecs` |
+| DEEP100M | fvecs, dim 96 | `DEEP100M/base.100M.fvecs` | first N of `query.10K.fvecs` |
+| MIRACLRU9M | fvecs, dim 1024 (MIRACL Russian) | `MIRACLRU9M/base.9543918.fvecs` | first N of `query.1252.fvecs` |
+| UCASELAW7M | fvecs, dim 1536 | `UCASELAW7M/base.7M.fvecs` | first N of `query.1K.fvecs` |
+| T2I100M | fvecs, dim 200 | `T2I100M/base.100M.fvecs` | first N of `query.10K.fvecs` |
 | SEISMIC100M | raw float32, length 256, z-normalized (110.0M records) | `data_size100M_seismic_len256_znorm.bin` | last N records of the file, held out of the base |
 | ASTRO100M | raw float32, length 256, z-normalized; the base is the file's first 100M of its 277.4M records (all of them need about 302 GB, which does not fit) | `data_size270M_astronomy_len256_znorm.bin` | last N records of the file, held out of the base |
+| SALD100M | raw float32, length 128, z-normalized; brain-MRI voxel time series, built by [`scripts/datasets/make_sald.py`](../../scripts/datasets/make_sald.py) (see below); the base is the file's first 100M of its 237.3M records | `data_size200M_sald_len128_znorm.bin` | first N of `queries_size10K_sald_len128_znorm.bin`, windows of a subject that is not in the base |
 
 N is `--queries`, capped by the size of the query file. The fvecs vector datasets are not
 z-normalized, which matters for the Gaussian-breakpoint settings below.
+All datasets are searched with squared L2 on the raw vectors, including GLOVE1M and
+T2I100M, which are usually searched by inner product (their folders only have
+inner-product ground truth); the collector needs no ground truth.
+
+### SALD100M
+
+SALD is not distributed as data series: it is the Southwest University Adult Lifespan
+Dataset, 494 subjects with one 8-minute resting-state fMRI scan each (Siemens Trio 3 T,
+TR 2 s, 64 × 64 × 32 voxels × 242 time points), licensed CC BY-NC (cite Wei et al. 2017,
+bioRxiv 177279). The data-series papers (MESSI, SING, Odyssey) use "200M series of
+length 128, 100 GB" derived from it, but do not publish the file or the procedure.
+`scripts/datasets/` rebuilds a dataset of that size:
+
+```bash
+scripts/datasets/download_sald.sh /mnt/hddhelp/mchatzakis/datasets/raw/SALD     # 23 GB, anonymous S3
+python3 -I scripts/datasets/make_sald.py /mnt/hddhelp/mchatzakis/datasets/raw/SALD \
+    /mnt/hddhelp/mchatzakis/datasets/similarity-search-datasets
+```
+
+- Each brain voxel's time course (voxel mean above 10% of the scan's highest voxel mean,
+  about 32,000 voxels per subject on average) is cut into windows of 128 points with
+  stride 8, 15 per voxel, and each window is z-normalized. The archives hold 493
+  resting-state scans; the 2026-11-19 build wrote 237,294,685 series of 492 subjects
+  (121.5 GB) in 17 minutes. The collector indexes the file's first 100M series (51.2 GB,
+  `max_n`, about the first 207 subjects), so it fits on servers with less memory; the
+  benchmark's SALD has 200M. To set it up on another server, copying the first 51.2 GB of
+  the base file is enough: `head -c 51200000000 data_size200M_sald_len128_znorm.bin`, keeping
+  the file name, plus the query file.
+- The first subject read is held out and only provides the 10,000 queries
+  (`queries_size10K_sald_len128_znorm.bin`). Consecutive windows of a voxel share 120 of
+  128 points, so a query taken from a base subject would find near-copies of itself.
+- `data_size200M_sald_len128_znorm.txt` next to the files records the parameters, the
+  counts and the held-out subject.
+- The result matches the papers' SALD in source, length and size, not necessarily
+  series by series. The overlapping windows make it denser in near-duplicates than
+  Seismic or Astro.
 
 ## Algorithms
 
@@ -139,6 +196,7 @@ z-normalized, which matters for the Gaussian-breakpoint settings below.
 | FreSh | — | in-memory base (no copy) | |
 | SOFA | `BUILD_SOFA` (FFTW3) | in-memory base (no copy) | Learns its own bins, so breakpoint settings do not apply |
 | Odyssey | `BUILD_ODYSSEY` (MPI) | raw float32 file, read into its own copy | Single node. For fvecs datasets the base is first written to `--work-dir` (a file with the right name and size is reused) |
+| SING | `BUILD_SING` (CUDA) and an NVIDIA GPU | in-memory base; SAX words and a bitmap (about 20 bytes per series) on the GPU | Skipped when that does not fit in 90% of the GPU's free memory. Not validated for exactness, and never run on erato (no GPU); see "Caveats" |
 
 ## Knobs
 
@@ -147,7 +205,7 @@ algorithm does not have.
 
 | Column | Algorithms | Grid values | What it controls |
 |---|---|---|---|
-| `search_threads` | all | half the physical cores, all physical cores, all hardware threads (erato: 12, 24, 48) | Threads that answer one query (`setSearchWorkers`; for Odyssey both `query_threads` and `search_workers`) |
+| `threads` | all | P, 3P/4, P/2, P/4, where P is the largest power of two not above the server's hardware threads (erato, 48 threads: 32, 24, 16, 8) | Threads that build the index and that answer one query (`setIndexWorkers` and `setSearchWorkers`; Odyssey's `index_threads`, `query_threads` and `search_workers`; SING's `setIndexWorkers` and `setNumThreads`) |
 | `leaf_size` | all | MESSI/FreSh: 500, 1000, 2000, 5000. SOFA: 5000, 20000. Odyssey: 500, 1000, 2000 | Maximum series per leaf before it splits. The leaf buffer size (`initial_lbl_size`) is set to the same value |
 | `sax_cardinality` | MESSI, FreSh | 4, 8 | Bits per iSAX segment at full resolution (4 bits = 16 symbols, 8 bits = 256) |
 | `equidepth_breakpoints` | MESSI, FreSh | 0, 1 | 0: Gaussian breakpoints, which assume z-normalized data. 1: equi-depth breakpoints learned from the data (`setNormalized(false)`) |
@@ -156,30 +214,33 @@ algorithm does not have.
 | `histogram_type` | SOFA | 1, 2 | How each coefficient's bins are learned: 1 equi-depth (equal counts), 2 equi-width (equal value range) |
 | `is_norm` | SOFA | 0 | 1 drops the DC (first) Fourier coefficient, for z-normalized data. Fixed at 0 in the grid |
 | `sample_size` | SOFA | 100000 | Series sampled to learn the bins. Fixed in the grid |
-| `pq_th_div_factor` | Odyssey | 4, 16, 64 | Odyssey splits a query's root subtrees into `search_threads` batches and queues each batch's candidate leaves in priority queues of at most E / `pq_th_div_factor` leaves, where E is estimated from the approximate answer's k-th distance. A larger factor gives more, smaller queues |
+| `pq_th_div_factor` | Odyssey | 4, 16, 64 | Odyssey splits a query's root subtrees into `threads` batches and queues each batch's candidate leaves in priority queues of at most E / `pq_th_div_factor` leaves, where E is estimated from the approximate answer's k-th distance. A larger factor gives more, smaller queues |
 
-Grid sizes (full Cartesian product, with 3 thread values):
+Grid sizes (full Cartesian product, with 4 thread values):
 
 | Algorithm | Configurations |
 |---|---|
-| MESSI | 3 × 4 × 2 × 2 = 48 |
-| FreSh | 48 |
-| SOFA | 3 × 2 × 2 × 2 × 2 = 48 |
-| Odyssey | 3 × 3 × 3 = 27 |
-| Total per dataset | 171 (51,300 rows with the defaults) |
+| MESSI | 4 × 4 × 2 × 2 = 64 |
+| FreSh | 64 |
+| SOFA | 4 × 2 × 2 × 2 × 2 = 64 |
+| Odyssey | 4 × 3 × 3 = 36 |
+| SING (GPU servers only) | 4 |
+| Total per dataset | 228 without SING (68,400 rows with the defaults), 232 with it |
 
-The grid was extended on 2026-11-10 from 98 configurations: a third thread value (half
-the physical cores) for every algorithm, and leaf_size 500 for MESSI and FreSh.
+History: 98 configurations per dataset at first; 171 on 2026-11-10 (a third search-thread
+value, and leaf_size 500 for MESSI and FreSh); 228 on 2026-11-19, when the thread knob
+became one `threads` value for both build and search, with the four power-of-two-based
+values. SING exposes only its thread counts, so its grid is the four thread values.
 In the product the first knob of the grid varies slowest and the last fastest. The
 progress log prints each configuration's knobs.
 
 Settings that are not knobs:
 
-- Index build always uses all hardware threads. Build-only settings are not columns.
+- Build-only settings other than the thread count (read block length) are not columns.
 - `paa_segments` stays 16 for MESSI, FreSh and Odyssey: their SIMD lower bound assumes 16 segments.
 - Odyssey `leaf_size` is at most 2000 because Odyssey has no setter for its leaf buffer size.
 - Odyssey always uses Gaussian breakpoints: it ignores `setNormalized`.
-- MESSI and SOFA use 42 work queues per query and FreSh uses `search_threads` / 2. These
+- MESSI and SOFA use 42 work queues per query and FreSh uses `threads` / 2. These
   are fixed in the library.
 - Everything else (minimum leaf size, flush limit, `tight_bound` = 0, `min_checked_leaves` = -1)
   stays at the library default.
@@ -203,13 +264,15 @@ Machine columns (the same on every row of a run; read from `/proc` and `/sys` at
 | `numa_nodes` | NUMA nodes |
 | `memory_gb` | Total RAM, GiB |
 | `simd` | Widest vector extension the CPU has: `avx512`, `avx2`, `avx`, `sse4.2` |
+| `gpu_count` | NVIDIA GPUs (CUDA runtime when SING is built, otherwise `/proc/driver/nvidia`) |
+| `gpu_model` | Model of the first GPU, `none` without one |
 | `compiler` | Compiler that built the collector |
 
 Run and configuration columns:
 
 | Column | Unit | Meaning |
 |---|---|---|
-| `algorithm` | | `messi`, `fresh`, `sofa` or `odyssey` |
+| `algorithm` | | `messi`, `fresh`, `sofa`, `odyssey` or `sing` |
 | `dataset_name` | | Name from the dataset table |
 | `dataset_size` | series | Number of series indexed (after `--max-base`) |
 | `dataset_dimensionality` | | Series length / vector dimension |
@@ -271,14 +334,15 @@ Row order: dataset → algorithm → configuration → k → query.
 ### Progress log (stdout)
 
 ```
-machine: erato,Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz,2,24,48,2900,256,61440,2,377.8,avx2,gcc 11.4.0
-search_threads grid: 12,24,48
+machine: erato,Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz,2,24,48,2900,256,61440,2,377.8,avx2,0,none,gcc 11.4.0
+threads grid: 32,24,16,8
 == SIFT1M
    n=1000000 dim=128 queries=100, base 0.5 GB, available memory 294.3 GB
-   messi: 48 configurations
+   messi: 64 configurations
    ...
+   sing: not built (needs BUILD_SING and CUDA), skipped
    loading
-   messi 1/48 [ search_threads=12 leaf_size=500 sax_cardinality=4 equidepth_breakpoints=0 ]: ok (build 2.1 s, total 50.3 s, 300 rows)
+   messi 1/64 [ threads=32 leaf_size=500 sax_cardinality=4 equidepth_breakpoints=0 ]: ok (build 0.6 s, total 50.3 s, 300 rows)
    ...
 samples written to samples_erato.csv
 ```
@@ -296,6 +360,12 @@ Appending runs every configuration again, so running the same command twice into
 file gives every row twice; nothing de-duplicates them.
 
 ## Caveats
+
+- **SING is unvalidated.** It has never been built or run on erato (no CUDA, no GPU),
+  so its rows have not been checked against the other algorithms. It also still uses the
+  top-k insert that allows the same series twice (MESSI, FreSh, SOFA and Odyssey were
+  fixed), so for k > 1 its answers may contain duplicates. Compare its `final_kth_dist`
+  with the other algorithms' before using its rows. It collects no search counters (`NaN`).
 
 - **Counters vary between runs.** With several search threads, the threads race on the
   best-so-far distance, so the same query's counts change from run to run. The final

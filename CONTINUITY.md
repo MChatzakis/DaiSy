@@ -1253,11 +1253,40 @@ and MESSI/FreSh got leaf_size 500. MESSI, FreSh and SOFA no longer print
 `>>> Finished querying.` from searchIndex (it was inside the timed call).
 Refinement's adaptive splitting changes the tree during k = 100 queries (+11% to
 +50% leaves over 100 SIFT queries), so the tree columns describe the tree right after
-the build. Estimated full run on erato: 5 to 6 days for 9 datasets. Details and the run procedure: `docs/optimizer-notes/collector.md`.
+the build. Estimated full run on erato: 8 to 9 days for 13 datasets (2026-11-19: added
+GLOVE1M, FEVER5M, MIRACLJA6M, MIRACLRU9M; T2I100M replaced T2I10M; MSMARCO8M replaced
+MSMARCOMXBAI8M, whose folder was renamed to MSMARCO8M with the same files, so the
+exactness test's MSMARCOMXBAI8M entry no longer finds its data). Details and the run procedure: `docs/optimizer-notes/collector.md`.
 The collector names the two series datasets SEISMIC100M (the whole file, nominally
 100M, actually 110.0M records) and ASTRO100M (the first 100M of the astronomy file's
 277.4M records, which all together do not fit in RAM; `DatasetSpec::max_n`). The
 exactness test `validate_large_datasets_local` still calls them Seismic and Astro.
+
+## Collector threads and SING (2026-11-19)
+
+The collector's thread knob is now one `threads` column used for both the index build
+and the search (it replaced `search_threads`; index threads used to be all hardware
+threads). Its values are P, 3P/4, P/2, P/4 with P the largest power of two not above
+the hardware threads (erato: 32, 24, 16, 8), so the grid is 228 configurations per
+dataset (2,964 for 13 datasets). Machine columns gained `gpu_count` and `gpu_model`.
+SING joins when the build has CUDA (`SING_CUDA_ENABLED`) and a GPU is present (CUDA
+runtime, else `/proc/driver/nvidia/gpus`); it is skipped when ~20 bytes per series do
+not fit in 90% of free GPU memory, because its `cudaMalloc` calls are unchecked.
+`Sing.hpp` gained `setIndexWorkers`. SING was only compile-checked (stub CUDA header):
+it has never run here, and it still uses the duplicate-allowing top-k insert.
+On 10M T2I vectors, MESSI's build went from 3.3 s (8 threads) to 2.2 s (16) and did
+not speed up further at 24 or 32.
+
+## SALD100M data series (2026-11-19)
+
+The collector has a 14th dataset, SALD100M, built locally from the raw SALD fMRI scans
+(494 subjects, 64x64x32 voxels x 242 points, CC BY-NC) by `scripts/datasets/download_sald.sh`
+and `scripts/datasets/make_sald.py`: brain-voxel time courses cut into z-normalized windows of
+128 with stride 8, the first subject held out for 10,000 queries in a separate file. The build
+wrote 237.3M series of 492 subjects (121.5 GB, 17 min); the collector uses the first 100M
+(`max_n`, 51.2 GB) so it fits on smaller servers (the user's choice; the benchmark's SALD has 200M). Series datasets may now name their own query file (`DatasetSpec::query_file`);
+SEISMIC100M and ASTRO100M still hold out their base file's last records. The papers' SALD
+file is not published, so this one matches it in source, length and size only.
 
 ## Search statistics (2026-11-08)
 

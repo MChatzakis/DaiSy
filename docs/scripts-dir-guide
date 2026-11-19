@@ -13,6 +13,13 @@ A comprehensive utility for processing, sampling, and preparing time series data
 
 An interactive graphical interface for configuring algorithm parameters and exploring the DaiSy library's capabilities.
 
+### Data-Series Datasets ([`datasets/`](datasets/))
+
+Builds data-series files in the raw float32 format of the Seismic and Astro benchmarks.
+`download_sald.sh DIR` fetches the raw SALD brain-MRI archives (23 GB, CC BY-NC), and
+`make_sald.py ARCHIVE_DIR OUT_DIR` turns them into about 200M z-normalized series of
+length 128 plus a query file. See `docs/optimizer-notes/collector.md` (SALD100M).
+
 ### Ground Truth Generation ([`groundtruth/`](groundtruth/))
 
 Tools and utilities for generating and validating ground truth results for similarity search evaluation.
