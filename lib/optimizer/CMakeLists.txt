@@ -3,6 +3,8 @@
 # optimizer_collector: runs MESSI, FreSh, SOFA and Odyssey (single node) over a
 # grid of knob values and writes one CSV row (knobs -> latency) per query.
 # SOFA and Odyssey are included only when their optional dependencies were found.
+# daisy_groundtruth: exact squared-L2 ground truth of a query file with MESSI, for
+# scripts/datasets/prepare_datasets.py.
 
 find_package(Threads REQUIRED)
 
@@ -11,4 +13,10 @@ target_link_libraries(optimizer_collector PRIVATE dino_lib commons_lib Threads::
 
 if(BUILD_ODYSSEY_AVAILABLE)
     target_link_libraries(optimizer_collector PRIVATE MPI::MPI_CXX)
+endif()
+
+add_executable(daisy_groundtruth daisy_groundtruth.cpp)
+target_link_libraries(daisy_groundtruth PRIVATE dino_lib commons_lib Threads::Threads)
+if(BUILD_ODYSSEY_AVAILABLE)
+    target_link_libraries(daisy_groundtruth PRIVATE MPI::MPI_CXX)
 endif()

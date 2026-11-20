@@ -100,8 +100,10 @@ namespace daisy
 
         // settings->mindist_sqrt = sqrtf((float) settings->timeseries_size /
         //                                (float) settings->paa_segments);
-        settings->mindist_sqrt = ((float)settings->timeseries_size /
-                                  (float)settings->paa_segments);
+        // The points each PAA segment averages (paa_from_ts uses the floor; the last
+        // timeseries_size % paa_segments points are left out). Scaling the bound by the
+        // unrounded ratio (6.25 for length 100) would make it larger than the true distance.
+        settings->mindist_sqrt = (float)settings->ts_values_per_paa_segment;
         settings->root_nodes_size = pow(2, settings->paa_segments);
 
         // SEGMENTS * (CARDINALITY)

@@ -1,0 +1,8 @@
+# Python packages of scripts/datasets/prepare_datasets.py.
+numpy            # every dataset
+faiss-cpu        # the ground truth (exact flat index)
+tqdm             # progress bars (optional)
+pyarrow          # HOTPOTQA5M, FEVER5M, MSMARCO8M (Hugging Face parquet files)
+huggingface_hub  # HOTPOTQA5M, FEVER5M, MSMARCO8M, MIRACLJA6M, MIRACLRU9M
+torch            # MIRACLJA6M, MIRACLRU9M (query encoding with BGE-M3)
+transformers     # MIRACLJA6M, MIRACLRU9M

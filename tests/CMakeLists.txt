@@ -383,6 +383,17 @@ gtest_discover_tests(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
+# ////// Exact search on dimensions that are not multiples of 8 or 16 //////
+add_executable(test_OddDimension test_OddDimension.cpp)
+target_link_libraries(test_OddDimension PRIVATE GTest::gtest_main dino_lib commons_lib stdc++fs)
+if(BUILD_ODYSSEY_AVAILABLE)
+    target_link_libraries(test_OddDimension PRIVATE MPI::MPI_CXX)
+endif()
+target_include_directories(test_OddDimension PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../commons)
+gtest_discover_tests(test_OddDimension WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
 # ////// Search statistics (MESSI, FreSh, SOFA and single-node Odyssey) //////
 # SOFA and Odyssey cases compile only when their dependencies are available.
 # Each case runs as a plain process (never under mpirun): Odyssey must be single-node.

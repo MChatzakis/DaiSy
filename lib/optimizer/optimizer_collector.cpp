@@ -38,6 +38,9 @@
 //     in the memory currently available.
 //   - --dry-run 1 prints the plan (sizes, memory, configurations) and exits.
 //
+// Datasets: DATA_ROOT/<NAME>/base.<n>.fvecs and query.<n>.fvecs, prepared on each server by
+// scripts/datasets/prepare_datasets.py (--data-root, or $DAISY_DATA_ROOT).
+//
 // Algorithms: MESSI, FreSh, SOFA (needs BUILD_SOFA), Odyssey single node (needs
 // BUILD_ODYSSEY), SING (needs BUILD_SING and a GPU). Do not launch it under mpirun:
 // Odyssey runs as a single-node MPI singleton.
@@ -46,7 +49,7 @@
 //   optimizer_collector [--datasets SIFT1M,GIST1M|all] [--algos messi,fresh,sofa,odyssey,sing]
 //                       [--k 1,10,100] [--queries 100] [--max-base N] [--budget-s 600]
 //                       [--out optimizer_samples.csv] [--work-dir optimizer_work]
-//                       [--vector-root DIR] [--series-root DIR] [--dry-run 1]
+//                       [--data-root DIR] [--dry-run 1]
 
 #include "algos/Messi.hpp"
 #include "algos/Fresh.hpp"
@@ -386,99 +389,60 @@ std::vector<Config> expand(const Grid &grid)
 // Datasets
 // ============================================================================
 
+// Every dataset is DATA_ROOT/<name>/<base_file> and <query_file>, as
+// scripts/datasets/prepare_datasets.py writes them (.fvecs: each row an int32 dimension,
+// then the float32 values). The queries are never part of the base.
 struct DatasetSpec
 {
     std::string name;
-    bool series;     // true: raw float32 file under --series-root
-    std::string dir; // directory under --vector-root (fvecs datasets)
     std::string base_file;
-    std::string query_file; // series datasets: own query file, or "" to hold out the base file's last records
-    size_t raw_dim;   // only for raw float32 files
-    size_t max_n = 0; // series datasets: index only the file's first max_n records (0 = all)
+    std::string query_file;
 };
 
-// Run order: vector datasets by base size (smallest first), then the data series.
+// Run order: by base size (smallest first), then the data series.
 const std::vector<DatasetSpec> DATASETS = {
-    {"SIFT1M", false, "SIFT1M", "base.1M.fvecs", "query.10K.fvecs", 0},
-    {"GLOVE1M", false, "GLOVE1M", "base.1183514.fvecs", "query.10K.fvecs", 0},
-    {"GIST1M", false, "GIST1M", "base.1M.fvecs", "query.1K.fvecs", 0},
-    {"HOTPOTQA5M", false, "HOTPOTQA5M", "base.5233329.fvecs", "query.7405.fvecs", 0},
-    {"FEVER5M", false, "FEVER5M", "base.5416568.fvecs", "query.6666.fvecs", 0},
-    {"MIRACLJA6M", false, "MIRACLJA6M", "base.6953614.fvecs", "query.860.fvecs", 0},
-    {"MSMARCO8M", false, "MSMARCO8M", "base.8841823.fvecs", "query.6980.fvecs", 0},
-    {"DEEP100M", false, "DEEP100M", "base.100M.fvecs", "query.10K.fvecs", 0},
-    {"MIRACLRU9M", false, "MIRACLRU9M", "base.9543918.fvecs", "query.1252.fvecs", 0},
-    {"UCASELAW7M", false, "UCASELAW7M", "base.7M.fvecs", "query.1K.fvecs", 0},
-    {"T2I100M", false, "T2I100M", "base.100M.fvecs", "query.10K.fvecs", 0},
-    {"SEISMIC100M", true, "", "data_size100M_seismic_len256_znorm.bin", "", 256},
-    // The astronomy file has 277M records, which do not fit in RAM: use its first 100M.
-    {"ASTRO100M", true, "", "data_size270M_astronomy_len256_znorm.bin", "", 256, 100000000},
-    // Built by scripts/datasets/make_sald.py (237M windows of 492 subjects); use the first 100M
-    // (51.2 GB), so it fits on smaller servers too. Its queries come from a subject not in the base.
-    {"SALD100M", true, "", "data_size200M_sald_len128_znorm.bin", "queries_size10K_sald_len128_znorm.bin", 128,
-     100000000},
-};
-
-struct Paths
-{
-    std::string vector_root, series_root;
+    {"SIFT1M", "base.1M.fvecs", "query.10K.fvecs"},
+    {"GLOVE1M", "base.1183514.fvecs", "query.10K.fvecs"},
+    {"GIST1M", "base.1M.fvecs", "query.1K.fvecs"},
+    {"HOTPOTQA5M", "base.5233329.fvecs", "query.7405.fvecs"},
+    {"FEVER5M", "base.5416568.fvecs", "query.6666.fvecs"},
+    {"MIRACLJA6M", "base.6953614.fvecs", "query.860.fvecs"},
+    {"MSMARCO8M", "base.8841823.fvecs", "query.6980.fvecs"},
+    {"DEEP100M", "base.100M.fvecs", "query.10K.fvecs"},
+    {"MIRACLRU9M", "base.9543918.fvecs", "query.1252.fvecs"},
+    {"UCASELAW7M", "base.7M.fvecs", "query.1K.fvecs"},
+    {"T2I100M", "base.100M.fvecs", "query.10K.fvecs"},
+    {"SEISMIC100M", "base.100M.fvecs", "query.10K.fvecs"},
+    {"ASTRO100M", "base.100M.fvecs", "query.10K.fvecs"},
+    {"SALD100M", "base.100M.fvecs", "query.10K.fvecs"},
 };
 
 // Sizes and files of a dataset, known without reading it.
 struct Shape
 {
     size_t n = 0, dim = 0, nq = 0;
-    std::string base_path, query_path; // query_path is empty for series datasets that hold out their last records
-    size_t total = 0;                  // records in a series base file
+    std::string base_path, query_path;
 };
 
-Shape dataset_shape(const DatasetSpec &spec, const Paths &paths, size_t n_queries, size_t max_base)
+Shape dataset_shape(const DatasetSpec &spec, const std::string &data_root, size_t n_queries, size_t max_base)
 {
     Shape s;
-    if (!spec.series)
+    s.base_path = data_root + "/" + spec.name + "/" + spec.base_file;
+    s.query_path = data_root + "/" + spec.name + "/" + spec.query_file;
+    int32_t d = 0;
+    FILE *f = std::fopen(s.base_path.c_str(), "rb");
+    if (!f || std::fread(&d, 4, 1, f) != 1)
     {
-        s.base_path = paths.vector_root + "/" + spec.dir + "/" + spec.base_file;
-        s.query_path = paths.vector_root + "/" + spec.dir + "/" + spec.query_file;
-        int32_t d = 0;
-        FILE *f = std::fopen(s.base_path.c_str(), "rb");
-        if (!f || std::fread(&d, 4, 1, f) != 1)
-        {
-            if (f)
-                std::fclose(f);
-            throw std::runtime_error("cannot read " + s.base_path);
-        }
-        std::fclose(f);
-        if (!fs::exists(s.query_path))
-            throw std::runtime_error("cannot read " + s.query_path);
-        s.dim = (size_t)d;
-        s.n = fs::file_size(s.base_path) / (4 + 4 * s.dim);
-        s.nq = std::min(n_queries, (size_t)(fs::file_size(s.query_path) / (4 + 4 * s.dim)));
+        if (f)
+            std::fclose(f);
+        throw std::runtime_error("cannot read " + s.base_path);
     }
-    else
-    {
-        s.base_path = paths.series_root + "/" + spec.base_file;
-        if (!fs::exists(s.base_path))
-            throw std::runtime_error("cannot read " + s.base_path);
-        s.dim = spec.raw_dim;
-        s.total = fs::file_size(s.base_path) / (4 * s.dim);
-        if (!spec.query_file.empty())
-        {
-            s.query_path = paths.series_root + "/" + spec.query_file;
-            if (!fs::exists(s.query_path))
-                throw std::runtime_error("cannot read " + s.query_path);
-            s.nq = std::min(n_queries, (size_t)(fs::file_size(s.query_path) / (4 * s.dim)));
-            s.n = s.total;
-        }
-        else
-        {
-            if (s.total <= n_queries)
-                throw std::runtime_error(s.base_path + " has too few records");
-            s.nq = n_queries;
-            s.n = s.total - s.nq; // the last nq records are held out as queries
-        }
-        if (spec.max_n > 0)
-            s.n = std::min(s.n, spec.max_n);
-    }
+    std::fclose(f);
+    if (!fs::exists(s.query_path))
+        throw std::runtime_error("cannot read " + s.query_path);
+    s.dim = (size_t)d;
+    s.n = fs::file_size(s.base_path) / (4 + 4 * s.dim);
+    s.nq = std::min(n_queries, (size_t)(fs::file_size(s.query_path) / (4 + 4 * s.dim)));
     if (max_base > 0)
         s.n = std::min(s.n, max_base);
     return s;
@@ -490,39 +454,25 @@ struct Dataset
     size_t n = 0, dim = 0, nq = 0;
     std::unique_ptr<float[]> base;    // n x dim
     std::unique_ptr<float[]> queries; // nq x dim
-    std::string raw_path;             // raw float32 file whose first n records are the base (Odyssey)
+    std::string raw_path;             // raw float32 copy of the base, written for Odyssey
 };
 
-// Reads `count` rows starting at `first` from an fvecs file (each row: int32 dim, dim floats).
-void read_fvecs(const std::string &path, size_t first, size_t count, size_t dim, float *out)
+// Reads the first `count` rows of an fvecs file (each row: int32 dim, dim floats).
+void read_fvecs(const std::string &path, size_t count, size_t dim, float *out)
 {
     FILE *f = std::fopen(path.c_str(), "rb");
     if (!f)
         throw std::runtime_error("cannot open " + path);
-    std::fseek(f, (long)(first * (4 + 4 * dim)), SEEK_SET);
     for (size_t i = 0; i < count; i++)
     {
         int32_t d = 0;
         if (std::fread(&d, 4, 1, f) != 1 || (size_t)d != dim || std::fread(out + i * dim, 4, dim, f) != dim)
         {
             std::fclose(f);
-            throw std::runtime_error("bad or short fvecs row " + std::to_string(first + i) + " in " + path);
+            throw std::runtime_error("bad or short fvecs row " + std::to_string(i) + " in " + path);
         }
     }
     std::fclose(f);
-}
-
-// Reads `count` rows starting at `first` from a raw float32 file.
-void read_raw(const std::string &path, size_t first, size_t count, size_t dim, float *out)
-{
-    FILE *f = std::fopen(path.c_str(), "rb");
-    if (!f)
-        throw std::runtime_error("cannot open " + path);
-    std::fseek(f, (long)(first * 4 * dim), SEEK_SET);
-    const bool ok = std::fread(out, 4 * dim, count, f) == count;
-    std::fclose(f);
-    if (!ok)
-        throw std::runtime_error("short read in " + path);
 }
 
 Dataset load_dataset(const DatasetSpec &spec, const Shape &s)
@@ -534,29 +484,15 @@ Dataset load_dataset(const DatasetSpec &spec, const Shape &s)
     ds.nq = s.nq;
     ds.queries.reset(new float[ds.nq * ds.dim]);
     ds.base.reset(new float[ds.n * ds.dim]);
-    if (!spec.series)
-    {
-        read_fvecs(s.query_path, 0, ds.nq, ds.dim, ds.queries.get());
-        read_fvecs(s.base_path, 0, ds.n, ds.dim, ds.base.get());
-    }
-    else
-    {
-        if (!s.query_path.empty())
-            read_raw(s.query_path, 0, ds.nq, ds.dim, ds.queries.get());
-        else
-            read_raw(s.base_path, s.total - ds.nq, ds.nq, ds.dim, ds.queries.get());
-        read_raw(s.base_path, 0, ds.n, ds.dim, ds.base.get());
-        ds.raw_path = s.base_path; // its first n records are exactly the base
-    }
+    read_fvecs(s.query_path, ds.nq, ds.dim, ds.queries.get());
+    read_fvecs(s.base_path, ds.n, ds.dim, ds.base.get());
     return ds;
 }
 
-// Odyssey builds from a raw float32 file. For fvecs datasets, write the base once
-// (a file of the right name and size in work_dir is reused).
+// Odyssey builds from a raw float32 file: write the base once (a file of the right name and
+// size in work_dir is reused).
 void ensure_raw_file(Dataset &ds, const std::string &work_dir)
 {
-    if (!ds.raw_path.empty())
-        return;
     ds.raw_path = work_dir + "/" + ds.name + "_n" + std::to_string(ds.n) + "_d" + std::to_string(ds.dim) + ".f32";
     const size_t bytes = ds.n * ds.dim * sizeof(float);
     if (fs::exists(ds.raw_path) && fs::file_size(ds.raw_path) == bytes)
@@ -964,8 +900,9 @@ struct Options
 {
     std::string datasets = "all", algos = "messi,fresh,sofa,odyssey,sing", ks = "1,10,100";
     std::string out = "optimizer_samples.csv", work_dir = "optimizer_work";
-    Paths paths{"/mnt/hddhelp/mchatzakis/datasets/processed",
-                "/mnt/hddhelp/mchatzakis/datasets/similarity-search-datasets"};
+    // Where prepare_datasets.py put the datasets: $DAISY_DATA_ROOT, else the lab server's folder.
+    std::string data_root = std::getenv("DAISY_DATA_ROOT") ? std::getenv("DAISY_DATA_ROOT")
+                                                           : "/mnt/hddhelp/mchatzakis/datasets/processed";
     size_t queries = 100, max_base = 0;
     double budget_s = 600;
     bool dry_run = false;
@@ -999,10 +936,8 @@ int parse_options(int argc, char **argv, Options &o)
                 o.out = val;
             else if (key == "--work-dir")
                 o.work_dir = val;
-            else if (key == "--vector-root")
-                o.paths.vector_root = val;
-            else if (key == "--series-root")
-                o.paths.series_root = val;
+            else if (key == "--data-root")
+                o.data_root = val;
             else if (key == "--dry-run")
                 o.dry_run = val != "0";
             else
@@ -1099,7 +1034,7 @@ int main(int argc, char **argv)
         Shape shape;
         try
         {
-            shape = dataset_shape(spec, opt.paths, opt.queries, opt.max_base);
+            shape = dataset_shape(spec, opt.data_root, opt.queries, opt.max_base);
         }
         catch (const std::exception &e)
         {

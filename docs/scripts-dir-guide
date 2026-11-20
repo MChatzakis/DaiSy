@@ -13,12 +13,12 @@ A comprehensive utility for processing, sampling, and preparing time series data
 
 An interactive graphical interface for configuring algorithm parameters and exploring the DaiSy library's capabilities.
 
-### Data-Series Datasets ([`datasets/`](datasets/))
+### Collector Datasets ([`datasets/`](datasets/))
 
-Builds data-series files in the raw float32 format of the Seismic and Astro benchmarks.
-`download_sald.sh DIR` fetches the raw SALD brain-MRI archives (23 GB, CC BY-NC), and
-`make_sald.py ARCHIVE_DIR OUT_DIR` turns them into about 200M z-normalized series of
-length 128 plus a query file. See `docs/optimizer-notes/collector.md` (SALD100M).
+`prepare_datasets.py` downloads the knob-optimizer collector's 14 datasets on any server,
+writes them as `.fvecs` base and query files in one layout, and computes their squared-L2
+ground truth with DaiSy's MESSI (`daisy_groundtruth`). See
+`docs/optimizer-notes/datasets.md`; `requirements.txt` lists its Python packages.
 
 ### Ground Truth Generation ([`groundtruth/`](groundtruth/))
 

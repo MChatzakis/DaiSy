@@ -541,7 +541,7 @@ namespace daisy
         __m256 v_t, v_s, v_d, distancev;
         // Callers accept distance <= bound. Equality of a partial sum
         // cannot terminate refinement: later coordinates may exceed the bound.
-        while (size > 0 && distance <= bound)
+        while (size >= 8 && distance <= bound)
         {
             v_t = _mm256_loadu_ps(&t[i]);
             v_s = _mm256_loadu_ps(&s[i]);
@@ -557,6 +557,14 @@ namespace daisy
             _mm256_storeu_ps(distancef, distancev);
             distance += distancef[0] + distancef[4];
         }
+        // The last size % 8 values one by one: an 8-wide load there would read past the
+        // end of the series (the next record, or past the buffer) and add it to the sum.
+        if (distance <= bound)
+            for (; size > 0; size--, i++)
+            {
+                const float d = t[i] - s[i];
+                distance += d * d;
+            }
 
         return distance;
     }

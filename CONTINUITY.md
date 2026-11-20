@@ -1277,16 +1277,64 @@ it has never run here, and it still uses the duplicate-allowing top-k insert.
 On 10M T2I vectors, MESSI's build went from 3.3 s (8 threads) to 2.2 s (16) and did
 not speed up further at 24 or 32.
 
-## SALD100M data series (2026-11-19)
+## Exact search on dimensions that are not multiples of 8 or 16 (2026-11-19)
 
-The collector has a 14th dataset, SALD100M, built locally from the raw SALD fMRI scans
-(494 subjects, 64x64x32 voxels x 242 points, CC BY-NC) by `scripts/datasets/download_sald.sh`
-and `scripts/datasets/make_sald.py`: brain-voxel time courses cut into z-normalized windows of
-128 with stride 8, the first subject held out for 10,000 queries in a separate file. The build
-wrote 237.3M series of 492 subjects (121.5 GB, 17 min); the collector uses the first 100M
-(`max_n`, 51.2 GB) so it fits on smaller servers (the user's choice; the benchmark's SALD has 200M). Series datasets may now name their own query file (`DatasetSpec::query_file`);
-SEISMIC100M and ASTRO100M still hold out their base file's last records. The papers' SALD
-file is not published, so this one matches it in source, length and size only.
+Two library bugs, found when daisy_groundtruth's self-check rejected MESSI on GLOVE1M
+(dimension 100): (1) `ts_euclidean_distance_SIMD` (lib/isax/SAX.cpp, used by MESSI, FreSh,
+SOFA, Odyssey, ParIS, ...) and `DistanceComputer::l2_dist_SIMD` processed 8 floats per step
+and, for dim % 8 != 0, read past the end of each vector (the next record, or past the
+buffer) and added it to the distance; they now finish the last dim % 8 values one by one.
+(2) `isax_index_settings_init` set `mindist_sqrt` to timeseries_size / paa_segments
+unrounded (6.25 for 100, 12.5 for 200) while `paa_from_ts` averages floor(dim / 16) points
+per segment, so the iSAX lower bound could exceed the true distance; it is now
+`ts_values_per_paa_segment`. Of the collector's datasets only GLOVE1M (100) and T2I100M (200)
+are affected; earlier GLOVE1M results of MESSI/FreSh/SOFA/Odyssey were wrong (consistent
+across configurations, but with inflated distances). `tests/test_OddDimension.cpp` (dims 100,
+200, 36 against a scalar brute force) fails for 100 and 36 without fix (1); no test case
+showed a wrong answer from (2). The fixed GLOVE1M ground truth matches Faiss on 1,000 queries.
+Hercules' gtests fail on erato only because /tmp/hercules_* folders belong to another user.
+
+## Dataset preparation for any server (2026-11-19)
+
+`scripts/datasets/prepare_datasets.py` is one file that replaces the user's pasted
+create_datasets*.py (from the Endor-DR-Bench project) and my download_sald.sh/make_sald.py.
+It downloads and prepares all 14 collector datasets in erato's layout, `DATA_ROOT/<NAME>/`:
+- `base.<n>.fvecs`;
+- query splits `learn`/`tuning`/`validation`/`query` (the data series have `query` only);
+- `<l2.|innprod.><split>.groundtruth.<n>.k5000.{ivecs,fvecs}` for every split and metric,
+  computed with Faiss's exact flat index, as erato's were.
+
+The split rules are create_datasets.py's: by row for SIFT1M, GLOVE1M, GIST1M, DEEP100M,
+UCASELAW7M and T2I100M, and seeded qrels samples for BEIR and MIRACL. SIFT1M and MSMARCO8M
+use the 80K rule (learn.80K, tuning.1K, validation.1K) since this date. Their first 10K learn
+rows are erato's learn.10K; SIFT1M's validation.1K is the first 1K of erato's validation.10K.
+erato's folders still hold the older 10K files.
+
+`--gt-engine messi` uses `lib/optimizer/daisy_groundtruth` (this repo's MESSI, equi-depth
+breakpoints, inner product by norm-lifting; checks every answer and the first 10 queries
+against brute force). It is exact but about 60x slower than Faiss at k=5000.
+
+Checks against erato's files, byte for byte:
+- the splits of all datasets except MIRACLRU9M (not checked);
+- MSMARCO8M's 80K splits, against its `troubleshoot_80K/` folder;
+- base files, in full or their first 1M rows;
+- the Faiss ground truth of GIST1M and GLOVE1M queries.
+
+Findings:
+- erato's SIFT1M is BIGANN's first 1M rows and public queries, not texmex SIFT1M.
+- Seismic's file has all-NaN records (47 in its first 2M), which are skipped.
+
+SEISMIC100M/ASTRO100M:
+- They read their non-public .bin file from `--series-dir` (default
+  `<raw-dir>/similarity-search-datasets`), or from `--series-file NAME=PATH`.
+- A missing or too-short file skips the dataset.
+- The base is the first 100M finite records; the queries are the last 10K finite records.
+
+The collector reads every dataset as fvecs from `--data-root` / `$DAISY_DATA_ROOT`; the
+series code path, `--vector-root` and `--series-root` are gone. SALD100M is the first 100M
+windows after the held-out subject. The SALD archives moved to
+`/mnt/hddhelp/mchatzakis/datasets/SALD/`. GLOVE1M's query rows are in
+`docs/datasets/glove1m_query_rows.txt`. Details: `docs/optimizer-notes/datasets.md`.
 
 ## Search statistics (2026-11-08)
 

@@ -34,9 +34,8 @@ Run the binary directly, never under `mpirun`: Odyssey runs as a single-node MPI
 | `--max-base` | `0` (all) | Index only the first N base vectors |
 | `--budget-s` | `600` | Time cap per (configuration, k): once its queries have used this many seconds, the remaining queries of that k are skipped. `0` = no cap |
 | `--out` | `optimizer_samples.csv` | Output CSV; created, or appended to if it has the same header |
-| `--work-dir` | `optimizer_work` | Raw float32 copies of fvecs bases, which Odyssey builds from |
-| `--vector-root` | `/mnt/hddhelp/mchatzakis/datasets/processed` | Root of the fvecs datasets |
-| `--series-root` | `/mnt/hddhelp/mchatzakis/datasets/similarity-search-datasets` | Root of the raw data-series files |
+| `--work-dir` | `optimizer_work` | Raw float32 copies of the bases, which Odyssey builds from |
+| `--data-root` | `$DAISY_DATA_ROOT`, else erato's `/mnt/hddhelp/mchatzakis/datasets/processed` | The prepared datasets ([datasets.md](datasets.md)) |
 | `--dry-run` | `0` | `1` prints the plan (sizes, memory, configurations left) without building or writing anything |
 
 Every option takes a value. Bad arguments and a header mismatch exit with code 2.
@@ -55,10 +54,9 @@ Every option takes a value. Bad arguments and a header mismatch exit with code 2
    ```bash
    nohup ./lib/optimizer/optimizer_collector --out samples_erato.csv > collector_erato.log 2>&1 &
    ```
-   Before Odyssey's first configuration on each fvecs dataset, the collector writes a
-   raw float32 copy of the base into `--work-dir` (default `optimizer_work`; about 316 GB
-   for all eleven vector datasets). Later configurations reuse it. The series datasets
-   are already raw files and need no copy.
+   Before Odyssey's first configuration on each dataset, the collector writes a raw
+   float32 copy of the base into `--work-dir` (default `optimizer_work`; about 570 GB for
+   all 14 datasets). Later configurations reuse it.
 3. Follow it with `tail -f collector_erato.log`. Every configuration prints one line;
    `grep -c ": ok " collector_erato.log` counts finished ones.
 4. There is no resume: a rerun starts from the first configuration again. If a run
@@ -101,8 +99,9 @@ into the same `--out`.
 ### On another server
 
 - Build there (the binary is tuned to the CPU it is built on).
-- Point `--vector-root` / `--series-root` at that server's copies of the datasets.
-  Datasets whose files are missing are skipped.
+- Prepare the datasets with `scripts/datasets/prepare_datasets.py` ([datasets.md](datasets.md))
+  and point `--data-root` (or `$DAISY_DATA_ROOT`) at them. Datasets whose files are
+  missing are skipped.
 - The machine columns are filled in automatically, and the `threads` grid adapts to the
   server (P, 3P/4, P/2, P/4, where P is the largest power of two not above its hardware
   threads).
@@ -132,61 +131,31 @@ with a log line that suggests `--max-base`.
 
 ## Datasets
 
-| Name | Format | Base | Queries |
-|---|---|---|---|
-| SIFT1M | fvecs, dim 128 | `SIFT1M/base.1M.fvecs` | first N of `query.10K.fvecs` |
-| GLOVE1M | fvecs, dim 100 | `GLOVE1M/base.1183514.fvecs` | first N of `query.10K.fvecs` |
-| GIST1M | fvecs, dim 960 | `GIST1M/base.1M.fvecs` | first N of `query.1K.fvecs` |
-| HOTPOTQA5M | fvecs, dim 1024 | `HOTPOTQA5M/base.5233329.fvecs` | first N of `query.7405.fvecs` |
-| FEVER5M | fvecs, dim 1024 | `FEVER5M/base.5416568.fvecs` | first N of `query.6666.fvecs` |
-| MIRACLJA6M | fvecs, dim 1024 (MIRACL Japanese) | `MIRACLJA6M/base.6953614.fvecs` | first N of `query.860.fvecs` |
-| MSMARCO8M | fvecs, dim 1024 | `MSMARCO8M/base.8841823.fvecs` | first N of `query.6980.fvecs` |
-| DEEP100M | fvecs, dim 96 | `DEEP100M/base.100M.fvecs` | first N of `query.10K.fvecs` |
-| MIRACLRU9M | fvecs, dim 1024 (MIRACL Russian) | `MIRACLRU9M/base.9543918.fvecs` | first N of `query.1252.fvecs` |
-| UCASELAW7M | fvecs, dim 1536 | `UCASELAW7M/base.7M.fvecs` | first N of `query.1K.fvecs` |
-| T2I100M | fvecs, dim 200 | `T2I100M/base.100M.fvecs` | first N of `query.10K.fvecs` |
-| SEISMIC100M | raw float32, length 256, z-normalized (110.0M records) | `data_size100M_seismic_len256_znorm.bin` | last N records of the file, held out of the base |
-| ASTRO100M | raw float32, length 256, z-normalized; the base is the file's first 100M of its 277.4M records (all of them need about 302 GB, which does not fit) | `data_size270M_astronomy_len256_znorm.bin` | last N records of the file, held out of the base |
-| SALD100M | raw float32, length 128, z-normalized; brain-MRI voxel time series, built by [`scripts/datasets/make_sald.py`](../../scripts/datasets/make_sald.py) (see below); the base is the file's first 100M of its 237.3M records | `data_size200M_sald_len128_znorm.bin` | first N of `queries_size10K_sald_len128_znorm.bin`, windows of a subject that is not in the base |
+All 14 datasets are `.fvecs` files in `DATA_ROOT/<NAME>/`, prepared on each server by
+`scripts/datasets/prepare_datasets.py`; [datasets.md](datasets.md) has their sources, how
+they are built, and what is checked.
 
-N is `--queries`, capped by the size of the query file. The fvecs vector datasets are not
+| Name | Base | Queries |
+|---|---|---|
+| SIFT1M | `base.1M.fvecs`, 1M × 128 (BIGANN's first 1M) | first N of `query.10K.fvecs` |
+| GLOVE1M | `base.1183514.fvecs`, × 100 | first N of `query.10K.fvecs` |
+| GIST1M | `base.1M.fvecs`, × 960 | first N of `query.1K.fvecs` |
+| HOTPOTQA5M | `base.5233329.fvecs`, × 1024 | first N of `query.7405.fvecs` |
+| FEVER5M | `base.5416568.fvecs`, × 1024 | first N of `query.6666.fvecs` |
+| MIRACLJA6M | `base.6953614.fvecs`, × 1024 (MIRACL Japanese) | first N of `query.860.fvecs` |
+| MSMARCO8M | `base.8841823.fvecs`, × 1024 | first N of `query.6980.fvecs` |
+| DEEP100M | `base.100M.fvecs`, × 96 | first N of `query.10K.fvecs` |
+| MIRACLRU9M | `base.9543918.fvecs`, × 1024 (MIRACL Russian) | first N of `query.1252.fvecs` |
+| UCASELAW7M | `base.7M.fvecs`, 7,414,023 × 1536 | first N of `query.1K.fvecs` |
+| T2I100M | `base.100M.fvecs`, × 200 | first N of `query.10K.fvecs` |
+| SEISMIC100M | `base.100M.fvecs`, × 256, z-normalized series | first N of `query.10K.fvecs` (the series file's last records) |
+| ASTRO100M | `base.100M.fvecs`, × 256, z-normalized series | first N of `query.10K.fvecs` (the series file's last records) |
+| SALD100M | `base.100M.fvecs`, × 128, z-normalized brain-fMRI windows | first N of `query.10K.fvecs` (a subject not in the base) |
+
+N is `--queries`, capped by the size of the query file. The vector datasets are not
 z-normalized, which matters for the Gaussian-breakpoint settings below.
 All datasets are searched with squared L2 on the raw vectors, including GLOVE1M and
-T2I100M, which are usually searched by inner product (their folders only have
-inner-product ground truth); the collector needs no ground truth.
-
-### SALD100M
-
-SALD is not distributed as data series: it is the Southwest University Adult Lifespan
-Dataset, 494 subjects with one 8-minute resting-state fMRI scan each (Siemens Trio 3 T,
-TR 2 s, 64 × 64 × 32 voxels × 242 time points), licensed CC BY-NC (cite Wei et al. 2017,
-bioRxiv 177279). The data-series papers (MESSI, SING, Odyssey) use "200M series of
-length 128, 100 GB" derived from it, but do not publish the file or the procedure.
-`scripts/datasets/` rebuilds a dataset of that size:
-
-```bash
-scripts/datasets/download_sald.sh /mnt/hddhelp/mchatzakis/datasets/raw/SALD     # 23 GB, anonymous S3
-python3 -I scripts/datasets/make_sald.py /mnt/hddhelp/mchatzakis/datasets/raw/SALD \
-    /mnt/hddhelp/mchatzakis/datasets/similarity-search-datasets
-```
-
-- Each brain voxel's time course (voxel mean above 10% of the scan's highest voxel mean,
-  about 32,000 voxels per subject on average) is cut into windows of 128 points with
-  stride 8, 15 per voxel, and each window is z-normalized. The archives hold 493
-  resting-state scans; the 2026-11-19 build wrote 237,294,685 series of 492 subjects
-  (121.5 GB) in 17 minutes. The collector indexes the file's first 100M series (51.2 GB,
-  `max_n`, about the first 207 subjects), so it fits on servers with less memory; the
-  benchmark's SALD has 200M. To set it up on another server, copying the first 51.2 GB of
-  the base file is enough: `head -c 51200000000 data_size200M_sald_len128_znorm.bin`, keeping
-  the file name, plus the query file.
-- The first subject read is held out and only provides the 10,000 queries
-  (`queries_size10K_sald_len128_znorm.bin`). Consecutive windows of a voxel share 120 of
-  128 points, so a query taken from a base subject would find near-copies of itself.
-- `data_size200M_sald_len128_znorm.txt` next to the files records the parameters, the
-  counts and the held-out subject.
-- The result matches the papers' SALD in source, length and size, not necessarily
-  series by series. The overlapping windows make it denser in near-duplicates than
-  Seismic or Astro.
+T2I100M, which are usually searched by inner product; the collector needs no ground truth.
 
 ## Algorithms
 
@@ -195,7 +164,7 @@ python3 -I scripts/datasets/make_sald.py /mnt/hddhelp/mchatzakis/datasets/raw/SA
 | MESSI | — | in-memory base (no copy) | |
 | FreSh | — | in-memory base (no copy) | |
 | SOFA | `BUILD_SOFA` (FFTW3) | in-memory base (no copy) | Learns its own bins, so breakpoint settings do not apply |
-| Odyssey | `BUILD_ODYSSEY` (MPI) | raw float32 file, read into its own copy | Single node. For fvecs datasets the base is first written to `--work-dir` (a file with the right name and size is reused) |
+| Odyssey | `BUILD_ODYSSEY` (MPI) | raw float32 file, read into its own copy | Single node. The base is first written to `--work-dir` as a raw float32 file (a file with the right name and size is reused) |
 | SING | `BUILD_SING` (CUDA) and an NVIDIA GPU | in-memory base; SAX words and a bitmap (about 20 bytes per series) on the GPU | Skipped when that does not fit in 90% of the GPU's free memory. Not validated for exactness, and never run on erato (no GPU); see "Caveats" |
 
 ## Knobs

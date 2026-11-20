@@ -195,7 +195,7 @@ Based on the available hardware, you can specify the below arguments to enable/d
 | `BUILD_COCONUT` | Enable the COCONUT sortable-SAX algorithm | `ON` | Core library |
 | `DEBUG_MSG` | Enable debug output | `OFF` | None |
 | `BUILD_SOFA` | Enable SOFA with SFA-Based indexing | `OFF` | FFTW3 | 
-| `BUILD_OPTIMIZER` | Build the knob-optimizer sample collector (`lib/optimizer/optimizer_collector`, see [docs/optimizer-notes/collector.md](docs/optimizer-notes/collector.md)) | `OFF` | Core library (SOFA/Odyssey need their own flags) |
+| `BUILD_OPTIMIZER` | Build the knob-optimizer sample collector and its ground-truth tool (`lib/optimizer/optimizer_collector`, `daisy_groundtruth`; see [docs/optimizer-notes/collector.md](docs/optimizer-notes/collector.md) and [datasets.md](docs/optimizer-notes/datasets.md)) | `OFF` | Core library (SOFA/Odyssey need their own flags) |
 
 
 To compile:

@@ -34,7 +34,7 @@ namespace daisy
         float distancef[8];
 
         __m256 v_t, v_s, v_d, distancev;
-        while (dim > 0 && distance < bound)
+        while (dim >= 8 && distance < bound)
         {
             v_t = _mm256_loadu_ps(&t[i]);
             v_s = _mm256_loadu_ps(&s[i]);
@@ -50,6 +50,13 @@ namespace daisy
             _mm256_storeu_ps(distancef, distancev);
             distance += distancef[0] + distancef[4];
         }
+        // The last dim % 8 values one by one: an 8-wide load there would read past the end.
+        if (distance < bound)
+            for (; dim > 0; dim--, i++)
+            {
+                const float d = t[i] - s[i];
+                distance += d * d;
+            }
 
         return distance;
     }
