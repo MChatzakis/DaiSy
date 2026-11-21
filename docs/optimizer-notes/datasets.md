@@ -1,10 +1,18 @@
 # Preparing the benchmark datasets on a server
 
-`scripts/datasets/prepare_datasets.py` downloads and prepares DaiSy's 14 benchmark datasets
+`scripts/datasets/prepare_datasets.py` downloads and prepares DaiSy's 19 benchmark datasets
 (the ones the knob-optimizer collector runs on, [collector.md](collector.md)) on any server,
-with the same files as the lab server (erato). It replaces the two scripts of the
-Endor-DR-Bench project that built erato's folders (`create_datasets.py` and
-`create_datasets_2.py`), and keeps their rules, so the outputs are byte-identical.
+with the same files as the lab servers (erato, and stella's
+`/gpfs/scratch/chatzakis/endor/processed`). It replaces the two scripts of the
+Endor-DR-Bench project that built those folders (`create_datasets.py`, which is Endor's
+`scripts/dataset_organizer.py`, and `create_datasets_2.py`), and keeps their rules, so the
+outputs are byte-identical.
+
+The script never changes a file that is already there, so `DATA_ROOT` can be a folder that
+another project uses (stella's is Endor-DR-Bench's): a file with the expected shape is kept,
+one with another shape stops the run (move it away by hand to rebuild it), and the
+ground-truth times of a run that finds a `groundtruth_times.csv` go to a new
+`groundtruth_times.<date>.csv`.
 
 ## What a dataset folder holds
 
@@ -18,6 +26,8 @@ float32 / int32 values):
 | `<l2.\|innprod.><split>.groundtruth.<n>.k5000.ivecs` | ids (0-based base rows) of the exact 5000 nearest neighbours of every query of the split |
 | `<l2.\|innprod.><split>.groundtruth.<n>.k5000.fvecs` | their squared L2 distances (ascending) or inner products (descending) |
 | `groundtruth_times.csv` | wall-clock seconds of every ground-truth step |
+| `base.<n>.ids.txt`, `<split>.<n>.ids.txt` | BEIR and MIRACL datasets: the document or query id of every row, one per line |
+| `query.<n>.qrels.tsv` | BEIR and MIRACL datasets: the relevance judgements of the testing queries (`query_id`, `corpus_id`, `score`) |
 
 | Dataset | Base | Query splits | Ground truth |
 |---|---|---|---|
@@ -27,17 +37,24 @@ float32 / int32 values):
 | HOTPOTQA5M | `base.5233329` × 1024 | `learn.10K`, `validation.1K`, `query.7405` | `innprod.`, `l2.` |
 | FEVER5M | `base.5416568` × 1024 | `learn.10K`, `validation.1K`, `query.6666` | `innprod.`, `l2.` |
 | MIRACLJA6M | `base.6953614` × 1024 | `learn.4268`, `validation.1K`, `query.860` | `innprod.`, `l2.` |
-| MSMARCO8M | `base.8841823` × 1024 | `learn.80K`, `tuning.1K`, `validation.1K`, `query.6980` | `innprod.`, `l2.` |
+| MSMARCO8M | `base.8841823` × 1024 | `learn.80K`, `tuning.1K`, `validation.1K`, `query.6980` | `innprod.` |
+| DEEP10M | `base.10M` × 96 | as DEEP100M | `l2.` |
+| DEEP50M | `base.50M` × 96 | as DEEP100M | `l2.` |
 | DEEP100M | `base.100M` × 96 | `learn.80K`, `tuning.1K`, `validation.1K`, `query.10K` | `l2.` |
 | MIRACLRU9M | `base.9543918` × 1024 | `learn.5312`, `validation.1K`, `query.1252` | `innprod.`, `l2.` |
 | UCASELAW7M | `base.7M` × 1536 (7,414,023) | `learn.80K`, `tuning.1K`, `validation.1K`, `query.1K` | `l2.` |
+| T2I10M | `base.10M` × 200 | as T2I100M | `innprod.` |
+| T2I50M | `base.50M` × 200 | as T2I100M | `innprod.` |
 | T2I100M | `base.100M` × 200 | `learn.80K`, `tuning.1K`, `validation.1K`, `query.10K` | `innprod.` |
-| SEISMIC100M | `base.100M` × 256 | `query.10K` | `l2.` |
-| ASTRO100M | `base.100M` × 256 | `query.10K` | `l2.` |
-| SALD100M | `base.100M` × 128 | `query.10K` | `l2.` |
+| SEISMIC100M | `base.100M` × 256 | `query.10K` | none |
+| ASTRO100M | `base.100M` × 256 | `query.100` | none |
+| SALD100M | `base.100M` × 128 | `query.100` | none |
+| RANDOM100M | `base.100M` × 256 | `query.1K` | none |
 
-Every split has a ground-truth pair for each of the dataset's metrics. The data series have
-no learning splits.
+Every split of a vector dataset has a ground-truth pair for each of the dataset's metrics.
+The data series have only a base and a query file: no learning splits and no ground truth.
+MSMARCO8M has inner product only, as Endor made it (its vectors are unit-norm, so L2 gives
+the same neighbours).
 
 ## Quick start on a new server
 
@@ -58,7 +75,7 @@ python3 scripts/datasets/prepare_datasets.py                 # everything
 python3 scripts/datasets/prepare_datasets.py SIFT1M GIST1M   # or some datasets
 ```
 
-SEISMIC100M and ASTRO100M need their series file first (see "Series files"); without it
+The data series need their series and queries files first (see "Series files"); without them
 they are skipped, the run goes on with the other datasets, and it ends with an error that
 lists them.
 
@@ -70,8 +87,9 @@ lists them.
 | `--data-root` | `DAISY_DATA_ROOT` | required | Where the prepared datasets go |
 | `--raw-dir` | `DAISY_RAW_DIR` | `<data-root>/../raw` | Where downloads go, in the layout below |
 | `--hf-dir` | `DAISY_HF_DIR` | `<raw-dir>/hf` | Hugging Face downloads and the BGE-M3 model |
-| `--series-dir` | `DAISY_SERIES_DIR` | `<raw-dir>/similarity-search-datasets` | Folder of the series `.bin` files, under their usual names |
+| `--series-dir` | `DAISY_SERIES_DIR` | `<raw-dir>/similarity-search-datasets` | Folder of the series `.bin` files and their queries files, under their usual names, there or one folder below |
 | `--series-file NAME=PATH` | | none | A series `.bin` file of another name or place, e.g. `ASTRO100M=/data/astro.bin` (repeatable) |
+| `--series-queries NAME=PATH` | | none | A series queries `.bin` file of another name or place (repeatable) |
 | `--series-url` | `DAISY_SERIES_URL` | none | URL prefix to download the non-public series files from |
 | `--gt-k` | | 5000 | Neighbours per query in the ground truth |
 | `--gt-splits` | | all | Comma-separated splits to compute ground truth for, e.g. `query` |
@@ -79,11 +97,12 @@ lists them.
 | `--gt-tool` | | `<repo>/build/lib/optimizer/daisy_groundtruth` | The MESSI binary, for `--gt-engine messi` |
 | `--skip-gt` | | off | Base and query splits only |
 | `--threads` | | all cores | Threads for the ground truth and the MIRACL encoder |
+| `--download-only` | | off | Only download the raw files (in a small job ahead of the preparation); `DATA_ROOT` is not written |
 | `--list` | | | Show every dataset and what is already prepared |
 
 A step whose output already exists with the right shape is skipped, downloads continue where
 they stopped, and every output is written through a temporary file, so an interrupted run is
-resumed by running it again.
+resumed by running it again. No existing file is ever replaced (see above).
 
 ## Sources
 
@@ -96,40 +115,46 @@ resumed by running it again.
 | FEVER5M | the same, `fever/` | `hf/` | 12.7 GB |
 | MIRACLJA6M | Hugging Face `hanhainebula/bge-m3_miracl_2cr` `dense/ja.tar.gz`; topics and qrels from `miracl/miracl`, encoded with `BAAI/bge-m3` | `hf/` | 16.7 GB + 2.3 GB model |
 | MSMARCO8M | `CohereLabs/beir-embed-english-v3`, `msmarco/` | `hf/` | 19.8 GB |
-| DEEP100M | Yandex Deep1B: first 100M rows of `base.1B.fbin`, first 1M of `learn.350M.fbin`, `query.public.10K.fbin` | `DEEP1B/` | 38.8 GB (rows only) |
+| DEEP10M, DEEP50M, DEEP100M | Yandex Deep1B: first 10M / 50M / 100M rows of `base.1B.fbin` (one partial file, which a larger dataset extends), first 1M of `learn.350M.fbin`, `query.public.10K.fbin` | `DEEP1B/` | 38.8 GB for 100M (rows only) |
 | MIRACLRU9M | as MIRACLJA6M, `dense/ru.tar.gz` | `hf/` | 22.9 GB + model |
 | UCASELAW7M | big-ann-benchmarks caselaw embeddings (Azure) | `caselaw/` | 59.3 GB |
-| T2I100M | Yandex Text-to-Image: first 100M rows of `base.1B.fbin`, first 1M of `query.learn.50M.fbin`, `query.public.100K.fbin` | `t2i/` | 81.2 GB (rows only) |
-| SEISMIC100M | `data_size100M_seismic_len256_znorm.bin`, **not public** | `similarity-search-datasets/` (`--series-dir`) | copy (112.6 GB) |
-| ASTRO100M | `data_size270M_astronomy_len256_znorm.bin`, **not public** (no online source found) | `similarity-search-datasets/` (`--series-dir`) | copy (284.1 GB) |
-| SALD100M | [SALD](https://fcon_1000.projects.nitrc.org/indi/retro/sald.html) brain fMRI (INDI S3, CC BY-NC, cite Wei et al. 2017); see below | `SALD/` | 23 GB |
+| T2I10M, T2I50M, T2I100M | Yandex Text-to-Image: first 10M / 50M / 100M rows of `base.1B.fbin`, first 1M of `query.learn.50M.fbin`, `query.public.100K.fbin` | `t2i/` | 81.2 GB for 100M (rows only) |
+| SEISMIC100M | `data_size100M_seismic_len256_znorm.bin` and `queries_size10K_seismic_len256_znorm.bin`, **not public** | `--series-dir` | copy (112.6 GB) |
+| ASTRO100M | `data_size270M_astronomy_len256_znorm.bin` and `queries_ctrl100_astronomy_len256_znorm.bin`, **not public** | `--series-dir` | copy (284.1 GB) |
+| SALD100M | `data_size899M_sald_len128_znorm.bin` and `queries_ctrl100_sald_len128_znorm.bin`, **not public** | `--series-dir` | copy (460.3 GB) |
+| RANDOM100M | `data_size104857600random100GB_len256_znorm.bin` and `queries_ctrl1000_random_len256_znorm.bin` (random walks), **not public** | `--series-dir` (stella: `randomDatasets/`) | copy (107.4 GB) |
 
 ### Series files
 
-The series files of SEISMIC100M and ASTRO100M come from the data-series benchmarks of
-Palpanas' group and cannot be downloaded. They are `.bin` files of raw little-endian float32
-records (256 values each, z-normalized, no header). On a server that has them:
+The four series datasets come from the data-series benchmarks of Palpanas' group and cannot
+be downloaded. Each has a series file and a queries file, both `.bin` files of raw
+little-endian float32 records (z-normalized, no header; 256 values each, 128 for SALD):
 
-- **Under their usual names, in one folder:** pass `--series-dir DIR` (or set
-  `DAISY_SERIES_DIR`). The default is `<raw-dir>/similarity-search-datasets/`; erato's folder
-  is `/mnt/hddhelp/mchatzakis/datasets/similarity-search-datasets/`.
-- **Under other names:** pass `--series-file SEISMIC100M=PATH` and/or
-  `--series-file ASTRO100M=PATH`.
+| Dataset | Series file (records) | Queries file (records) |
+|---|---|---|
+| SEISMIC100M | `data_size100M_seismic_len256_znorm.bin` (109,999,999) | `queries_size10K_seismic_len256_znorm.bin` (10,000) |
+| ASTRO100M | `data_size270M_astronomy_len256_znorm.bin` (277,443,827) | `queries_ctrl100_astronomy_len256_znorm.bin` (100) |
+| SALD100M | `data_size899M_sald_len128_znorm.bin` (899,065,213) | `queries_ctrl100_sald_len128_znorm.bin` (100) |
+| RANDOM100M | `data_size104857600random100GB_len256_znorm.bin` (104,857,600) | `queries_ctrl1000_random_len256_znorm.bin` (1,000) |
+
+On stella they are in `/gpfs/scratch/chatzakis/` (RANDOM100M's in its `randomDatasets/`
+folder). On a server that has them:
+
+- **Under their usual names:** pass `--series-dir DIR` (or set `DAISY_SERIES_DIR`); the files
+  are looked up there and in its subfolders one level down. The default is
+  `<raw-dir>/similarity-search-datasets/`; erato's folder is
+  `/mnt/hddhelp/mchatzakis/datasets/similarity-search-datasets/`.
+- **Under other names:** pass `--series-file NAME=PATH` and `--series-queries NAME=PATH`.
 - **Elsewhere on the web:** `--series-url PREFIX` downloads `PREFIX/<usual name>` into
   `--series-dir`.
 
-The script reads the file in place; it does not copy or change it. A file shorter than
-100,010,000 records (100M base + 10K queries), or whose size is not a whole number of
-records, is rejected like a missing one: the dataset is skipped with a message. Seismic's
-file has 109,999,999 records and Astro's 277,443,827. Any longer file works: only its first
-100M finite records and its last 10K finite records are used (see "How the query splits are
-made"). Only these two `.bin` files are read; the `queries_ctrl*` files next to them on
-erato are not used.
+The script reads the files in place; it does not copy or change them. A series file with
+fewer than 100M records, a queries file with fewer records than the dataset's queries, or a
+file whose size is not a whole number of records is rejected like a missing one: the dataset
+is skipped with a message.
 
-Instead of the `.bin` files, you can copy the prepared `DATA_ROOT/SEISMIC100M/` and
-`DATA_ROOT/ASTRO100M/` folders from a server that has them. The script then finds the base
-and query files and skips straight to the ground truth. The collector reads only these
-`.fvecs` files.
+Instead of the `.bin` files, you can copy a prepared `DATA_ROOT/<NAME>/` folder from a server
+that has it. The collector reads only its two `.fvecs` files.
 
 ## How the query splits are made
 
@@ -156,10 +181,12 @@ The rules of the scripts that built erato's folders, so every server gets the sa
   10K-query `learn` of the other BEIR datasets' rule, and its `validation` is the same. BEIR's
   query vectors come with the dataset; MIRACL's topics are encoded with BGE-M3 (all topics, in
   file order, batches of 32).
-- **SEISMIC100M, ASTRO100M:** `query` is the series file's last 10K finite records; the base is its
-  first 100M finite records and stops before them. Seismic's file contains all-NaN records
-  (probably constant series that z-normalization divided by zero); they are skipped.
-- **SALD100M:** `query` is 10,000 windows of a held-out subject (see "SALD100M").
+- **SEISMIC100M, ASTRO100M, SALD100M, RANDOM100M:** the base is the series file's first 100M
+  finite records (a prefix, not a random sample); `query` is the whole queries file. Seismic's
+  file contains all-NaN records (probably constant series that z-normalization divided by
+  zero); they are skipped. The `ctrl` queries files (controlled-hardness queries) were made for
+  the whole series files, so on the 100M prefixes of ASTRO, SALD and RANDOM their hardness may
+  differ from what they were made for.
 
 ## Ground truth
 
@@ -200,26 +227,3 @@ The other datasets were not timed.
 - **MIRACL's encoding:** the 860 MIRACLJA6M testing queries re-encoded on erato were
   bit-identical; other hardware or library versions can change their last digits, so copy the
   MIRACL query files from erato where that matters.
-
-## SALD100M
-
-SALD is the Southwest University Adult Lifespan Dataset: 494 subjects with one 8-minute
-resting-state fMRI scan each (Siemens Trio 3 T, TR 2 s, 64 × 64 × 32 voxels × 242 time
-points). The data-series papers (MESSI, SING, Odyssey) use "200M series of length 128,
-100 GB" derived from it, but publish neither the file nor the procedure. The script
-rebuilds a dataset of that kind:
-
-- It downloads the 10 archives (23 GB, anonymous S3) and reads the resting-state scans
-  straight from them (nothing is extracted); they hold 493 scans.
-- Each brain voxel's time course (voxel mean above 10% of the scan's highest voxel mean,
-  about 32,000 voxels per subject) is cut into windows of 128 points with stride 8, 15 per
-  voxel, and each window is z-normalized.
-- The first subject read (sub-031274) is held out: 10,000 of its windows, drawn with seed 0,
-  are the queries. Consecutive windows of a voxel share 120 of 128 points, so a query from a
-  base subject would find near-copies of itself.
-- The base is the first 100M windows of the other subjects (about the first 207); all of
-  them give 237.3M. The benchmark's SALD has 200M; 100M was chosen so it fits on smaller
-  servers.
-
-The result matches the papers' SALD in source, length and size, not necessarily series by
-series, and its overlapping windows make it denser in near-duplicates than Seismic or Astro.

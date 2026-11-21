@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Downloads and prepares the benchmark datasets of DaiSy on any server, as on the lab server.
+"""Downloads and prepares the benchmark datasets of DaiSy on any server, as on the lab servers.
 
 Every dataset goes to DATA_ROOT/<NAME>/ (in .fvecs/.ivecs files every row is an int32
 dimension followed by the float32/int32 values):
@@ -12,7 +12,15 @@ dimension followed by the float32/int32 values):
     <l2.|innprod.><split>.groundtruth.<n>.k<K>.fvecs  their squared L2 distances (ascending) or
                                                       inner products (descending)
     groundtruth_times.csv                             wall-clock seconds of every ground-truth step
-The files are the same as the lab server's (erato), built by the same rules:
+    base.<n>.ids.txt, <split>.<n>.ids.txt             (BEIR and MIRACL datasets) the document or
+                                                      query id of every row
+    query.<n>.qrels.tsv                               (BEIR and MIRACL datasets) the relevance
+                                                      judgements of the testing queries
+The files are the same as the lab servers' (erato, and stella's /gpfs/scratch/chatzakis/endor/
+processed), built by the same rules: those of create_datasets.py (Endor's dataset_organizer.py)
+and create_datasets_2.py. On stella, the base, split, id and qrels files of every dataset there
+are byte for byte this script's, and so is the ground truth with Faiss 1.9.0 (queries are
+searched in batches of 1,000, as there):
 
   dataset      source                                       splits (rows)                       metrics
   SIFT1M       BIGANN (SIFT1B): first 1M base rows          learn 80K, tuning 1K, validation 1K, L2
@@ -26,27 +34,38 @@ The files are the same as the lab server's (erato), built by the same rules:
   FEVER5M      BEIR + Cohere embed-english-v3               learn 10K, validation 1K, query 6,666 inner product, L2
   MIRACLJA6M   MIRACL ja + BGE-M3 (queries encoded here)    learn 4,268, validation 1K,          inner product, L2
                                                             query 860 (dev)
-  MSMARCO8M    BEIR + Cohere embed-english-v3               learn 80K, tuning 1K, validation 1K, inner product, L2
+  MSMARCO8M    BEIR + Cohere embed-english-v3               learn 80K, tuning 1K, validation 1K, inner product
                                                             query 6,980 (dev)
+  DEEP10M      Yandex Deep1B: first 10M base rows           as DEEP100M                          L2
+  DEEP50M      Yandex Deep1B: first 50M base rows           as DEEP100M                          L2
   DEEP100M     Yandex Deep1B: first 100M base rows          learn 80K, tuning 1K, validation 1K, L2
                                                             query 10K (public)
   MIRACLRU9M   MIRACL ru + BGE-M3                           learn 5,312, validation 1K,          inner product, L2
                                                             query 1,252
   UCASELAW7M   big-ann caselaw, single-vector documents     learn 80K, tuning 1K, validation 1K, L2
                                                             query 1K (all from the query file)
+  T2I10M       Yandex Text-to-Image: first 10M base rows    as T2I100M                           inner product
+  T2I50M       Yandex Text-to-Image: first 50M base rows    as T2I100M                           inner product
   T2I100M      Yandex Text-to-Image: first 100M base rows   learn 80K, tuning 1K, validation 1K, inner product
                                                             query 10K (of the public 100K)
-  SEISMIC100M  series file (not public): first 100M finite  query 10K (the file's last records)  L2
-               records
-  ASTRO100M    series file (not public): first 100M records query 10K (the file's last records)  L2
-  SALD100M     SALD brain fMRI (INDI S3, CC BY-NC)          query 10K (a held-out subject)       L2
-The data series have no learning splits. learn/tuning/validation come from each dataset's
-own learning queries: by row (create_datasets.py's rules, LEARN_FILE_STARTS) or as seeded
-samples of the judged train queries (BEIR, MIRACL). SEISMIC100M and ASTRO100M need their
-series .bin file (raw float32 records, no header): in --series-dir (default
-RAW_DIR/similarity-search-datasets/) under its usual name, or anywhere with --series-file
-NAME=PATH, or downloaded with --series-url; or their prepared DATA_ROOT/<NAME>/ directory
-copied from another server (then the .bin file is not needed).
+  SEISMIC100M  seismic series file (not public)             query 10K (its queries file)         none
+  ASTRO100M    astronomy series file (not public)           query 100 (its queries file)         none
+  SALD100M     SALD series file (not public)                query 100 (its queries file)         none
+  RANDOM100M   random-walk series file (not public)         query 1K (its queries file)          none
+The data series have no learning splits and no ground truth: only base and query. Their base
+is the first 100M finite records of the series file (Seismic's has all-NaN records, which are
+skipped), and their queries are the whole queries file that comes with it.
+learn/tuning/validation come from each dataset's own learning queries: by row
+(create_datasets.py's rules, LEARN_FILE_STARTS) or as seeded samples of the judged train
+queries (BEIR, MIRACL). The series datasets need their .bin files (raw little-endian float32
+records, no header): under their usual names in --series-dir or one folder below it, or
+anywhere with --series-file NAME=PATH and --series-queries NAME=PATH, or downloaded with
+--series-url; or their prepared DATA_ROOT/<NAME>/ directory copied from another server.
+
+Existing files are never replaced or changed: a file that is already there with the expected
+shape is kept, one with another shape stops the run, and the times of a run that finds a
+groundtruth_times.csv go to a new groundtruth_times.<date>.csv. So DATA_ROOT can be a folder
+that other projects use.
 
 The ground truth is computed with Faiss (exact flat index), as the lab server's files were;
 --gt-engine messi uses DaiSy's MESSI instead (lib/optimizer/daisy_groundtruth), which is
@@ -102,11 +121,6 @@ TEXMEX = "ftp://ftp.irisa.fr/local/texmex/corpus"
 COHERE_REPO = "CohereLabs/beir-embed-english-v3"
 BGE_M3_MIRACL_REPO = "hanhainebula/bge-m3_miracl_2cr"
 MIRACL_REPO = "miracl/miracl"
-SALD_URL = "https://s3.amazonaws.com/fcp-indi/data/Projects/INDI/SALD/RawData_tar"
-SALD_ARCHIVES = ["sub-031274_sub-031323", "sub-031324_sub-031373", "sub-031374_sub-031423",
-                 "sub-031424_sub-031473", "sub-031474-sub-031523", "sub-031524_sub-031573",
-                 "sub-031574_sub-031623", "sub-031624_sub-031673", "sub-031674_sub-031723",
-                 "sub-031724_sub-031767"]  # as on the SALD page; note the '-' in the fifth
 
 SEED = 42
 GT_PREFIXES = {"l2": "l2.", "ip": "innprod."}
@@ -118,6 +132,14 @@ ROW_SPLITS = {"learn": 80_000, "tuning": 1_000, "validation": 1_000}
 LEARN_FILE_STARTS = {"learn": 0, "validation": 10_000, "tuning": 20_000, "more_learn": 30_000}
 CASELAW_STARTS = {"learn": 0, "validation": 10_000, "tuning": 11_000, "query": 12_000, "more_learn": 13_000}
 LEARN_ROWS = 1_000_000
+
+# Deep1B and Text-to-Image (T2I-1B): each of their datasets is the first n base rows of the 1B
+# file, with the same query splits (only the rows used are downloaded, download_rows). T2I's
+# testing queries are the first 10K of its 100K public ones.
+DEEP1B = dict(kind="fbin", raw="DEEP1B", url=f"{YANDEX}/DEEP", base="base.1B.fbin", query="query.public.10K.fbin",
+              learn="learn.350M.fbin", layout="row_splits", splits=ROW_SPLITS, nq=10_000, d=96, metrics=["l2"])
+T2I1B = dict(kind="fbin", raw="t2i", url=f"{YANDEX}/T2I", base="base.1B.fbin", query="query.public.100K.fbin",
+             learn="query.learn.50M.fbin", layout="row_splits", splits=ROW_SPLITS, nq=10_000, d=200, metrics=["ip"])
 
 # n: base vectors, label: the size in base.<label>.fvecs, nq: testing queries, d: dimension,
 # splits: query splits besides "query" (count each), layout: how they are made, metrics:
@@ -144,12 +166,14 @@ DATASETS = {
     "MIRACLJA6M": dict(kind="miracl", lang="ja", learn_pool=5_268, layout="qrels",
                        splits={"learn": 4_268, "validation": 1_000},
                        n=6_953_614, label="6953614", nq=860, d=1024, metrics=["ip", "l2"]),
+    # Inner product only, as create_datasets.py made it (unit-norm vectors: L2 gives the same
+    # neighbours).
     "MSMARCO8M": dict(kind="beir", beir="msmarco", qrels="dev", learn_pool=502_939, layout="qrels",
                       splits=ROW_SPLITS,
-                      n=8_841_823, label="8841823", nq=6_980, d=1024, metrics=["ip", "l2"]),
-    "DEEP100M": dict(kind="fbin", raw="DEEP1B", url=f"{YANDEX}/DEEP", base="base.1B.fbin",
-                     query="query.public.10K.fbin", learn="learn.350M.fbin", layout="row_splits", splits=ROW_SPLITS,
-                     n=100_000_000, label="100M", nq=10_000, d=96, metrics=["l2"]),
+                      n=8_841_823, label="8841823", nq=6_980, d=1024, metrics=["ip"]),
+    "DEEP10M": dict(**DEEP1B, n=10_000_000, label="10M"),
+    "DEEP50M": dict(**DEEP1B, n=50_000_000, label="50M"),
+    "DEEP100M": dict(**DEEP1B, n=100_000_000, label="100M"),
     "MIRACLRU9M": dict(kind="miracl", lang="ru", learn_pool=6_312, layout="qrels",
                        splits={"learn": 5_312, "validation": 1_000},
                        n=9_543_918, label="9543918", nq=1_252, d=1024, metrics=["ip", "l2"]),
@@ -157,20 +181,27 @@ DATASETS = {
                        base="caselaw_base_embeddings.bin", query="caselaw_query_embeddings.bin",
                        query_pool=89_812, layout="row_splits", splits=ROW_SPLITS,
                        n=7_414_023, label="7M", nq=1_000, d=1536, metrics=["l2"]),
-    "T2I100M": dict(kind="fbin", raw="t2i", url=f"{YANDEX}/T2I", base="base.1B.fbin", query="query.public.100K.fbin",
-                    learn="query.learn.50M.fbin", layout="row_splits", splits=ROW_SPLITS,
-                    n=100_000_000, label="100M", nq=10_000, d=200, metrics=["ip"]),
-    # Data series (raw float32, z-normalized): the base is the file's first n finite records,
-    # the queries its last nq; records with non-finite values are skipped (Seismic has all-NaN
-    # records, probably constant series that z-normalization divided by zero).
-    "SEISMIC100M": dict(kind="series", raw="similarity-search-datasets", file="data_size100M_seismic_len256_znorm.bin",
-                        layout="none", splits={}, n=100_000_000, label="100M", nq=10_000, d=256, metrics=["l2"]),
-    "ASTRO100M": dict(kind="series", raw="similarity-search-datasets", file="data_size270M_astronomy_len256_znorm.bin",
-                      layout="none", splits={}, n=100_000_000, label="100M", nq=10_000, d=256, metrics=["l2"]),
-    # SALD brain fMRI: every brain voxel's 242-point time course cut into z-normalized windows
-    # of 128 with stride 8. The first subject read is held out and gives the queries.
-    "SALD100M": dict(kind="sald", raw="SALD", layout="none", splits={},
-                     n=100_000_000, label="100M", nq=10_000, d=128, metrics=["l2"]),
+    "T2I10M": dict(**T2I1B, n=10_000_000, label="10M"),
+    "T2I50M": dict(**T2I1B, n=50_000_000, label="50M"),
+    "T2I100M": dict(**T2I1B, n=100_000_000, label="100M"),
+    # Data series (raw float32 records, z-normalized, no header), from the data-series
+    # benchmarks; none is public. The base is the series file's first n finite records (Seismic
+    # has all-NaN records, probably constant series that z-normalization divided by zero); the
+    # queries are the queries file that comes with it, a separate file. No ground truth.
+    # Seismic's file has 109,999,999 records, Astro's 277,443,827, SALD's 899,065,213 and the
+    # random-walk file 104,857,600.
+    "SEISMIC100M": dict(kind="series", file="data_size100M_seismic_len256_znorm.bin",
+                        queries="queries_size10K_seismic_len256_znorm.bin",
+                        layout="none", splits={}, n=100_000_000, label="100M", nq=10_000, d=256, metrics=[]),
+    "ASTRO100M": dict(kind="series", file="data_size270M_astronomy_len256_znorm.bin",
+                      queries="queries_ctrl100_astronomy_len256_znorm.bin",
+                      layout="none", splits={}, n=100_000_000, label="100M", nq=100, d=256, metrics=[]),
+    "SALD100M": dict(kind="series", file="data_size899M_sald_len128_znorm.bin",
+                     queries="queries_ctrl100_sald_len128_znorm.bin",
+                     layout="none", splits={}, n=100_000_000, label="100M", nq=100, d=128, metrics=[]),
+    "RANDOM100M": dict(kind="series", file="data_size104857600random100GB_len256_znorm.bin",
+                       queries="queries_ctrl1000_random_len256_znorm.bin",
+                       layout="none", splits={}, n=100_000_000, label="100M", nq=1_000, d=256, metrics=[]),
 }
 
 
@@ -211,6 +242,23 @@ def vecs_shape(path):
     return (size // (4 * (dim + 1)), dim) if dim > 0 and size % (4 * (dim + 1)) == 0 else None
 
 
+def needs_writing(path, shape):
+    """True if `path` is missing, False if it is there with `shape`. A file there with another
+    shape stops the run: existing files are never replaced (other projects may use them)."""
+    have = vecs_shape(path)
+    if have == shape:
+        return False
+    if os.path.exists(path):
+        sys.exit(f"{path} exists with shape {have}, not {shape}. Existing files are never replaced: "
+                 f"move it away to rebuild it")
+    return True
+
+
+def refuse_existing(path):
+    if os.path.exists(path):
+        sys.exit(f"{path} already exists; existing files are never replaced")
+
+
 def bin_type(path):
     """Element type of a big-ann-benchmarks binary file: .fbin float32, .u8bin uint8."""
     return np.uint8 if path.endswith(".u8bin") else np.dtype('<f4')
@@ -234,30 +282,66 @@ def append_vecs(f, vectors, dtype='<f4'):
 
 
 def write_vecs(path, vectors, dtype='<f4'):
-    """Write a whole array, through path.tmp."""
+    """Write a whole array to a new file, through path.tmp."""
+    refuse_existing(path)
     with open(path + ".tmp", "wb") as f:
         append_vecs(f, vectors, dtype)
     os.replace(path + ".tmp", path)
 
 
-def write_fvecs(path, batches, rows, dim, desc):
-    """Write exactly `rows` rows taken from an iterable of (k, dim) arrays, through path.tmp."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    written = 0
-    with open(path + ".tmp", "wb") as f, tqdm(total=rows, desc=desc, unit="vec") as bar:
+def copy_rows(batches, rows, dim, desc, f=None, exact=False):
+    """Take `rows` rows from an iterable of (k, dim) arrays or of (ids, (k, dim) array) pairs,
+    appending them to the open file f (if given), and return the ids of the pairs, in order.
+    With exact, the source must have exactly `rows` rows and is read to its end (MIRACL's
+    archive lists its ids after its vectors); otherwise it may have more, which are not read."""
+    taken, ids = 0, []
+    with tqdm(total=rows, desc=desc, unit="vec") as bar:
         for batch in batches:
-            batch = np.asarray(batch, dtype=np.float32)[:rows - written]
+            if isinstance(batch, tuple):
+                batch_ids, batch = batch
+                ids.extend(batch_ids or [])
+            batch = np.asarray(batch, dtype=np.float32)
+            if exact and taken + len(batch) > rows:
+                raise ValueError(f"{desc}: the source has more than {rows} rows")
+            batch = batch[:rows - taken]
             if batch.ndim != 2 or batch.shape[1] != dim or not np.all(np.isfinite(batch)):
                 raise ValueError(f"{desc}: a batch of shape {batch.shape} or with non-finite values")
-            append_vecs(f, batch)
-            written += len(batch)
+            if f is not None:
+                append_vecs(f, batch)
+            taken += len(batch)
             bar.update(len(batch))
-            if written == rows:
+            if taken == rows and not exact:
                 break
-    if written != rows:
-        raise ValueError(f"{desc}: the source has only {written} of {rows} rows")
+    if taken != rows:
+        raise ValueError(f"{desc}: the source has only {taken} of {rows} rows")
+    if ids and len(ids) != rows:
+        raise ValueError(f"{desc}: {len(ids)} ids for {rows} rows")
+    return ids
+
+
+def write_fvecs(path, batches, rows, dim, desc, exact=False):
+    """Write exactly `rows` rows of copy_rows' source to a new file, through path.tmp; return their ids."""
+    refuse_existing(path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "wb") as f:
+        ids = copy_rows(batches, rows, dim, desc, f, exact)
     os.replace(path + ".tmp", path)
     print(f">> wrote {path}: {rows} x {dim}", flush=True)
+    return ids
+
+
+def ids_path(path):
+    """The ids file of an .fvecs file: one id per line, of the vector on the same row."""
+    return path.removesuffix(".fvecs") + ".ids.txt"
+
+
+def write_lines(path, lines):
+    """Write lines to a new file, through path.tmp."""
+    refuse_existing(path)
+    with open(path + ".tmp", "w") as f:
+        f.writelines(f"{line}\n" for line in lines)
+    os.replace(path + ".tmp", path)
+    print(f">> wrote {path}", flush=True)
 
 
 def chunks(vectors, rows=200_000):
@@ -335,11 +419,13 @@ def download_rows(url, path, rows):
     return first
 
 
-def hf_files(hf_dir, repo, patterns):
-    """Local copies of a Hugging Face dataset repo's files matching the patterns (downloaded if missing)."""
+def hf_files(hf_dir, repo, patterns, complete=False):
+    """Local copies of a Hugging Face dataset repo's files matching the patterns, downloaded if
+    no file matches a pattern, or, with complete, always checked against the repo (files already
+    whole are skipped; a stopped download is finished)."""
     patterns = [patterns] if isinstance(patterns, str) else list(patterns)
     local = f"{hf_dir}/{repo}"
-    if not all(glob.glob(f"{local}/{p}") for p in patterns):
+    if complete or not all(glob.glob(f"{local}/{p}") for p in patterns):
         from huggingface_hub import snapshot_download
         print(f">> downloading {repo}: {patterns}", flush=True)
         snapshot_download(repo_id=repo, repo_type="dataset", allow_patterns=patterns, local_dir=local, max_workers=8)
@@ -406,8 +492,8 @@ def row_splits(pool, starts, query):
     return {"learn": learn, "tuning": tuning, "validation": validation, "query": query}
 
 
-def sampled_splits(info, pool, query_ids, vector_of):
-    """{split: vectors} of a dataset whose queries are judged in qrels: the testing queries
+def sampled_splits(info, pool, query_ids, vector_of, qrels):
+    """Splits of a dataset whose queries are judged in qrels: the testing queries
     are the judged testing ids; the other splits are seeded samples of the learning pool
     (sorted ids), drawn in this order, each sorted: learn (its first 10K), validation, then,
     for an 80K learn, tuning and the other 70K learning queries (create_datasets_2.py, and
@@ -428,12 +514,28 @@ def sampled_splits(info, pool, query_ids, vector_of):
     rows["learn"] = np.concatenate([rows["learn"], rows.pop("more_learn", [])]).astype(np.int64)
     ids = {split: [pool[r] for r in split_rows] for split, split_rows in rows.items()}
     ids["query"] = query_ids
-    return {split: np.array([vector_of[qid] for qid in split_ids]) for split, split_ids in ids.items()}
+    splits = Splits({split: np.array([vector_of[qid] for qid in split_ids]) for split, split_ids in ids.items()})
+    splits.ids = ids
+    splits.qrels = qrels
+    return splits
+
+
+class Splits(dict):
+    """{split: vectors}, with, for the datasets judged in qrels, the query id of every row
+    ({split: ids}) and the lines of the testing queries' qrels.tsv."""
+    ids = {}
+    qrels = None
+
+
+def qrels_lines(query_ids, corpus_ids, scores):
+    """The lines of a query.<n>.qrels.tsv file (create_datasets.py's and create_datasets_2.py's)."""
+    return ["query_id\tcorpus_id\tscore"] + [f"{q}\t{c}\t{s}" for q, c, s in zip(query_ids, corpus_ids, scores)]
 
 
 # ---------------------------------------------------------------------------- sources by kind
-# Each kind gives base_batches(info, ctx) (arrays of rows, in order) and splits(info, ctx)
-# ({split: vectors} for "query" and the dataset's other splits).
+# Each kind gives base_batches(info, ctx) (arrays of rows, in order, or (ids, rows) pairs for
+# the datasets with ids) and splits(info, ctx) ({split: vectors} for "query" and the dataset's
+# other splits, or Splits).
 
 def texmex_base(info, ctx):
     return chunks(open_vectors(f"{texmex_files(info, ctx.raw)}/{info['base']}"))
@@ -541,35 +643,39 @@ def parquet_embeddings(files, d, columns=("_id", "emb")):
 
 
 def beir_base(info, ctx):
-    files = hf_files(ctx.hf, COHERE_REPO, f"{info['beir']}/corpus/*.parquet")
-    for _, vectors in parquet_embeddings(files, info["d"]):
-        yield vectors
-
-
-def qrels_ids(path):
-    import pyarrow.parquet as pq
-    return sorted(set(pq.read_table(path, columns=["query_id"]).column("query_id").to_pylist()))
+    """(document ids, vectors) of the corpus, in file order."""
+    yield from parquet_embeddings(hf_files(ctx.hf, COHERE_REPO, f"{info['beir']}/corpus/*.parquet"), info["d"])
 
 
 def beir_splits(info, ctx):
+    import pyarrow.parquet as pq
     b = info["beir"]
     [testing] = hf_files(ctx.hf, COHERE_REPO, f"{b}/qrels/{info['qrels']}.parquet")
     [train] = hf_files(ctx.hf, COHERE_REPO, f"{b}/qrels/train.parquet")
-    query_ids, pool = qrels_ids(testing), qrels_ids(train)
+    qrels = pq.read_table(testing, columns=["query_id", "corpus_id", "score"])
+    query_ids = sorted(set(qrels.column("query_id").to_pylist()))
+    pool = sorted(set(pq.read_table(train, columns=["query_id"]).column("query_id").to_pylist()))
     wanted, vector_of = set(query_ids) | set(pool), {}
     for ids, vectors in parquet_embeddings(hf_files(ctx.hf, COHERE_REPO, f"{b}/queries/*.parquet"), info["d"]):
         for qid, vector in zip(ids, vectors):
             if qid in wanted:
                 vector_of[qid] = vector
-    return sampled_splits(info, pool, query_ids, vector_of)
+    lines = qrels_lines(*(qrels.column(c).to_pylist() for c in ("query_id", "corpus_id", "score")))
+    return sampled_splits(info, pool, query_ids, vector_of, lines)
 
 
 def faiss_flat_vectors(fileobj, d, batch_rows=50_000):
-    """Vectors of a Pyserini Faiss flat index inside a .tar.gz stream (<name>/index)."""
+    """(None, vectors) batches of a Pyserini Faiss flat index inside a .tar.gz stream
+    (<name>/index), and (document ids, no vectors) once its <name>/docid list is read."""
+    found = False
     with tarfile.open(fileobj=fileobj, mode="r|gz") as archive:
         for member in archive:
-            if os.path.basename(member.name) != "index":
+            name = os.path.basename(member.name)
+            if name == "docid":
+                yield archive.extractfile(member).read().decode("utf-8").split(), np.empty((0, d), np.float32)
+            if name != "index":
                 continue
+            found = True
             index = archive.extractfile(member)
             # IndexFlat header: "IxFI", d (int32), ntotal (int64), two unused int64, is_trained
             # (uint8), metric (int32, 0 = inner product), then the float count (int64).
@@ -581,9 +687,9 @@ def faiss_flat_vectors(fileobj, d, batch_rows=50_000):
                 buffer = index.read(rows * d * 4)
                 if len(buffer) != rows * d * 4:
                     raise ValueError("truncated Faiss index")
-                yield np.frombuffer(buffer, dtype='<f4').reshape(rows, d)
-            return
-    raise ValueError("no Faiss index in the archive")
+                yield None, np.frombuffer(buffer, dtype='<f4').reshape(rows, d)
+    if not found:
+        raise ValueError("no Faiss index in the archive")
 
 
 def miracl_base(info, ctx):
@@ -608,7 +714,12 @@ def miracl_splits(info, ctx):
     base = f"miracl-v1.0-{lang}"
     [dev] = hf_files(ctx.hf, MIRACL_REPO, f"{base}/qrels/qrels.{base}-dev.tsv")
     with open(dev, encoding="utf-8") as f:
-        query_ids = sorted({line.split()[0] for line in f if line.strip()})
+        # TREC lines: query_id Q0 corpus_id score (judged non-relevant rows at score 0)
+        judged = [line.split() for line in f if line.strip()]
+    if any(len(row) != 4 for row in judged):
+        raise ValueError(f"malformed TREC qrels line in {dev}")
+    query_ids = sorted({row[0] for row in judged})
+    lines = qrels_lines([row[0] for row in judged], [row[2] for row in judged], [int(row[3]) for row in judged])
     pool = sorted({qid for split in ("train", "test-a", "test-b")
                    for qid in read_topics(hf_files(ctx.hf, MIRACL_REPO, f"{base}/topics/topics.{base}-{split}.tsv")[0])[0]})
     topic_ids, texts = [], []
@@ -633,52 +744,42 @@ def miracl_splits(info, ctx):
             if qid in vector_of:
                 raise ValueError(f"query {qid} appears twice in the MIRACL {lang} topics")
             vector_of[qid] = vector
-    return sampled_splits(info, pool, query_ids, vector_of)
+    return sampled_splits(info, pool, query_ids, vector_of, lines)
 
 
-def series_file(info, ctx):
-    """The series file as (records, d) float32: raw records, no header (the data-series .bin
-    format). Read from --series-file NAME=PATH, else from --series-dir under its usual name."""
+def series_records(info, ctx, key, at_least):
+    """A series dataset's base file (key "file") or queries file (key "queries") as a
+    read-only (records, d) float32 view: raw records, no header (the data-series .bin
+    format). Found through --series-file / --series-queries NAME=PATH, else under its usual
+    name in --series-dir or one folder below it, else downloaded from --series-url."""
     name = next(n for n, i in DATASETS.items() if i is info)
-    path = ctx.series_files.get(name, f"{ctx.series_dir}/{info['file']}")
+    override = ctx.series_files.get((name, key))
+    candidates = [override] if override else \
+        [f"{ctx.series_dir}/{info[key]}"] + sorted(glob.glob(f"{ctx.series_dir}/*/{info[key]}"))
+    path = next((p for p in candidates if os.path.exists(p)), candidates[0])
     if not os.path.exists(path):
-        if not ctx.series_url or name in ctx.series_files:
+        if not ctx.series_url or override:
+            option = "--series-file" if key == "file" else "--series-queries"
             raise FileNotFoundError(f"{path} is missing. It is not public: copy it from a server that has it (or pass "
-                                    f"--series-file {name}=PATH, --series-dir or --series-url), or copy the prepared "
+                                    f"{option} {name}=PATH, --series-dir or --series-url), or copy the prepared "
                                     f"{ctx.data}/{name}/ directory instead.")
-        download(f"{ctx.series_url}/{info['file']}", path)
+        download(f"{ctx.series_url}/{info[key]}", path)
     size, record = os.path.getsize(path), 4 * info["d"]
-    if size % record or size // record < info["n"] + info["nq"]:
-        raise FileNotFoundError(f"{path} cannot be {name}'s series file: it has {size:,} bytes, and {name} needs "
-                                f"at least {info['n'] + info['nq']:,} float32 records of {info['d']} values")
+    if size % record or size // record < at_least:
+        raise FileNotFoundError(f"{path} cannot be {name}'s {key} file: it has {size:,} bytes, and {name} needs "
+                                f"at least {at_least:,} float32 records of {info['d']} values")
+    print(f">> {name} {'base' if key == 'file' else 'queries'}: {path} ({size // record:,} records)", flush=True)
     return np.memmap(path, dtype='<f4', mode='r', shape=(size // record, info["d"]))
 
 
-def finite_rows(block):
-    return block[np.isfinite(block).all(axis=1)]
-
-
-def series_split(info, ctx):
-    """(records, q): the queries are the last nq finite records, which start at record q."""
-    records = series_file(info, ctx)
-    found, q = 0, len(records)
-    while found < info["nq"] and q > 0:
-        lo = max(0, q - 100_000)
-        good = np.flatnonzero(np.isfinite(np.asarray(records[lo:q])).all(axis=1))
-        if found + len(good) >= info["nq"]:
-            return records, lo + good[len(good) - (info["nq"] - found)]
-        found, q = found + len(good), lo
-    raise ValueError(f"{info['file']} has fewer than {info['nq']} finite records")
-
-
 def series_base(info, ctx):
-    """The first n finite records. They stop before the queries; write_fvecs fails if there
-    are fewer than n of them."""
-    records, q = series_split(info, ctx)
+    """The series file's first n finite records (write_fvecs takes n and fails if there are
+    fewer); records with a non-finite value are skipped."""
     skipped = 0
     try:
-        for block in chunks(records[:q]):
-            good = finite_rows(np.asarray(block))
+        for block in chunks(series_records(info, ctx, "file", info["n"])):
+            block = np.asarray(block)
+            good = block[np.isfinite(block).all(axis=1)]
             skipped += len(block) - len(good)
             yield good
     finally:
@@ -687,77 +788,31 @@ def series_base(info, ctx):
 
 
 def series_splits(info, ctx):
-    records, q = series_split(info, ctx)
-    return {"query": finite_rows(np.asarray(records[q:]))}
-
-
-# SALD: windows of every brain voxel's time course (voxel mean above 10% of the scan's highest
-# voxel mean), 128 points with stride 8, z-normalized; the first subject read gives the queries.
-SALD_LENGTH, SALD_STRIDE, SALD_MASK, SALD_SEED = 128, 8, 0.1, 0
-NIFTI_TYPES = {2: np.uint8, 4: np.int16, 8: np.int32, 16: np.float32, 64: np.float64, 512: np.uint16}
-
-
-def sald_scans(info, ctx):
-    """(subject, gzipped NIfTI bytes) of every resting-state scan, archive by archive (no extraction)."""
-    for name in SALD_ARCHIVES:
-        path = download(f"{SALD_URL}/{name}.tar.gz", f"{ctx.raw}/{info['raw']}/{name}.tar.gz")
-        with tarfile.open(path, "r|gz") as tar:
-            for member in tar:
-                base = os.path.basename(member.name)
-                if member.isfile() and base.endswith("_task-rest_bold.nii.gz"):
-                    yield base.split("_")[0], tar.extractfile(member).read()
-
-
-def sald_windows(scan):
-    import gzip
-    raw = gzip.decompress(scan)
-    if struct.unpack("<i", raw[0:4])[0] != 348:
-        raise ValueError("not a little-endian NIfTI-1 file")
-    nx, ny, nz, nt = struct.unpack("<8h", raw[40:56])[1:5]
-    datatype = struct.unpack("<h", raw[70:72])[0]
-    offset = int(struct.unpack("<f", raw[108:112])[0])
-    slope, inter = struct.unpack("<ff", raw[112:120])
-    data = np.frombuffer(raw, dtype=NIFTI_TYPES[datatype], count=nx * ny * nz * nt, offset=offset)
-    series = data.reshape(nt, nx * ny * nz).T.astype(np.float32)  # x fastest, time slowest
-    if slope not in (0.0, 1.0) or inter != 0.0:
-        series = series * (slope if slope != 0.0 else 1.0) + inter
-    mean, std = series.mean(axis=1), series.std(axis=1)
-    series = series[(mean > SALD_MASK * mean.max()) & (std > 0)]
-    if series.shape[1] < SALD_LENGTH:
-        return np.empty((0, SALD_LENGTH), np.float32)
-    w = np.lib.stride_tricks.sliding_window_view(series, SALD_LENGTH, axis=1)[:, ::SALD_STRIDE, :].reshape(-1, SALD_LENGTH)
-    mean, std = w.mean(axis=1, keepdims=True), w.std(axis=1, keepdims=True)
-    keep = std[:, 0] > 1e-6  # a constant window cannot be z-normalized
-    return ((w[keep] - mean[keep]) / std[keep]).astype(np.float32)
-
-
-def sald_base(info, ctx):
-    scans = sald_scans(info, ctx)
-    next(scans)  # the held-out subject
-    for _, scan in scans:
-        yield sald_windows(scan)
-
-
-def sald_splits(info, ctx):
-    subject, scan = next(sald_scans(info, ctx))
-    w = sald_windows(scan)
-    print(f">> SALD queries: {info['nq']} random windows (seed {SALD_SEED}) of held-out subject {subject}")
-    return {"query": w[np.random.default_rng(SALD_SEED).permutation(len(w))[:info["nq"]]]}
+    """The queries: the first nq records of the queries file (write_fvecs rejects non-finite ones)."""
+    return {"query": np.array(series_records(info, ctx, "queries", info["nq"])[:info["nq"]])}
 
 
 SOURCES = {
     "texmex": (texmex_base, texmex_splits), "fbin": (fbin_base, fbin_splits),
     "glove": (glove_base, glove_splits), "caselaw": (caselaw_base, caselaw_splits),
     "beir": (beir_base, beir_splits), "miracl": (miracl_base, miracl_splits),
-    "series": (series_base, series_splits), "sald": (sald_base, sald_splits),
+    "series": (series_base, series_splits),
 }
 
 
 # ---------------------------------------------------------------------------- ground truth
 
 def log_time(ctx, name, step, seconds, split="", metric="", queries=""):
-    """Append one timed ground-truth step to DATA_ROOT/<name>/groundtruth_times.csv."""
-    path = f"{ctx.data}/{name}/groundtruth_times.csv"
+    """Record one timed ground-truth step in DATA_ROOT/<name>/groundtruth_times.csv, or, if an
+    earlier run left that file, in a new groundtruth_times.<date>.csv: existing files are never
+    changed. A run appends its own rows to the file it started."""
+    path = ctx.time_logs.get(name)
+    if path is None:
+        path = f"{ctx.data}/{name}/groundtruth_times.csv"
+        if os.path.exists(path):
+            path = f"{ctx.data}/{name}/groundtruth_times.{datetime.now().strftime('%Y%m%dT%H%M%S')}.csv"
+            refuse_existing(path)
+        ctx.time_logs[name] = path
     new = not os.path.exists(path)
     with open(path, "a") as f:
         if new:
@@ -784,8 +839,8 @@ def groundtruth(name, ctx):
     splits = [s for s in (ctx.gt_splits or counts) if s in counts]
     for metric in info["metrics"]:
         missing = [s for s in splits
-                   if any(vecs_shape(f"{gt_prefix(ctx.data, name, s, metric, ctx.gt_k)}.{ext}") != (counts[s], ctx.gt_k)
-                          for ext in ("ivecs", "fvecs"))]
+                   if any([needs_writing(f"{gt_prefix(ctx.data, name, s, metric, ctx.gt_k)}.{ext}", (counts[s], ctx.gt_k))
+                           for ext in ("ivecs", "fvecs")])]
         if not missing:
             print(f">> keeping the {metric} ground truth of {name}")
             continue
@@ -814,8 +869,10 @@ def groundtruth(name, ctx):
             if (ids < 0).any():
                 raise ValueError(f"fewer than {ctx.gt_k} neighbours for {name} {split}")
             prefix = gt_prefix(ctx.data, name, split, metric, ctx.gt_k)
-            write_vecs(f"{prefix}.ivecs", ids.astype(np.int32), '<i4')
-            write_vecs(f"{prefix}.fvecs", values)
+            if needs_writing(f"{prefix}.ivecs", ids.shape):
+                write_vecs(f"{prefix}.ivecs", ids.astype(np.int32), '<i4')
+            if needs_writing(f"{prefix}.fvecs", values.shape):
+                write_vecs(f"{prefix}.fvecs", values)
             print(f">> wrote {prefix}.ivecs/.fvecs", flush=True)
             log_time(ctx, name, "search", seconds, split, metric, len(queries))
         del index
@@ -823,22 +880,85 @@ def groundtruth(name, ctx):
 
 # ---------------------------------------------------------------------------- steps
 
+def has_ids(name):
+    """True for the datasets that also get id and qrels files (BEIR, MIRACL)."""
+    return DATASETS[name]["kind"] in ("beir", "miracl")
+
+
+def qrels_path(root, name):
+    return query_path(root, name).removesuffix(".fvecs") + ".qrels.tsv"
+
+
 def prepare(name, ctx):
+    """Write every missing base, split, id and qrels file of a dataset. All existing files are
+    checked before anything is written, and none is replaced."""
     info = DATASETS[name]
     base_from, splits_from = SOURCES[info["kind"]]
     counts = split_counts(name)
-    missing = [s for s in counts if vecs_shape(split_path(ctx.data, name, s)) != (counts[s], info["d"])]
-    if missing:
+    ids = has_ids(name)
+    path = base_path(ctx.data, name)
+    vectors_missing = {s for s in counts if needs_writing(split_path(ctx.data, name, s), (counts[s], info["d"]))}
+    ids_missing = {s for s in counts if ids and not os.path.exists(ids_path(split_path(ctx.data, name, s)))}
+    qrels_missing = ids and not os.path.exists(qrels_path(ctx.data, name))
+    base_missing = needs_writing(path, (info["n"], info["d"]))
+    base_ids_missing = ids and not os.path.exists(ids_path(path))
+
+    if vectors_missing or ids_missing or qrels_missing:
         splits = splits_from(info, ctx)
-        for split in missing:
-            write_fvecs(split_path(ctx.data, name, split), [splits[split]], counts[split], info["d"], f"{name} {split}")
+        for split in counts:
+            split_file = split_path(ctx.data, name, split)
+            if split in vectors_missing:
+                write_fvecs(split_file, [splits[split]], counts[split], info["d"], f"{name} {split}")
+            if split in ids_missing:
+                write_lines(ids_path(split_file), splits.ids[split])
+        if qrels_missing:
+            write_lines(qrels_path(ctx.data, name), splits.qrels)
     else:
         print(f">> keeping the query splits of {name}: {', '.join(counts)}")
-    path = base_path(ctx.data, name)
-    if vecs_shape(path) == (info["n"], info["d"]):
-        print(f">> keeping {path}")
+
+    # The base is the first n rows of the Deep1B, T2I and series files, and all rows of the others.
+    exact = info["kind"] not in ("fbin", "series")
+    if base_missing:
+        base_ids = write_fvecs(path, base_from(info, ctx), info["n"], info["d"], f"{name} base", exact)
+    elif base_ids_missing:  # the ids alone: read the source again, without writing its vectors
+        base_ids = copy_rows(base_from(info, ctx), info["n"], info["d"], f"{name} base ids", exact=exact)
     else:
-        write_fvecs(path, base_from(info, ctx), info["n"], info["d"], f"{name} base")
+        print(f">> keeping {path}")
+    if base_ids_missing:
+        if len(set(base_ids)) != len(base_ids):
+            raise ValueError(f"{name}: the corpus has duplicate document ids")
+        write_lines(ids_path(path), base_ids)
+
+
+def download_sources(name, ctx):
+    """Download the raw files a dataset is prepared from, by the functions that read them
+    (BGE-M3, which encodes MIRACL's queries, is downloaded by the preparation itself)."""
+    info = DATASETS[name]
+    kind = info["kind"]
+    if kind == "fbin":
+        fbin_rows(info, ctx, "base", info["n"])
+        fbin_rows(info, ctx, "learn", LEARN_ROWS)
+        fbin_rows(info, ctx, "query", info["nq"])
+    elif kind == "texmex":
+        texmex_files(info, ctx.raw)
+    elif kind == "glove":
+        glove_zip(info, ctx, "base")
+        glove_zip(info, ctx, "words")
+    elif kind == "caselaw":
+        caselaw_file(info, ctx, "base")
+        caselaw_file(info, ctx, "query")
+    elif kind == "beir":
+        b = info["beir"]
+        hf_files(ctx.hf, COHERE_REPO, [f"{b}/corpus/*.parquet", f"{b}/queries/*.parquet",
+                                       f"{b}/qrels/{info['qrels']}.parquet", f"{b}/qrels/train.parquet"], complete=True)
+    elif kind == "miracl":
+        base = f"miracl-v1.0-{info['lang']}"
+        hf_files(ctx.hf, BGE_M3_MIRACL_REPO, f"dense/{info['lang']}.tar.gz", complete=True)
+        hf_files(ctx.hf, MIRACL_REPO, [f"{base}/qrels/qrels.{base}-dev.tsv", f"{base}/topics/*.tsv"], complete=True)
+    elif kind == "series":
+        series_records(info, ctx, "file", info["n"])
+        series_records(info, ctx, "queries", info["nq"])
+    print(f">> the raw files of {name} are in place", flush=True)
 
 
 def status(name, ctx):
@@ -850,7 +970,8 @@ def status(name, ctx):
         have = vecs_shape(split_path(ctx.data, name, split)) == (count, info["d"])
         gts = sum(vecs_shape(f"{gt_prefix(ctx.data, name, split, m, ctx.gt_k)}.ivecs") == (count, ctx.gt_k)
                   for m in info["metrics"])
-        parts.append(f"{split} {size_label(count)} {'ok' if have else '-'} gt {gts}/{len(info['metrics'])}")
+        gt = f" gt {gts}/{len(info['metrics'])}" if info["metrics"] else ""
+        parts.append(f"{split} {size_label(count)} {'ok' if have else '-'}{gt}")
     return f"{name:12} {info['n']:>11,} x {info['d']:<5} {gb:6.1f} GB  " + "  ".join(parts)
 
 
@@ -865,10 +986,12 @@ def main():
     p.add_argument("--hf-dir", default=os.environ.get("DAISY_HF_DIR"),
                    help="Hugging Face downloads and models (env DAISY_HF_DIR; default: <raw-dir>/hf)")
     p.add_argument("--series-dir", default=os.environ.get("DAISY_SERIES_DIR"),
-                   help="folder of the series .bin files under their usual names (env DAISY_SERIES_DIR; "
-                        "default: <raw-dir>/similarity-search-datasets)")
+                   help="folder of the series .bin files and their queries files under their usual names, there "
+                        "or one folder below (env DAISY_SERIES_DIR; default: <raw-dir>/similarity-search-datasets)")
     p.add_argument("--series-file", action="append", default=[], metavar="NAME=PATH",
                    help="a series .bin file of another name or place, e.g. ASTRO100M=/data/astro.bin (repeatable)")
+    p.add_argument("--series-queries", action="append", default=[], metavar="NAME=PATH",
+                   help="a series queries .bin file of another name or place (repeatable)")
     p.add_argument("--series-url", default=os.environ.get("DAISY_SERIES_URL"),
                    help="URL prefix to download the non-public series files from (env DAISY_SERIES_URL)")
     p.add_argument("--gt-k", type=int, default=5000, help="neighbours per query in the ground truth (default 5000)")
@@ -878,6 +1001,9 @@ def main():
     p.add_argument("--gt-tool", default=f"{REPO}/build/lib/optimizer/daisy_groundtruth",
                    help="the daisy_groundtruth binary, for --gt-engine messi")
     p.add_argument("--skip-gt", action="store_true", help="prepare base and query splits only")
+    p.add_argument("--download-only", action="store_true",
+                   help="only download the raw files (in a small job ahead of the preparation, which then "
+                        "only computes); DATA_ROOT is not written")
     p.add_argument("--threads", type=int, default=os.cpu_count(), help="threads for the ground truth and encoders")
     p.add_argument("--list", action="store_true", help="show every dataset and what is already prepared")
     args = p.parse_args()
@@ -892,16 +1018,18 @@ def main():
                              raw=os.path.abspath(args.raw_dir or f"{args.data_root}/../raw"),
                              series_url=args.series_url, gt_k=args.gt_k, gt_engine=args.gt_engine,
                              gt_splits=[s for s in args.gt_splits.split(",") if s], gt_tool=args.gt_tool,
-                             threads=args.threads)
+                             threads=args.threads, time_logs={})
     ctx.hf = os.path.abspath(args.hf_dir or f"{ctx.raw}/hf")
     ctx.series_dir = os.path.abspath(args.series_dir or f"{ctx.raw}/similarity-search-datasets")
     ctx.series_files = {}
-    for item in args.series_file:
-        name, _, path = item.partition("=")
-        if DATASETS.get(name, {}).get("kind") != "series" or not path:
-            p.error(f"--series-file {item}: expected NAME=PATH with NAME one of "
-                    f"{', '.join(n for n, i in DATASETS.items() if i['kind'] == 'series')}")
-        ctx.series_files[name] = os.path.abspath(path)
+    for option, key, items in (("--series-file", "file", args.series_file),
+                               ("--series-queries", "queries", args.series_queries)):
+        for item in items:
+            name, _, path = item.partition("=")
+            if DATASETS.get(name, {}).get("kind") != "series" or not path:
+                p.error(f"{option} {item}: expected NAME=PATH with NAME one of "
+                        f"{', '.join(n for n, i in DATASETS.items() if i['kind'] == 'series')}")
+            ctx.series_files[(name, key)] = os.path.abspath(path)
 
     if args.list:
         print(f"data root {ctx.data}, raw dir {ctx.raw}, ground truth k={ctx.gt_k} "
@@ -914,6 +1042,9 @@ def main():
         started = time.time()
         print(f">> {name} ({DATASETS[name]['kind']})", flush=True)
         try:
+            if args.download_only:
+                download_sources(name, ctx)
+                continue
             os.makedirs(f"{ctx.data}/{name}", exist_ok=True)
             prepare(name, ctx)
             if not args.skip_gt:
