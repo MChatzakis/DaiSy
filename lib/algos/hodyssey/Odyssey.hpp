@@ -28,6 +28,8 @@ namespace daisy
         int warping_window = 10;
         int leaf_size = 2000;
         int paa_segments = 16;
+        int sax_cardinality = 8;     // bits per iSAX segment at full resolution (1..8)
+        int initial_lbl_size = 2000; // leaf buffer size; at least leaf_size, so a leaf holds all its series
         int replication_groups = 0;
         int query_threads = 1;
         int pq_th_div_factor = 16;

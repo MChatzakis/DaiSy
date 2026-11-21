@@ -32,13 +32,19 @@ Run the binary directly, never under `mpirun`: Odyssey runs as a single-node MPI
 | `--k` | `1,10,100` | k values; every query is answered once per k |
 | `--queries` | `100` | Queries per dataset (see the dataset table for where they come from) |
 | `--max-base` | `0` (all) | Index only the first N base vectors |
+| `--max-threads` | `0` (the CPUs available) | Cap on the threads the grid starts from (P is the largest power of two not above it). The available CPUs are the hardware threads, at most those of the process's affinity mask (a Slurm allocation) |
 | `--budget-s` | `600` | Time cap per (configuration, k): once its queries have used this many seconds, the remaining queries of that k are skipped. `0` = no cap |
 | `--out` | `optimizer_samples.csv` | Output CSV; created, or appended to if it has the same header |
 | `--work-dir` | `optimizer_work` | Raw float32 copies of the bases, which Odyssey builds from |
 | `--data-root` | `$DAISY_DATA_ROOT`, else erato's `/mnt/hddhelp/mchatzakis/datasets/processed` | The prepared datasets ([datasets.md](datasets.md)) |
 | `--dry-run` | `0` | `1` prints the plan (sizes, memory, configurations left) without building or writing anything |
+| `--resume` | `0` | `1` skips every configuration that already has rows in `--out` (same algorithm, dataset, size and knob values), so a stopped run continues where it stopped |
 
 Every option takes a value. Bad arguments and a header mismatch exit with code 2.
+
+SIGTERM or SIGINT (Slurm sends SIGTERM at a job's time limit) stops the run before the next
+configuration and never in the middle of writing rows, so every configuration in the CSV is
+complete. The configuration that was running is lost; `--resume 1` runs it again.
 
 ## Running a full collection
 
@@ -47,26 +53,35 @@ Every option takes a value. Bad arguments and a header mismatch exit with code 2
    cd build
    ./lib/optimizer/optimizer_collector --dry-run 1 --out samples_erato.csv
    ```
-   On the lab machine (erato) it lists 14 datasets × 228 configurations = 3,192
-   configurations (up to 957,600 rows). SING is skipped there: erato has no GPU and the
+   On the lab machine (erato) it lists 19 datasets × 810 configurations = 15,390
+   configurations (up to 4,617,000 rows) once all 19 are prepared there (a dataset whose
+   files are missing is skipped). SING is skipped there: erato has no GPU and the
    build has no CUDA.
 2. Start it in the background:
    ```bash
    nohup ./lib/optimizer/optimizer_collector --out samples_erato.csv > collector_erato.log 2>&1 &
    ```
    Before Odyssey's first configuration on each dataset, the collector writes a raw
-   float32 copy of the base into `--work-dir` (default `optimizer_work`; about 570 GB for
-   all 14 datasets). Later configurations reuse it.
+   float32 copy of the base into `--work-dir` (default `optimizer_work`; about 745 GB for
+   all 19 datasets). Later configurations reuse it.
 3. Follow it with `tail -f collector_erato.log`. Every configuration prints one line;
    `grep -c ": ok " collector_erato.log` counts finished ones.
-4. There is no resume: a rerun starts from the first configuration again. If a run
-   stops, the CSV keeps every configuration that finished; restart with a new `--out`, or
-   with `--datasets` / `--algos` limited to what is missing.
+4. If a run stops, the CSV keeps every configuration that finished: run the same command
+   with `--resume 1` to continue (without it, a rerun into the same CSV starts from the
+   first configuration and duplicates rows).
+
+On stella (Slurm), `optimizer/slurm/` runs one dataset per whole node and chains 2-day jobs
+with `--resume 1` until each dataset's grid is done, writing
+`optimizer/results/stella/samples_<DATASET>.csv`; see
+[optimizer/slurm/README.md](../../optimizer/slurm/README.md).
 
 Expected duration on erato, in run order. "Measured" query times come from the exactness
 test's timings (48 threads, Gaussian breakpoints and library-default knobs, 100 queries,
 averaged over the four algorithms and k); "scaled" ones are guesses from a dataset of the
 same dimension, scaled by size:
+
+The table below predates the 810-configuration grid (2026-11-21), which is about 3.6 times
+the 228-configuration one, so multiply its totals accordingly.
 
 | Dataset | Query time | Per configuration | 171 configurations (previous grid) |
 |---|---|---|---|
@@ -84,11 +99,15 @@ same dimension, scaled by size:
 | SEISMIC100M | ~2.1 s (measured, MESSI only) | ~11 min | ~31 h |
 | ASTRO100M | assumed equal to SEISMIC100M | ~11 min | ~31 h |
 | SALD100M | assumed half of SEISMIC100M's (half as many floats) | ~6 min | ~15 h |
+| DEEP10M, DEEP50M | scaled from DEEP100M: ~0.1 s, ~0.5 s | ~0.5 min, ~2.5 min | ~1.5 h, ~7.5 h |
+| T2I10M, T2I50M | ~0.24 s (measured, T2I10M), ~1.2 s (scaled) | ~1.5 min, ~7 min | ~4 h, ~20 h |
+| RANDOM100M | assumed equal to SEISMIC100M | ~11 min | ~31 h |
 
 The table was computed for the previous grid (171 configurations per dataset, threads
 12, 24 and 48): about 7 days if fewer threads cost nothing. The current grid has 228
 configurations per dataset (threads 32, 24, 16, 8 on erato), which scales that to about
-9.5 days, and SALD100M adds about 0.8 more. Fewer threads are slower on the full
+9.5 days, and SALD100M adds about 0.8 more; the five datasets added since (DEEP10M,
+DEEP50M, T2I10M, T2I50M, RANDOM100M) add about 3.5 more. Fewer threads are slower on the full
 datasets, and 8 threads is the slowest setting in the grid, so plan for roughly 12 to 14
 days. These are rough extrapolations.
 Gaussian-breakpoint configurations on the vector datasets are the slow end (they prune
@@ -103,8 +122,10 @@ into the same `--out`.
   and point `--data-root` (or `$DAISY_DATA_ROOT`) at them. Datasets whose files are
   missing are skipped.
 - The machine columns are filled in automatically, and the `threads` grid adapts to the
-  server (P, 3P/4, P/2, P/4, where P is the largest power of two not above its hardware
-  threads).
+  server (P, 3P/4, P/2, P/4, P/8, where P is the largest power of two not above its
+  hardware threads, at most the CPUs of its affinity mask, and at most `--max-threads`). On
+  a cluster, run it on a whole node (Slurm `--exclusive`), and pass `--max-threads` when
+  nodes differ in SMT (stella's scripts pass 128).
 - SING runs only if the collector was built with `-DBUILD_SING=ON` (CUDA) and the server
   has an NVIDIA GPU; otherwise the log says why it was skipped.
 - Use one `--out` per server (for example `samples_<host>.csv`) and concatenate the
@@ -131,7 +152,7 @@ with a log line that suggests `--max-base`.
 
 ## Datasets
 
-All 14 datasets are `.fvecs` files in `DATA_ROOT/<NAME>/`, prepared on each server by
+All 19 datasets are `.fvecs` files in `DATA_ROOT/<NAME>/`, prepared on each server by
 `scripts/datasets/prepare_datasets.py`; [datasets.md](datasets.md) has their sources, how
 they are built, and what is checked.
 
@@ -144,13 +165,16 @@ they are built, and what is checked.
 | FEVER5M | `base.5416568.fvecs`, × 1024 | first N of `query.6666.fvecs` |
 | MIRACLJA6M | `base.6953614.fvecs`, × 1024 (MIRACL Japanese) | first N of `query.860.fvecs` |
 | MSMARCO8M | `base.8841823.fvecs`, × 1024 | first N of `query.6980.fvecs` |
+| DEEP10M, DEEP50M | `base.10M.fvecs` / `base.50M.fvecs`, × 96 (DEEP100M's first rows) | first N of `query.10K.fvecs` (DEEP100M's) |
 | DEEP100M | `base.100M.fvecs`, × 96 | first N of `query.10K.fvecs` |
 | MIRACLRU9M | `base.9543918.fvecs`, × 1024 (MIRACL Russian) | first N of `query.1252.fvecs` |
 | UCASELAW7M | `base.7M.fvecs`, 7,414,023 × 1536 | first N of `query.1K.fvecs` |
+| T2I10M, T2I50M | `base.10M.fvecs` / `base.50M.fvecs`, × 200 (T2I100M's first rows) | first N of `query.10K.fvecs` (T2I100M's) |
 | T2I100M | `base.100M.fvecs`, × 200 | first N of `query.10K.fvecs` |
-| SEISMIC100M | `base.100M.fvecs`, × 256, z-normalized series | first N of `query.10K.fvecs` (the series file's last records) |
-| ASTRO100M | `base.100M.fvecs`, × 256, z-normalized series | first N of `query.10K.fvecs` (the series file's last records) |
-| SALD100M | `base.100M.fvecs`, × 128, z-normalized brain-fMRI windows | first N of `query.10K.fvecs` (a subject not in the base) |
+| SEISMIC100M | `base.100M.fvecs`, × 256, z-normalized series | first N of `query.10K.fvecs` (its queries file) |
+| ASTRO100M | `base.100M.fvecs`, × 256, z-normalized series | first N of `query.100.fvecs` (its ctrl queries file) |
+| SALD100M | `base.100M.fvecs`, × 128, z-normalized series | first N of `query.100.fvecs` (its ctrl queries file) |
+| RANDOM100M | `base.100M.fvecs`, × 256, z-normalized random walks | first N of `query.1K.fvecs` (its ctrl queries file) |
 
 N is `--queries`, capped by the size of the query file. The vector datasets are not
 z-normalized, which matters for the Gaussian-breakpoint settings below.
@@ -174,32 +198,36 @@ algorithm does not have.
 
 | Column | Algorithms | Grid values | What it controls |
 |---|---|---|---|
-| `threads` | all | P, 3P/4, P/2, P/4, where P is the largest power of two not above the server's hardware threads (erato, 48 threads: 32, 24, 16, 8) | Threads that build the index and that answer one query (`setIndexWorkers` and `setSearchWorkers`; Odyssey's `index_threads`, `query_threads` and `search_workers`; SING's `setIndexWorkers` and `setNumThreads`) |
-| `leaf_size` | all | MESSI/FreSh: 500, 1000, 2000, 5000. SOFA: 5000, 20000. Odyssey: 500, 1000, 2000 | Maximum series per leaf before it splits. The leaf buffer size (`initial_lbl_size`) is set to the same value |
-| `sax_cardinality` | MESSI, FreSh | 4, 8 | Bits per iSAX segment at full resolution (4 bits = 16 symbols, 8 bits = 256) |
+| `threads` | all | P, 3P/4, P/2, P/4, P/8, where P is the largest power of two not above the server's hardware threads (erato, 48 threads: 32, 24, 16, 8, 4; stella's CPU nodes, 128: 128, 96, 64, 32, 16) | Threads that build the index and that answer one query (`setIndexWorkers` and `setSearchWorkers`; Odyssey's `index_threads`, `query_threads` and `search_workers`; SING's `setIndexWorkers` and `setNumThreads`) |
+| `leaf_size` | all | MESSI/FreSh: 500, 1000, 2000, 5000, 10000. SOFA: 5000, 10000, 20000. Odyssey: 500, 1000, 2000, 5000 | Maximum series per leaf before it splits. The leaf buffer size (`initial_lbl_size`) is set to the same value |
+| `sax_cardinality` | MESSI, FreSh, Odyssey | 4, 6, 8 | Bits per iSAX segment at full resolution (4 bits = 16 symbols, 8 bits = 256; 8 is the maximum, `sax_type` is one byte) |
 | `equidepth_breakpoints` | MESSI, FreSh | 0, 1 | 0: Gaussian breakpoints, which assume z-normalized data. 1: equi-depth breakpoints learned from the data (`setNormalized(false)`) |
-| `word_length` | SOFA | 8, 16 | Fourier coefficients per SFA word |
-| `alphabet_size` | SOFA | 8, 64 | Symbols per coefficient (the bit cardinality is its log2) |
+| `word_length` | SOFA | 8, 12, 16 | Fourier coefficients per SFA word (also the root bits: 2^word_length root nodes, so 16 is the practical maximum) |
+| `alphabet_size` | SOFA | 8, 64, 256 | Symbols per coefficient, a power of two (the bit cardinality is its log2; 256 = 8 bits is the maximum) |
 | `histogram_type` | SOFA | 1, 2 | How each coefficient's bins are learned: 1 equi-depth (equal counts), 2 equi-width (equal value range) |
 | `is_norm` | SOFA | 0 | 1 drops the DC (first) Fourier coefficient, for z-normalized data. Fixed at 0 in the grid |
 | `sample_size` | SOFA | 100000 | Series sampled to learn the bins. Fixed in the grid |
-| `pq_th_div_factor` | Odyssey | 4, 16, 64 | Odyssey splits a query's root subtrees into `threads` batches and queues each batch's candidate leaves in priority queues of at most E / `pq_th_div_factor` leaves, where E is estimated from the approximate answer's k-th distance. A larger factor gives more, smaller queues |
+| `pq_th_div_factor` | Odyssey | 2, 4, 16, 64 | Odyssey splits a query's root subtrees into `threads` batches and queues each batch's candidate leaves in priority queues of at most E / `pq_th_div_factor` leaves, where E is estimated from the approximate answer's k-th distance. A larger factor gives more, smaller queues |
 
-Grid sizes (full Cartesian product, with 4 thread values):
+Grid sizes (full Cartesian product, with 5 thread values):
 
 | Algorithm | Configurations |
 |---|---|
-| MESSI | 4 × 4 × 2 × 2 = 64 |
-| FreSh | 64 |
-| SOFA | 4 × 2 × 2 × 2 × 2 = 64 |
-| Odyssey | 4 × 3 × 3 = 36 |
-| SING (GPU servers only) | 4 |
-| Total per dataset | 228 without SING (68,400 rows with the defaults), 232 with it |
+| MESSI | 5 threads × 5 leaf sizes × 3 cardinalities × 2 breakpoint modes = 150 |
+| FreSh | 150 |
+| SOFA | 5 × 3 leaf sizes × 3 word lengths × 3 alphabets × 2 histograms = 270 |
+| Odyssey | 5 × 4 leaf sizes × 3 cardinalities × 4 queue factors = 240 |
+| SING (GPU servers only) | 5 |
+| Total per dataset | 810 without SING (243,000 rows with the defaults), 815 with it |
 
 History: 98 configurations per dataset at first; 171 on 2026-11-10 (a third search-thread
 value, and leaf_size 500 for MESSI and FreSh); 228 on 2026-11-19, when the thread knob
 became one `threads` value for both build and search, with the four power-of-two-based
-values. SING exposes only its thread counts, so its grid is the four thread values.
+values; 810 on 2026-11-21: a fifth thread value (P/8), one more value for every
+non-binary knob (MESSI/FreSh leaf_size 10000 and sax_cardinality 6; SOFA leaf_size
+10000, word_length 12, alphabet_size 256; Odyssey leaf_size 5000 and pq_th_div_factor 2),
+and `sax_cardinality` (4, 6, 8) for Odyssey, which before always used 8 bits. SING exposes
+only its thread counts, so its grid is the thread values.
 In the product the first knob of the grid varies slowest and the last fastest. The
 progress log prints each configuration's knobs.
 
@@ -207,7 +235,12 @@ Settings that are not knobs:
 
 - Build-only settings other than the thread count (read block length) are not columns.
 - `paa_segments` stays 16 for MESSI, FreSh and Odyssey: their SIMD lower bound assumes 16 segments.
-- Odyssey `leaf_size` is at most 2000 because Odyssey has no setter for its leaf buffer size.
+- Odyssey's leaf buffer size and SAX cardinality are set through `OdysseyConfig`
+  (`initial_lbl_size` = `leaf_size`, `sax_cardinality`), added on 2026-11-21; before, its
+  `leaf_size` was capped at 2000 (the fixed buffer size) and its cardinality was 8 bits.
+- SOFA's `is_norm` stays 0: dropping the DC coefficient is only right for z-normalized data,
+  and most datasets are not. `sample_size` stays 100000: it only changes how the bins are
+  learned at build time.
 - Odyssey always uses Gaussian breakpoints: it ignores `setNormalized`.
 - MESSI and SOFA use 42 work queues per query and FreSh uses `threads` / 2. These
   are fixed in the library.

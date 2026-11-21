@@ -21,8 +21,8 @@
 // The machine columns describe the server the run is on (read from /proc and /sys
 // at start-up) and are the same on every row of a run; they let samples from
 // several servers be pooled. The `threads` knob (used both to build the index and
-// to answer queries) is derived from the machine too: P, 3P/4, P/2 and P/4, where
-// P is the largest power of two not above the hardware threads.
+// to answer queries) is derived from the machine too: P, 3P/4, P/2, P/4 and P/8,
+// where P is the largest power of two not above the hardware threads.
 // latency_ms is the wall-clock time of one single-query searchIndex call.
 // build_time_ms is the wall-clock time of the configuration's buildIndex call;
 // it and the tree-shape columns repeat on every row of the configuration.
@@ -80,6 +80,8 @@
 #include <thread>
 #include <vector>
 
+#include <csignal>
+#include <sched.h>  // sched_getaffinity
 #include <unistd.h> // sysconf, fsync
 
 namespace fs = std::filesystem;
@@ -293,16 +295,32 @@ std::string fmt_machine(const Machine &m)
            m.simd + "," + std::to_string(m.gpus) + "," + m.gpu_model + "," + m.compiler + ",";
 }
 
-// Thread values to try: P, 3P/4, P/2 and P/4, where P is the largest power of two
-// that does not exceed the hardware threads (erato: 48 -> P = 32 -> 32, 24, 16, 8).
-// Values below 1 and duplicates (tiny machines) are dropped.
-std::vector<double> thread_values(const Machine &m)
+// CPUs this process may run on (its affinity mask, e.g. a Slurm allocation), 0 if unknown.
+int usable_cpus()
 {
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    return sched_getaffinity(0, sizeof(set), &set) == 0 ? CPU_COUNT(&set) : 0;
+}
+
+// Thread values to try: P, 3P/4, P/2, P/4 and P/8, where P is the largest power of two
+// that does not exceed the threads available: the hardware threads, at most the CPUs this
+// process may use, and at most --max-threads if given (erato: 48 -> P = 32 -> 32, 24, 16,
+// 8, 4; stella: 128 -> 128, 96, 64, 32, 16). Some of stella's nodes have SMT on (256
+// hardware threads), so its Slurm jobs pass --max-threads 128 to get the same grid on
+// every node. Values below 1 and duplicates (tiny machines) are dropped.
+std::vector<double> thread_values(const Machine &m, size_t max_threads)
+{
+    int available = m.threads;
+    if (int usable = usable_cpus(); usable > 0)
+        available = std::min(available, usable);
+    if (max_threads > 0)
+        available = std::min(available, (int)max_threads);
     int p = 1;
-    while (p * 2 <= m.threads)
+    while (p * 2 <= available)
         p *= 2;
     std::vector<double> v;
-    for (int t : {p, 3 * p / 4, p / 2, p / 4})
+    for (int t : {p, 3 * p / 4, p / 2, p / 4, p / 8})
         if (t >= 1 && std::find(v.begin(), v.end(), (double)t) == v.end())
             v.push_back(t);
     return v;
@@ -319,7 +337,7 @@ std::vector<double> thread_values(const Machine &m)
 const std::vector<std::string> KNOB_COLUMNS = {
     "threads",               // all: index-build and query threads
     "leaf_size",             // all: max series per leaf
-    "sax_cardinality",       // MESSI, FreSh: bits per iSAX segment (1..8)
+    "sax_cardinality",       // MESSI, FreSh, Odyssey: bits per iSAX segment (1..8)
     "equidepth_breakpoints", // MESSI, FreSh: 1 = data-adaptive breakpoints (setNormalized(false))
     "word_length",           // SOFA: number of SFA coefficients
     "alphabet_size",         // SOFA: symbols per coefficient (power of 2)
@@ -333,22 +351,25 @@ using Grid = std::vector<std::pair<std::string, std::vector<double>>>; // knob -
 using Config = std::map<std::string, double>;                          // knob -> chosen value
 
 // `threads` comes from thread_values(): on the lab machine (48 hardware threads)
-// it is {32, 24, 16, 8}.
+// it is {32, 24, 16, 8, 4}, on stella's CPU nodes (128) {128, 96, 64, 32, 16}.
+// Limits: sax_cardinality is at most 8 bits (sax_type is one byte); SOFA's
+// word_length is its number of root bits (2^word_length roots), so at most 16, and
+// its alphabet_size a power of two up to 256 (log2 = bits per symbol).
 Grid grid_for(const std::string &algo, const std::vector<double> &threads)
 {
     if (algo == "messi" || algo == "fresh")
         return {
             {"threads", threads},
-            {"leaf_size", {500, 1000, 2000, 5000}},
-            {"sax_cardinality", {4, 8}},
+            {"leaf_size", {500, 1000, 2000, 5000, 10000}},
+            {"sax_cardinality", {4, 6, 8}},
             {"equidepth_breakpoints", {0, 1}},
         };
     if (algo == "sofa")
         return {
             {"threads", threads},
-            {"leaf_size", {5000, 20000}},
-            {"word_length", {8, 16}},
-            {"alphabet_size", {8, 64}},
+            {"leaf_size", {5000, 10000, 20000}},
+            {"word_length", {8, 12, 16}},
+            {"alphabet_size", {8, 64, 256}},
             {"histogram_type", {1, 2}},
             {"is_norm", {0}},
             {"sample_size", {100000}},
@@ -356,8 +377,9 @@ Grid grid_for(const std::string &algo, const std::vector<double> &threads)
     if (algo == "odyssey")
         return {
             {"threads", threads},
-            {"leaf_size", {500, 1000, 2000}}, // at most 2000: Odyssey has no initial_lbl_size setter
-            {"pq_th_div_factor", {4, 16, 64}},
+            {"leaf_size", {500, 1000, 2000, 5000}}, // initial_lbl_size follows leaf_size
+            {"sax_cardinality", {4, 6, 8}},
+            {"pq_th_div_factor", {2, 4, 16, 64}},
         };
     if (algo == "sing")
         return {
@@ -408,13 +430,18 @@ const std::vector<DatasetSpec> DATASETS = {
     {"FEVER5M", "base.5416568.fvecs", "query.6666.fvecs"},
     {"MIRACLJA6M", "base.6953614.fvecs", "query.860.fvecs"},
     {"MSMARCO8M", "base.8841823.fvecs", "query.6980.fvecs"},
+    {"DEEP10M", "base.10M.fvecs", "query.10K.fvecs"},
+    {"DEEP50M", "base.50M.fvecs", "query.10K.fvecs"},
     {"DEEP100M", "base.100M.fvecs", "query.10K.fvecs"},
     {"MIRACLRU9M", "base.9543918.fvecs", "query.1252.fvecs"},
     {"UCASELAW7M", "base.7M.fvecs", "query.1K.fvecs"},
+    {"T2I10M", "base.10M.fvecs", "query.10K.fvecs"},
+    {"T2I50M", "base.50M.fvecs", "query.10K.fvecs"},
     {"T2I100M", "base.100M.fvecs", "query.10K.fvecs"},
     {"SEISMIC100M", "base.100M.fvecs", "query.10K.fvecs"},
-    {"ASTRO100M", "base.100M.fvecs", "query.10K.fvecs"},
-    {"SALD100M", "base.100M.fvecs", "query.10K.fvecs"},
+    {"ASTRO100M", "base.100M.fvecs", "query.100.fvecs"},
+    {"SALD100M", "base.100M.fvecs", "query.100.fvecs"},
+    {"RANDOM100M", "base.100M.fvecs", "query.1K.fvecs"},
 };
 
 // Sizes and files of a dataset, known without reading it.
@@ -625,6 +652,8 @@ std::unique_ptr<daisy::SimilaritySearchAlgorithm> make_algorithm(const std::stri
         cfg.search_workers = knob("threads");
         cfg.index_threads = knob("threads");
         cfg.leaf_size = knob("leaf_size");
+        cfg.initial_lbl_size = knob("leaf_size"); // leaf buffers must hold a full leaf
+        cfg.sax_cardinality = knob("sax_cardinality");
         cfg.pq_th_div_factor = knob("pq_th_div_factor");
         return std::make_unique<daisy::Odyssey>(cfg, daisy::DistanceType::L2_SQUARED, 0, nullptr);
     }
@@ -817,6 +846,78 @@ std::vector<std::string> split(const std::string &s)
 }
 
 // Appends a block of rows in one write and syncs it to disk.
+// Set by SIGTERM/SIGINT (Slurm sends SIGTERM at the time limit, SIGKILL some seconds
+// later). The handler only sets the flag, so a write in progress always completes, and
+// the run stops before the next configuration. Every configuration in the CSV is then
+// complete, which --resume relies on.
+volatile std::sig_atomic_t stop_requested = 0;
+extern "C" void request_stop(int) { stop_requested = 1; }
+
+void install_stop_handler()
+{
+    struct sigaction sa = {};
+    sa.sa_handler = request_stop;
+    sa.sa_flags = SA_RESTART; // interrupted writes continue
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGINT, &sa, nullptr);
+}
+
+// The key of a configuration in the CSV: algorithm, dataset_name, dataset_size and the
+// knob columns, formatted as the rows have them.
+std::string config_key(const std::string &algo, const std::string &dataset, size_t n, const std::string &knob_cols)
+{
+    return algo + "," + dataset + "," + std::to_string(n) + knob_cols;
+}
+
+// The keys of the configurations that already have rows in an existing CSV. A
+// configuration's rows are appended in one write after it finishes, so one with rows
+// there is complete. Lines of another field count (a cut last line) are ignored.
+std::set<std::string> done_configurations(const std::string &csv, const std::string &header)
+{
+    std::set<std::string> done;
+    std::ifstream in(csv);
+    std::string line;
+    if (!std::getline(in, line) || line != header)
+        return done;
+    auto fields_of = [](const std::string &l)
+    {
+        std::vector<std::string> f;
+        size_t start = 0;
+        for (size_t i = 0; i <= l.size(); i++)
+            if (i == l.size() || l[i] == ',')
+            {
+                f.push_back(l.substr(start, i - start));
+                start = i + 1;
+            }
+        return f;
+    };
+    const std::vector<std::string> names = fields_of(header);
+    auto column = [&](const std::string &name)
+    { return (size_t)(std::find(names.begin(), names.end(), name) - names.begin()); };
+    const size_t algo_col = column("algorithm"), name_col = column("dataset_name"), size_col = column("dataset_size");
+    std::vector<size_t> knob_cols;
+    for (const auto &knob : KNOB_COLUMNS)
+        knob_cols.push_back(column(knob));
+    size_t cut = 0;
+    while (std::getline(in, line))
+    {
+        const std::vector<std::string> f = fields_of(line);
+        if (f.size() != names.size())
+        {
+            cut++;
+            continue;
+        }
+        std::string knobs;
+        for (size_t c : knob_cols)
+            knobs += "," + f[c];
+        done.insert(f[algo_col] + "," + f[name_col] + "," + f[size_col] + knobs);
+    }
+    if (cut)
+        std::printf("resume: %zu lines of %s have another field count and are ignored\n", cut, csv.c_str());
+    return done;
+}
+
 void append_rows(const std::string &csv, const std::string &rows)
 {
     FILE *f = std::fopen(csv.c_str(), "a");
@@ -904,8 +1005,10 @@ struct Options
     std::string data_root = std::getenv("DAISY_DATA_ROOT") ? std::getenv("DAISY_DATA_ROOT")
                                                            : "/mnt/hddhelp/mchatzakis/datasets/processed";
     size_t queries = 100, max_base = 0;
+    size_t max_threads = 0; // cap on the largest thread value (0: the CPUs available)
     double budget_s = 600;
     bool dry_run = false;
+    bool resume = false; // skip the configurations that already have rows in --out
 };
 
 int parse_options(int argc, char **argv, Options &o)
@@ -930,6 +1033,8 @@ int parse_options(int argc, char **argv, Options &o)
                 o.queries = std::stoul(val);
             else if (key == "--max-base")
                 o.max_base = std::stoul(val);
+            else if (key == "--max-threads")
+                o.max_threads = std::stoul(val);
             else if (key == "--budget-s")
                 o.budget_s = std::stod(val);
             else if (key == "--out")
@@ -940,6 +1045,8 @@ int parse_options(int argc, char **argv, Options &o)
                 o.data_root = val;
             else if (key == "--dry-run")
                 o.dry_run = val != "0";
+            else if (key == "--resume")
+                o.resume = val != "0";
             else
             {
                 std::fprintf(stderr, "unknown option %s (see docs/optimizer-notes/collector.md)\n", key.c_str());
@@ -1007,7 +1114,7 @@ int main(int argc, char **argv)
 
     const Machine machine = detect_machine();
     const std::string machine_cols = fmt_machine(machine);
-    const std::vector<double> threads = thread_values(machine);
+    const std::vector<double> threads = thread_values(machine, opt.max_threads);
     std::printf("machine: %s\n", machine_cols.substr(0, machine_cols.size() - 1).c_str());
     std::string thread_list;
     for (double t : threads)
@@ -1021,11 +1128,20 @@ int main(int argc, char **argv)
         if (int rc = prepare_csv(opt.out))
             return rc;
         fs::create_directories(opt.work_dir);
+        install_stop_handler();
+    }
+    std::set<std::string> done;
+    if (opt.resume && fs::exists(opt.out))
+    {
+        done = done_configurations(opt.out, csv_header());
+        std::printf("resume: %zu configurations already in %s are skipped\n", done.size(), opt.out.c_str());
     }
 
     size_t total_configs = 0, total_rows = 0;
     for (const DatasetSpec &spec : DATASETS)
     {
+        if (stop_requested)
+            break;
         if (opt.datasets != "all" && ("," + opt.datasets + ",").find("," + spec.name + ",") == std::string::npos)
             continue;
         std::printf("== %s\n", spec.name.c_str());
@@ -1056,11 +1172,23 @@ int main(int argc, char **argv)
                 std::printf("   %s: %s, skipped\n", algo.c_str(), reason.c_str());
                 continue;
             }
-            todo.emplace_back(algo, expand(grid_for(algo, threads)));
-            std::printf("   %s: %zu configurations\n", algo.c_str(), todo.back().second.size());
+            std::vector<Config> configs, all = expand(grid_for(algo, threads));
+            for (const Config &c : all)
+                if (!done.count(config_key(algo, spec.name, shape.n, fmt_knobs(c))))
+                    configs.push_back(c);
+            if (configs.size() == all.size())
+                std::printf("   %s: %zu configurations\n", algo.c_str(), configs.size());
+            else
+                std::printf("   %s: %zu configurations, %zu of them already done\n", algo.c_str(), all.size(),
+                            all.size() - configs.size());
+            if (!configs.empty())
+                todo.emplace_back(algo, configs);
         }
         if (todo.empty())
+        {
+            std::printf("   nothing to run\n");
             continue;
+        }
         if (need_bytes > MEMORY_HEADROOM * mem_available_bytes())
         {
             std::printf("   skipped: needs about %.1f GB, %.1f GB available (use --max-base)\n", gb(need_bytes),
@@ -1126,7 +1254,7 @@ int main(int argc, char **argv)
                     continue;
                 }
             }
-            for (size_t i = 0; i < configs.size(); i++)
+            for (size_t i = 0; i < configs.size() && !stop_requested; i++)
             {
                 auto t0 = Clock::now();
                 std::string status = "ok";
@@ -1150,6 +1278,9 @@ int main(int argc, char **argv)
     if (opt.dry_run)
         std::printf("dry run: %zu configurations (%zu rows at most) to run\n", total_configs,
                     total_rows);
+    else if (stop_requested)
+        std::printf("stopped by a signal; the configurations written to %s are complete (rerun with --resume 1)\n",
+                    opt.out.c_str());
     else
         std::printf("samples written to %s\n", opt.out.c_str());
 #if defined(ODYSSEY_MPI) && ODYSSEY_MPI

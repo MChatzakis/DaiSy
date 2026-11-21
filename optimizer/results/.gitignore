@@ -1,0 +1,5 @@
+# Collector outputs are large (about 100 MB per dataset with the 810-configuration grid) and
+# are not versioned; only the folder layout is. Force-add a file to keep it in git.
+*.csv
+*/logs/*
+!*/logs/.gitkeep

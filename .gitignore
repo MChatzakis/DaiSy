@@ -41,6 +41,7 @@ daisy_index_nodes/
 
 # Build directories
 build/
+build-*/
 dist/
 *.egg-info/
 build.log
@@ -135,3 +136,6 @@ docs/figures/*
 validate_large_datasets_work/
 # Work directory of lib/optimizer/optimizer_collector (raw base copies, logs)
 optimizer_work/
+
+# Slurm output of jobs submitted from the repository root
+slurm-*.out

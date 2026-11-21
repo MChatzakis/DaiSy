@@ -2173,6 +2173,8 @@ namespace daisy
         this->warping_window = config.warping_window;
         this->leaf_size = config.leaf_size;
         this->paa_segments = config.paa_segments;
+        this->sax_cardinality = config.sax_cardinality;
+        this->initial_lbl_size = config.initial_lbl_size;
         this->replication_groups = config.replication_groups;
         this->query_threads = config.query_threads;
         this->pq_th_div_factor = config.pq_th_div_factor;

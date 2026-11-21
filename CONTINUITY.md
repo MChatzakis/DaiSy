@@ -1336,6 +1336,55 @@ windows after the held-out subject. The SALD archives moved to
 `/mnt/hddhelp/mchatzakis/datasets/SALD/`. GLOVE1M's query rows are in
 `docs/datasets/glove1m_query_rows.txt`. Details: `docs/optimizer-notes/datasets.md`.
 
+## Datasets on stella, 19 datasets (2026-11-20)
+
+Supersedes the series rules above. On stella (SLURM cluster), DATA_ROOT is
+`/gpfs/scratch/chatzakis/endor/processed`, which the Endor-DR-Bench project built (with its
+`scripts/dataset_organizer.py` = `scripts/datasets/create_datasets.py`, env `py-endor`:
+numpy 2.2.6, faiss 1.9.0) and still uses: never change a file there. prepare_datasets.py now
+never replaces or appends to an existing file (a wrong-shaped file stops the run; times go to
+a new `groundtruth_times.<date>.csv` if one exists), so runs only add new files/folders.
+- Added DEEP10M, DEEP50M, T2I10M, T2I50M (first rows of the 1B files, shared splits), the
+  `.ids.txt` / `qrels.tsv` files of BEIR and MIRACL (as the Endor scripts wrote them), and
+  `--download-only`. MSMARCO8M is inner product only (as on stella).
+- Data series now come from local `.bin` files and have base + query only, no ground truth:
+  base = first 100M finite records of the series file, query = the whole queries file
+  (SEISMIC100M `queries_size10K`, ASTRO100M and SALD100M `queries_ctrl100`, new RANDOM100M
+  from `randomDatasets/data_size104857600random100GB` with `queries_ctrl1000`). The fMRI SALD
+  pipeline is gone. The collector reads `query.100.fvecs` for ASTRO/SALD, `query.1K` for RANDOM.
+- Jobs, logs and the read-only checker `verify_existing.py` (regenerates every existing
+  dataset in memory and compares base, splits, ids, qrels and the first 1,000 ground-truth rows
+  of tuning and query bit for bit) are in `/gpfs/scratch/chatzakis/daisy-data/{jobs,logs}`;
+  new raw downloads in `/gpfs/scratch/chatzakis/daisy-data/raw` (endor/raw is only read). The
+  Python env is `/gpfs/users/chatzakis/envs/daisy-data` (venv over py-endor + torch,
+  transformers for MIRACL).
+- Not reproduced by the script: the `generated/` hardness workloads of DEEP10M and GLOVE1M
+  (Endor's query_generator.py).
+
+## Collector grid 810, resume, Slurm scripts (2026-11-21)
+
+- Grid: threads P, 3P/4, P/2, P/4, P/8; one more value for every non-binary knob; Odyssey
+  gained `sax_cardinality` {4, 6, 8} and leaf_size 5000 (`OdysseyConfig::sax_cardinality`
+  and `initial_lbl_size`, new; before, Odyssey always used the base class's 8 bits and
+  2000-slot leaf buffers). 810 configurations per dataset (MESSI 150, FreSh 150, SOFA 270,
+  Odyssey 240). Details: `docs/optimizer-notes/collector.md`.
+- `--resume 1` skips configurations already in `--out` (key: algorithm, dataset_name,
+  dataset_size, knob columns). SIGTERM/SIGINT set a flag: the run stops between
+  configurations, never mid-write. `--max-threads N` caps P; the default also caps it at
+  the affinity mask's CPUs.
+- `optimizer/slurm/`: `build_optimizer.sbatch` (on a compute node: -march=native; compiles with the
+  openmpi module's GCC 10.3, because a system-GCC-11 binary fails at run time against the
+  module's libstdc++), `submit_collection.sh` + `collect_dataset.sbatch` (one dataset per
+  exclusive node, `--resume 1`, self-resubmitting 2-day rounds via `--signal=B:USR1@1800`),
+  `prepare_datasets.sbatch`, `download_datasets.sbatch`. `optimizer/slurm/README.md` has the
+  workflow. Results: `optimizer/results/<server>/samples_<DATASET>.csv` and `logs/` (not
+  versioned, `optimizer/results/.gitignore`); Odyssey's raw base copies on scratch
+  (`/gpfs/scratch/chatzakis/daisy-data/optimizer-work`).
+- stella quirks: Open MPI is built without Slurm PMI, so Odyssey's singleton `MPI_Init`
+  aborts the collector when `SLURM_*` variables are set; the job strips them. CPU nodes
+  differ although Slurm reports them identical (SMT on some: 256 threads on ncpu034; 8 or
+  2 NUMA nodes), hence `--max-threads 128` in the jobs.
+
 ## Search statistics (2026-11-08)
 
 The collector's knobs, outputs and caveats are documented in
