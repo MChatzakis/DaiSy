@@ -1,5 +1,5 @@
-# Collector outputs are large (about 100 MB per dataset with the 810-configuration grid) and
-# are not versioned; only the folder layout is. Force-add a file to keep it in git.
+# The collector's own CSVs are large (about 70 MB per dataset with the 810-configuration
+# grid) and are not versioned: gzipped snapshots of them (samples_*.csv.gz, about 7 MB) are.
 *.csv
 */logs/*
 !*/logs/.gitkeep
